@@ -77,9 +77,10 @@ export default function App() {
             <div className="hero-card">
               <h2>Service Endpoint</h2>
               <p>
-                This form posts to <span>VITE_API_BASE_URL</span> +
-                <span> /api/crops</span>. Update your environment variables to
-                match the Agri_Forecast controller endpoints.
+                This form posts <span>createDto</span> (with the crop name) to
+                <span> VITE_API_BASE_URL</span> + <span> /api/crops</span>.
+                Update your environment variables to match the Agri_Forecast
+                controller endpoints.
               </p>
             </div>
           </header>

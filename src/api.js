@@ -6,7 +6,7 @@ export async function createCrop(payload) {
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ createDto: payload }),
   });
 
   if (!response.ok) {
