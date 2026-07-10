@@ -1,0 +1,21 @@
+{
+  "name": "AgriForecast",
+  "short_name": "AgriForecast",
+  "description": "Honest crop price forecasts for Sri Lankan farmers.",
+  "lang": "en",
+  "dir": "ltr",
+  "start_url": "/overview",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F4F7F6",
+  "theme_color": "#0B3B34",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

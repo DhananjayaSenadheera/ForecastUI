@@ -1,0 +1,246 @@
+/* =============================================================================
+   AgriForecast Farmer App — Design Tokens v1
+   FE-1 (ClickUp 86canmejb) · 2026-07-10 · light-only, Release 1
+   -----------------------------------------------------------------------------
+   Source of truth: PRD v1.0 §5 + FE-0 wireframes (signed off 2026-07-10) +
+   owner-checked hi-fi direction samples. FE-2 imports this file VERBATIM.
+
+   Governing rules baked into these tokens (do not "fix" them out):
+   - Color NEVER encodes meaning alone — every semantic color ships with an
+     icon + text label. These tokens only supply the hue; components pair it.
+   - Confidence contract strings "Low"/"Medium"/"High" are FROZEN in the API.
+     Only the DISPLAY label is translated ("Low / Fair / Good"). Never remap.
+   - Teal is the brand hue: the one color with agricultural affinity and NO
+     Sri Lankan political-party ownership (green=UNP, blue=SLFP, red=JVP/NPP,
+     maroon=SLPP). Leaf-green appears ONLY as a semantic "good" signal, never
+     as brand surface.
+   - Light theme only in R1 (sunlight readability: maximum luminance surfaces,
+     AAA body contrast). No dark theme, no gradients (banding + sunlight washout).
+
+   DEVIATION FROM PRD §5.1 (recorded): PRD's color table loosely mapped
+   Low-confidence -> red and Medium -> amber. The signed-off hi-fi direction
+   instead uses AMBER for Low confidence / Little-data / stale-data (caution, not
+   danger) and reserves RED strictly for the "Not recommended" verdict. These
+   tokens follow the signed-off hi-fi mapping; see --conf-* and --verdict-* below.
+   ============================================================================= */
+
+:root {
+
+  /* ---------------------------------------------------------------------------
+     1 · BRAND — teal ramp (Tailwind teal; brand primary = teal-700 per PRD)
+     700 passes 4.5:1 on white for text; 800/900 for text-on-tint & markers.
+  --------------------------------------------------------------------------- */
+  --teal-50:  #F0FDFA;
+  --teal-100: #CCFBF1;
+  --teal-200: #99F6E4;
+  --teal-300: #5EEAD4;
+  --teal-400: #2DD4BF;
+  --teal-500: #14B8A6;
+  --teal-600: #0D9488;
+  --teal-700: #0F766E;   /* BRAND / primary actions — 4.75:1 on #FFF */
+  --teal-800: #115E59;
+  --teal-900: #134E4A;   /* brand dark — text on teal tints, chart markers */
+
+  --brand:        var(--teal-700);
+  --brand-strong: var(--teal-800);
+  --brand-dark:   var(--teal-900);
+  --brand-tint:   var(--teal-50);    /* faint teal wash behind price/hero */
+  --brand-tint-2: #E3F1EE;           /* stronger teal chip/badge fill */
+
+  /* ---------------------------------------------------------------------------
+     2 · NEUTRALS — teal-biased (cool green-grey) surfaces & lines.
+     Text tokens keep PRD's contrast-verified values (near-black / slate).
+  --------------------------------------------------------------------------- */
+  --surface:       #FFFFFF;   /* cards, app bar — max luminance */
+  --surface-2:     #F4F7F6;   /* page background (teal-biased off-white) */
+  --surface-3:     #F8FAF9;   /* subtle inset / alt row */
+  --line:          #DCE7E4;   /* default border / divider (teal-biased) */
+  --line-strong:   #C9D6D2;   /* emphasised border, axis baseline */
+
+  --text:          #111827;   /* body / primary — >=7:1 on white (AAA target) */
+  --text-2:        #4B5563;   /* secondary — never lighter than this for meaning */
+  --text-3:        #5A6E69;   /* muted teal-grey for captions/provenance (>=4.5:1) */
+  --text-on-brand: #FFFFFF;   /* text on solid teal (11.7:1 on teal-700) */
+
+  /* ---------------------------------------------------------------------------
+     3 · SEMANTIC — always paired with an icon + text label by the component.
+     good=green · warn=amber · critical=red. Backgrounds are pale tints for
+     badges/callouts; foregrounds are dark enough for AA text on that tint.
+  --------------------------------------------------------------------------- */
+  --good:        #15803D;   /* green-700 · Recommended / Good confidence */
+  --good-fg:     #0A5C50;   /* text on good tint */
+  --good-bg:     #E3F1EE;
+
+  --warn:        #B45309;   /* amber-700 · caution — NOT saffron-bright */
+  --warn-fg:     #8A4A08;   /* text on warn tint (AA on --warn-bg) */
+  --warn-bg:     #FDF1DC;
+
+  --critical:    #B91C1C;   /* red-700 · used in small doses, verdict only */
+  --critical-fg: #8C2F24;
+  --critical-bg: #F7E9E7;
+
+  --neutral-fg:  #445853;   /* "Possible / Fair" grey-green (no alarm color) */
+  --neutral-bg:  #EEF2F1;
+
+  /* Confidence → color (display labels Good/Fair/Low; API strings frozen) ---- */
+  --conf-good-fg: var(--good-fg);   --conf-good-bg: var(--good-bg);   /* High  */
+  --conf-fair-fg: var(--neutral-fg);--conf-fair-bg: var(--neutral-bg);/* Medium*/
+  --conf-low-fg:  var(--warn-fg);   --conf-low-bg:  var(--warn-bg);   /* Low   */
+  --conf-dot-on:  var(--teal-700);  /* filled pictograph dot */
+  --conf-dot-off: #C7D6D2;          /* empty pictograph dot */
+
+  /* Recommendation verdict → color -------------------------------------------- */
+  --verdict-recommended-fg: var(--good-fg);     --verdict-recommended-bg: var(--good-bg);
+  --verdict-possible-fg:    var(--neutral-fg);  --verdict-possible-bg:    var(--neutral-bg);
+  --verdict-littledata-fg:  var(--warn-fg);     --verdict-littledata-bg:  var(--warn-bg);
+  --verdict-notrec-fg:      var(--critical-fg); --verdict-notrec-bg:      var(--critical-bg);
+
+  /* LowTrust (stale-data notice) = amber caution ----------------------------- */
+  --lowtrust-fg: var(--warn-fg);
+  --lowtrust-bg: var(--warn-bg);
+  --lowtrust-border: #F1D9A8;
+
+  /* Price emphasis — the number is the hero (near-black on faint teal tint) --- */
+  --price-fg: var(--text);
+  --price-bg: var(--brand-tint);
+
+  /* ---------------------------------------------------------------------------
+     4 · CHART TOKENS
+     4a · Single-series forecast/history: single-hue teal + translucent band.
+          A range is ALWAYS a filled band + a bold central line; never a bare
+          interval and never a chart-only view (a table alternative is required).
+  --------------------------------------------------------------------------- */
+  --chart-line:        var(--teal-700);              /* central estimate line   */
+  --chart-line-low:    var(--teal-600);              /* dashed when low-conf     */
+  --chart-band-fill:   rgba(15, 118, 110, 0.15);     /* P10–P90 shaded band      */
+  --chart-band-stroke: rgba(15, 118, 110, 0.28);
+  --chart-marker:      var(--teal-900);              /* harvest / point marker   */
+  --chart-today:       #9CB4AE;                      /* "today" guide (dashed)   */
+  --chart-grid:        #ECF2F0;
+  --chart-axis:        var(--text-3);
+  --chart-past:        var(--teal-800);              /* solid past-price line     */
+
+  /* Seasonality intensity ramp — SINGLE HUE, encoded by LIGHTNESS (CVD-safe:
+     lightness ordering survives all color-vision deficiencies). Cells also carry
+     a month label + a table alternative; hue is never the sole encoding. */
+  --season-1: #F0FDFA;  --season-2: #CCFBF1;  --season-3: #99F6E4;
+  --season-4: #5EEAD4;  --season-5: #2DD4BF;  --season-6: #0D9488;
+  --season-7: #0F766E;  --season-8: #115E59;
+
+  /* 4b · CATEGORICAL — market-vs-market comparison. Fixed order, Okabe–Ito
+     derived, color-blind-safe.
+     CVD RATIONALE: this quartet is drawn from the Okabe–Ito palette, the
+     reference set proven distinguishable under deuteranopia, protanopia AND
+     tritanopia. Order leads with blue+orange (the pair most robustly separable
+     across every CVD type), then bluish-green, then reddish-purple — each step
+     maximises perceptual distance for red-green–blind users. The set is ALSO
+     distinct in luminance, so it reads in greyscale / direct sunlight. Encoding
+     still never relies on hue alone: bars are directly labelled and ordered.
+     Assign markets to slots 1..4 in a STABLE order (e.g. by market id) so a
+     given market keeps its color across every chart in a session. */
+  --cat-1: #0072B2;   /* blue        */
+  --cat-2: #E69F00;   /* orange      */
+  --cat-3: #009E73;   /* bluish-green*/
+  --cat-4: #CC79A7;   /* reddish-purple */
+
+  /* Direction cues for factor breakdown (icon+label always accompany) -------- */
+  --dir-up:   var(--good-fg);   /* ↑ raises price */
+  --dir-down: var(--warn-fg);   /* ↓ lowers price */
+  --dir-flat: var(--text-3);    /* — neutral      */
+
+  /* ---------------------------------------------------------------------------
+     5 · TYPOGRAPHY (trilingual)
+     Stack: Noto Sans Sinhala/Tamil first so those scripts win; self-hosted at
+     FE-2. PITFALL: the Noto Sans Sinhala WRONG-ASCENDER defect (Noto issue #660)
+     was only fixed in 2020+ builds — NEVER ship an old cached/CDN binary; pin the
+     current self-hosted subset and verify ascenders/ේ-marks render uncut.
+  --------------------------------------------------------------------------- */
+  --font-sans: 'Noto Sans Sinhala', 'Noto Sans Tamil', 'Noto Sans',
+               system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Numerals use the same stack + tabular figures so price columns align. */
+  --font-numeric: var(--font-sans);
+  --fvn-tabular: tabular-nums;   /* apply via font-variant-numeric on numbers */
+
+  /* Type scale — body >=16px; NEVER below 14px for any Sinhala/Tamil string.
+     12px is permitted ONLY for Latin/numeric micro-labels (axis ticks, meta). */
+  --fs-price-hero: 40px;   /* hero central estimate (desktop) — numeral-first   */
+  --fs-price:      30px;   /* standard price display                            */
+  --fs-price-sm:   22px;   /* price in list rows                                */
+  --fs-h1:         26px;
+  --fs-h2:         21px;
+  --fs-h3:         18px;
+  --fs-title:      17px;
+  --fs-body-lg:    18px;
+  --fs-body:       16px;   /* MINIMUM body size                                */
+  --fs-sm:         14px;   /* smallest size allowed for Sinhala/Tamil text      */
+  --fs-xs:         12px;   /* Latin/number micro-labels ONLY                    */
+
+  --fw-regular: 400;
+  --fw-medium:  600;
+  --fw-bold:    700;
+  --fw-black:   800;   /* price hero / brand wordmark */
+
+  /* Line-height — Sinhala & Tamil need more vertical room than Latin.
+     NEVER put text in a fixed-height box with overflow:hidden (clips Sinhala
+     ascenders & Tamil vowel marks). Use these as min line-heights. */
+  --lh-body:  1.7;    /* body / Sinhala */
+  --lh-tamil: 1.8;    /* apply to Tamil-locale text containers */
+  --lh-heading: 1.3;
+  --lh-numeral: 1.05; /* tight — Latin numerals only, never on script text */
+
+  --ls-tight: -0.01em; /* headings / hero numerals only */
+  /* NOTE: no --text-transform token exists on purpose. text-transform:uppercase
+     is BANNED app-wide (meaningless/harmful for Sinhala & Tamil). */
+
+  /* ---------------------------------------------------------------------------
+     6 · SPACING — 4px base scale
+  --------------------------------------------------------------------------- */
+  --sp-1: 4px;   --sp-2: 8px;   --sp-3: 12px;  --sp-4: 16px;
+  --sp-5: 20px;  --sp-6: 24px;  --sp-8: 32px;  --sp-10: 40px;  --sp-12: 48px;
+
+  /* ---------------------------------------------------------------------------
+     7 · RADII
+  --------------------------------------------------------------------------- */
+  --r-sm:   6px;
+  --r-md:   10px;
+  --r-lg:   14px;   /* cards */
+  --r-pill: 999px;  /* badges, language switcher, audio button */
+
+  /* ---------------------------------------------------------------------------
+     8 · ELEVATION (light theme; subtle, teal-tinted shadows — no gradients)
+  --------------------------------------------------------------------------- */
+  --e-0: none;
+  --e-1: 0 1px 2px rgba(10, 40, 35, 0.06);
+  --e-2: 0 2px 8px rgba(10, 40, 35, 0.08);
+  --e-3: 0 12px 32px rgba(10, 40, 35, 0.14);   /* screen/frame float */
+
+  /* ---------------------------------------------------------------------------
+     9 · TOUCH / FOCUS — >=44px targets; 48px primary buttons.
+  --------------------------------------------------------------------------- */
+  --touch-min:     44px;   /* every interactive target — min hit area           */
+  --touch-primary: 48px;   /* primary buttons                                   */
+  --touch-hero:    52px;   /* hero CTA on desktop                               */
+
+  --focus-ring: 0 0 0 3px rgba(15, 118, 110, 0.45); /* visible teal focus ring  */
+  --focus-offset: 2px;
+
+  /* ---------------------------------------------------------------------------
+     10 · MOTION — respect prefers-reduced-motion in components.
+  --------------------------------------------------------------------------- */
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0ms; --dur-base: 0ms; }
+}
+
+/* -----------------------------------------------------------------------------
+   RESPONSIVE BREAKPOINTS (desktop-first; documented here, applied in components)
+     >=1024px  Desktop web (PRIMARY): header nav, 2–3 column layouts.
+     600–1023  Tablet: condensed nav, 2-col → 1-col, tables scroll.
+     <600px    Mobile: bottom tab bar, single column, tables → key-value cards.
+   The trilingual type scale is IDENTICAL across breakpoints — desktop's extra
+   width buys more content, never bigger fonts.
+----------------------------------------------------------------------------- */

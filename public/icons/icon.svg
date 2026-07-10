@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="AgriForecast">
+  <rect width="512" height="512" rx="96" fill="#0B3B34"/>
+  <rect x="150" y="150" width="212" height="212" rx="54" fill="#0F766E"/>
+  <!-- simple leaf glyph placeholder — swapped for the commissioned brand mark later -->
+  <path d="M256 176c-52 20-86 66-86 118 0 26 10 44 24 56 6-58 34-96 78-124-34 36-50 74-52 122 30 4 58-6 78-30 22-26 30-64 20-104-16-64-52-84-84-38z" fill="#CCFBF1"/>
+</svg>

@@ -1,0 +1,442 @@
+/* =============================================================================
+   AgriForecast — dashboard shell (FE-2). Normative ref: dashboard-style-samples-v1
+   Desktop (>=1024): dark teal sidebar + main column w/ top filter bar slot.
+   Tablet (600–1023): condensed sidebar (icons + label wrap).
+   Mobile (<600): sidebar hidden, bottom tab bar; main column full width.
+   ============================================================================= */
+
+.shell {
+  display: grid;
+  grid-template-columns: 216px 1fr;
+  min-height: 100vh;
+}
+
+/* ---------------- sidebar (desktop / tablet) ---------------- */
+.sidebar {
+  background: #0b3b34; /* dark teal — matches normative sample */
+  color: #d8eae6;
+  padding: 18px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: var(--fw-black);
+  font-size: 16px;
+  color: #fff;
+  padding: 6px 10px 18px;
+}
+.sidebar__leaf {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--brand);
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  flex: none;
+}
+
+.sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.navitem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #bfd8d3;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  padding: 11px 12px;
+  border-radius: var(--r-md);
+  min-height: var(--touch-min);
+  text-decoration: none;
+}
+.navitem:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+.navitem.is-active {
+  background: var(--brand);
+  color: #fff;
+}
+.navitem__icon {
+  font-size: 16px;
+  flex: none;
+  width: 20px;
+  text-align: center;
+}
+.navitem__soon {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: var(--r-pill);
+  padding: 2px 8px;
+  min-height: 0;
+}
+
+.sidebar__foot {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 6px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+/* language switcher (pill segmented) */
+.langswitch {
+  display: flex;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+  width: max-content;
+}
+.langswitch__opt {
+  padding: 8px 12px;
+  color: #bfd8d3;
+  font-size: 12px;
+  font-weight: var(--fw-bold);
+  min-height: var(--touch-min);
+  display: flex;
+  align-items: center;
+}
+.langswitch__opt.is-active {
+  background: #fff;
+  color: #0b3b34;
+}
+
+/* audio-help button (stub) */
+.audiohelp {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #d8eae6;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+  min-height: var(--touch-min);
+  text-align: left;
+  width: 100%;
+}
+.audiohelp:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* ---------------- main column ---------------- */
+.main {
+  padding: 20px 22px 26px;
+  max-width: 1300px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.topbar__title {
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-black);
+  margin: 0;
+}
+.filterchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 9px 14px;
+  font-size: 13.5px;
+  font-weight: var(--fw-medium);
+  color: var(--text);
+  min-height: var(--touch-min);
+}
+.topbar__updated {
+  margin-left: auto;
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+.prov::before {
+  content: '\2713\00a0';
+  color: var(--brand);
+  font-weight: var(--fw-black);
+}
+
+/* ---------------- page building blocks (layout slots only) ---------------- */
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.panelgrid {
+  display: grid;
+  gap: 14px;
+}
+.panelgrid--main {
+  grid-template-columns: 1.9fr 1fr;
+}
+.panelgrid--half {
+  grid-template-columns: 1fr 1fr;
+}
+.panelgrid--workspace {
+  grid-template-columns: 250px 1fr;
+}
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 16px 18px;
+}
+.panel__title {
+  font-size: 12px;
+  letter-spacing: 0.09em;
+  color: var(--text-3);
+  margin: 0 0 10px;
+  font-weight: var(--fw-bold);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.kpi {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 14px 16px;
+}
+.kpi__lbl {
+  font-size: 12px;
+  color: var(--text-3);
+  font-weight: var(--fw-medium);
+}
+.kpi__val {
+  font-size: var(--fs-h1);
+  font-weight: var(--fw-black);
+  letter-spacing: var(--ls-tight);
+  margin: 1px 0;
+}
+.kpi__sub {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+/* placeholder slot marker (dev-only visible outline for empty layout slots) */
+.slot {
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-md);
+  padding: var(--sp-6);
+  color: var(--text-3);
+  font-size: var(--fs-sm);
+  text-align: center;
+}
+
+/* ---------------- bottom tab bar (mobile only) ---------------- */
+.tabbar {
+  display: none;
+}
+
+/* ============================ RESPONSIVE ============================ */
+
+/* Tablet: condense sidebar. */
+@media (max-width: 1023px) {
+  .shell {
+    grid-template-columns: 168px 1fr;
+  }
+  .kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .panelgrid--main,
+  .panelgrid--half,
+  .panelgrid--workspace {
+    grid-template-columns: 1fr;
+  }
+  .main {
+    padding: 16px 16px 22px;
+  }
+}
+
+/* Mobile: sidebar -> bottom tab bar. */
+@media (max-width: 599px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    display: none;
+  }
+  .main {
+    padding: 14px 14px calc(64px + env(safe-area-inset-bottom, 0px));
+  }
+  .kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .tabbar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    position: fixed;
+    inset: auto 0 0 0;
+    background: #0b3b34;
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    z-index: 40;
+  }
+  .tabbar__item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 8px 4px;
+    min-height: 56px;
+    color: #bfd8d3;
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    text-decoration: none;
+    text-align: center;
+  }
+  .tabbar__item.is-active {
+    color: #fff;
+  }
+  .tabbar__item.is-active .tabbar__icon {
+    color: var(--teal-300);
+  }
+  .tabbar__icon {
+    font-size: 20px;
+  }
+  .tabbar__soon {
+    font-size: 8px;
+    background: rgba(255, 255, 255, 0.16);
+    border-radius: var(--r-pill);
+    padding: 0 5px;
+  }
+
+  /* On mobile the shell exposes a top app bar with brand + lang + audio,
+     since those live in the (now hidden) sidebar on desktop. */
+  .mobilebar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #0b3b34;
+    color: #fff;
+    padding: 10px 14px;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  }
+}
+
+/* Desktop/tablet hide the mobile top bar. */
+@media (min-width: 600px) {
+  .mobilebar {
+    display: none;
+  }
+}
+
+/* ---------------- shared buttons ---------------- */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--brand);
+  color: var(--text-on-brand);
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-body);
+  border-radius: var(--r-md);
+  padding: 12px 20px;
+  min-height: var(--touch-primary);
+  width: 100%;
+}
+.btn-primary:hover {
+  background: var(--brand-strong);
+}
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--brand);
+  font-weight: var(--fw-medium);
+  font-size: var(--fs-body);
+  border-radius: var(--r-md);
+  padding: 10px 16px;
+  min-height: var(--touch-min);
+  width: 100%;
+}
+.btn-ghost:hover {
+  background: var(--brand-tint);
+}
+
+/* ---------------- first-launch language gate ---------------- */
+.langgate {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-5);
+  background: var(--surface-2);
+}
+.langgate__card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--e-3);
+  padding: var(--sp-8) var(--sp-6);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.langgate__leaf {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-md);
+  background: var(--brand);
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  margin: 0 auto var(--sp-2);
+}
+.langgate__title {
+  font-size: var(--fs-h1);
+}
+.langgate__help {
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  margin-bottom: var(--sp-2);
+}
+.langgate__opts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+}
+.langgate__opt {
+  border: 2px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 12px 16px;
+  font-size: var(--fs-body-lg);
+  font-weight: var(--fw-medium);
+  min-height: var(--touch-primary);
+  color: var(--text);
+}
+.langgate__opt.is-active {
+  border-color: var(--brand);
+  background: var(--brand-tint);
+  color: var(--brand-dark);
+  font-weight: var(--fw-bold);
+}

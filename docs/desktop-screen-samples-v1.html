@@ -1,0 +1,358 @@
+<title>AgriForecast — Desktop Web Screen Samples v1</title>
+<style>
+  /* ---------- wrapper page (theme-aware) ---------- */
+  :root{
+    --pg-bg:#F2F5F4; --pg-ink:#1B2A27; --pg-ink2:#5A6E69; --pg-line:#D8E2DF; --pg-accent:#0E7C6B;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --pg-bg:#141B19; --pg-ink:#E4ECEA; --pg-ink2:#93A5A0; --pg-line:#2A3835; --pg-accent:#3FB39E; }
+  }
+  :root[data-theme="dark"]{ --pg-bg:#141B19; --pg-ink:#E4ECEA; --pg-ink2:#93A5A0; --pg-line:#2A3835; --pg-accent:#3FB39E; }
+  :root[data-theme="light"]{ --pg-bg:#F2F5F4; --pg-ink:#1B2A27; --pg-ink2:#5A6E69; --pg-line:#D8E2DF; --pg-accent:#0E7C6B; }
+
+  body{ background:var(--pg-bg); color:var(--pg-ink);
+    font-family:'Noto Sans','Noto Sans Sinhala','Noto Sans Tamil',system-ui,-apple-system,'Segoe UI',sans-serif;
+    margin:0; padding:32px 16px 72px; line-height:1.55; }
+  .wrap{ max-width:1240px; margin:0 auto; }
+  .wrap>header h1{ font-size:26px; margin:0 0 4px; letter-spacing:-.01em; text-wrap:balance; }
+  .wrap>header p{ color:var(--pg-ink2); margin:0; max-width:70ch; }
+  .kicker{ text-transform:uppercase; letter-spacing:.12em; font-size:11px; font-weight:700; color:var(--pg-accent); margin:0 0 6px; }
+  .samplehead{ margin:56px 0 14px; }
+  .samplehead h2{ font-size:19px; margin:0 0 4px; }
+  .samplehead p{ color:var(--pg-ink2); margin:0; font-size:14px; max-width:80ch; }
+  .frame-scroll{ overflow-x:auto; border-radius:14px; box-shadow:0 12px 32px rgba(10,40,35,.14); }
+  .notes{ margin-top:56px; border-top:1px solid var(--pg-line); padding-top:24px; }
+  .notes h2{ font-size:17px; }
+  .notes ol,.notes ul{ padding-left:20px; } .notes li{ margin:6px 0; }
+  .notes .sub{ color:var(--pg-ink2); font-size:14px; }
+
+  /* ---------- app screens: deliberately light (mockups of the app's light UI) ---------- */
+  .screen{ min-width:980px; background:#F4F7F6; color:#17302C; border-radius:14px; overflow:hidden;
+    font-variant-numeric:tabular-nums; }
+  .screen *{ box-sizing:border-box; }
+
+  .appbar{ background:#FFFFFF; border-bottom:1px solid #DCE7E4; display:flex; align-items:center; gap:28px; padding:0 28px; height:64px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-weight:800; font-size:17px; color:#0A5C50; }
+  .brand .leaf{ width:26px; height:26px; border-radius:8px; background:#0E7C6B; color:#fff; display:grid; place-items:center; font-size:14px; }
+  .nav{ display:flex; gap:4px; margin-right:auto; }
+  .nav a{ text-decoration:none; color:#4A625D; font-size:14.5px; font-weight:600; padding:10px 14px; border-radius:10px; min-height:44px; display:flex; align-items:center; gap:6px; }
+  .nav a.on{ color:#0A5C50; background:#E3F1EE; }
+  .nav .soon{ font-size:10px; font-weight:700; background:#EEF2F1; color:#5A6E69; border:1px solid #DCE7E4; border-radius:999px; padding:1px 7px; }
+  .util{ display:flex; align-items:center; gap:10px; }
+  .lang{ display:flex; border:1px solid #DCE7E4; border-radius:999px; overflow:hidden; font-size:12.5px; font-weight:700; }
+  .lang span{ padding:8px 12px; color:#4A625D; } .lang span.on{ background:#0E7C6B; color:#fff; }
+  .audio{ width:44px; height:44px; border-radius:999px; background:#E3F1EE; color:#0A5C50; display:grid; place-items:center; font-size:18px; border:1px solid #C9E0DB; }
+
+  .page{ padding:28px; }
+  .card{ background:#fff; border:1px solid #DCE7E4; border-radius:14px; padding:22px; }
+  .prov{ font-size:12px; color:#5A6E69; display:flex; align-items:center; gap:6px; }
+  .prov::before{ content:"✓"; color:#0E7C6B; font-weight:800; }
+  h3.sec{ font-size:13px; text-transform:uppercase; letter-spacing:.1em; color:#5A6E69; margin:0 0 12px; font-weight:700; }
+  .cta{ background:#0E7C6B; color:#fff; border:none; border-radius:12px; font-weight:800; font-size:16px; padding:0 26px; height:52px; display:inline-flex; align-items:center; gap:10px; }
+  .ghost{ background:#fff; color:#0A5C50; border:1.5px solid #9CC8C0; border-radius:12px; font-weight:700; font-size:14px; padding:0 18px; height:44px; display:inline-flex; align-items:center; }
+
+  table.data{ width:100%; border-collapse:collapse; font-size:14px; }
+  table.data th{ text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.08em; color:#5A6E69; font-weight:700; padding:8px 12px; border-bottom:1px solid #DCE7E4; }
+  table.data td{ padding:11px 12px; border-bottom:1px solid #ECF2F0; vertical-align:middle; }
+  table.data td.num,table.data th.num{ text-align:right; }
+  .up{ color:#0A5C50; font-weight:700; } .down{ color:#8A4A08; font-weight:700; }
+
+  .badge{ display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700; border-radius:999px; padding:5px 12px; }
+  .b-good{ background:#E3F1EE; color:#0A5C50; }
+  .b-fair{ background:#EEF2F1; color:#445853; }
+  .b-low{ background:#FDF1DC; color:#8A4A08; }
+  .b-no{ background:#F7E9E7; color:#8C2F24; }
+  .dots{ letter-spacing:2px; font-size:13px; color:#0E7C6B; }
+  .dots i{ font-style:normal; color:#C7D6D2; }
+
+  .chart-note{ font-size:12px; color:#5A6E69; margin-top:8px; }
+  .legend-inline{ display:flex; gap:18px; font-size:12.5px; color:#4A625D; margin:2px 0 10px; }
+  .legend-inline b{ font-weight:700; color:#17302C; }
+  .sw{ display:inline-block; width:14px; height:4px; border-radius:2px; background:#0E7C6B; vertical-align:middle; margin-right:6px; }
+  .sw.band{ height:12px; background:rgba(14,124,107,.16); border:1px solid rgba(14,124,107,.25); }
+
+  .grid2{ display:grid; grid-template-columns:1.6fr 1fr; gap:20px; }
+  .grid3{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+  .stat{ background:#fff; border:1px solid #DCE7E4; border-radius:14px; padding:18px 20px; }
+  .stat .lbl{ font-size:12.5px; color:#5A6E69; font-weight:600; }
+  .stat .val{ font-size:30px; font-weight:800; letter-spacing:-.01em; margin:2px 0; }
+  .stat .sub{ font-size:12.5px; color:#5A6E69; }
+
+  .hero-price{ font-size:56px; font-weight:800; letter-spacing:-.02em; line-height:1.05; color:#0A3F37; }
+  .hero-unit{ font-size:18px; font-weight:600; color:#5A6E69; }
+  .freq{ display:flex; align-items:center; gap:10px; margin-top:10px; }
+  .freq .ic{ font-size:15px; letter-spacing:2px; }
+  .factor{ display:flex; gap:12px; padding:12px 0; border-bottom:1px solid #ECF2F0; align-items:flex-start; }
+  .factor:last-child{ border-bottom:none; }
+  .factor .fi{ width:36px; height:36px; border-radius:10px; background:#E3F1EE; display:grid; place-items:center; font-size:16px; flex:none; }
+  .factor .ft{ font-size:14px; } .factor .ft b{ display:block; font-size:14px; }
+  .factor .ft span{ color:#5A6E69; font-size:13px; }
+  .pull{ font-size:12px; font-weight:800; margin-left:auto; white-space:nowrap; }
+
+  .rangebar{ position:relative; height:14px; }
+  .rangebar .band{ position:absolute; top:3px; height:8px; border-radius:4px; background:rgba(14,124,107,.18); }
+  .rangebar .mid{ position:absolute; top:0; width:3px; height:14px; border-radius:2px; background:#0A5C50; }
+
+  .callout{ display:flex; gap:10px; background:#FDF1DC; border:1px solid #F1D9A8; color:#6B4406; border-radius:12px; padding:12px 16px; font-size:13.5px; }
+</style>
+
+<div class="wrap">
+<header>
+  <p class="kicker">AgriForecast · FE-0 direction check · 2026-07-10</p>
+  <h1>Desktop web — 3 screen samples</h1>
+  <p>Hi-fi samples of the <b>web-first</b> layout with the richer data layer (charts, tables, comparisons). Same app, same PRD tokens — the phone layout becomes the responsive adaptation of these screens. Lo-fi wireframes for all 16 screens are being reworked in parallel.</p>
+</header>
+
+<!-- ============ SAMPLE 1 — HOME DASHBOARD (EN) ============ -->
+<div class="samplehead">
+  <h2>1 · Home — today's market at a glance</h2>
+  <p>Header navigation replaces the mobile tab bar. Summary before detail: today's prices with 7-day sparklines and change, one primary action, best-crops teaser. Prices tab visible as an honest “soon” stub (open question #2).</p>
+</div>
+<div class="frame-scroll"><div class="screen">
+  <div class="appbar">
+    <div class="brand"><span class="leaf">🌱</span> AgriForecast</div>
+    <nav class="nav">
+      <a class="on" href="#">Home</a><a href="#">Best crops</a><a href="#">My harvest</a>
+      <a href="#">Prices <span class="soon">soon</span></a>
+    </nav>
+    <div class="util">
+      <div class="lang"><span>සිං</span><span>த</span><span class="on">EN</span></div>
+      <div class="audio" title="Listen to this page">🔊</div>
+    </div>
+  </div>
+  <div class="page">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:18px;">
+      <div>
+        <div style="font-size:22px;font-weight:800;">Dambulla — Thursday, 10 July 2026</div>
+        <div class="prov">Source: HARTI / Dambulla Economic Centre via Dept. of Agriculture data · updated today 6:14 AM</div>
+      </div>
+      <button class="cta">📈 Check my harvest price</button>
+    </div>
+
+    <div class="grid3" style="margin-bottom:20px;">
+      <div class="stat"><div class="lbl">Crops rising this week</div><div class="val up">14 ↑</div><div class="sub">of 26 tracked at Dambulla</div></div>
+      <div class="stat"><div class="lbl">Biggest 7-day mover</div><div class="val">Capsicum</div><div class="sub"><span class="up">+18%</span> · Rs. 460 → Rs. 552</div></div>
+      <div class="stat"><div class="lbl">Season</div><div class="val">Yala</div><div class="sub">Best-crop picks use Yala planting windows</div></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3 class="sec">Today's wholesale prices — your crops</h3>
+        <table class="data">
+          <tr><th>Crop</th><th class="num">Today (Rs./kg)</th><th class="num">7-day change</th><th>Last 30 days</th></tr>
+          <tr><td><b>Capsicum</b></td><td class="num"><b>552</b></td><td class="num up">+18% ↑</td>
+            <td><svg width="120" height="26" viewBox="0 0 120 26" role="img" aria-label="Capsicum, rising over 30 days"><polyline points="0,20 15,19 30,21 45,16 60,15 75,12 90,10 105,7 120,4" fill="none" stroke="#0E7C6B" stroke-width="2"/><circle cx="120" cy="4" r="3" fill="#0A5C50"/></svg></td></tr>
+          <tr><td><b>Beans</b></td><td class="num"><b>310</b></td><td class="num up">+4% ↑</td>
+            <td><svg width="120" height="26" viewBox="0 0 120 26" role="img" aria-label="Beans, gently rising"><polyline points="0,16 15,17 30,15 45,16 60,14 75,15 90,13 105,12 120,11" fill="none" stroke="#0E7C6B" stroke-width="2"/><circle cx="120" cy="11" r="3" fill="#0A5C50"/></svg></td></tr>
+          <tr><td><b>Tomato</b></td><td class="num"><b>184</b></td><td class="num down">−9% ↓</td>
+            <td><svg width="120" height="26" viewBox="0 0 120 26" role="img" aria-label="Tomato, falling"><polyline points="0,8 15,9 30,7 45,10 60,12 75,11 90,15 105,17 120,19" fill="none" stroke="#8A4A08" stroke-width="2"/><circle cx="120" cy="19" r="3" fill="#8A4A08"/></svg></td></tr>
+          <tr><td><b>Green Chilli</b></td><td class="num"><b>425</b></td><td class="num up">+11% ↑</td>
+            <td><svg width="120" height="26" viewBox="0 0 120 26" role="img" aria-label="Green chilli, rising"><polyline points="0,18 15,16 30,17 45,14 60,15 75,11 90,9 105,8 120,6" fill="none" stroke="#0E7C6B" stroke-width="2"/><circle cx="120" cy="6" r="3" fill="#0A5C50"/></svg></td></tr>
+        </table>
+        <div class="chart-note">Change is vs. the 7-day average. Tap any row for full history and forecast. <i>(Saved “my crops” sync — R2.)</i></div>
+      </div>
+
+      <div class="card">
+        <h3 class="sec">Worth a look this Yala</h3>
+        <div class="factor"><div class="fi">🫑</div><div class="ft"><b>Capsicum</b><span>Expected Rs. 480–620 at harvest</span></div><span class="badge b-good pull">✓ Recommended</span></div>
+        <div class="factor"><div class="fi">🫘</div><div class="ft"><b>Beans</b><span>Expected Rs. 280–360 at harvest</span></div><span class="badge b-good pull">✓ Recommended</span></div>
+        <div class="factor"><div class="fi">🍈</div><div class="ft"><b>Cooking Melon</b><span>Steady demand, short season</span></div><span class="badge b-fair pull">— Possible</span></div>
+        <div style="margin-top:14px;"><button class="ghost">See all ranked crops →</button></div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<!-- ============ SAMPLE 2 — FORECAST RESULT (SINHALA, SIGNATURE) ============ -->
+<div class="samplehead">
+  <h2>2 · Harvest forecast result — the signature screen (Sinhala)</h2>
+  <p>Desktop uses the width: timeline chart + “why this price” factor panel side by side. Honest-uncertainty pattern on the chart itself — shaded range band, bold central estimate, confidence as pictograph + word + plain reason, natural-frequency icon array, table alternative below the chart.</p>
+</div>
+<div class="frame-scroll"><div class="screen">
+  <div class="appbar">
+    <div class="brand"><span class="leaf">🌱</span> AgriForecast</div>
+    <nav class="nav">
+      <a href="#">මුල</a><a class="on" href="#">මගේ අස්වැන්න</a><a href="#">හොඳම බෝග</a>
+      <a href="#">මිල <span class="soon">ළඟදී</span></a>
+    </nav>
+    <div class="util">
+      <div class="lang"><span class="on">සිං</span><span>த</span><span>EN</span></div>
+      <div class="audio" title="මෙම පිටුව අසන්න">🔊</div>
+    </div>
+  </div>
+  <div class="page">
+    <div style="font-size:14px;color:#5A6E69;margin-bottom:14px;">මගේ අස්වැන්න › <b style="color:#17302C;">මාළු මිරිස්</b> · අස්වනු නෙළීම: <b style="color:#17302C;">2026 ඔක්තෝබර්</b> · වෙළඳපොළ: දඹුල්ල</div>
+
+    <div class="grid2">
+      <div class="card">
+        <div style="display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap;">
+          <div>
+            <div style="font-size:14px;color:#5A6E69;font-weight:600;">ඔක්තෝබර් වන විට බලාපොරොත්තු විය හැකි මිල</div>
+            <div class="hero-price">රු. 552 <span class="hero-unit">/ kg</span></div>
+            <div style="font-size:15px;color:#445853;margin-top:2px;">බොහෝ විට <b>රු. 233 – රු. 694</b> අතර</div>
+            <div class="freq"><span class="ic">🟢🟢🟢🟢🟢🟢🟢⚪⚪⚪</span><span style="font-size:13.5px;color:#445853;">සමාන කන්න <b>10කින් 7ක</b> මිල මෙම පරාසය තුළ විය</span></div>
+          </div>
+          <div style="margin-left:auto;text-align:right;">
+            <span class="badge b-good" style="font-size:14px;padding:8px 16px;"><span class="dots">●●●<i>○</i></span> විශ්වාසය: හොඳයි</span>
+            <div style="font-size:13px;color:#5A6E69;max-width:230px;margin-top:8px;">මෑත මිල දත්ත ප්‍රමාණවත් වන අතර ප්‍රවණතාව ස්ථාවරයි.</div>
+          </div>
+        </div>
+
+        <div style="margin-top:22px;">
+          <h3 class="sec">ඉදිරි මාස 12 — අපේක්ෂිත මිල</h3>
+          <div class="legend-inline"><span><span class="sw"></span><b>අපේක්ෂිත මිල</b></span><span><span class="sw band"></span>විය හැකි පරාසය (10න් 7ක්)</span></div>
+          <svg width="100%" viewBox="0 0 640 230" role="img" aria-label="මාස 12 මිල අනාවැකිය — වගුව පහත ඇත" style="display:block;">
+            <line x1="46" y1="30" x2="46" y2="186" stroke="#DCE7E4"/>
+            <line x1="46" y1="186" x2="620" y2="186" stroke="#C9D6D2"/>
+            <line x1="46" y1="134" x2="620" y2="134" stroke="#ECF2F0"/><text x="40" y="138" font-size="11" fill="#5A6E69" text-anchor="end">400</text>
+            <line x1="46" y1="82" x2="620" y2="82" stroke="#ECF2F0"/><text x="40" y="86" font-size="11" fill="#5A6E69" text-anchor="end">600</text>
+            <text x="40" y="190" font-size="11" fill="#5A6E69" text-anchor="end">200</text>
+            <!-- band widens with horizon -->
+            <polygon points="70,140 120,132 170,128 220,120 270,116 320,108 370,102 420,96 470,96 520,100 570,108 620,116 620,168 570,164 520,158 470,152 420,148 370,146 320,144 270,148 220,152 170,156 120,158 70,156" fill="rgba(14,124,107,.15)" stroke="rgba(14,124,107,.28)"/>
+            <polyline points="70,148 120,145 170,142 220,136 270,132 320,126 370,124 420,122 470,124 520,129 570,136 620,142" fill="none" stroke="#0E7C6B" stroke-width="2.5"/>
+            <!-- today + harvest markers -->
+            <line x1="70" y1="34" x2="70" y2="186" stroke="#9CB4AE" stroke-dasharray="3 4"/><text x="74" y="42" font-size="11" fill="#5A6E69">අද</text>
+            <line x1="220" y1="34" x2="220" y2="186" stroke="#0A5C50" stroke-dasharray="3 4"/>
+            <circle cx="220" cy="136" r="5" fill="#0A5C50" stroke="#fff" stroke-width="2"/>
+            <text x="226" y="46" font-size="12" font-weight="700" fill="#0A5C50">අස්වැන්න · රු. 552</text>
+            <!-- x labels -->
+            <text x="70" y="206" font-size="11" fill="#5A6E69" text-anchor="middle">ජූලි</text>
+            <text x="170" y="206" font-size="11" fill="#5A6E69" text-anchor="middle">සැප්</text>
+            <text x="220" y="206" font-size="11" fill="#0A5C50" font-weight="700" text-anchor="middle">ඔක්</text>
+            <text x="320" y="206" font-size="11" fill="#5A6E69" text-anchor="middle">දෙසැ</text>
+            <text x="420" y="206" font-size="11" fill="#5A6E69" text-anchor="middle">පෙබ</text>
+            <text x="520" y="206" font-size="11" fill="#5A6E69" text-anchor="middle">අප්‍රේ</text>
+            <text x="620" y="206" font-size="11" fill="#5A6E69" text-anchor="middle">ජූනි</text>
+          </svg>
+          <details style="margin-top:10px;">
+            <summary style="font-size:13px;font-weight:700;color:#0A5C50;cursor:pointer;">📋 වගුවක් ලෙස බලන්න (table view)</summary>
+            <table class="data" style="margin-top:10px;max-width:420px;">
+              <tr><th>මාසය</th><th class="num">අඩුම</th><th class="num">අපේක්ෂිත</th><th class="num">වැඩිම</th></tr>
+              <tr><td>අගෝස්තු</td><td class="num">305</td><td class="num"><b>418</b></td><td class="num">522</td></tr>
+              <tr><td>සැප්තැම්බර්</td><td class="num">318</td><td class="num"><b>486</b></td><td class="num">601</td></tr>
+              <tr><td>ඔක්තෝබර් ★</td><td class="num">233</td><td class="num"><b>552</b></td><td class="num">694</td></tr>
+              <tr><td>නොවැම්බර්</td><td class="num">301</td><td class="num"><b>561</b></td><td class="num">712</td></tr>
+            </table>
+          </details>
+          <div class="prov" style="margin-top:12px;">මූලාශ්‍රය: HARTI / දඹුල්ල ආර්ථික මධ්‍යස්ථානය · යාවත්කාලීන: අද 6:14</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="sec">මෙම මිල ඇයි? (why this price)</h3>
+        <div class="factor"><div class="fi">📈</div><div class="ft"><b>මෑත මිල ප්‍රවණතාව</b><span>පසුගිය සති 4 තුළ +18% ඉහළට</span></div><span class="pull up">↑ ඉහළට</span></div>
+        <div class="factor"><div class="fi">🌦️</div><div class="ft"><b>කන්නය</b><span>ඔක්තෝබර් = යල අස්වනු අඩු කාලය — සැපයුම අඩුයි</span></div><span class="pull up">↑ ඉහළට</span></div>
+        <div class="factor"><div class="fi">🪔</div><div class="ft"><b>උත්සව ඉල්ලුම</b><span>දීපාවලී ආසන්නයේ ඉල්ලුම වැඩි වේ</span></div><span class="pull up">↑ ඉහළට</span></div>
+        <div class="factor"><div class="fi">🚜</div><div class="ft"><b>වගා ප්‍රමාණය</b><span>මෙම යල කන්නයේ වගාව සාමාන්‍යයි</span></div><span class="pull" style="color:#5A6E69;">— මධ්‍යස්ථ</span></div>
+        <div class="callout" style="margin-top:16px;">⚠️ <span>අනාවැකිය <b>ස්ථිර පොරොන්දුවක් නොවේ.</b> කාලගුණය හා ආනයන තීරණ අනුව මිල වෙනස් විය හැක — පරාසයම බලන්න.</span></div>
+        <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="ghost">වෙනත් වෙළඳපොළක් →</button>
+          <button class="ghost">වෙනත් මාසයක් →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<!-- ============ SAMPLE 3 — BEST CROPS COMPARISON (EN) ============ -->
+<div class="samplehead">
+  <h2>3 · Best crops to plant — comparison view (English)</h2>
+  <p>The desktop win: all candidate crops on <b>one shared price scale</b> so ranges are honestly comparable — band + marked centre per crop, confidence and season fit alongside, “not recommended” shown rather than hidden. Sortable columns; whole row opens the full forecast (screen 2).</p>
+</div>
+<div class="frame-scroll"><div class="screen">
+  <div class="appbar">
+    <div class="brand"><span class="leaf">🌱</span> AgriForecast</div>
+    <nav class="nav">
+      <a href="#">Home</a><a href="#">My harvest</a><a class="on" href="#">Best crops</a>
+      <a href="#">Prices <span class="soon">soon</span></a>
+    </nav>
+    <div class="util">
+      <div class="lang"><span>සිං</span><span>த</span><span class="on">EN</span></div>
+      <div class="audio" title="Listen to this page">🔊</div>
+    </div>
+  </div>
+  <div class="page">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
+      <div>
+        <div style="font-size:22px;font-weight:800;">If I plant now, what sells best?</div>
+        <div style="font-size:14px;color:#5A6E69;">Planting <b>July 2026 (Yala)</b> · District: <b>Matale</b> · harvest month estimated per crop</div>
+      </div>
+      <div style="display:flex;gap:10px;"><button class="ghost">Change district</button><button class="ghost">Change month</button></div>
+    </div>
+
+    <div class="card">
+      <table class="data">
+        <tr>
+          <th style="width:16%;">Crop ▲▼</th>
+          <th class="num" style="width:12%;">Expected at harvest ▲▼</th>
+          <th style="width:34%;">Likely range — shared scale Rs. 0–800/kg</th>
+          <th style="width:13%;">Confidence ▲▼</th>
+          <th style="width:11%;">Season fit</th>
+          <th style="width:14%;">Verdict</th>
+        </tr>
+        <tr>
+          <td><b>🫑 Capsicum</b><div style="font-size:12px;color:#5A6E69;">harvest ≈ Oct</div></td>
+          <td class="num"><b style="font-size:17px;">Rs. 552</b></td>
+          <td><div class="rangebar"><div class="band" style="left:29%;width:58%;"></div><div class="mid" style="left:69%;"></div></div></td>
+          <td><span class="dots">●●●<i>○</i></span> Good</td><td>Yala ✓</td>
+          <td><span class="badge b-good">✓ Recommended</span></td>
+        </tr>
+        <tr>
+          <td><b>🌶️ Green Chilli</b><div style="font-size:12px;color:#5A6E69;">harvest ≈ Oct</div></td>
+          <td class="num"><b style="font-size:17px;">Rs. 445</b></td>
+          <td><div class="rangebar"><div class="band" style="left:38%;width:35%;"></div><div class="mid" style="left:56%;"></div></div></td>
+          <td><span class="dots">●●●<i>○</i></span> Good</td><td>Yala ✓</td>
+          <td><span class="badge b-good">✓ Recommended</span></td>
+        </tr>
+        <tr>
+          <td><b>🫘 Beans</b><div style="font-size:12px;color:#5A6E69;">harvest ≈ Sep</div></td>
+          <td class="num"><b style="font-size:17px;">Rs. 318</b></td>
+          <td><div class="rangebar"><div class="band" style="left:33%;width:15%;"></div><div class="mid" style="left:40%;"></div></div></td>
+          <td><span class="dots">●●<i>○○</i></span> Fair</td><td>Yala ✓</td>
+          <td><span class="badge b-fair">— Possible</span></td>
+        </tr>
+        <tr>
+          <td><b>🍅 Tomato</b><div style="font-size:12px;color:#5A6E69;">harvest ≈ Sep</div></td>
+          <td class="num"><b style="font-size:17px;">Rs. 196</b></td>
+          <td><div class="rangebar"><div class="band" style="left:14%;width:22%;"></div><div class="mid" style="left:24%;"></div></div></td>
+          <td><span class="dots">●●<i>○○</i></span> Fair</td><td>Yala ✓</td>
+          <td><span class="badge b-fair">— Possible</span></td>
+        </tr>
+        <tr>
+          <td><b>🍈 Passion Fruit</b><div style="font-size:12px;color:#5A6E69;">rough estimate</div></td>
+          <td class="num"><b style="font-size:17px;">~Rs. 240</b></td>
+          <td><div class="rangebar"><div class="band" style="left:8%;width:48%;"></div><div class="mid" style="left:30%;"></div></div></td>
+          <td><span class="dots">●<i>○○○</i></span> Low</td><td>—</td>
+          <td><span class="badge b-low">△ Little data</span></td>
+        </tr>
+        <tr>
+          <td><b>🥔 Potatoes</b><div style="font-size:12px;color:#5A6E69;">up-country crop</div></td>
+          <td class="num"><b style="font-size:17px;">Rs. 172</b></td>
+          <td><div class="rangebar"><div class="band" style="left:12%;width:20%;"></div><div class="mid" style="left:21%;"></div></div></td>
+          <td><span class="dots">●●<i>○○</i></span> Fair</td><td>Wrong zone ✗</td>
+          <td><span class="badge b-no">✗ Not recommended</span></td>
+        </tr>
+      </table>
+      <div class="chart-note" style="display:flex;gap:20px;flex-wrap:wrap;margin-top:12px;">
+        <span><span class="sw band" style="width:22px;"></span> likely price range</span>
+        <span><span style="display:inline-block;width:3px;height:12px;background:#0A5C50;border-radius:2px;vertical-align:middle;margin-right:6px;"></span> expected price</span>
+        <span>Season fit needs crop-calendar data (API #3) — badge appears when available.</span>
+      </div>
+      <div class="prov" style="margin-top:10px;">Source: HARTI / Dambulla Economic Centre via Dept. of Agriculture data · prices are wholesale</div>
+    </div>
+  </div>
+</div></div>
+
+<!-- ============ NOTES ============ -->
+<div class="notes">
+  <h2>What to check (5 minutes)</h2>
+  <ol>
+    <li><b>Web-first layout</b> — header nav + multi-column desktop layouts. Is this the "web application" you meant?</li>
+    <li><b>Data presentation</b> — sparklines + change table (screen 1), forecast band chart + table view (screen 2), shared-scale comparison bands (screen 3). Enough? Too much?</li>
+    <li><b>Honest uncertainty everywhere</b> — no bare price is ever shown without its range, confidence word, and reason.</li>
+    <li><b>Provenance line</b> under every data view (HARTI / Dambulla) — the #1 trust builder from research.</li>
+    <li><b>Confidence wording</b> — "Good / Fair / Low" (Sinhala: හොඳයි). Confirm or redline.</li>
+  </ol>
+  <p class="sub">Caveats: Sinhala copy is my draft — needs native-speaker review. Emoji are placeholders for the ~30 commissioned crop illustrations. Rendered in your OS fonts, not the final self-hosted Noto builds. All numbers are realistic samples, not live API data. Charts here are static mockups; the built app gets hover tooltips + period selectors.</p>
+</div>
+</div>

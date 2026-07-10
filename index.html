@@ -2,17 +2,24 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Agri Forecast Platform</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0B3B34" />
+    <meta name="description" content="AgriForecast — honest crop price forecasts for Sri Lankan farmers." />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
+    <!-- Raster maskable PNG icons (192/512) + apple-touch-icon are a FE-9 follow-up
+         (no SVG rasterizer available in this env). SVG icon covers install baseline. -->
+    <title>AgriForecast</title>
+    <!--
+      Fonts: self-hosted Noto Sans Sinhala/Tamil subsets (current 2020+ builds only —
+      never an old CDN binary; the pre-2020 Sinhala wrong-ascender defect clips
+      ascenders). Font files + @font-face land with the real typography pass; the
+      token stack falls back to system-ui until then. NO Google Fonts <link> (the
+      Feb scaffold's Inter CDN link was removed — data footprint + provenance).
+    -->
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
