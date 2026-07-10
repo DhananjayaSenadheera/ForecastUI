@@ -1,0 +1,81 @@
+{
+  "app": {
+    "name": "AgriForecast",
+    "tagline": "Honest crop price forecasts"
+  },
+  "lang": {
+    "label": "Language",
+    "si": "සිංහල",
+    "ta": "தமிழ்",
+    "en": "English",
+    "choose": "Choose your language",
+    "chooseHelp": "You can change this any time from the menu.",
+    "continue": "Continue",
+    "skip": "Skip for now"
+  },
+  "nav": {
+    "overview": "Overview",
+    "myHarvest": "My harvest",
+    "bestCrops": "Best crops",
+    "prices": "Prices",
+    "soon": "soon"
+  },
+  "audio": {
+    "listen": "Listen to this page"
+  },
+  "common": {
+    "loading": "Loading…",
+    "retry": "Retry",
+    "errorTitle": "Could not load",
+    "errorBody": "Something went wrong. Please try again.",
+    "empty": "Nothing to show yet.",
+    "backHome": "Back to Overview",
+    "changeCrop": "Change crop",
+    "tableView": "Table view",
+    "updated": "Updated",
+    "source": "Source: HARTI / Dept. of Agriculture",
+    "perKg": "/kg",
+    "rs": "Rs."
+  },
+  "filter": {
+    "market": "Market",
+    "date": "Date"
+  },
+  "confidence": {
+    "label": "Confidence",
+    "good": "Good",
+    "fair": "Fair",
+    "low": "Low"
+  },
+  "verdict": {
+    "recommended": "Recommended",
+    "possible": "Possible",
+    "littleData": "Little data",
+    "notRecommended": "Not recommended"
+  },
+  "pages": {
+    "overview": {
+      "title": "Market overview",
+      "kpiRising": "Crops rising this week",
+      "kpiMover": "Biggest 7-day mover",
+      "kpiSeason": "Season now",
+      "kpiConfidence": "Forecast confidence"
+    },
+    "myHarvest": {
+      "title": "My harvest forecast",
+      "myCrop": "My crop",
+      "plantDate": "Planting date",
+      "harvestDate": "Harvest / sell date",
+      "harvestHint": "Suggested from growth period — change freely",
+      "expectedAt": "Expected at harvest"
+    },
+    "bestCrops": {
+      "title": "Best crops to plant now"
+    },
+    "prices": {
+      "title": "Prices",
+      "soonTitle": "Prices are coming soon",
+      "soonBody": "Recent market prices and short history will appear here in a future update."
+    }
+  }
+}

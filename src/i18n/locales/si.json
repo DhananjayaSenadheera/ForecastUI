@@ -1,0 +1,82 @@
+{
+  "_note": "DRAFT — Sinhala strings pending native-speaker review (PRD risk + API gap #5). Do not treat as final copy.",
+  "app": {
+    "name": "AgriForecast",
+    "tagline": "අවංක බෝග මිල අනාවැකි"
+  },
+  "lang": {
+    "label": "භාෂාව",
+    "si": "සිංහල",
+    "ta": "தமிழ்",
+    "en": "English",
+    "choose": "ඔබේ භාෂාව තෝරන්න",
+    "chooseHelp": "මෙය ඕනෑම විටෙක මෙනුවෙන් වෙනස් කළ හැක.",
+    "continue": "ඉදිරියට",
+    "skip": "දැනට මඟ හරින්න"
+  },
+  "nav": {
+    "overview": "දළ විශ්ලේෂණය",
+    "myHarvest": "මගේ අස්වැන්න",
+    "bestCrops": "හොඳම බෝග",
+    "prices": "මිල ගණන්",
+    "soon": "ළඟදීම"
+  },
+  "audio": {
+    "listen": "මෙම පිටුව අසන්න"
+  },
+  "common": {
+    "loading": "පූරණය වෙමින්…",
+    "retry": "නැවත උත්සාහ කරන්න",
+    "errorTitle": "පූරණය කළ නොහැක",
+    "errorBody": "යම් දෝෂයක් සිදුවිය. නැවත උත්සාහ කරන්න.",
+    "empty": "තවම පෙන්වීමට කිසිවක් නැත.",
+    "backHome": "දළ විශ්ලේෂණයට",
+    "changeCrop": "බෝගය වෙනස් කරන්න",
+    "tableView": "වගු දසුන",
+    "updated": "යාවත්කාලීන කළේ",
+    "source": "මූලාශ්‍රය: HARTI / කෘෂිකර්ම දෙපාර්තමේන්තුව",
+    "perKg": "/කි.ග්‍රෑ",
+    "rs": "රු."
+  },
+  "filter": {
+    "market": "වෙළඳපොල",
+    "date": "දිනය"
+  },
+  "confidence": {
+    "label": "විශ්වාසය",
+    "good": "හොඳයි",
+    "fair": "සාධාරණයි",
+    "low": "අඩුයි"
+  },
+  "verdict": {
+    "recommended": "නිර්දේශිතයි",
+    "possible": "කළ හැක",
+    "littleData": "දත්ත අඩුයි",
+    "notRecommended": "නිර්දේශ නොකෙරේ"
+  },
+  "pages": {
+    "overview": {
+      "title": "වෙළඳපොල දළ විශ්ලේෂණය",
+      "kpiRising": "මේ සතියේ ඉහළ යන බෝග",
+      "kpiMover": "දින 7 ලොකුම වෙනස",
+      "kpiSeason": "දැන් වාරය",
+      "kpiConfidence": "අනාවැකි විශ්වාසය"
+    },
+    "myHarvest": {
+      "title": "මගේ අස්වැන්න අනාවැකිය",
+      "myCrop": "මගේ බෝගය",
+      "plantDate": "වගා කළ දිනය",
+      "harvestDate": "අස්වනු / විකුණන දිනය",
+      "harvestHint": "වර්ධන කාලය අනුව යෝජිතයි — නිදහසේ වෙනස් කරන්න",
+      "expectedAt": "අස්වැන්නේදී අපේක්ෂිත"
+    },
+    "bestCrops": {
+      "title": "දැන් වගා කිරීමට හොඳම බෝග"
+    },
+    "prices": {
+      "title": "මිල ගණන්",
+      "soonTitle": "මිල ගණන් ළඟදීම",
+      "soonBody": "මෑත වෙළඳපොල මිල ගණන් හා කෙටි ඉතිහාසය ඉදිරි යාවත්කාලීනයකදී මෙහි දිස්වේ."
+    }
+  }
+}
