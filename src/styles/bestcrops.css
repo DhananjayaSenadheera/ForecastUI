@@ -1,0 +1,374 @@
+/* =============================================================================
+   Best crops — ranked decision table (FE-7). Tokens only; no hard-coded colours.
+   Desktop = full <table>; <600px = the SAME table restyled into a card list
+   (no horizontal scroll). RED (--critical) appears ONLY on the Not-recommended
+   verdict badge + row accent; amber (--warn) on low-confidence / little-data rows.
+   ============================================================================= */
+
+.bc-sub {
+  font-size: var(--fs-body);
+  color: var(--text-2);
+  margin: 0 0 var(--sp-4);
+}
+
+/* ---- lookback segmented control ---- */
+.bc-lookback {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-2);
+}
+.bc-lookback__label {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  color: var(--text-2);
+}
+.bc-seg {
+  display: inline-flex;
+  background: var(--surface-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  padding: 3px;
+}
+.bc-seg__btn {
+  min-height: var(--touch-min);
+  padding: 6px 16px;
+  border: none;
+  background: transparent;
+  border-radius: var(--r-pill);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-2);
+  cursor: pointer;
+}
+.bc-seg__btn:hover {
+  color: var(--brand-strong);
+}
+.bc-seg__btn.is-active {
+  background: var(--brand);
+  color: var(--text-on-brand);
+  font-weight: var(--fw-bold);
+}
+.bc-seg__btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.bc-caption {
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+  margin: 0 0 var(--sp-4);
+}
+.bc-legend {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  margin: 0 0 var(--sp-3);
+}
+
+/* ---- table ---- */
+.bc-tablewrap {
+  width: 100%;
+}
+.bc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+.bc-table thead th {
+  text-align: left;
+  vertical-align: bottom;
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 2px solid var(--line-strong);
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  font-weight: var(--fw-bold);
+  white-space: nowrap;
+}
+.bc-th--num { text-align: right; }
+
+/* sortable header button-in-th */
+.bc-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-height: var(--touch-min);
+  padding: 0 var(--sp-1);
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  color: var(--text-2);
+  cursor: pointer;
+}
+.bc-sort:hover { color: var(--brand-strong); }
+.bc-sort.is-active { color: var(--brand-strong); }
+.bc-sort:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-sm);
+}
+.bc-sort__caret { font-size: 10px; color: var(--text-3); }
+.bc-sort.is-active .bc-sort__caret { color: var(--brand); }
+
+.bc-table tbody td,
+.bc-table tbody th {
+  padding: var(--sp-3);
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+  text-align: left;
+}
+
+/* honest-row accents */
+.bc-row.is-notrec {
+  background: var(--critical-bg);
+}
+.bc-row.is-notrec > th {
+  box-shadow: inset 3px 0 0 var(--critical);
+}
+.bc-row.is-lowconf:not(.is-notrec) {
+  background: var(--warn-bg);
+}
+.bc-row.is-lowconf:not(.is-notrec) > th {
+  box-shadow: inset 3px 0 0 var(--warn);
+}
+
+/* ---- crop cell ---- */
+.bc-crop {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.bc-crop__art {
+  flex: none;
+  color: var(--brand-strong);
+  display: grid;
+  place-items: center;
+}
+.bc-crop__art svg { width: 34px; height: 34px; }
+.bc-crop__text { display: flex; flex-direction: column; }
+.bc-crop__name {
+  font-size: var(--fs-body);
+  font-weight: var(--fw-bold);
+  color: var(--text);
+  line-height: var(--lh-heading);
+}
+.bc-crop__code {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  font-variant-numeric: var(--fvn-tabular);
+}
+
+/* ---- verdict badge (icon + label; colour never alone) ---- */
+.bc-c-take { max-width: 260px; }
+.bc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-heading);
+}
+.bc-badge__glyph { font-weight: var(--fw-black); }
+.bc-badge--good { background: var(--good-bg); color: var(--good-fg); }
+.bc-badge--neutral { background: var(--neutral-bg); color: var(--neutral-fg); }
+.bc-badge--warn { background: var(--warn-bg); color: var(--warn-fg); }
+.bc-badge--critical { background: var(--critical-bg); color: var(--critical-fg); border: 1px solid var(--critical); }
+
+.bc-season {
+  display: inline-flex;
+  align-items: center;
+  margin-top: var(--sp-2);
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  background: var(--brand-tint);
+  color: var(--brand-strong);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+}
+.bc-caveat {
+  display: block;
+  margin-top: var(--sp-2);
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  line-height: var(--lh-body);
+}
+
+/* ---- price + shared-scale bar ---- */
+.bc-c-price { min-width: 150px; }
+.bc-price {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-1);
+}
+.bc-price__num {
+  font-size: var(--fs-price-sm);
+  font-weight: var(--fw-black);
+  color: var(--price-fg);
+  font-variant-numeric: var(--fvn-tabular);
+}
+.bc-price__unit { font-size: var(--fs-xs); color: var(--text-3); }
+.bc-scale {
+  position: relative;
+  display: block;
+  height: 12px;
+  margin-top: var(--sp-2);
+}
+.bc-scale__track {
+  position: absolute;
+  inset: 4px 0;
+  background: var(--line);
+  border-radius: var(--r-pill);
+}
+.bc-scale__bar {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--brand);
+}
+.bc-scale__marker {
+  position: absolute;
+  top: 0;
+  width: 4px;
+  height: 12px;
+  border-radius: var(--r-pill);
+  background: var(--chart-marker);
+  transform: translateX(-50%);
+}
+.bc-scale.is-low .bc-scale__bar { background: var(--warn); }
+.bc-scale.is-low .bc-scale__marker { background: var(--warn); }
+
+/* ---- trend (arrow glyph + text) ---- */
+.bc-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-2);
+}
+.bc-trend__arrow { font-size: var(--fs-body-lg); font-weight: var(--fw-black); line-height: 1; }
+.bc-trend--up .bc-trend__arrow { color: var(--dir-up); }
+.bc-trend--down .bc-trend__arrow { color: var(--dir-down); }
+.bc-trend--flat .bc-trend__arrow { color: var(--dir-flat); }
+
+/* ---- confidence dots + word ---- */
+.bc-conf {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.bc-dots { display: inline-flex; gap: 4px; }
+.bc-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--r-pill);
+  background: var(--conf-dot-off);
+}
+.bc-dot.is-on { background: var(--conf-dot-on); }
+.bc-conf__word { font-size: var(--fs-sm); font-weight: var(--fw-bold); color: var(--text-2); }
+
+/* ---- row action ---- */
+.bc-c-action { text-align: right; white-space: nowrap; }
+.bc-action {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-min);
+  padding: 8px 14px;
+  border: 1.5px solid var(--brand);
+  border-radius: var(--r-md);
+  color: var(--brand-strong);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  text-decoration: none;
+}
+.bc-action:hover { background: var(--brand-tint); }
+.bc-action:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* ---- states ---- */
+.bc-state {
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-md);
+  padding: var(--sp-6);
+  text-align: center;
+}
+.bc-state__title { font-weight: var(--fw-bold); font-size: var(--fs-body-lg); margin-bottom: var(--sp-2); }
+.bc-state__body { color: var(--text-2); font-size: var(--fs-sm); margin-bottom: var(--sp-3); }
+.bc-state__retry { width: auto; min-width: 160px; margin: 0 auto; border: 1.5px solid var(--brand); }
+
+.bc-skel-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--line);
+}
+.bc-skel {
+  border-radius: var(--r-md);
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  animation: cp-pulse 1.2s ease-in-out infinite;
+}
+.bc-skel--art { width: 34px; height: 34px; flex: none; border-radius: var(--r-md); }
+.bc-skel--bar { flex: 1; height: 22px; }
+@media (prefers-reduced-motion: reduce) {
+  .bc-skel { animation: none; }
+}
+
+/* =============================================================================
+   <600px — turn the SAME table into a card list (no horizontal scroll).
+   Each <tr> becomes a card; each <td> becomes a label/value row via data-label.
+   ============================================================================= */
+@media (max-width: 600px) {
+  .bc-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .bc-table,
+  .bc-table tbody,
+  .bc-table tr,
+  .bc-table td,
+  .bc-table th { display: block; }
+  .bc-row {
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    padding: var(--sp-2);
+    margin-bottom: var(--sp-4);
+  }
+  .bc-table tbody td,
+  .bc-table tbody th {
+    border-bottom: 1px solid var(--line);
+    padding: var(--sp-3) var(--sp-2);
+  }
+  .bc-row > *:last-child { border-bottom: none; }
+  .bc-row.is-notrec > th,
+  .bc-row.is-lowconf:not(.is-notrec) > th { box-shadow: none; }
+
+  /* label/value layout for value cells (skip the crop header cell) */
+  .bc-table tbody td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-3);
+  }
+  .bc-table tbody td::before {
+    content: attr(data-label);
+    flex: none;
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-bold);
+    color: var(--text-3);
+  }
+  .bc-c-crop { padding-bottom: var(--sp-3); }
+  .bc-c-take { display: block !important; max-width: none; }
+  .bc-c-take::before { display: block; margin-bottom: var(--sp-2); }
+  .bc-c-price { display: block !important; }
+  .bc-c-price::before { display: block; margin-bottom: var(--sp-1); }
+  .bc-c-action { display: block !important; text-align: left; }
+  .bc-c-action::before { display: none; }
+  .bc-action { width: 100%; justify-content: center; }
+}

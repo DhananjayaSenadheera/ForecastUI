@@ -6,6 +6,7 @@ import './styles/tokens.css';
 import './styles/base.css';
 import './styles/shell.css';
 import './styles/harvest.css';
+import './styles/bestcrops.css';
 import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import type { Crop, CropTimeline, HarvestForecast } from '../api/types';
@@ -47,6 +48,12 @@ export default function MyHarvestPage() {
   const [tlError, setTlError] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
 
+  // Deep-link from the Best-crops screen (FE-7): /my-harvest?crop=<id> preselects
+  // that crop once the list loads. Runs once so a later manual change isn't undone.
+  const [searchParams] = useSearchParams();
+  const cropParam = searchParams.get('crop');
+  const didPreselect = useRef(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(false);
@@ -63,6 +70,16 @@ export default function MyHarvestPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (didPreselect.current || !cropParam || crops.length === 0) return;
+    const match = crops.find((c) => c.id === cropParam);
+    if (match) {
+      setSelected(match);
+      setSubmitted(false);
+    }
+    didPreselect.current = true;
+  }, [cropParam, crops]);
 
   const onSelect = useCallback((crop: Crop) => {
     setSelected(crop);

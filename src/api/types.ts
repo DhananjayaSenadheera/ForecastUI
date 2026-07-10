@@ -134,7 +134,25 @@ export interface CropTimeline {
 // ---------------------------------------------------------------------------
 // Best crops — GET /api/forecast/best-crops?lookbackMonths=3 (BestCrop_GetDto[]).
 // NOTE the enum confidence here (integer), unlike the harvest string.
+//
+// CONTRACT GAP (FE-7): this row carries only `averagePrice` — NO P10–P90 band /
+// lower–upper bounds (those live on the per-crop harvest/timeline routes). So the
+// FE-7 comparison renders a SHARED-SCALE expected-price bar (all rows on one
+// Rs. 0–max axis, lengths comparable, the expected price marked), NOT a fabricated
+// range band. We never invent an interval this endpoint does not return.
 // ---------------------------------------------------------------------------
+
+/**
+ * Season-fit (Yala/Maha) — PROVISIONAL shape, gated on API-3 / owner decision #5.
+ * The LIVE best-crops route does NOT expose this yet; fixtures include it on a
+ * couple of crops so the badge slot is demo-able. When absent the UI degrades
+ * SILENTLY (no badge) — a live omission must never break the row.
+ */
+export interface SeasonFit {
+  inSeason: boolean;
+  season: string; // e.g. "Yala" | "Maha"
+}
+
 export interface BestCrop {
   cropId: string;
   cropName: string;
@@ -143,6 +161,7 @@ export interface BestCrop {
   trend: PriceTrend; // integer 0..2
   confidence: ForecastConfidenceCode; // integer 0..2
   recommendationLevel: RecommendationLevel; // integer 0..3
+  seasonFit?: SeasonFit | null; // API-3 (provisional) — absent on the live route today
 }
 
 // ---------------------------------------------------------------------------
