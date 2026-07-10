@@ -54,6 +54,17 @@
     "littleData": "දත්ත අඩුයි",
     "notRecommended": "නිර්දේශ නොකෙරේ"
   },
+  "crop": {
+    "searchLabel": "ඔබේ බෝගය සොයන්න",
+    "searchPlaceholder": "බෝගයක නම ටයිප් කරන්න…",
+    "resultCount_one": "බෝග {{count}}",
+    "resultCount_other": "බෝග {{count}}",
+    "emptyTitle": "බෝග හමු නොවීය",
+    "emptyBody": "“{{query}}” සඳහා බෝගයක් නැත. වෙනත් වචනයක් උත්සාහ කරන්න.",
+    "catAll": "සියලු බෝග",
+    "catVegetables": "එළවළු",
+    "catFruits": "පලතුරු"
+  },
   "pages": {
     "overview": {
       "title": "වෙළඳපොල දළ විශ්ලේෂණය",
@@ -65,10 +76,18 @@
     "myHarvest": {
       "title": "මගේ අස්වැන්න අනාවැකිය",
       "myCrop": "මගේ බෝගය",
+      "chooseCrop": "ඔබේ බෝගය තෝරන්න",
       "plantDate": "වගා කළ දිනය",
+      "plantDateQ": "ඔබ වගා කළේ කවදාද?",
+      "plantDateHint": "අස්වනු කාලය ගණනය කිරීමට මෙය භාවිතා කරමු. පසුගිය හෝ සැලසුම් කළ දිනයක් තෝරන්න.",
       "harvestDate": "අස්වනු / විකුණන දිනය",
       "harvestHint": "වර්ධන කාලය අනුව යෝජිතයි — නිදහසේ වෙනස් කරන්න",
-      "expectedAt": "අස්වැන්නේදී අපේක්ෂිත"
+      "expectedAt": "අස්වැන්නේදී අපේක්ෂිත",
+      "summaryLabel": "ඔබේ තේරීම",
+      "noCropYet": "තවම තෝරා නැත",
+      "getForecast": "අනාවැකිය ලබාගන්න",
+      "pickToContinue": "ඉදිරියට යාමට බෝගයක් තෝරන්න.",
+      "forecastComingFor": "{{date}} දින වගා කළ {{crop}} සඳහා ඔබේ මිල අනාවැකිය මෙහි දිස්වේ."
     },
     "bestCrops": {
       "title": "දැන් වගා කිරීමට හොඳම බෝග"

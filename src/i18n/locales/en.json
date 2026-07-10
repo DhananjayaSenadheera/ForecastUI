@@ -53,6 +53,17 @@
     "littleData": "Little data",
     "notRecommended": "Not recommended"
   },
+  "crop": {
+    "searchLabel": "Search for your crop",
+    "searchPlaceholder": "Type a crop name…",
+    "resultCount_one": "{{count}} crop",
+    "resultCount_other": "{{count}} crops",
+    "emptyTitle": "No crops found",
+    "emptyBody": "No crop matches “{{query}}”. Try another word.",
+    "catAll": "All crops",
+    "catVegetables": "Vegetables",
+    "catFruits": "Fruits"
+  },
   "pages": {
     "overview": {
       "title": "Market overview",
@@ -64,10 +75,18 @@
     "myHarvest": {
       "title": "My harvest forecast",
       "myCrop": "My crop",
+      "chooseCrop": "Choose your crop",
       "plantDate": "Planting date",
+      "plantDateQ": "When did you plant?",
+      "plantDateHint": "We use this to work out your harvest time. You can pick a past or planned date.",
       "harvestDate": "Harvest / sell date",
       "harvestHint": "Suggested from growth period — change freely",
-      "expectedAt": "Expected at harvest"
+      "expectedAt": "Expected at harvest",
+      "summaryLabel": "Your selection",
+      "noCropYet": "Not chosen yet",
+      "getForecast": "Get forecast",
+      "pickToContinue": "Choose a crop to continue.",
+      "forecastComingFor": "Your price forecast for {{crop}} planted on {{date}} will appear here."
     },
     "bestCrops": {
       "title": "Best crops to plant now"

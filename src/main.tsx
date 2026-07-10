@@ -5,6 +5,7 @@ import './i18n';
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/shell.css';
+import './styles/harvest.css';
 import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
 

@@ -40,8 +40,19 @@ export enum ForecastConfidenceCode {
 
 // ---------------------------------------------------------------------------
 // Crops — GET /api/crops/get/all , GET /api/crops/get/{id}
-// (Crop_GetDto is thin today; CropCode/category/agronomy are API gap #3.)
+// (Crop_GetDto is thin TODAY; CropCode / category / agronomy / localized names
+// are API gap #3 — not yet on the live route.) FE-3 consumes them as OPTIONAL so
+// the crop picker degrades gracefully: no category -> a single "All crops" group;
+// no localized name -> the English `name` is shown/searched. Fixtures fill these
+// in for realistic dev; live payloads may omit them and the UI must not break.
 // ---------------------------------------------------------------------------
+
+/** Crop category ref (CropCategories table). code = VEG | FRT | VEG-UP | VEG-LOW. */
+export interface CropCategoryRef {
+  code: string;
+  name: string; // English name from the API; UI localizes by code where possible
+}
+
 export interface Crop {
   id: string; // Guid
   name: string;
@@ -49,6 +60,12 @@ export interface Crop {
   source: string | null;
   createdAt: string; // ISO datetime
   updatedAt: string;
+  // ---- API gap #3 (optional; present in fixtures, may be absent live) ----
+  cropCode?: string | null; // VEG######/FRT###### — display only
+  category?: CropCategoryRef | null; // grouping; absent -> single group
+  growthDays?: number | null; // typical growth period (agronomy profile)
+  nameSi?: string | null; // localized display name (Sinhala)
+  nameTa?: string | null; // localized display name (Tamil)
 }
 
 // POST /api/crops/create — body is the CropCreateCommand (createDto wrapper).
