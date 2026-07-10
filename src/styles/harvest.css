@@ -268,7 +268,7 @@
   cursor: not-allowed;
 }
 
-/* ---- result placeholder ---- */
+/* ---- result panel (FE-4) ---- */
 .hv-result {
   margin-top: var(--sp-4);
 }
@@ -276,8 +276,355 @@
   outline: none;
   box-shadow: var(--focus-ring);
 }
-.hv-result__slot {
-  padding: var(--sp-8);
+.hv-result__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+.hv-result__title {
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  margin: 0;
+}
+
+/* =============================================================================
+   FORECAST RESULT — the honest-uncertainty panel (FE-4). Tokens only.
+   ============================================================================= */
+.fc-layout {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: var(--sp-6);
+  align-items: start;
+}
+
+/* ---- hero central price ---- */
+.fc-hero {
+  background: var(--price-bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: var(--sp-5) var(--sp-6);
+}
+.fc-hero__crop {
+  font-size: var(--fs-body-lg);
+  font-weight: var(--fw-bold);
+  margin: 0;
+}
+.fc-hero__harvest {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  margin: var(--sp-1) 0 0;
+}
+.fc-hero__price {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  margin: var(--sp-3) 0 0;
+}
+.fc-hero__num {
+  font-size: var(--fs-price-hero);
+  font-weight: var(--fw-black);
+  letter-spacing: var(--ls-tight);
+  line-height: var(--lh-numeral);
+  color: var(--price-fg);
+  font-variant-numeric: var(--fvn-tabular);
+}
+.fc-hero__unit {
+  font-size: var(--fs-body-lg);
+  font-weight: var(--fw-medium);
+  color: var(--text-2);
+}
+.fc-hero__label {
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+  margin: var(--sp-1) 0 0;
+}
+
+/* ---- marked-centre band ---- */
+.fc-band {
+  margin-top: var(--sp-5);
+}
+.fc-band__title {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  color: var(--text-2);
+  margin: 0 0 var(--sp-3);
+}
+.fc-band__svg {
+  display: block;
+  width: 100%;
+  height: 34px;
+  overflow: visible;
+}
+.fc-band__track {
+  fill: var(--line);
+}
+.fc-band__fill {
+  fill: var(--chart-band-fill);
+  stroke: var(--chart-band-stroke);
+  stroke-width: 1;
+}
+.fc-band__tick {
+  stroke: var(--chart-marker);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.fc-band.is-low .fc-band__fill {
+  fill: var(--warn-bg);
+  stroke: var(--lowtrust-border);
+}
+.fc-band.is-low .fc-band__tick {
+  stroke: var(--warn);
+}
+.fc-band__labels {
+  position: relative;
+  height: 40px;
+  margin-top: var(--sp-2);
+}
+.fc-band__end {
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  top: 0;
+}
+.fc-band__end:not(.fc-band__end--mid):first-of-type {
+  left: 0;
+  align-items: flex-start;
+  text-align: left;
+}
+.fc-band__end--hi {
+  right: 0;
+  align-items: flex-end;
+  text-align: right;
+}
+.fc-band__end--mid {
+  transform: translateX(-50%);
+  align-items: center;
+  text-align: center;
+}
+.fc-band__cap {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  font-weight: var(--fw-medium);
+}
+.fc-band__amt {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: var(--fvn-tabular);
+  white-space: nowrap;
+}
+.fc-band__end--mid .fc-band__amt {
+  color: var(--brand-dark);
+}
+.fc-band.is-low .fc-band__end--mid .fc-band__amt {
+  color: var(--warn-fg);
+}
+
+/* ---- table alternative ---- */
+.fc-table {
+  margin-top: var(--sp-5);
+}
+.fc-table__summary {
+  min-height: var(--touch-min);
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  color: var(--brand-strong);
+  cursor: pointer;
+}
+.fc-table__summary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-sm);
+}
+.fc-table__grid {
+  width: 100%;
+  max-width: 420px;
+  border-collapse: collapse;
+  margin-top: var(--sp-3);
+  font-size: var(--fs-sm);
+}
+.fc-table__grid th,
+.fc-table__grid td {
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+.fc-table__grid thead th {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  font-weight: var(--fw-bold);
+}
+.fc-table__grid tbody th {
+  font-weight: var(--fw-medium);
+  color: var(--text-2);
+}
+.fc-table__num {
+  text-align: right;
+  font-variant-numeric: var(--fvn-tabular);
+  font-weight: var(--fw-bold);
+}
+
+/* ---- side column: confidence / verdict / provenance ---- */
+.fc-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+/* low-trust amber banner (never red) */
+.fc-lowtrust {
+  background: var(--lowtrust-bg);
+  border: 1px solid var(--lowtrust-border);
+  border-radius: var(--r-md);
+  padding: var(--sp-4);
+}
+.fc-lowtrust__title {
+  font-size: var(--fs-body);
+  font-weight: var(--fw-bold);
+  color: var(--lowtrust-fg);
+  margin: 0 0 var(--sp-2);
+}
+.fc-lowtrust__body {
+  font-size: var(--fs-sm);
+  color: var(--warn-fg);
+  margin: 0;
+}
+.fc-lowtrust__reason {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  margin: var(--sp-2) 0 0;
+}
+
+.fc-conf {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: var(--sp-4);
+}
+.fc-conf--good { background: var(--conf-good-bg); }
+.fc-conf--fair { background: var(--conf-fair-bg); }
+.fc-conf--low { background: var(--conf-low-bg); }
+.fc-conf__label {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  font-weight: var(--fw-bold);
+  margin: 0 0 var(--sp-2);
+}
+.fc-conf__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin: 0;
+}
+.fc-dots {
+  display: inline-flex;
+  gap: 5px;
+}
+.fc-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--r-pill);
+  background: var(--conf-dot-off);
+}
+.fc-dot.is-on {
+  background: var(--conf-dot-on);
+}
+.fc-conf__word {
+  font-size: var(--fs-body-lg);
+  font-weight: var(--fw-bold);
+}
+.fc-conf__reason {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  margin: var(--sp-3) 0 0;
+}
+
+/* neutral verdict hint (full colored verdict = FE-7) */
+.fc-take {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: var(--sp-4);
+}
+.fc-take--good { background: var(--good-bg); }
+.fc-take--warn { background: var(--warn-bg); }
+.fc-take--neutral { background: var(--neutral-bg); }
+.fc-take__label {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  font-weight: var(--fw-bold);
+  margin: 0 0 var(--sp-1);
+}
+.fc-take__verdict {
+  font-size: var(--fs-body-lg);
+  font-weight: var(--fw-bold);
+  margin: 0;
+}
+.fc-take--good .fc-take__verdict { color: var(--good-fg); }
+.fc-take--warn .fc-take__verdict { color: var(--warn-fg); }
+.fc-take--neutral .fc-take__verdict { color: var(--neutral-fg); }
+.fc-take__reason {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  margin: var(--sp-2) 0 0;
+}
+
+.fc-prov {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  margin: 0;
+}
+.fc-prov__asof {
+  font-variant-numeric: var(--fvn-tabular);
+}
+
+/* ---- error / loading states ---- */
+.fc-state {
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-md);
+  padding: var(--sp-6);
+  text-align: center;
+}
+.fc-state__title {
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-body-lg);
+  margin-bottom: var(--sp-2);
+}
+.fc-state__body {
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  margin-bottom: var(--sp-3);
+}
+.fc-state__retry {
+  width: auto;
+  min-width: 160px;
+  margin: 0 auto;
+  border: 1.5px solid var(--brand);
+}
+.fc-skel {
+  border-radius: var(--r-md);
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  animation: cp-pulse 1.2s ease-in-out infinite;
+}
+.fc-skel--hero { height: 120px; margin-bottom: var(--sp-4); }
+.fc-skel--band { height: 60px; margin-bottom: var(--sp-4); }
+.fc-skel--line { height: 20px; margin-bottom: var(--sp-3); }
+.fc-skel--short { width: 60%; }
+@media (prefers-reduced-motion: reduce) {
+  .fc-skel { animation: none; }
+}
+
+/* Stack side column under the main column on narrow screens. */
+@media (max-width: 600px) {
+  .fc-layout {
+    grid-template-columns: 1fr;
+    gap: var(--sp-5);
+  }
 }
 
 /* Narrow screens: 2-col crop grid, comfortable tap size. */

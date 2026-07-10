@@ -54,6 +54,23 @@
     "littleData": "දත්ත අඩුයි",
     "notRecommended": "නිර්දේශ නොකෙරේ"
   },
+  "forecast": {
+    "expectedAt": "අස්වැන්නේදී අපේක්ෂිත මිල",
+    "harvestAround": "අස්වැන්න ආසන්න වශයෙන් {{date}}",
+    "rangeTitle": "විය හැකි මිල පරාසය",
+    "bandMin": "අඩුම",
+    "bandMid": "බොහෝ විට",
+    "bandMax": "වැඩිම",
+    "bandAria": "බොහෝ විට කිලෝවකට {{mid}} පමණ, සාමාන්‍යයෙන් {{min}} හා {{max}} අතර.",
+    "tableToggle": "වගුවක් ලෙස බලන්න",
+    "tableWhat": "ඇස්තමේන්තුව",
+    "tablePrice": "කිලෝවකට මිල",
+    "currentPrice": "අද මිල",
+    "lowTrustTitle": "දළ ඇස්තමේන්තුවක් පමණි",
+    "lowTrustLead": "මෙය පොරොන්දුවක් නොව දළ මඟ පෙන්වීමක් පමණි — තීරණය කිරීමට පෙර වෙනත් මූලාශ්‍ර පරීක්ෂා කරන්න.",
+    "takeLabel": "අපගේ අදහස",
+    "provAsOf": "මිල {{date}} වන විට"
+  },
   "crop": {
     "searchLabel": "ඔබේ බෝගය සොයන්න",
     "searchPlaceholder": "බෝගයක නම ටයිප් කරන්න…",

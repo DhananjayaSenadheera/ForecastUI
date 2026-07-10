@@ -53,6 +53,23 @@
     "littleData": "Little data",
     "notRecommended": "Not recommended"
   },
+  "forecast": {
+    "expectedAt": "Expected price at harvest",
+    "harvestAround": "Harvest around {{date}}",
+    "rangeTitle": "Likely price range",
+    "bandMin": "Low end",
+    "bandMid": "Most likely",
+    "bandMax": "High end",
+    "bandAria": "Most likely about {{mid}} per kg, and likely between {{min}} and {{max}}.",
+    "tableToggle": "View as table",
+    "tableWhat": "Estimate",
+    "tablePrice": "Price per kg",
+    "currentPrice": "Today's price",
+    "lowTrustTitle": "Rough estimate only",
+    "lowTrustLead": "This is a rough guide, not a promise — check other sources before you decide.",
+    "takeLabel": "Our take",
+    "provAsOf": "Prices as of {{date}}"
+  },
   "crop": {
     "searchLabel": "Search for your crop",
     "searchPlaceholder": "Type a crop name…",

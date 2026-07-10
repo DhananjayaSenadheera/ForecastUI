@@ -96,7 +96,7 @@ export const api = {
   },
 
   async getHarvestForecast(cropId: string, plantDate: string | Date): Promise<HarvestForecast> {
-    if (USE_FIXTURES) return fx.fxHarvestForecast;
+    if (USE_FIXTURES) return fx.fxForecastFor(cropId, iso(plantDate));
     return request<HarvestForecast>(
       `/api/forecast/crop/${cropId}/harvest?plantDate=${iso(plantDate)}`,
     );

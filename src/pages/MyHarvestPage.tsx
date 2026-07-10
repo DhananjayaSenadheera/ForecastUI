@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
-import type { Crop } from '../api/types';
+import type { Crop, HarvestForecast } from '../api/types';
 import { cropDisplayName } from '../lib/crops';
 import { formatDate } from '../lib/format';
 import CropPicker from '../components/CropPicker';
+import ForecastResult from '../components/ForecastResult';
+import AudioHelpButton from '../components/AudioHelpButton';
 
 // My harvest — forecast workspace (FE-3, ClickUp 86cacw5wy).
 // Flow: pick crop (illustrated searchable grid) -> confirm planting date ->
@@ -38,6 +40,9 @@ export default function MyHarvestPage() {
   const [selected, setSelected] = useState<Crop | null>(null);
   const [plantDate, setPlantDate] = useState(todayStr);
   const [submitted, setSubmitted] = useState(false);
+  const [forecast, setForecast] = useState<HarvestForecast | null>(null);
+  const [fcLoading, setFcLoading] = useState(false);
+  const [fcError, setFcError] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
@@ -64,12 +69,28 @@ export default function MyHarvestPage() {
 
   const canSubmit = selected !== null && Boolean(plantDate);
 
+  const runForecast = useCallback(async () => {
+    if (!selected || !plantDate) return;
+    setFcLoading(true);
+    setFcError(false);
+    try {
+      const data = await api.getHarvestForecast(selected.id, plantDate);
+      setForecast(data);
+    } catch {
+      setFcError(true);
+    } finally {
+      setFcLoading(false);
+    }
+  }, [selected, plantDate]);
+
   const onGetForecast = useCallback(() => {
     if (!canSubmit) return;
     setSubmitted(true);
-    // Move focus/scroll to the (placeholder) result so the flow feels connected.
+    setForecast(null); // clear any prior result so the skeleton shows
+    void runForecast();
+    // Move focus/scroll to the result so the flow feels connected.
     requestAnimationFrame(() => resultRef.current?.focus());
-  }, [canSubmit]);
+  }, [canSubmit, runForecast]);
 
   const selectedLabel = selected ? cropDisplayName(selected, i18n.language) : null;
 
@@ -148,7 +169,7 @@ export default function MyHarvestPage() {
         </section>
       </div>
 
-      {/* Placeholder result — real forecast view arrives in FE-4/FE-5 */}
+      {/* Forecast result — the signature honest-uncertainty panel (FE-4). */}
       {submitted && selected && (
         <section
           className="panel hv-result"
@@ -156,12 +177,17 @@ export default function MyHarvestPage() {
           tabIndex={-1}
           aria-label={t('pages.myHarvest.expectedAt')}
         >
-          <div className="slot hv-result__slot">
-            {t('pages.myHarvest.forecastComingFor', {
-              crop: selectedLabel,
-              date: formatDate(plantDate, i18n.language),
-            })}
+          <div className="hv-result__head">
+            <h2 className="hv-result__title">{t('pages.myHarvest.expectedAt')}</h2>
+            <AudioHelpButton />
           </div>
+          <ForecastResult
+            forecast={forecast}
+            loading={fcLoading}
+            error={fcError}
+            onRetry={() => void runForecast()}
+            cropLabel={selectedLabel}
+          />
         </section>
       )}
     </>

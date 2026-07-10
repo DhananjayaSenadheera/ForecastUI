@@ -62,7 +62,30 @@ export const fxHarvestForecast: HarvestForecast = {
   lowTrust: false,
 };
 
-// A deliberately LOW-confidence fixture so uncertainty UI can be exercised honestly.
+// A MEDIUM-confidence fixture (Beans) so the middle "Fair ●●○○" tier is demo-able.
+export const fxHarvestForecastMedium: HarvestForecast = {
+  cropId: 'c0000002-0000-0000-0000-000000000002',
+  cropName: 'Beans',
+  plantDate: '2026-07-10',
+  harvestDate: '2026-09-13',
+  growthPeriodDays: 65,
+  currentPrice: 290,
+  predictedPrice: 310,
+  lowerBound: 240,
+  upperBound: 420,
+  confidence: 'Medium',
+  activePredictor: 'residual',
+  modelVersion: 'v13',
+  explanation: 'Based on a few years of Dambulla prices — reasonable, but not rock-solid.',
+  recommendationLevel: RecommendationLevel.Recommended,
+  reason: 'Some recent price data and a fairly steady trend.',
+  upsidePct: 7,
+  intervalWidthPct: 58,
+  lowTrust: false,
+};
+
+// A deliberately LOW-confidence / fallback fixture so uncertainty UI is exercised
+// honestly (crop_mean_fallback predictor + lowTrust flag => amber "rough estimate").
 export const fxHarvestForecastLow: HarvestForecast = {
   cropId: 'c0000004-0000-0000-0000-000000000004',
   cropName: 'Passion Fruit',
@@ -83,6 +106,33 @@ export const fxHarvestForecastLow: HarvestForecast = {
   intervalWidthPct: 129,
   lowTrust: true,
 };
+
+// Per-crop forecast resolver for fixture mode: maps the crop id to its confidence
+// tier so every state is demo-able (Tomato/Capsicum=High, Beans=Medium, Passion=Low).
+// The requested plantDate is echoed back and harvestDate is derived from it +
+// growthPeriodDays, matching the server behaviour so the demo stays honest.
+const fxHarvestByCrop: Record<string, HarvestForecast> = {
+  'c0000002-0000-0000-0000-000000000002': fxHarvestForecastMedium, // Beans
+  'c0000004-0000-0000-0000-000000000004': fxHarvestForecastLow, // Passion Fruit
+};
+
+function addDays(ymd: string, days: number | null): string | null {
+  if (days == null) return null;
+  const d = new Date(ymd + 'T00:00:00');
+  if (Number.isNaN(d.getTime())) return null;
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+export function fxForecastFor(cropId: string, plantDate: string): HarvestForecast {
+  const base = fxHarvestByCrop[cropId] ?? fxHarvestForecast; // default = High tier
+  return {
+    ...base,
+    cropId,
+    plantDate,
+    harvestDate: addDays(plantDate, base.growthPeriodDays) ?? base.harvestDate,
+  };
+}
 
 export const fxTimeline: CropTimeline = {
   cropName: 'Capsicum',
