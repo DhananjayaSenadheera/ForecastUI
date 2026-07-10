@@ -1,0 +1,311 @@
+<title>AgriForecast — Dashboard-Style Samples v1</title>
+<style>
+  :root{ --pg-bg:#F2F5F4; --pg-ink:#1B2A27; --pg-ink2:#5A6E69; --pg-line:#D8E2DF; --pg-accent:#0F766E; }
+  @media (prefers-color-scheme: dark){ :root{ --pg-bg:#141B19; --pg-ink:#E4ECEA; --pg-ink2:#93A5A0; --pg-line:#2A3835; --pg-accent:#3FB39E; } }
+  :root[data-theme="dark"]{ --pg-bg:#141B19; --pg-ink:#E4ECEA; --pg-ink2:#93A5A0; --pg-line:#2A3835; --pg-accent:#3FB39E; }
+  :root[data-theme="light"]{ --pg-bg:#F2F5F4; --pg-ink:#1B2A27; --pg-ink2:#5A6E69; --pg-line:#D8E2DF; --pg-accent:#0F766E; }
+
+  body{ background:var(--pg-bg); color:var(--pg-ink);
+    font-family:'Noto Sans','Noto Sans Sinhala','Noto Sans Tamil',system-ui,-apple-system,'Segoe UI',sans-serif;
+    margin:0; padding:32px 16px 72px; line-height:1.55; }
+  .wrap{ max-width:1300px; margin:0 auto; }
+  .kicker{ text-transform:uppercase; letter-spacing:.12em; font-size:11px; font-weight:700; color:var(--pg-accent); margin:0 0 6px; }
+  .wrap>header h1{ font-size:26px; margin:0 0 4px; letter-spacing:-.01em; text-wrap:balance; }
+  .wrap>header p{ color:var(--pg-ink2); margin:0; max-width:75ch; }
+  .samplehead{ margin:52px 0 14px; }
+  .samplehead h2{ font-size:19px; margin:0 0 4px; }
+  .samplehead p{ color:var(--pg-ink2); margin:0; font-size:14px; max-width:85ch; }
+  .frame-scroll{ overflow-x:auto; border-radius:14px; box-shadow:0 12px 32px rgba(10,40,35,.14); }
+  .notes{ margin-top:52px; border-top:1px solid var(--pg-line); padding-top:22px; }
+  .notes h2{ font-size:17px; } .notes li{ margin:6px 0; } .notes .sub{ color:var(--pg-ink2); font-size:14px; }
+
+  /* ---------- app screens (light-only R1 UI) ---------- */
+  .screen{ min-width:1160px; background:#EEF3F1; color:#17302C; border-radius:14px; overflow:hidden;
+    display:grid; grid-template-columns:216px 1fr; font-variant-numeric:tabular-nums; }
+  .screen *{ box-sizing:border-box; }
+
+  .side{ background:#0B3B34; color:#D8EAE6; padding:18px 14px; display:flex; flex-direction:column; gap:4px; min-height:640px; }
+  .side .brand{ display:flex; align-items:center; gap:10px; font-weight:800; font-size:16px; color:#fff; padding:6px 10px 18px; }
+  .side .brand .leaf{ width:28px; height:28px; border-radius:8px; background:#0F766E; display:grid; place-items:center; font-size:14px; }
+  .side a{ display:flex; align-items:center; gap:10px; color:#BFD8D3; text-decoration:none; font-size:14px; font-weight:600;
+    padding:11px 12px; border-radius:10px; min-height:44px; }
+  .side a.on{ background:#0F766E; color:#fff; }
+  .side .soon{ margin-left:auto; font-size:10px; font-weight:700; background:rgba(255,255,255,.12); border-radius:999px; padding:1px 7px; }
+  .side .foot{ margin-top:auto; display:flex; flex-direction:column; gap:10px; padding:10px 6px 0; border-top:1px solid rgba(255,255,255,.14); }
+  .lang{ display:flex; border:1px solid rgba(255,255,255,.25); border-radius:999px; overflow:hidden; font-size:12px; font-weight:700; width:max-content; }
+  .lang span{ padding:7px 11px; color:#BFD8D3; } .lang span.on{ background:#fff; color:#0B3B34; }
+  .audio{ display:flex; align-items:center; gap:8px; font-size:13px; color:#D8EAE6; background:rgba(255,255,255,.08); border-radius:10px; padding:10px 12px; min-height:44px; }
+
+  .main{ padding:20px 22px 26px; }
+  .topbar{ display:flex; align-items:center; gap:14px; margin-bottom:16px; }
+  .topbar h2{ font-size:19px; margin:0; font-weight:800; }
+  .filter{ display:inline-flex; align-items:center; gap:8px; background:#fff; border:1px solid #D8E2DF; border-radius:10px; padding:9px 14px; font-size:13.5px; font-weight:700; color:#17302C; min-height:44px; }
+  .updated{ margin-left:auto; font-size:12.5px; color:#5A6E69; }
+  .prov{ font-size:12px; color:#5A6E69; } .prov::before{ content:"✓ "; color:#0F766E; font-weight:800; }
+
+  .kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:16px; }
+  .kpi{ background:#fff; border:1px solid #D8E2DF; border-radius:12px; padding:14px 16px; }
+  .kpi .lbl{ font-size:12px; color:#5A6E69; font-weight:600; }
+  .kpi .val{ font-size:26px; font-weight:800; letter-spacing:-.01em; margin:1px 0; }
+  .kpi .sub{ font-size:12px; color:#5A6E69; }
+  .up{ color:#0A5C50; font-weight:700; } .down{ color:#8A4A08; font-weight:700; }
+
+  .panelgrid{ display:grid; gap:14px; }
+  .g-main{ grid-template-columns:1.9fr 1fr; }
+  .g-half{ grid-template-columns:1fr 1fr; margin-top:14px; }
+  .panel{ background:#fff; border:1px solid #D8E2DF; border-radius:12px; padding:16px 18px; }
+  .panel h3{ font-size:12px; text-transform:uppercase; letter-spacing:.09em; color:#5A6E69; margin:0 0 10px; font-weight:700; display:flex; align-items:center; gap:8px; }
+  .panel h3 .more{ margin-left:auto; text-transform:none; letter-spacing:0; font-size:12.5px; color:#0F766E; font-weight:700; }
+
+  table.data{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  table.data th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:#5A6E69; font-weight:700; padding:7px 10px; border-bottom:1px solid #D8E2DF; }
+  table.data td{ padding:9px 10px; border-bottom:1px solid #ECF2F0; vertical-align:middle; }
+  table.data td.num,table.data th.num{ text-align:right; }
+
+  .badge{ display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:700; border-radius:999px; padding:4px 10px; }
+  .b-good{ background:#E0F0ED; color:#0A5C50; } .b-fair{ background:#EEF2F1; color:#445853; }
+  .b-low{ background:#FCF0DC; color:#8A5208; } .b-no{ background:#F7E9E7; color:#8C2F24; }
+  .dots{ letter-spacing:2px; font-size:12px; color:#0F766E; } .dots i{ font-style:normal; color:#C7D6D2; }
+
+  .legend{ display:flex; gap:16px; font-size:12px; color:#4A625D; margin:0 0 8px; flex-wrap:wrap; }
+  .sw{ display:inline-block; width:13px; height:4px; border-radius:2px; background:#0F766E; vertical-align:middle; margin-right:5px; }
+  .sw.band{ height:11px; background:rgba(15,118,110,.15); border:1px solid rgba(15,118,110,.25); }
+  .cat{ display:inline-block; width:11px; height:11px; border-radius:3px; vertical-align:middle; margin-right:5px; }
+
+  .rangebar{ position:relative; height:13px; }
+  .rangebar .band{ position:absolute; top:3px; height:7px; border-radius:4px; background:rgba(15,118,110,.18); }
+  .rangebar .mid{ position:absolute; top:0; width:3px; height:13px; border-radius:2px; background:#0A5C50; }
+  .rangebar.lowc .band{ background:rgba(180,105,15,.16); } .rangebar.lowc .mid{ background:#8A5208; }
+
+  .factor{ display:flex; gap:10px; padding:9px 0; border-bottom:1px solid #ECF2F0; align-items:center; font-size:13px; }
+  .factor:last-child{ border-bottom:none; }
+  .factor .fi{ width:30px; height:30px; border-radius:8px; background:#E0F0ED; display:grid; place-items:center; font-size:14px; flex:none; }
+  .factor b{ display:block; font-size:13px; } .factor span.d{ color:#5A6E69; font-size:12px; }
+  .pull{ font-size:11.5px; font-weight:800; margin-left:auto; white-space:nowrap; }
+
+  .heroline{ display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; margin-bottom:6px; }
+  .heroline .price{ font-size:40px; font-weight:800; letter-spacing:-.02em; color:#0A3F37; }
+  .heroline .range{ font-size:14px; color:#445853; }
+  .season{ display:flex; gap:3px; margin-top:6px; }
+  .season i{ flex:1; height:16px; border-radius:3px; font-style:normal; }
+  .season-lbls{ display:flex; gap:3px; font-size:9.5px; color:#5A6E69; margin-top:3px; }
+  .season-lbls span{ flex:1; text-align:center; }
+  .callout{ background:#FCF0DC; border:1px solid #F1D9A8; color:#6B4406; border-radius:10px; padding:10px 13px; font-size:12.5px; }
+</style>
+
+<div class="wrap">
+<header>
+  <p class="kicker">AgriForecast · dashboard-style direction check · 2026-07-10</p>
+  <h1>Dashboard-style web app — 2 samples</h1>
+  <p>Direction check only — <b>PRD and wireframes untouched.</b> Same content and honesty rules as the signed-off FE-0, re-composed as a <b>dashboard</b>: dark sidebar navigation, KPI row, everything on one dense screen with panels instead of scrolling pages. Compare with the earlier top-nav "web page" samples and pick a shell.</p>
+</header>
+
+<!-- ============ SAMPLE A — MARKET OVERVIEW DASHBOARD ============ -->
+<div class="samplehead">
+  <h2>A · Market overview — the landing dashboard</h2>
+  <p>Sidebar nav + market/date filters up top. KPI tiles answer "what changed?" in 3 seconds; panels below: 12-month forecast chart, why-this-price factors, today's prices with sparklines, best-crops mini comparison. All data on one screen, no navigation needed.</p>
+</div>
+<div class="frame-scroll"><div class="screen">
+  <aside class="side">
+    <div class="brand"><span class="leaf">🌱</span> AgriForecast</div>
+    <a class="on" href="#">📊 Overview</a>
+    <a href="#">🌾 My harvest</a>
+    <a href="#">🥇 Best crops</a>
+    <a href="#">💰 Prices <span class="soon">soon</span></a>
+    <div class="foot">
+      <div class="audio">🔊 Listen to this page</div>
+      <div class="lang"><span>සිං</span><span>த</span><span class="on">EN</span></div>
+    </div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <h2>Market overview</h2>
+      <span class="filter">📍 Dambulla ▾</span>
+      <span class="filter">📅 Today · 10 Jul 2026</span>
+      <span class="updated">Updated 6:14 AM · <span class="prov">HARTI / Dambulla DEC</span></span>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi"><div class="lbl">Crops rising this week</div><div class="val up">14 ↑</div><div class="sub">of 26 tracked</div></div>
+      <div class="kpi"><div class="lbl">Biggest 7-day mover</div><div class="val">Capsicum</div><div class="sub"><span class="up">+18%</span> · Rs. 460 → 552</div></div>
+      <div class="kpi"><div class="lbl">Season now</div><div class="val">Yala</div><div class="sub">planting window open</div></div>
+      <div class="kpi"><div class="lbl">Forecast confidence</div><div class="val"><span class="dots">●●●<i>○</i></span> Good</div><div class="sub">19 crops model-served</div></div>
+    </div>
+
+    <div class="panelgrid g-main">
+      <div class="panel">
+        <h3>Capsicum — 12-month price outlook <span class="more">change crop ▾</span></h3>
+        <div class="legend"><span><span class="sw"></span><b>Expected price</b></span><span><span class="sw band"></span>Likely range</span></div>
+        <svg width="100%" viewBox="0 0 660 190" role="img" aria-label="12-month Capsicum forecast — table in Prices panel">
+          <line x1="42" y1="20" x2="42" y2="152" stroke="#D8E2DF"/><line x1="42" y1="152" x2="648" y2="152" stroke="#C9D6D2"/>
+          <line x1="42" y1="108" x2="648" y2="108" stroke="#ECF2F0"/><text x="36" y="112" font-size="10" fill="#5A6E69" text-anchor="end">400</text>
+          <line x1="42" y1="64" x2="648" y2="64" stroke="#ECF2F0"/><text x="36" y="68" font-size="10" fill="#5A6E69" text-anchor="end">600</text>
+          <text x="36" y="156" font-size="10" fill="#5A6E69" text-anchor="end">200</text>
+          <polygon points="66,112 146,104 226,96 306,88 386,80 466,78 546,84 648,92 648,138 546,132 466,126 386,122 306,124 226,128 146,130 66,126" fill="rgba(15,118,110,.15)" stroke="rgba(15,118,110,.28)"/>
+          <polyline points="66,119 146,117 226,112 306,106 386,101 466,102 546,108 648,115" fill="none" stroke="#0F766E" stroke-width="2.5"/>
+          <line x1="66" y1="24" x2="66" y2="152" stroke="#9CB4AE" stroke-dasharray="3 4"/><text x="70" y="32" font-size="10" fill="#5A6E69">today</text>
+          <line x1="306" y1="24" x2="306" y2="152" stroke="#0A5C50" stroke-dasharray="3 4"/>
+          <circle cx="306" cy="106" r="5" fill="#0A5C50" stroke="#fff" stroke-width="2"/>
+          <text x="312" y="36" font-size="11" font-weight="700" fill="#0A5C50">harvest · Rs. 552</text>
+          <text x="66" y="172" font-size="10" fill="#5A6E69" text-anchor="middle">Jul</text>
+          <text x="226" y="172" font-size="10" fill="#5A6E69" text-anchor="middle">Sep</text>
+          <text x="306" y="172" font-size="10" fill="#0A5C50" font-weight="700" text-anchor="middle">Oct</text>
+          <text x="466" y="172" font-size="10" fill="#5A6E69" text-anchor="middle">Feb</text>
+          <text x="648" y="172" font-size="10" fill="#5A6E69" text-anchor="middle">Jun</text>
+        </svg>
+        <div style="font-size:12px;color:#5A6E69;margin-top:6px;">📋 Table view · hover any month for exact low / expected / high</div>
+      </div>
+
+      <div class="panel">
+        <h3>Why this price?</h3>
+        <div class="factor"><div class="fi">📈</div><div><b>Recent trend</b><span class="d">+18% over 4 weeks</span></div><span class="pull up">↑ pushes up</span></div>
+        <div class="factor"><div class="fi">🌦️</div><div><b>Season</b><span class="d">Oct = low Yala supply</span></div><span class="pull up">↑ pushes up</span></div>
+        <div class="factor"><div class="fi">🪔</div><div><b>Festival demand</b><span class="d">Deepavali nearby</span></div><span class="pull up">↑ pushes up</span></div>
+        <div class="factor"><div class="fi">🚜</div><div><b>Planted area</b><span class="d">normal this Yala</span></div><span class="pull" style="color:#5A6E69;">— neutral</span></div>
+        <div class="callout" style="margin-top:10px;">⚠️ A forecast is not a promise — always read the range, not just the number.</div>
+      </div>
+    </div>
+
+    <div class="panelgrid g-half">
+      <div class="panel">
+        <h3>Today's prices — my crops <span class="more">all 26 →</span></h3>
+        <table class="data">
+          <tr><th>Crop</th><th class="num">Rs./kg</th><th class="num">7-day</th><th>30 days</th></tr>
+          <tr><td><b>Capsicum</b></td><td class="num"><b>552</b></td><td class="num up">+18%</td>
+            <td><svg width="100" height="20" viewBox="0 0 100 20"><polyline points="0,16 20,15 40,12 60,9 80,6 100,3" fill="none" stroke="#0F766E" stroke-width="2"/><circle cx="100" cy="3" r="2.5" fill="#0A5C50"/></svg></td></tr>
+          <tr><td><b>Beans</b></td><td class="num"><b>310</b></td><td class="num up">+4%</td>
+            <td><svg width="100" height="20" viewBox="0 0 100 20"><polyline points="0,12 20,13 40,11 60,12 80,10 100,9" fill="none" stroke="#0F766E" stroke-width="2"/><circle cx="100" cy="9" r="2.5" fill="#0A5C50"/></svg></td></tr>
+          <tr><td><b>Tomato</b></td><td class="num"><b>184</b></td><td class="num down">−9%</td>
+            <td><svg width="100" height="20" viewBox="0 0 100 20"><polyline points="0,6 20,7 40,9 60,11 80,13 100,15" fill="none" stroke="#8A4A08" stroke-width="2"/><circle cx="100" cy="15" r="2.5" fill="#8A4A08"/></svg></td></tr>
+        </table>
+        <div class="prov" style="margin-top:8px;">Wholesale · HARTI / Dambulla Economic Centre</div>
+      </div>
+
+      <div class="panel">
+        <h3>Best crops to plant now — Yala <span class="more">full comparison →</span></h3>
+        <table class="data">
+          <tr><th>Crop</th><th style="width:44%;">Range (shared scale 0–800)</th><th>Verdict</th></tr>
+          <tr><td><b>Capsicum</b></td><td><div class="rangebar"><div class="band" style="left:29%;width:58%;"></div><div class="mid" style="left:69%;"></div></div></td><td><span class="badge b-good">✓ Recommended</span></td></tr>
+          <tr><td><b>Green Chilli</b></td><td><div class="rangebar"><div class="band" style="left:38%;width:35%;"></div><div class="mid" style="left:56%;"></div></div></td><td><span class="badge b-good">✓ Recommended</span></td></tr>
+          <tr><td><b>Passion Fruit</b></td><td><div class="rangebar lowc"><div class="band" style="left:8%;width:48%;"></div><div class="mid" style="left:30%;"></div></div></td><td><span class="badge b-low">△ Little data</span></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<!-- ============ SAMPLE B — MY HARVEST WORKSPACE ============ -->
+<div class="samplehead">
+  <h2>B · My harvest — forecast workspace</h2>
+  <p>The forecast task as a dashboard workspace: crop &amp; harvest-date controls stay pinned left, results fill the rest — hero price, band chart, market comparison (the 4 CVD-safe categorical colors from FE-1), and the seasonality strip. Changing crop/date updates every panel at once.</p>
+</div>
+<div class="frame-scroll"><div class="screen">
+  <aside class="side">
+    <div class="brand"><span class="leaf">🌱</span> AgriForecast</div>
+    <a href="#">📊 Overview</a>
+    <a class="on" href="#">🌾 My harvest</a>
+    <a href="#">🥇 Best crops</a>
+    <a href="#">💰 Prices <span class="soon">soon</span></a>
+    <div class="foot">
+      <div class="audio">🔊 Listen to this page</div>
+      <div class="lang"><span>සිං</span><span>த</span><span class="on">EN</span></div>
+    </div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <h2>My harvest forecast</h2>
+      <span class="updated"><span class="prov">HARTI / Dambulla DEC · updated 6:14 AM</span></span>
+    </div>
+
+    <div class="panelgrid" style="grid-template-columns:250px 1fr;">
+      <div>
+        <div class="panel" style="margin-bottom:14px;">
+          <h3>My crop</h3>
+          <div class="filter" style="width:100%;margin-bottom:8px;">🫑 Capsicum ▾</div>
+          <div style="font-size:12px;color:#5A6E69;margin-bottom:4px;">Planting date</div>
+          <div class="filter" style="width:100%;margin-bottom:8px;">📅 10 Jul 2026 ▾</div>
+          <div style="font-size:12px;color:#5A6E69;margin-bottom:4px;">Harvest / sell date</div>
+          <div class="filter" style="width:100%;">📅 15 Oct 2026 ▾</div>
+          <div style="font-size:11.5px;color:#5A6E69;margin-top:6px;">Suggested from growth period — change freely</div>
+        </div>
+        <div class="panel">
+          <h3>Confidence</h3>
+          <span class="badge b-good" style="font-size:13px;padding:7px 13px;"><span class="dots">●●●<i>○</i></span> Good</span>
+          <div style="font-size:12.5px;color:#5A6E69;margin-top:8px;">Enough recent price data and a steady trend.</div>
+          <div style="font-size:12.5px;color:#445853;margin-top:8px;">🟢🟢🟢🟢🟢🟢🟢⚪⚪⚪<br>In 7 of 10 similar seasons the price stayed in this range.</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel" style="margin-bottom:14px;">
+          <div class="heroline">
+            <span style="font-size:13px;color:#5A6E69;font-weight:600;">Expected at harvest (15 Oct)</span>
+            <span class="price">Rs. 552 <span style="font-size:15px;color:#5A6E69;font-weight:600;">/ kg</span></span>
+            <span class="range">most likely <b>Rs. 233 – 694</b></span>
+          </div>
+          <svg width="100%" viewBox="0 0 700 150" role="img" aria-label="Forecast to June — table below">
+            <line x1="36" y1="14" x2="36" y2="118" stroke="#D8E2DF"/><line x1="36" y1="118" x2="692" y2="118" stroke="#C9D6D2"/>
+            <polygon points="58,86 158,80 258,72 358,64 458,60 558,66 692,74 692,108 558,102 458,96 358,94 258,98 158,100 58,98" fill="rgba(15,118,110,.15)" stroke="rgba(15,118,110,.28)"/>
+            <polyline points="58,92 158,90 258,85 358,79 458,78 558,84 692,91" fill="none" stroke="#0F766E" stroke-width="2.5"/>
+            <line x1="358" y1="18" x2="358" y2="118" stroke="#0A5C50" stroke-dasharray="3 4"/>
+            <circle cx="358" cy="79" r="5" fill="#0A5C50" stroke="#fff" stroke-width="2"/>
+            <text x="364" y="28" font-size="11" font-weight="700" fill="#0A5C50">harvest · Rs. 552</text>
+            <text x="58" y="136" font-size="10" fill="#5A6E69" text-anchor="middle">Jul</text>
+            <text x="358" y="136" font-size="10" fill="#0A5C50" font-weight="700" text-anchor="middle">Oct</text>
+            <text x="692" y="136" font-size="10" fill="#5A6E69" text-anchor="middle">Jun</text>
+          </svg>
+          <div style="font-size:12px;color:#5A6E69;margin-top:4px;">📋 Table view available · never a bare number — the shaded band is the honest answer</div>
+        </div>
+
+        <div class="panelgrid g-half" style="margin-top:0;">
+          <div class="panel">
+            <h3>Same crop, other markets — October</h3>
+            <div class="legend">
+              <span><span class="cat" style="background:#0072B2;"></span>Dambulla</span>
+              <span><span class="cat" style="background:#E69F00;"></span>Colombo (Pettah)</span>
+              <span><span class="cat" style="background:#009E73;"></span>Kandy</span>
+              <span><span class="cat" style="background:#CC79A7;"></span>Meegoda</span>
+            </div>
+            <svg width="100%" viewBox="0 0 320 120" role="img" aria-label="Expected October price by market — values labelled">
+              <line x1="8" y1="100" x2="312" y2="100" stroke="#C9D6D2"/>
+              <rect x="26" y="34" width="46" height="66" rx="3" fill="#0072B2"/><text x="49" y="26" font-size="11" font-weight="700" fill="#17302C" text-anchor="middle">552</text>
+              <rect x="102" y="22" width="46" height="78" rx="3" fill="#E69F00"/><text x="125" y="14" font-size="11" font-weight="700" fill="#17302C" text-anchor="middle">610</text>
+              <rect x="178" y="40" width="46" height="60" rx="3" fill="#009E73"/><text x="201" y="32" font-size="11" font-weight="700" fill="#17302C" text-anchor="middle">528</text>
+              <rect x="254" y="48" width="46" height="52" rx="3" fill="#CC79A7"/><text x="277" y="40" font-size="11" font-weight="700" fill="#17302C" text-anchor="middle">497</text>
+              <text x="49" y="114" font-size="9.5" fill="#5A6E69" text-anchor="middle">Dambulla</text>
+              <text x="125" y="114" font-size="9.5" fill="#5A6E69" text-anchor="middle">Pettah</text>
+              <text x="201" y="114" font-size="9.5" fill="#5A6E69" text-anchor="middle">Kandy</text>
+              <text x="277" y="114" font-size="9.5" fill="#5A6E69" text-anchor="middle">Meegoda</text>
+            </svg>
+            <div style="font-size:11.5px;color:#5A6E69;margin-top:4px;">Rs./kg expected · needs markets + history APIs (#1, #2)</div>
+          </div>
+
+          <div class="panel">
+            <h3>Capsicum price seasonality</h3>
+            <div class="season">
+              <i style="background:#DCEBE8;"></i><i style="background:#C4DFD9;"></i><i style="background:#A9D2C9;"></i>
+              <i style="background:#8CC4B8;"></i><i style="background:#6FB5A6;"></i><i style="background:#529F8E;"></i>
+              <i style="background:#3E8B79;"></i><i style="background:#2E7A67;"></i><i style="background:#1F6B58;"></i>
+              <i style="background:#0F766E;"></i><i style="background:#2E7A67;"></i><i style="background:#529F8E;"></i>
+            </div>
+            <div class="season-lbls"><span>J</span><span>F</span><span>M</span><span>A</span><span>M</span><span>J</span><span>J</span><span>A</span><span>S</span><span>O</span><span>N</span><span>D</span></div>
+            <div style="font-size:12px;color:#445853;margin-top:8px;">Darker = historically higher prices. <b>Oct–Nov peak</b> — your harvest lands well.</div>
+            <div style="font-size:11.5px;color:#5A6E69;margin-top:4px;">From 10 years of HARTI records · needs history API (#2)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<!-- ============ NOTES ============ -->
+<div class="notes">
+  <h2>Dashboard vs. page style — what to weigh</h2>
+  <ul>
+    <li><b>Dashboard wins:</b> everything on one screen, filters update all panels at once, feels like a professional decision tool — great for the desktop-first direction and for data-heavy users (Tharindu persona).</li>
+    <li><b>Page style wins:</b> simpler for first-time and low-literacy users (Sunil persona) — one question per screen, bigger text, less to scan. The mobile adaptation is also more natural from pages.</li>
+    <li><b>Middle path (my recommendation):</b> dashboard shell on desktop with these panels, but each panel stays big-typed and single-message; on mobile the same panels stack into the signed-off page flow. No PRD conflict — content, honesty rules, and components are identical, only the desktop composition changes.</li>
+  </ul>
+  <p class="sub">Same caveats as before: sample numbers, emoji placeholders, OS fonts, EN shown (trilingual switcher included). PRD and wireframes are untouched — if you pick the dashboard shell, I'll fold it into the wireframes as a redline and the FE-2 build follows it.</p>
+</div>
+</div>

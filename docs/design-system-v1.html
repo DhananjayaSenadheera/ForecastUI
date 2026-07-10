@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgriForecast — Design System v1 (FE-1)</title>
+<style>
+  /* ===========================================================================
+     AgriForecast Design System v1 — self-contained gallery (zero external refs).
+     Inline CSS MIRRORS design-tokens-v1.css. App UI is LIGHT-ONLY in R1, so this
+     page is explicitly light. Fonts fall back to system-ui here (self-hosted Noto
+     Sinhala/Tamil land at FE-2); Sinhala/Tamil strings below are DRAFTS pending
+     native-speaker review (PRD risk + API gap #5 reason-codes).
+  =========================================================================== */
+  :root{
+    --teal-50:#F0FDFA; --teal-100:#CCFBF1; --teal-200:#99F6E4; --teal-300:#5EEAD4;
+    --teal-400:#2DD4BF; --teal-500:#14B8A6; --teal-600:#0D9488; --teal-700:#0F766E;
+    --teal-800:#115E59; --teal-900:#134E4A;
+    --brand:var(--teal-700); --brand-strong:var(--teal-800); --brand-dark:var(--teal-900);
+    --brand-tint:var(--teal-50); --brand-tint-2:#E3F1EE;
+    --surface:#FFFFFF; --surface-2:#F4F7F6; --surface-3:#F8FAF9;
+    --line:#DCE7E4; --line-strong:#C9D6D2;
+    --text:#111827; --text-2:#4B5563; --text-3:#5A6E69; --text-on-brand:#FFFFFF;
+    --good:#15803D; --good-fg:#0A5C50; --good-bg:#E3F1EE;
+    --warn:#B45309; --warn-fg:#8A4A08; --warn-bg:#FDF1DC;
+    --critical:#B91C1C; --critical-fg:#8C2F24; --critical-bg:#F7E9E7;
+    --neutral-fg:#445853; --neutral-bg:#EEF2F1;
+    --conf-dot-on:var(--teal-700); --conf-dot-off:#C7D6D2;
+    --lowtrust-border:#F1D9A8; --price-fg:var(--text); --price-bg:var(--brand-tint);
+    --season-1:#F0FDFA; --season-2:#CCFBF1; --season-3:#99F6E4; --season-4:#5EEAD4;
+    --season-5:#2DD4BF; --season-6:#0D9488; --season-7:#0F766E; --season-8:#115E59;
+    --chart-line:var(--teal-700); --chart-band-fill:rgba(15,118,110,.15);
+    --chart-band-stroke:rgba(15,118,110,.28); --chart-marker:var(--teal-900);
+    --chart-today:#9CB4AE; --chart-grid:#ECF2F0; --chart-axis:var(--text-3);
+    --chart-past:var(--teal-800);
+    --cat-1:#0072B2; --cat-2:#E69F00; --cat-3:#009E73; --cat-4:#CC79A7;
+    --font-sans:'Noto Sans Sinhala','Noto Sans Tamil','Noto Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    --fvn-tabular:tabular-nums;
+    --fs-price-hero:40px; --fs-price:30px; --fs-price-sm:22px;
+    --fs-h1:26px; --fs-h2:21px; --fs-h3:18px; --fs-body-lg:18px; --fs-body:16px;
+    --fs-sm:14px; --fs-xs:12px;
+    --lh-body:1.7; --lh-tamil:1.8; --lh-heading:1.3; --lh-numeral:1.05;
+    --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; --sp-8:32px;
+    --r-sm:6px; --r-md:10px; --r-lg:14px; --r-pill:999px;
+    --e-1:0 1px 2px rgba(10,40,35,.06); --e-2:0 2px 8px rgba(10,40,35,.08); --e-3:0 12px 32px rgba(10,40,35,.14);
+    --touch-min:44px; --touch-primary:48px; --touch-hero:52px;
+    --focus-ring:0 0 0 3px rgba(15,118,110,.45);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--surface-2); color:var(--text); font-family:var(--font-sans);
+    font-size:var(--fs-body); line-height:var(--lh-body); padding:32px 20px 90px;}
+  .wrap{max-width:1180px; margin:0 auto;}
+  h1{font-size:var(--fs-h1); margin:0 0 4px; letter-spacing:-.01em}
+  .lede{color:var(--text-2); max-width:78ch; margin:0 0 8px}
+  .warnnote{background:var(--warn-bg); border:1px solid var(--lowtrust-border); color:var(--warn-fg);
+    border-radius:var(--r-md); padding:10px 14px; font-size:var(--fs-sm); margin:14px 0 4px; max-width:78ch}
+  h2{font-size:var(--fs-h2); margin:52px 0 4px; padding-bottom:6px; border-bottom:2px solid var(--line)}
+  h2 small{font-weight:600; font-size:13px; color:var(--text-3)}
+  .comp{background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg);
+    box-shadow:var(--e-1); padding:22px; margin:16px 0}
+  .row{display:flex; flex-wrap:wrap; gap:16px; align-items:center}
+  .col{display:flex; flex-direction:column; gap:10px}
+  .stage{display:flex; flex-wrap:wrap; gap:18px; align-items:flex-start; padding:16px;
+    background:var(--surface-2); border-radius:var(--r-md)}
+  .tri{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin-top:8px}
+  .tri .lang-tag{font-size:var(--fs-xs); color:var(--text-3); font-weight:700; letter-spacing:.06em; margin-bottom:4px}
+  .meta{font-size:var(--fs-xs); color:var(--text-3)}
+  .dodont{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:14px}
+  .do,.dont{border-radius:var(--r-sm); padding:9px 12px; font-size:var(--fs-sm)}
+  .do{background:var(--good-bg); color:var(--good-fg)} .do::before{content:"✓ Do — "; font-weight:700}
+  .dont{background:var(--critical-bg); color:var(--critical-fg)} .dont::before{content:"✗ Don't — "; font-weight:700}
+  .a11y{margin-top:12px; font-size:var(--fs-sm); color:var(--text-2);
+    background:var(--surface-3); border-left:3px solid var(--brand); padding:9px 12px; border-radius:0 var(--r-sm) var(--r-sm) 0}
+  .a11y b{color:var(--text)}
+  code{background:var(--surface-3); border:1px solid var(--line); border-radius:4px; padding:1px 5px; font-size:var(--fs-xs)}
+
+  /* ---- primitives (mirror the eventual React components) ---- */
+  .btn{font-family:inherit; min-height:var(--touch-primary); border-radius:var(--r-md);
+    font-weight:800; font-size:var(--fs-body); padding:0 24px; display:inline-flex; align-items:center;
+    justify-content:center; gap:10px; cursor:pointer; border:2px solid transparent; line-height:var(--lh-heading);
+    text-align:center; white-space:normal;}
+  .btn-primary{background:var(--brand); color:var(--text-on-brand); border-color:var(--brand)}
+  .btn-primary:hover{background:var(--brand-strong); border-color:var(--brand-strong)}
+  .btn-ghost{background:var(--surface); color:var(--good-fg); border-color:#9CC8C0; font-weight:700}
+  .btn-hero{min-height:var(--touch-hero); font-size:var(--fs-body-lg)}
+  .btn:disabled,.btn[aria-disabled=true]{background:var(--neutral-bg); color:var(--text-3);
+    border-color:var(--line); cursor:not-allowed}
+  .btn:focus-visible{outline:none; box-shadow:var(--focus-ring)}
+
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); padding:20px; box-shadow:var(--e-1)}
+  .sec{font-size:var(--fs-xs); letter-spacing:.08em; color:var(--text-3); font-weight:700; margin:0 0 10px;}
+
+  .badge{display:inline-flex; align-items:center; gap:6px; font-size:var(--fs-sm); font-weight:700;
+    border-radius:var(--r-pill); padding:6px 14px; min-height:var(--touch-min)/2; line-height:var(--lh-heading)}
+  .b-good{background:var(--good-bg); color:var(--good-fg)}
+  .b-fair{background:var(--neutral-bg); color:var(--neutral-fg)}
+  .b-low{background:var(--warn-bg); color:var(--warn-fg)}
+  .b-no{background:var(--critical-bg); color:var(--critical-fg)}
+  .dots{letter-spacing:2px; font-size:14px; color:var(--conf-dot-on)}
+  .dots i{font-style:normal; color:var(--conf-dot-off)}
+
+  .price{font-variant-numeric:var(--fvn-tabular); color:var(--price-fg,var(--text))}
+  .price .num{font-size:var(--fs-price); font-weight:800; letter-spacing:-.01em; color:var(--brand-dark)}
+  .price.hero .num{font-size:var(--fs-price-hero)}
+  .price .unit{font-size:var(--fs-sm); font-weight:600; color:var(--text-3)}
+  .price .lbl{font-size:var(--fs-sm); color:var(--text-3); font-weight:600}
+  .prov{font-size:var(--fs-xs); color:var(--text-3); display:flex; align-items:center; gap:6px; margin-top:8px}
+  .prov::before{content:"✓"; color:var(--brand); font-weight:800}
+
+  /* confidence band */
+  .cband{position:relative; height:30px; margin:14px 0 2px; max-width:360px}
+  .cband .track{position:absolute; top:13px; left:0; right:0; height:4px; background:var(--line); border-radius:2px}
+  .cband .fill{position:absolute; top:11px; height:8px; background:var(--chart-band-fill);
+    border:1px solid var(--chart-band-stroke); border-radius:4px}
+  .cband .mid{position:absolute; top:4px; width:16px; height:16px; border-radius:50%;
+    background:var(--chart-marker); border:2px solid var(--surface)}
+  .cband .lo,.cband .hi{position:absolute; top:-2px; font-size:var(--fs-xs); color:var(--text-2)}
+  .cband .lo{left:0} .cband .hi{right:0}
+
+  /* icon array (natural frequency) */
+  .iconarray{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+  .iconarray .grid{display:grid; grid-template-columns:repeat(10,14px); gap:4px}
+  .iconarray .g{width:14px; height:14px; border-radius:50%; background:var(--conf-dot-off)}
+  .iconarray .g.on{background:var(--conf-dot-on)}
+
+  /* crop tile */
+  .tile{width:104px; border:1px solid var(--line); border-radius:var(--r-md); background:var(--surface);
+    padding:8px; text-align:center; font-size:var(--fs-sm); cursor:pointer; min-height:var(--touch-min)}
+  .tile:hover{border-color:var(--brand); box-shadow:var(--e-1)}
+  .tile:focus-visible{outline:none; box-shadow:var(--focus-ring)}
+  .tile .art{height:56px; border-radius:var(--r-sm); background:var(--brand-tint-2);
+    display:grid; place-items:center; font-size:26px; margin-bottom:6px}
+  .tile.sel{border-color:var(--brand); background:var(--brand-tint)}
+
+  /* fields */
+  .field{width:100%; max-width:320px}
+  .field label{display:block; font-size:var(--fs-sm); font-weight:600; margin-bottom:4px}
+  .field .ctl{min-height:var(--touch-primary); border:1.5px solid var(--line-strong); border-radius:var(--r-md);
+    background:var(--surface); display:flex; align-items:center; gap:8px; padding:0 12px; font-size:var(--fs-body); color:var(--text)}
+  .field .ctl.placeholder{color:var(--text-3)}
+  .field .ctl:focus-within{border-color:var(--brand); box-shadow:var(--focus-ring)}
+  .field .hint{font-size:var(--fs-xs); color:var(--text-3); margin-top:4px}
+
+  /* skeleton */
+  .sk{background:linear-gradient(90deg,#EAF0EE 25%,#F3F7F6 37%,#EAF0EE 63%);
+    background-size:400% 100%; border-radius:var(--r-sm); animation:sh 1.4s ease infinite}
+  @keyframes sh{0%{background-position:100% 0}100%{background-position:0 0}}
+  @media (prefers-reduced-motion:reduce){.sk{animation:none}}
+  .sk.line{height:12px; margin:8px 0}
+
+  /* audio button */
+  .audio{width:var(--touch-min); height:var(--touch-min); border-radius:var(--r-pill);
+    background:var(--brand-tint-2); color:var(--good-fg); border:1px solid #C9E0DB;
+    display:inline-grid; place-items:center; font-size:18px; cursor:pointer}
+  .audio:focus-visible{outline:none; box-shadow:var(--focus-ring)}
+  .audio-inline{display:inline-flex; align-items:center; gap:8px; min-height:var(--touch-min);
+    border:1px solid var(--line); border-radius:var(--r-sm); background:var(--surface-3);
+    padding:0 12px; font-size:var(--fs-sm); font-weight:600; color:var(--good-fg); cursor:pointer}
+
+  /* banners */
+  .banner{display:flex; align-items:center; gap:8px; border-radius:var(--r-md); padding:10px 14px; font-size:var(--fs-sm)}
+  .banner.info{background:var(--brand-tint); color:var(--brand-dark)}
+  .banner.offline{background:var(--warn-bg); color:var(--warn-fg); border:1px solid var(--lowtrust-border)}
+  .banner.lowtrust{background:var(--warn-bg); color:var(--warn-fg); border:1px solid var(--lowtrust-border)}
+  .errstate{text-align:center; padding:24px; max-width:420px}
+  .errstate .ic{width:52px; height:52px; border-radius:var(--r-md); background:var(--warn-bg);
+    display:grid; place-items:center; font-size:24px; margin:0 auto 12px}
+
+  /* language switcher */
+  .lang{display:inline-flex; border:1px solid var(--line); border-radius:var(--r-pill); overflow:hidden; font-weight:700; font-size:13px}
+  .lang button{font-family:inherit; border:none; background:var(--surface); color:var(--text-2);
+    min-height:var(--touch-min); padding:0 14px; cursor:pointer}
+  .lang button.on{background:var(--brand); color:#fff}
+  .lang button:focus-visible{outline:none; box-shadow:var(--focus-ring)}
+
+  /* comparison / seasonality / table */
+  table.data{width:100%; border-collapse:collapse; font-size:var(--fs-sm); font-variant-numeric:var(--fvn-tabular)}
+  table.data th{text-align:left; font-size:var(--fs-xs); letter-spacing:.06em; color:var(--text-3);
+    font-weight:700; padding:8px 10px; border-bottom:1px solid var(--line)}
+  table.data td{padding:11px 10px; border-bottom:1px solid var(--chart-grid); vertical-align:middle}
+  table.data td.num,table.data th.num{text-align:right}
+  .rangebar{position:relative; height:14px; min-width:180px}
+  .rangebar .band{position:absolute; top:3px; height:8px; border-radius:4px; background:var(--chart-band-fill); border:1px solid var(--chart-band-stroke)}
+  .rangebar .mid{position:absolute; top:0; width:3px; height:14px; border-radius:2px; background:var(--brand-strong)}
+  .season{display:flex; gap:3px; max-width:520px}
+  .season .cell{flex:1; height:40px; border-radius:var(--r-sm); display:flex; align-items:flex-end;
+    justify-content:center; font-size:var(--fs-xs); color:var(--text); padding-bottom:3px; font-weight:600}
+  .catrow{display:flex; align-items:center; gap:10px; font-size:var(--fs-sm); margin:4px 0}
+  .catsw{width:16px; height:16px; border-radius:4px}
+  .divider{height:1px; background:var(--line); margin:14px 0}
+  details summary{cursor:pointer; font-weight:700; color:var(--good-fg); font-size:var(--fs-sm); min-height:var(--touch-min); display:flex; align-items:center; gap:6px}
+  .legend-inline{display:flex; gap:18px; font-size:var(--fs-xs); color:var(--text-2); margin:4px 0 8px; flex-wrap:wrap}
+  .sw{display:inline-block; width:14px; height:4px; border-radius:2px; background:var(--chart-line); vertical-align:middle; margin-right:6px}
+  .sw.b{height:12px; background:var(--chart-band-fill); border:1px solid var(--chart-band-stroke)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>AgriForecast — Design System v1</h1>
+  <p class="lede"><strong>FE-1 · design system &amp; trilingual typography</strong> · light-only (Release 1) · every PRD component in its key states, each with a trilingual sample, do/don't and a11y notes. Inline CSS mirrors <code>design-tokens-v1.css</code>; FE-2 imports the token file and rebuilds these as React primitives.</p>
+  <p class="warnnote">Sinhala &amp; Tamil strings on this page are <strong>drafts pending native-speaker review</strong> (PRD risk + API gap #5: reason <em>codes</em> come from the API, client owns translation). Emoji stand in for the ~30 commissioned semi-abstract crop illustrations. Rendered in your OS fonts — the app self-hosts the current Noto Sans Sinhala/Tamil builds at FE-2 (never an old CDN binary: the pre-2020 Sinhala wrong-ascender defect clips ascenders).</p>
+
+  <!-- ============================ FOUNDATIONS ============================ -->
+  <h2>0 · Foundations <small>color · type · confidence + verdict mapping</small></h2>
+  <div class="comp">
+    <p class="sec">Brand teal ramp — politically neutral primary</p>
+    <div class="row">
+      <div class="col" style="align-items:center"><div style="width:64px;height:48px;border-radius:8px;background:var(--teal-700)"></div><span class="meta">700 · brand</span></div>
+      <div class="col" style="align-items:center"><div style="width:64px;height:48px;border-radius:8px;background:var(--teal-800)"></div><span class="meta">800</span></div>
+      <div class="col" style="align-items:center"><div style="width:64px;height:48px;border-radius:8px;background:var(--teal-900)"></div><span class="meta">900 · text/marker</span></div>
+      <div class="col" style="align-items:center"><div style="width:64px;height:48px;border-radius:8px;background:var(--brand-tint-2);border:1px solid var(--line)"></div><span class="meta">tint-2 · chips</span></div>
+      <div class="col" style="align-items:center"><div style="width:64px;height:48px;border-radius:8px;background:var(--brand-tint);border:1px solid var(--line)"></div><span class="meta">tint · price bg</span></div>
+    </div>
+    <div class="divider"></div>
+    <p class="sec">Semantic — hue only; components always add icon + label</p>
+    <div class="row">
+      <span class="badge b-good">● good / recommended</span>
+      <span class="badge b-fair">● fair / possible</span>
+      <span class="badge b-low">● amber · low / little-data / stale</span>
+      <span class="badge b-no">● red · not recommended</span>
+    </div>
+    <div class="divider"></div>
+    <p class="sec">Confidence label ↔ contract string (FROZEN — translate label only)</p>
+    <table class="data" style="max-width:640px">
+      <tr><th>Display label</th><th>API string (frozen)</th><th>Pictograph</th><th>Color role</th></tr>
+      <tr><td><b>Good</b> · හොඳයි · நல்லது</td><td><code>"High"</code></td><td><span class="dots">●●●<i>○</i></span></td><td>green</td></tr>
+      <tr><td><b>Fair</b> · සාධාරණයි · சராசரி</td><td><code>"Medium"</code></td><td><span class="dots">●●<i>○○</i></span></td><td>neutral</td></tr>
+      <tr><td><b>Low</b> · අඩුයි · குறைவு</td><td><code>"Low"</code></td><td><span class="dots">●<i>○○○</i></span></td><td>amber (caution)</td></tr>
+    </table>
+    <div class="a11y"><b>a11y:</b> every semantic color is paired with an icon + text label — color is never the sole signal. Body ≥16px, AAA (≥7:1) on white; muted text ≥4.5:1. No <code>text-transform:uppercase</code> (harmful for Sinhala/Tamil). Line-height 1.7 body / 1.8 Tamil; never a fixed-height <code>overflow:hidden</code> text box (clips ascenders/vowel marks).</div>
+  </div>
+
+  <!-- ============================ BUTTON ============================ -->
+  <h2>1 · Button <small>primary / ghost / disabled · 48px min</small></h2>
+  <div class="comp">
+    <div class="stage">
+      <button class="btn btn-primary">＋ Check a crop price</button>
+      <button class="btn btn-ghost">See best crops</button>
+      <button class="btn btn-primary" aria-disabled="true" disabled>See forecast →</button>
+      <button class="btn btn-primary btn-hero">📈 Check my harvest price</button>
+    </div>
+    <div class="tri">
+      <div><div class="lang-tag">EN</div><button class="btn btn-primary">See price forecast →</button></div>
+      <div><div class="lang-tag">සිංහල</div><button class="btn btn-primary">මිල අනාවැකිය බලන්න →</button></div>
+      <div><div class="lang-tag">தமிழ்</div><button class="btn btn-primary">விலை முன்னறிவிப்பைக் காண்க →</button></div>
+    </div>
+    <div class="dodont">
+      <div class="do">one primary (filled teal) action per screen; secondaries are ghost.</div>
+      <div class="dont">let a button truncate — Sinhala/Tamil run 20–40% longer; buttons wrap, height grows.</div>
+    </div>
+    <div class="a11y"><b>a11y:</b> ≥48px height, real <code>&lt;button&gt;</code>, visible teal focus ring (<code>--focus-ring</code>), disabled state has AA text and <code>aria-disabled</code>. Icon is decorative; the label carries meaning.</div>
+  </div>
+
+  <!-- ============================ CARD ============================ -->
+  <h2>2 · Card <small>content container · elevation-1</small></h2>
+  <div class="comp">
+    <div class="stage">
+      <div class="card" style="max-width:320px">
+        <p class="sec">Today's wholesale prices</p>
+        <div style="display:flex;justify-content:space-between;align-items:center"><b>Capsicum</b><span class="price"><span class="num" style="font-size:var(--fs-price-sm)">552</span> <span class="unit">Rs./kg</span></span></div>
+        <div class="prov">Source: HARTI / Dambulla EC via Dept. of Agriculture data</div>
+      </div>
+    </div>
+    <div class="dodont">
+      <div class="do">group one idea per card; keep the provenance line under any price/chart it holds.</div>
+      <div class="dont">nest cards inside cards or add drop-shadows heavier than <code>--e-2</code> (sunlight washout).</div>
+    </div>
+    <div class="a11y"><b>a11y:</b> section heading (<code>.sec</code>) gives structure; card is a landmark region when it owns a heading. 1px teal-biased border keeps edges visible in glare.</div>
+  </div>
+
+  <!-- ============================ BADGE ============================ -->
+  <h2>3 · Badge <small>recommendation verdict + confidence pictograph</small></h2>
+  <div class="comp">
+    <p class="sec">Recommendation verdict (icon + label + color)</p>
+    <div class="row">
+      <span class="badge b-good">✓ Recommended</span>
+      <span class="badge b-fair">— Possible</span>
+      <span class="badge b-low">△ Little data</span>
+      <span class="badge b-no">✗ Not recommended</span>
+    </div>
+    <p class="sec" style="margin-top:16px">Confidence (dot pictograph + translated label)</p>
+    <div class="row">
+      <span class="badge b-good"><span class="dots">●●●<i>○</i></span> Good</span>
+      <span class="badge b-fair"><span class="dots">●●<i>○○</i></span> Fair</span>
+      <span class="badge b-low"><span class="dots">●<i>○○○</i></span> Low</span>
+    </div>
+    <div class="tri">
+      <div><div class="lang-tag">EN</div><span class="badge b-good"><span class="dots">●●●<i>○</i></span> Confidence: Good</span></div>
+      <div><div class="lang-tag">සිංහල</div><span class="badge b-good"><span class="dots">●●●<i>○</i></span> විශ්වාසය: හොඳයි</span></div>
+      <div><div class="lang-tag">தமிழ்</div><span class="badge b-good"><span class="dots">●●●<i>○</i></span> நம்பகத்தன்மை: நல்லது</span></div>
+    </div>
+    <div class="dodont">
+      <div class="do">translate the display label only; keep the filled/empty dot count tied to the frozen High/Medium/Low string.</div>
+      <div class="dont">remap contract strings or dress "Low" up in green — Low stays amber + ●○○○, honestly.</div>
+    </div>
+    <div class="a11y"><b>a11y:</b> pictograph is decorative; the word label is the accessible name. Verdict differs by icon glyph AND color AND word, so it survives color-blindness and greyscale. Badge text ≥14px.</div>
+  </div>
+
+  <!-- ============================ PRICE DISPLAY ============================ -->
+  <h2>4 · PriceDisplay <small>numeral-first + provenance</small></h2>
+  <div class="comp">
+    <div class="stage">
+      <div style="background:var(--brand-tint);border-radius:var(--r-lg);padding:18px 22px">
+        <span class="price lbl">Expected price at harvest</span>
+        <div class="price hero"><span class="num">Rs. 552</span> <span class="unit">/ kg</span></div>
+        <div class="prov">Source: HARTI / Dambulla EC via Dept. of Agriculture data · updated today 6:14 AM</div>
+      </div>
+    </div>
+    <div class="tri">
+      <div><div class="lang-tag">EN</div><span class="price lbl">Expected at harvest</span><div class="price"><span class="num">Rs. 552</span> <span class="unit">/kg</span></div></div>
+      <div><div class="lang-tag">සිංහල</div><span class="price lbl">අස්වැන්නේදී අපේක්ෂිත මිල</span><div class="price"><span class="num">රු. 552</span> <span class="unit">/kg</span></div></div>
+      <div><div class="lang-tag">தமிழ்</div><span class="price lbl">அறுவடையின் போது எதிர்பார்க்கப்படும் விலை</span><div class="price"><span class="num">ரூ. 552</span> <span class="unit">/kg</span></div></div>
+    </div>
+    <div class="dodont">
+      <div class="do">make the number the largest thing on screen (28–40px, tabular figures); locale-format LKR ("Rs." / "රු." / "ரூ.").</div>
+      <div class="dont">hide the price behind prose or show a price with no provenance line — farmers are numerate, trust comes from source.</div>
+    </div>
+    <div class="a11y"><b>a11y:</b> price is real text (screen-reader + zoom friendly), not an image. <code>font-variant-numeric:tabular-nums</code> aligns columns. Unit + "at harvest" label give the number context.</div>
+  </div>
+
+  <!-- ============================ CONFIDENCE BAND ============================ -->
+  <h2>5 · ConfidenceBand <small>range + bold marked centre — never a bare interval</small></h2>
+  <div class="comp">
+    <div class="stage">
+      <div class="card" style="max-width:380px">
+        <span class="price lbl">Expected price at harvest</span>
+        <div class="price hero"><span class="num">Rs. 552</span> <span class="unit">/kg</span></div>
+        <div class="cband"><div class="track"></div><div class="fill" style="left:14%;right:14%"></div><div class="mid" style="left:52%"></div><span class="lo">Rs.233</span><span class="hi">Rs.694</span></div>
+        <div class="meta">P10–P90 range · dot = most likely (central) price</div>
+      </div>
+      <div class="card" style="max-width:380px">
+        <span class="price lbl">Rough estimate at harvest <span class="badge b-low" style="padding:2px 8px;font-size:11px"><span class="dots">●<i>○○○</i></span> Low</span></span>
+        <div class="price hero"><span class="num">Rs. 310</span> <span class="unit">/kg</span></div>
+        <div class="cband"><div class="track"></div><div class="fill" style="left:6%;right:6%"></div><div class="mid" style="left:48%"></div><span class="lo">Rs.120</span><span class="hi">Rs.520</span></div>
+        <div class="meta">Wide range — treat as a rough guide, not a precise forecast</div>
+      </div>
+    </div>
+    <div class="dodont">
+      <div class="do">always mark the centre (dot/bold line) inside the band; widen the band + label "rough estimate" for Low confidence.</div>
+      <div class="dont">show a bare "Rs.233 – Rs.694" interval — users then fixate on the extremes and mistrust the tool.</div>
+    </div>
+    <div class="a11y"><b>a11y:</b> the band is paired with the exact P10/central/P90 numbers as text and repeated in the table alternative (§12). Centre marker is 16px (≥3px stroke), high-contrast teal-900 on white. Not conveyed by color alone.</div>
+  </div>
+
+  <!-- ============================ ICON ARRAY ============================ -->
+  <h2>6 · IconArray <small>natural frequency — shown only when the API exposes it</small></h2>
+  <div class="comp">
+    <div class="stage">
+      <div class="iconarray">
+        <div class="grid" role="img" aria-label="7 of 10 similar seasons stayed in this range">
+          <span class="g on"></span><span class="g on"></span><span class="g on"></span><span class="g on"></span><span class="g on"></span><span class="g on"></span><span class="g on"></span><span class="g"></span><span class="g"></span><span class="g"></span>
+        </div>
+        <span>In <b>7 of 10</b> similar seasons the price stayed in this range.</span>
+      </div>
+    </div>
+    <div class="tri">
+      <div><div class="lang-tag">EN</div>In <b>7 of 10</b> similar seasons the price stayed above Rs.400.</div>
+      <div><div class="lang-tag">සිංහල</div>සමාන කන්න <b>10කින් 7ක</b> මිල රු.400ට වැඩිව පැවතුනි.</div>
+      <div><div class="lang-tag">தமிழ்</div>ஒத்த <b>10 பருவங்களில் 7</b> இல் விலை ரூ.400 க்கு மேல் இருந்தது.</div>
+    </div>
+    <div class="dodont">
+      <div class="do">use natural frequencies ("7 of 10 seasons") — only if the API genuinely returns it (owner decision #4).</div>
+      <div class="dont">fabricate a frequency or show "70% probability" — never invent the number, never use bare percentages.</div>
+    </div>
+    <div class="a11y"><b>a11y:</b> grid carries a full <code>aria-label</code>; the sentence restates it in text so nothing depends on the pictograph. Filled/empty differ in fill (color) but the count is also stated numerically.</div>
+  </div>
+
+  <!-- ============================ CROP TILE ============================ -->
+  <h2>7 · CropTile <small>illustrated, searchable grid — primary discovery for low-literacy users</small></h2>
+  <div class="comp">
+    <div class="stage">
+      <div class="tile"><div class="art">🫑</div>Capsicum</div>
+      <div class="tile sel"><div class="art">🫘</div>Beans ✓</div>
+      <div class="tile"><div class="art">🥬</div>Cabbage</div>
+      <div class="tile"><div class="art">🍅</div>Tomato</div>
+    </div>
+    <div class="tri">
+      <div><div class="lang-tag">EN</div><div class="tile"><div class="art">🫑</div>Capsicum</div></div>
+      <div><div class="lang-tag">සිංහල</div><div class="tile"><div class="art">🫑</div>මාළු මිරිස්</div></div>
+      <div><div class="lang-tag">தமிழ்</div><div class="tile"><div class="art">🫑</div>மிளகாய்</div></div>
+    </div>
+    <div class="dodont">
+      <div class="do">pair every illustration with a text label; use the commissioned semi-abstract SVGs (beat photos + abstract icons for comprehension).</div>
+      <div class="dont">ship illustration-only tiles or fixed-height labels that clip longer Sinhala/Tamil crop names.</div>
+    </div>
+    <div class="a11y"><b>a11y:</b> whole tile is a focusable control (≥44px), teal focus ring, selected state shown by border + tint + "✓" (not color alone). Label text wraps to 2 lines.</div>
+  </div>
+
+  <!-- ============================ FIELD / SELECT / DATEPICKER ============================ -->
+  <h2>8 · Field · Select · DatePicker <small>harvest-date picker (owner decision #3 — no horizon chips)</small></h2>
+  <div class="comp">
+    <div class="stage">
+      <div class="field"><label for="f1">Search crops</label><div class="ctl placeholder" id="f1">🔍 Search crops</div></div>
+      <div class="field"><label for="f2">When will you plant?</label><div class="ctl" id="f2">📅 Today · 10 Jul 2026 ▾</div></div>
+      <div class="field"><label for="f3">When will you harvest / sell?</label><div class="ctl" id="f3">📅 15 Oct 2026 ▾</div><div class="hint">Suggested from planting date + crop growth period (API #3); freely pickable until then.</div></div>
+    </div>
+    <div class="tri">
+      <div><div class="lang-tag">EN</div><div class="field"><label>When will you harvest / sell?</label><div class="ctl">📅 15 Oct 2026 ▾</div></div></div>
+      <div><div class="lang-tag">සිංහල</div><div class="field"><label>ඔබ අස්වනු නෙළන්නේ කවදාද?</label><div class="ctl">📅 2026 ඔක් 15 ▾</div></div></div>
+      <div><div class="lang-tag">தமிழ்</div><div class="field"><label>எப்போது அறுவடை செய்வீர்கள்?</label><div class="ctl">📅 15 அக். 2026 ▾</div></div></div>
+    </div>
+    <div class="dodont">
+      <div class="do">default the plant date to today (zero typing to an answer); use an exact harvest-date picker, locale-formatted dates.</div>
+      <div class="dont">bring back fixed 1/3/6-month horizon chips (dropped 2026-07-10) or use placeholder text as the only label.</div>
+    </div>
+    <div class="a11y"><b>a11y:</b> every control has a persistent <code>&lt;label&gt;</code> (not placeholder-as-label); ≥48px hit area; focus-within teal ring on the control; forgiving inputs, no free-text date typing required.</div>
+  </div>
+
+  <!-- ============================ SKELETON ============================ -->
+  <h2>9 · Skeleton <small>loading state — shaped like real content, not a spinner</small></h2>
+  <div class="comp">
+    <div class="stage">
+      <div class="card" style="max-width:320px">
+        <div class="sk line" style="width:45%"></div>
+        <div class="sk" style="height:34px;width:60%;margin:12px 0"></div>
+        <div class="sk line" style="width:90%"></div>
+        <div class="sk line" style="width:70%"></div>
+      </div>
+    </div>
+    <div class="dodont">
+      <div class="do">shape skeletons like the price/card that will load (helps rural low-bandwidth perceived speed).</div>
+      <div class="dont">use a centred spinner or block the whole screen — ship all four states (loading/success/empty/error).</div>
+    </div>
+    <div class="a11y"><b>a11y:</b> container marked <code>aria-busy="true"</code>; shimmer disabled under <code>prefers-reduced-motion</code>; decorative bars are <code>aria-hidden</code>.</div>
+  </div>
+
+  <!-- ============================ AUDIO HELP ============================ -->
+  <h2>10 · AudioHelpButton <small>persistent on every screen — a mainstream channel here, not an extra</small></h2>
+  <div class="comp">
+    <div class="stage">
+      <button class="audio" aria-label="Listen to this page">🔊</button>
+      <button class="audio-inline">🔊 Hear this explanation</button>
+    </div>
+    <div class="tri">
+      <div><div class="lang-tag">EN</div><button class="audio-inline">🔊 Hear this explanation</button></div>
+      <div><div class="lang-tag">සිංහල</div><button class="audio-inline">🔊 මෙය අසන්න</button></div>
+      <div><div class="lang-tag">தமிழ்</div><button class="audio-inline">🔊 இதைக் கேளுங்கள்</button></div>
+    </div>
+    <div class="dodont">
+      <div class="do">keep a header speaker (≥44px) on every screen; give key blocks (confidence, factors, errors) their own "Hear this".</div>
+      <div class="dont">treat audio as decoration — 90% of comparable users pick voice; it must be reachable, not buried.</div>
+    </div>
+    <div class="a11y"><b>a11y:</b> real button with descriptive <code>aria-label</code>, ≥44px, teal focus ring; icon paired with a text label on the inline variant. Pre-recorded clip per locale.</div>
+  </div>
+
+  <!-- ============================ OFFLINE / API-DOWN ============================ -->
+  <h2>11 · OfflineBanner · API-down <small>never white-screen — degrade gracefully</small></h2>
+  <div class="comp">
+    <div class="col" style="gap:14px">
+      <div class="banner info">📶 Prices updated 2h ago · Dambulla · <span class="meta" style="color:inherit">Source: HARTI / Dept. of Agriculture</span></div>
+      <div class="banner offline">⚠️ <b>You are offline</b> — showing saved prices from 2h ago (7 Jul, 3:10 PM). Saved data stays readable; new forecasts need internet.</div>
+      <div class="banner lowtrust">⚠️ <b>Using older data</b> — latest reading 40 days ago (<code>LowTrust=true</code>).</div>
+      <div class="card errstate">
+        <div class="ic">🔌</div>
+        <b>We couldn't get the forecast</b>
+        <div class="meta" style="font-size:var(--fs-sm);margin:6px 0 12px">The service is busy right now — this is not your fault. Please try again in a moment.</div>
+        <div class="row" style="justify-content:center"><button class="btn btn-primary">↻ Try again</button><button class="btn btn-ghost">← Go back</button></div>
+        <div class="meta" style="margin-top:10px">No error codes shown; technical detail logged internally only.</div>
+      </div>
+    </div>
+    <div class="tri">
+      <div><div class="lang-tag">EN</div><div class="banner offline">⚠️ You are offline — saved prices from 2h ago.</div></div>
+      <div><div class="lang-tag">සිංහල</div><div class="banner offline">⚠️ ඔබ නොබැඳිය — පැය 2කට පෙර සුරැකි මිල.</div></div>
+      <div><div class="lang-tag">தமிழ்</div><div class="banner offline">⚠️ நீங்கள் ஆஃப்லைனில் — 2 மணி நேரம் முன் சேமித்த விலை.</div></div>
+    </div>
+    <div class="dodont">
+      <div class="do">show last-fetched data with an explicit relative + absolute timestamp; reassure ("not your fault") + big Retry.</div>
+      <div class="dont">expose HTTP codes/stack traces or blank the screen; LowTrust always surfaces the data age in amber.</div>
+    </div>
+    <div class="a11y"><b>a11y:</b> banners use <code>role="status"</code> (polite); amber offline/LowTrust pass AA text on their tint; error uses icon + heading + text, never color alone. Retry is a ≥48px button.</div>
+  </div>
+
+  <!-- ============================ TIMELINE CHART ============================ -->
+  <h2>12 · TimelineChart <small>band + centre line + today/harvest markers + MANDATORY table alternative</small></h2>
+  <div class="comp">
+    <p class="sec">12-month price timeline — expected price</p>
+    <div class="legend-inline"><span><span class="sw"></span><b>Expected (central)</b></span><span><span class="sw b"></span>Likely range P10–P90</span><span>▲ harvest · ┊ today</span></div>
+    <svg width="100%" viewBox="0 0 640 230" role="img" aria-label="12-month price forecast for Capsicum. Central estimate rises to about Rs.552 at the October harvest; likely range Rs.233 to Rs.694. Full numbers in the table below." style="display:block;max-width:660px">
+      <line x1="46" y1="30" x2="46" y2="186" stroke="var(--chart-grid)"/>
+      <line x1="46" y1="186" x2="620" y2="186" stroke="var(--line-strong)"/>
+      <line x1="46" y1="134" x2="620" y2="134" stroke="var(--chart-grid)"/><text x="40" y="138" font-size="11" fill="var(--chart-axis)" text-anchor="end">400</text>
+      <line x1="46" y1="82" x2="620" y2="82" stroke="var(--chart-grid)"/><text x="40" y="86" font-size="11" fill="var(--chart-axis)" text-anchor="end">600</text>
+      <text x="40" y="190" font-size="11" fill="var(--chart-axis)" text-anchor="end">200</text>
+      <polygon points="70,140 170,128 220,120 320,108 420,96 520,100 620,116 620,168 520,158 420,148 320,144 220,152 170,156 70,156" fill="var(--chart-band-fill)" stroke="var(--chart-band-stroke)"/>
+      <polyline points="70,148 170,142 220,136 320,126 420,122 520,129 620,142" fill="none" stroke="var(--chart-line)" stroke-width="2.5"/>
+      <line x1="70" y1="34" x2="70" y2="186" stroke="var(--chart-today)" stroke-dasharray="3 4"/><text x="74" y="42" font-size="11" fill="var(--chart-axis)">today</text>
+      <line x1="220" y1="34" x2="220" y2="186" stroke="var(--chart-marker)" stroke-dasharray="3 4"/>
+      <circle cx="220" cy="136" r="5" fill="var(--chart-marker)" stroke="#fff" stroke-width="2"/>
+      <text x="226" y="46" font-size="12" font-weight="700" fill="var(--chart-marker)">▲ harvest · Rs. 552</text>
+      <text x="70" y="206" font-size="11" fill="var(--chart-axis)" text-anchor="middle">Jul</text>
+      <text x="170" y="206" font-size="11" fill="var(--chart-axis)" text-anchor="middle">Sep</text>
+      <text x="220" y="206" font-size="11" fill="var(--chart-marker)" font-weight="700" text-anchor="middle">Oct</text>
+      <text x="320" y="206" font-size="11" fill="var(--chart-axis)" text-anchor="middle">Dec</text>
+      <text x="420" y="206" font-size="11" fill="var(--chart-axis)" text-anchor="middle">Feb</text>
+      <text x="520" y="206" font-size="11" fill="var(--chart-axis)" text-anchor="middle">Apr</text>
+      <text x="620" y="206" font-size="11" fill="var(--chart-axis)" text-anchor="middle">Jun</text>
+    </svg>
+    <details open style="margin-top:10px">
+      <summary>📋 Same data as a table (view as table)</summary>
+      <table class="data" style="max-width:460px;margin-top:8px">
+        <tr><th>Month</th><th>Type</th><th class="num">Low (P10)</th><th class="num">Likely</th><th class="num">High (P90)</th></tr>
+        <tr><td>Aug 2026</td><td>Past (actual)</td><td class="num" colspan="3">Rs. 500</td></tr>
+        <tr><td>Sep 2026</td><td>Past (actual)</td><td class="num" colspan="3">Rs. 528</td></tr>
+        <tr style="background:var(--brand-tint)"><td>Oct 2026 ★</td><td>Forecast (harvest)</td><td class="num">233</td><td class="num"><b>552</b></td><td class="num">694</td></tr>
+      </table>
+    </details>
+    <div class="prov">Source: HARTI / Dambulla EC via Dept. of Agriculture data</div>
+    <div class="tri">
+      <div><div class="lang-tag">EN</div>Past prices + forecast band · ▲ harvest ~15 Oct</div>
+      <div><div class="lang-tag">සිංහල</div>ඉදිරි මාස 12 — අපේක්ෂිත මිල · ▲ අස්වැන්න ~ඔක් 15</div>
+      <div><div class="lang-tag">தமிழ்</div>எதிர்வரும் 12 மாதங்கள் — எதிர்பார்க்கப்படும் விலை · ▲ அறுவடை ~அக். 15</div>
+    </div>
+    <div class="dodont">
+      <div class="do">show a shaded P10–P90 band with a bold central line; mark today + harvest; ship the table alternative always (it defaults open).</div>
+      <div class="dont">draw a single false line, rely on hue alone, or ship a chart with no table — the number is the product.</div>
+    </div>
+    <div class="a11y"><b>a11y:</b> SVG has a sentence-long <code>aria-label</code> summarising the trend + numbers; the <code>&lt;details&gt;</code> table is the WCAG text alternative. Single-hue teal + band read in greyscale and CVD; markers use shape (▲/┊) not just color.</div>
+  </div>
+
+  <!-- ============================ COMPARISON ROW ============================ -->
+  <h2>13 · Comparison table row <small>shared-scale range bar — best-crops honest comparison</small></h2>
+  <div class="comp">
+    <table class="data">
+      <tr><th>Crop ▲▼</th><th class="num">Expected /kg ▲▼</th><th>Likely range — shared scale Rs. 0–800</th><th>Confidence ▲▼</th><th>Season fit</th><th>Verdict</th></tr>
+      <tr>
+        <td><b>🫑 Capsicum</b></td><td class="num"><b>Rs. 552</b></td>
+        <td><div class="rangebar"><div class="band" style="left:29%;width:58%"></div><div class="mid" style="left:69%"></div></div></td>
+        <td><span class="dots">●●●<i>○</i></span> Good</td><td>Yala ✓ <span class="meta">(API#3)</span></td><td><span class="badge b-good">✓ Recommended</span></td>
+      </tr>
+      <tr>
+        <td><b>🫘 Beans</b></td><td class="num"><b>Rs. 318</b></td>
+        <td><div class="rangebar"><div class="band" style="left:33%;width:15%"></div><div class="mid" style="left:40%"></div></div></td>
+        <td><span class="dots">●●<i>○○</i></span> Fair</td><td>Yala ✓</td><td><span class="badge b-fair">— Possible</span></td>
+      </tr>
+      <tr>
+        <td><b>🥔 Potatoes</b></td><td class="num"><b>Rs. 172</b></td>
+        <td><div class="rangebar"><div class="band" style="left:12%;width:20%"></div><div class="mid" style="left:21%"></div></div></td>
+        <td><span class="dots">●●<i>○○</i></span> Fair</td><td>Wrong zone ✗</td><td><span class="badge b-no">✗ Not recommended</span></td>
+      </tr>
+    </table>
+    <div class="legend-inline" style="margin-top:10px"><span><span class="sw b" style="width:22px"></span> likely price range</span><span><span style="display:inline-block;width:3px;height:12px;background:var(--brand-strong);border-radius:2px;vertical-align:middle;margin-right:6px"></span> expected price</span></div>
+    <div class="dodont">
+      <div class="do">put all crops on one shared price scale so ranges are honestly comparable; keep the confidence column, show "not recommended".</div>
+      <div class="dont">drop the range or confidence to make a tidy ranking, or hide low-confidence/off-season crops.</div>
+    </div>
+    <div class="a11y"><b>a11y:</b> real <code>&lt;table&gt;</code> with header row (sortable = the accessible text view itself); range bar mirrors the numeric columns beside it; on &lt;600px each row collapses to a key-value card. Verdict = icon+word+color.</div>
+  </div>
+
+  <!-- ============================ SEASONALITY STRIP ============================ -->
+  <h2>14 · Seasonality strip <small>single-hue intensity (CVD-safe by lightness) · needs API #2 history</small></h2>
+  <div class="comp">
+    <div class="season" role="img" aria-label="Typical price by month for Capsicum: lowest in January, rising to a peak in October, easing by December. Exact figures in the table alternative.">
+      <div class="cell" style="background:var(--season-1)">J</div><div class="cell" style="background:var(--season-2)">F</div>
+      <div class="cell" style="background:var(--season-3)">M</div><div class="cell" style="background:var(--season-3)">A</div>
+      <div class="cell" style="background:var(--season-4)">M</div><div class="cell" style="background:var(--season-5)">J</div>
+      <div class="cell" style="background:var(--season-5)">J</div><div class="cell" style="background:var(--season-6)">A</div>
+      <div class="cell" style="background:var(--season-7);color:#fff">S</div><div class="cell" style="background:var(--season-8);color:#fff">O</div>
+      <div class="cell" style="background:var(--season-6);color:#fff">N</div><div class="cell" style="background:var(--season-4)">D</div>
+    </div>
+    <div class="meta" style="margin-top:6px">Darker teal = typically higher price. Intensity is encoded by lightness (survives color-blindness); each cell also carries its month and a table alternative.</div>
+    <div class="dodont">
+      <div class="do">use one hue graded by lightness + month labels; provide the exact monthly figures as a table.</div>
+      <div class="dont">use a rainbow/red-green intensity ramp (fails CVD) or ship the strip before API #2 provides real history.</div>
+    </div>
+    <div class="a11y"><b>a11y:</b> strip has a summary <code>aria-label</code>; lightness ordering is monotonic so ranking survives greyscale + all CVD types; white text on the two darkest cells keeps AA contrast.</div>
+  </div>
+
+  <!-- ============================ COMING SOON STUB ============================ -->
+  <h2>15 · "Coming soon" stub <small>Prices tab in R1 (owner decision #2) — nav stays stable</small></h2>
+  <div class="comp">
+    <div class="stage">
+      <div class="card errstate">
+        <div class="ic" style="background:var(--brand-tint-2)">🏷️</div>
+        <b>Market prices coming soon</b>
+        <div class="meta" style="font-size:var(--fs-sm);margin:6px 0 12px">Browse recent prices across 12 markets in the next update.</div>
+        <button class="btn btn-ghost">← Back to Home</button>
+        <div class="meta" style="margin-top:12px">Needs API #1 (markets) + #2 (price history).</div>
+      </div>
+    </div>
+    <div class="tri">
+      <div><div class="lang-tag">EN</div><b>Market prices coming soon</b></div>
+      <div><div class="lang-tag">සිංහල</div><b>වෙළඳපොළ මිල ළඟදීම</b></div>
+      <div><div class="lang-tag">தமிழ்</div><b>சந்தை விலைகள் விரைவில்</b></div>
+    </div>
+    <div class="dodont">
+      <div class="do">keep the Prices nav item visible with an honest stub so navigation is stable across releases.</div>
+      <div class="dont">hide the tab, show fake/placeholder prices, or dead-end the user with no way back.</div>
+    </div>
+    <div class="a11y"><b>a11y:</b> heading + plain sentence + a real ≥44px "Back to Home" action; nav item marked with a "soon" pill, not a broken link.</div>
+  </div>
+
+  <!-- ============================ LANGUAGE SWITCHER ============================ -->
+  <h2>16 · Language switcher <small>every header · first-launch forces the choice once</small></h2>
+  <div class="comp">
+    <div class="stage">
+      <div class="lang" role="group" aria-label="Choose language">
+        <button aria-pressed="false" lang="si">සිං</button>
+        <button aria-pressed="false" lang="ta">த</button>
+        <button class="on" aria-pressed="true" lang="en">EN</button>
+      </div>
+      <div class="col" style="gap:8px">
+        <button class="btn btn-primary" style="min-width:200px" lang="si">සිංහල</button>
+        <button class="btn btn-primary" style="min-width:200px" lang="ta">தமிழ்</button>
+        <button class="btn btn-primary" style="min-width:200px" lang="en">English</button>
+      </div>
+    </div>
+    <div class="dodont">
+      <div class="do">keep the switcher in every header (never buried in settings); default to Sinhala/Tamil, English as fallback.</div>
+      <div class="dont">use flags for languages, or reset the user's data/route when they switch language mid-task.</div>
+    </div>
+    <div class="a11y"><b>a11y:</b> segmented control is a <code>role="group"</code> with <code>aria-pressed</code>; each option ≥44px; each button carries a <code>lang</code> attribute so screen readers switch pronunciation; active state = fill + <code>aria-pressed</code>, not color alone.</div>
+  </div>
+
+  <p class="meta" style="margin-top:36px">AgriForecast Design System v1 · FE-1 (86canmejb) · light-only R1 · inline CSS mirrors <code>design-tokens-v1.css</code> · from PRD v1.0 + signed-off FE-0 wireframes + owner-checked hi-fi direction · 2026-07-10.</p>
+
+</div>
+</body>
+</html>

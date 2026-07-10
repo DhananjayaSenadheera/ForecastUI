@@ -1,0 +1,629 @@
+<title>AgriForecast — PRD Screen Previews</title>
+<style>
+  /* ---------- page chrome (theme-aware) ---------- */
+  :root {
+    --pg-bg: #F4F7F6;
+    --pg-surface: #FFFFFF;
+    --pg-text: #17211F;
+    --pg-text-2: #55625F;
+    --pg-line: #DCE4E2;
+    --pg-accent: #0F766E;
+    --pg-accent-ink: #0B5E58;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --pg-bg: #101615;
+      --pg-surface: #1A2220;
+      --pg-text: #E6EDEB;
+      --pg-text-2: #93A39F;
+      --pg-line: #2A3532;
+      --pg-accent: #2DD4BF;
+      --pg-accent-ink: #5EEAD4;
+    }
+  }
+  :root[data-theme="dark"] {
+    --pg-bg: #101615; --pg-surface: #1A2220; --pg-text: #E6EDEB;
+    --pg-text-2: #93A39F; --pg-line: #2A3532; --pg-accent: #2DD4BF; --pg-accent-ink: #5EEAD4;
+  }
+  :root[data-theme="light"] {
+    --pg-bg: #F4F7F6; --pg-surface: #FFFFFF; --pg-text: #17211F;
+    --pg-text-2: #55625F; --pg-line: #DCE4E2; --pg-accent: #0F766E; --pg-accent-ink: #0B5E58;
+  }
+
+  /* ---------- PRD design tokens (screens are ALWAYS light: sunlight-first) ---------- */
+  :root {
+    --brand: #0F766E;        /* teal-700 */
+    --brand-dark: #134E4A;   /* teal-900 */
+    --surface: #FFFFFF;
+    --surface-2: #F8FAF9;
+    --ink: #111827;
+    --ink-2: #4B5563;
+    --good: #15803D;
+    --warn: #B45309;
+    --risk: #B91C1C;
+    --price-tint: #ECFDF5;
+    --line: #E5E7EB;
+  }
+
+  body {
+    background: var(--pg-bg);
+    color: var(--pg-text);
+    font-family: 'Noto Sans Sinhala', 'Noto Sans Tamil', 'Noto Sans', system-ui, -apple-system, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 40px 20px 72px;
+  }
+  .wrap { max-width: 1240px; margin: 0 auto; }
+
+  header.page h1 {
+    font-size: 26px; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  header.page .sub { color: var(--pg-text-2); font-size: 15px; max-width: 70ch; margin: 0; }
+  .eyebrow {
+    font-size: 12px; font-weight: 600; letter-spacing: 0.08em; color: var(--pg-accent-ink);
+    margin-bottom: 8px;
+  }
+
+  /* palette strip */
+  .palette { display: flex; flex-wrap: wrap; gap: 10px; margin: 22px 0 8px; }
+  .swatch { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--pg-text-2); }
+  .swatch b { color: var(--pg-text); font-weight: 600; }
+  .chip { width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--pg-line); flex: none; }
+
+  .fontnote {
+    font-size: 12.5px; color: var(--pg-text-2); border-left: 3px solid var(--pg-accent);
+    padding: 2px 0 2px 12px; margin: 18px 0 0; max-width: 78ch;
+  }
+
+  /* ---------- screens grid ---------- */
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+    gap: 40px 28px; margin-top: 44px; justify-items: center;
+  }
+  .cell { width: 100%; max-width: 372px; }
+  .cell h2 { font-size: 15px; font-weight: 700; margin: 0 0 2px; }
+  .cell .persona { font-size: 12.5px; color: var(--pg-text-2); margin: 0 0 12px; }
+
+  /* phone frame */
+  .phone {
+    background: var(--surface);
+    border: 1px solid #C7D2CF;
+    border-radius: 26px;
+    box-shadow: 0 10px 30px rgba(15, 40, 36, 0.12);
+    overflow: hidden;
+    color: var(--ink);
+    display: flex; flex-direction: column;
+    min-height: 690px;
+    font-size: 16px;
+    line-height: 1.7; /* Sinhala/Tamil vertical room — PRD §5.2 */
+  }
+  .phone * { box-sizing: border-box; }
+
+  /* app header */
+  .appbar {
+    background: var(--brand); color: #fff;
+    padding: 14px 16px; display: flex; align-items: center; gap: 10px;
+  }
+  .appbar .logo { font-weight: 700; font-size: 17px; flex: 1; letter-spacing: 0.01em; }
+  .lang-chip {
+    border: 1.5px solid rgba(255,255,255,0.7); border-radius: 999px;
+    font-size: 13px; padding: 3px 12px; font-weight: 600;
+  }
+  .audio-btn {
+    width: 40px; height: 40px; border-radius: 999px; background: rgba(255,255,255,0.16);
+    display: flex; align-items: center; justify-content: center; flex: none;
+  }
+  .audio-btn svg { width: 20px; height: 20px; }
+
+  .screen-body { padding: 18px 16px 10px; display: flex; flex-direction: column; gap: 14px; flex: 1; }
+
+  .greeting { font-size: 21px; font-weight: 700; margin: 0; }
+  .section-label { font-size: 14px; color: var(--ink-2); font-weight: 600; margin: 0; }
+
+  /* price card */
+  .price-card {
+    border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2);
+    padding: 12px 14px; display: flex; align-items: center; gap: 12px;
+  }
+  .crop-ill {
+    width: 46px; height: 46px; border-radius: 12px; background: var(--price-tint);
+    display: flex; align-items: center; justify-content: center; font-size: 26px; flex: none;
+  }
+  .price-card .crop-name { font-size: 16px; font-weight: 600; margin: 0; }
+  .price-card .crop-sub { font-size: 13px; color: var(--ink-2); margin: 0; }
+  .price-big { margin-left: auto; text-align: right; }
+  .price-big .num { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .price-big .unit { font-size: 12.5px; color: var(--ink-2); }
+  .trend-up { color: var(--good); font-size: 13px; font-weight: 700; }
+  .trend-dn { color: var(--risk); font-size: 13px; font-weight: 700; }
+
+  /* big CTA */
+  .cta {
+    background: var(--brand); color: #fff; border-radius: 14px;
+    min-height: 56px; display: flex; align-items: center; justify-content: center; gap: 10px;
+    font-size: 17px; font-weight: 700; padding: 12px 18px; text-align: center;
+  }
+  .cta svg { width: 22px; height: 22px; flex: none; }
+
+  .provenance {
+    font-size: 12px; color: var(--ink-2); text-align: center; margin-top: auto;
+    padding: 8px 6px 4px; border-top: 1px dashed var(--line);
+  }
+
+  /* bottom tabs */
+  .tabs {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    border-top: 1px solid var(--line); background: var(--surface);
+  }
+  .tab {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 9px 4px 11px; font-size: 12px; color: var(--ink-2); font-weight: 600;
+  }
+  .tab svg { width: 22px; height: 22px; stroke: currentColor; }
+  .tab.active { color: var(--brand); }
+  .tab.active .dot-ind { width: 20px; height: 3px; border-radius: 2px; background: var(--brand); margin-top: 2px; }
+
+  /* forecast result screen */
+  .fc-head { text-align: center; }
+  .fc-crop { font-size: 17px; font-weight: 700; margin: 0; }
+  .fc-date { font-size: 13.5px; color: var(--ink-2); margin: 2px 0 0; }
+  .hero-price {
+    background: var(--price-tint); border-radius: 16px; text-align: center; padding: 18px 14px 20px;
+  }
+  .hero-price .lbl { font-size: 13.5px; color: var(--ink-2); font-weight: 600; margin: 0 0 2px; }
+  .hero-price .num {
+    font-size: 40px; font-weight: 800; color: var(--ink); letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums; line-height: 1.25;
+  }
+  .hero-price .unit { font-size: 15px; font-weight: 600; color: var(--ink-2); }
+
+  .band { margin: 16px 10px 2px; }
+  .band .track { position: relative; height: 8px; border-radius: 4px; background: #D1E7E3; }
+  .band .marker {
+    position: absolute; top: 50%; transform: translate(-50%, -50%);
+    width: 18px; height: 18px; border-radius: 999px; background: var(--brand);
+    border: 3px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+  .band .ends {
+    display: flex; justify-content: space-between; font-size: 13.5px; font-weight: 700;
+    color: var(--ink-2); margin-top: 7px; font-variant-numeric: tabular-nums;
+  }
+  .band .range-lbl { text-align: center; font-size: 12px; color: var(--ink-2); margin-top: 2px; }
+
+  .conf-row { display: flex; align-items: center; gap: 9px; }
+  .conf-dots { display: flex; gap: 4px; }
+  .conf-dots i { width: 13px; height: 13px; border-radius: 999px; background: var(--line); }
+  .conf-dots i.on-good { background: var(--good); }
+  .conf-dots i.on-warn { background: var(--warn); }
+  .conf-dots i.on-risk { background: var(--risk); }
+  .conf-lbl { font-size: 15.5px; font-weight: 700; }
+  .conf-lbl.good { color: var(--good); }
+  .conf-lbl.warn { color: var(--warn); }
+  .conf-lbl.risk { color: var(--risk); }
+  .reason { font-size: 14.5px; color: var(--ink-2); margin: 0; }
+
+  /* icon array — natural frequency */
+  .freq { background: var(--surface-2); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+  .freq .cells { display: flex; gap: 5px; margin-bottom: 8px; }
+  .freq .c { width: 24px; height: 24px; border-radius: 6px; border: 2px solid #CBD5D1; background: #fff; }
+  .freq .c.f { background: var(--good); border-color: var(--good); }
+  .freq p { font-size: 14px; margin: 0; color: var(--ink); }
+
+  .collapse-row {
+    border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+    display: flex; align-items: center; font-size: 15px; font-weight: 600; color: var(--ink);
+  }
+  .collapse-row .chev { margin-left: auto; color: var(--ink-2); font-weight: 400; }
+
+  .stale-banner {
+    background: #FEF3E2; border: 1px solid #F5D0A9; color: var(--warn);
+    border-radius: 12px; padding: 10px 13px; font-size: 13.5px; font-weight: 600;
+    display: flex; gap: 8px; align-items: flex-start;
+  }
+
+  /* onboarding */
+  .onb { justify-content: center; text-align: center; gap: 22px; }
+  .onb .mark {
+    width: 72px; height: 72px; border-radius: 20px; background: var(--price-tint);
+    display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 38px;
+  }
+  .onb h3 { font-size: 19px; margin: 0; font-weight: 700; }
+  .onb .q2 { font-size: 16px; margin: 0; color: var(--ink-2); }
+  .lang-btn {
+    border: 2px solid var(--brand); color: var(--brand-dark); border-radius: 14px;
+    min-height: 58px; display: flex; align-items: center; justify-content: center;
+    font-size: 19px; font-weight: 700; background: var(--surface);
+  }
+  .onb .skip-note { font-size: 13px; color: var(--ink-2); }
+
+  /* best-crops list */
+  .rank-card {
+    border: 1px solid var(--line); border-radius: 14px; padding: 13px 14px; background: var(--surface);
+    display: flex; gap: 12px; align-items: center;
+  }
+  .rank-n {
+    width: 30px; height: 30px; border-radius: 999px; background: var(--surface-2);
+    border: 1px solid var(--line); display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 14px; color: var(--ink-2); flex: none;
+  }
+  .rank-info { flex: 1; min-width: 0; }
+  .rank-info .nm { font-weight: 700; font-size: 16px; margin: 0; }
+  .rank-info .pr { font-size: 13.5px; color: var(--ink-2); margin: 1px 0 5px; font-variant-numeric: tabular-nums; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px; border-radius: 999px;
+    font-size: 12px; font-weight: 700; padding: 3px 10px;
+  }
+  .badge.strong { background: #E8F5EC; color: var(--good); }
+  .badge.rec { background: #E8F5EC; color: var(--good); }
+  .badge.neutral { background: #FDF1E2; color: var(--warn); }
+  .badge.notrec { background: #FDEAEA; color: var(--risk); }
+  .mini-dots { display: flex; gap: 3px; margin-top: 2px; }
+  .mini-dots i { width: 9px; height: 9px; border-radius: 999px; background: var(--line); }
+  .mini-dots i.on { background: var(--good); }
+  .mini-dots i.on-w { background: var(--warn); }
+
+  /* annotations */
+  .anno {
+    margin-top: 14px; background: var(--pg-surface); border: 1px solid var(--pg-line);
+    border-radius: 12px; padding: 14px 16px;
+  }
+  .anno h4 {
+    margin: 0 0 8px; font-size: 12px; letter-spacing: 0.07em; font-weight: 700;
+    color: var(--pg-accent-ink);
+  }
+  .anno ul { margin: 0; padding-left: 18px; font-size: 13.5px; color: var(--pg-text-2); }
+  .anno li { margin: 4px 0; }
+  .anno b { color: var(--pg-text); font-weight: 600; }
+
+  /* sign-off checklist */
+  .checklist {
+    margin-top: 56px; background: var(--pg-surface); border: 1px solid var(--pg-line);
+    border-radius: 14px; padding: 24px 28px; max-width: 860px;
+  }
+  .checklist h2 { font-size: 18px; margin: 0 0 4px; }
+  .checklist p.lead { color: var(--pg-text-2); font-size: 14px; margin: 0 0 14px; }
+  .checklist ol { margin: 0; padding-left: 20px; font-size: 14.5px; }
+  .checklist li { margin: 9px 0; }
+  .checklist b { font-weight: 650; }
+
+  @media (max-width: 420px) {
+    body { padding: 24px 12px 56px; }
+    .phone { min-height: 640px; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="page">
+    <div class="eyebrow">AGRIFORECAST · FARMER APP · PRE-SIGN-OFF PREVIEW</div>
+    <h1>Five screens, built exactly to the PRD spec</h1>
+    <p class="sub">Every color, type size, and pattern below comes from PRD §4–§5. Screens are deliberately <b>light-only</b> — the sunlight-readability requirement rules out dark surfaces in the farmer app itself. Judge the direction here, then sign off (or redline) the PRD.</p>
+
+    <div class="palette">
+      <span class="swatch"><span class="chip" style="background:#0F766E"></span><span><b>#0F766E</b> brand teal</span></span>
+      <span class="swatch"><span class="chip" style="background:#134E4A"></span><span><b>#134E4A</b> brand dark</span></span>
+      <span class="swatch"><span class="chip" style="background:#111827"></span><span><b>#111827</b> text</span></span>
+      <span class="swatch"><span class="chip" style="background:#15803D"></span><span><b>#15803D</b> positive</span></span>
+      <span class="swatch"><span class="chip" style="background:#B45309"></span><span><b>#B45309</b> caution</span></span>
+      <span class="swatch"><span class="chip" style="background:#B91C1C"></span><span><b>#B91C1C</b> risk</span></span>
+      <span class="swatch"><span class="chip" style="background:#ECFDF5"></span><span><b>#ECFDF5</b> price tint</span></span>
+    </div>
+
+    <p class="fontnote">Preview caveats: Sinhala/Tamil render here in your OS system fonts — production self-hosts current <b>Noto Sans Sinhala / Tamil</b> subsets (PRD §5.2). Emoji crop images are placeholders for the ~30 commissioned semi-abstract illustrations. Copy is draft, pending native-speaker review.</p>
+  </header>
+
+  <div class="grid">
+
+    <!-- ============ SCREEN 1 · ONBOARDING ============ -->
+    <div class="cell">
+      <h2>1 · First launch — choose language</h2>
+      <p class="persona">Everyone · first of max 3 onboarding steps · no registration</p>
+      <div class="phone">
+        <div class="screen-body onb">
+          <div class="mark">🌾</div>
+          <div>
+            <h3>භාෂාව තෝරන්න</h3>
+            <p class="q2">மொழியைத் தேர்ந்தெடுக்கவும்<br>Choose your language</p>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <div class="lang-btn">සිංහල</div>
+            <div class="lang-btn">தமிழ்</div>
+            <div class="lang-btn">English</div>
+          </div>
+          <p class="skip-note">ලියාපදිංචිය අවශ්‍ය නැත · பதிவு தேவையில்லை · No sign-up needed</p>
+          <div class="provenance" style="border:none; padding-top:0;">1 / 3</div>
+        </div>
+      </div>
+      <div class="anno">
+        <h4>WHY IT LOOKS LIKE THIS</h4>
+        <ul>
+          <li><b>All three languages equal weight</b> — no "default English then translate" (computer literacy is far lower among Sinhala/Tamil-literate users).</li>
+          <li><b>No registration wall</b> — documented adoption killer for this audience (also hinges on the API-6 decision).</li>
+          <li>58px language buttons — well over the 44px touch-target floor, thumb-reachable one-handed.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ============ SCREEN 2 · HOME (SINHALA) ============ -->
+    <div class="cell">
+      <h2>2 · Home / Today</h2>
+      <p class="persona">P1 Sunil (58, Dambulla, Sinhala-only, low digital literacy)</p>
+      <div class="phone">
+        <div class="appbar">
+          <span class="logo">AgriForecast</span>
+          <span class="lang-chip">සිං</span>
+          <span class="audio-btn"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="#fff" stroke="none"></polygon><path d="M15.5 8.5a5 5 0 0 1 0 7"></path><path d="M18.5 5.5a9 9 0 0 1 0 13"></path></svg></span>
+        </div>
+        <div class="screen-body">
+          <p class="greeting">ආයුබෝවන්, සුනිල් 👋</p>
+          <p class="section-label">අද මිල ගණන් · දඹුල්ල</p>
+
+          <div class="price-card">
+            <span class="crop-ill">🍅</span>
+            <div>
+              <p class="crop-name">තක්කාලි</p>
+              <p class="crop-sub trend-up">▲ රු. 15 ඉහළට</p>
+            </div>
+            <div class="price-big"><span class="num">රු. 285</span><br><span class="unit">/ කිලෝ</span></div>
+          </div>
+
+          <div class="price-card">
+            <span class="crop-ill">🫘</span>
+            <div>
+              <p class="crop-name">බෝංචි</p>
+              <p class="crop-sub trend-dn">▼ රු. 8 පහළට</p>
+            </div>
+            <div class="price-big"><span class="num">රු. 410</span><br><span class="unit">/ කිලෝ</span></div>
+          </div>
+
+          <div class="price-card">
+            <span class="crop-ill">🥬</span>
+            <div>
+              <p class="crop-name">ගෝවා</p>
+              <p class="crop-sub" style="color:var(--ink-2)">වෙනසක් නැත</p>
+            </div>
+            <div class="price-big"><span class="num">රු. 120</span><br><span class="unit">/ කිලෝ</span></div>
+          </div>
+
+          <div class="cta">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M3 3v18h18"></path><path d="m7 15 4-6 4 3 5-8"></path></svg>
+            අස්වැන්නේ මිල බලන්න
+          </div>
+
+          <p class="provenance">මූලාශ්‍රය: HARTI · දඹුල්ල ආර්ථික මධ්‍යස්ථානය · අද පෙ.ව. 6.00</p>
+        </div>
+        <div class="tabs">
+          <span class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1Z"></path></svg>මුල<span class="dot-ind"></span></span>
+          <span class="tab"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V8"></path><path d="M12 8C12 5 9 2 5 2c0 4 3 7 7 6Z"></path><path d="M12 11c0-3 3-6 7-6 0 4-3 7-7 6Z"></path></svg>වගාව</span>
+          <span class="tab"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a9 9 0 0 0 9-9H3a9 9 0 0 0 9 9Z"></path><path d="M12 13V7"></path><path d="M12 7C12 4.5 10 2.5 7 2.5 7 5.5 9 7.5 12 7Z"></path></svg>මගේ බෝගය</span>
+          <span class="tab"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12V7a2 2 0 0 0-2-2h-5L3.6 14.4a2 2 0 0 0 0 2.8l3.2 3.2a2 2 0 0 0 2.8 0Z"></path><circle cx="15" cy="9" r="1.5"></circle></svg>මිල</span>
+        </div>
+      </div>
+      <div class="anno">
+        <h4>WHY IT LOOKS LIKE THIS</h4>
+        <ul>
+          <li><b>Numbers are the hero</b> — non-literate users are numerate; prices in big near-black numerals, never buried in prose.</li>
+          <li><b>Persistent audio button</b> in the header on every screen (90% of Govi Mithuru users choose voice over the app).</li>
+          <li><b>One primary action</b>: the teal CTA leads to the forecast journey. Everything else is glanceable.</li>
+          <li><b>Provenance line</b> ("HARTI · Dambulla DEC") — government data provenance is the #1 documented trust builder.</li>
+          <li>Icons always paired with labels; 4 flat tabs, max depth 2 — flat navigation beats hierarchy for this audience.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ============ SCREEN 3 · FORECAST RESULT (SIGNATURE) ============ -->
+    <div class="cell">
+      <h2>3 · Harvest forecast — the signature screen</h2>
+      <p class="persona">P1 Sunil · Capsicum planted today → harvest ~15 Oct · confidence High</p>
+      <div class="phone">
+        <div class="appbar">
+          <span class="logo">AgriForecast</span>
+          <span class="lang-chip">සිං</span>
+          <span class="audio-btn"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="#fff" stroke="none"></polygon><path d="M15.5 8.5a5 5 0 0 1 0 7"></path><path d="M18.5 5.5a9 9 0 0 1 0 13"></path></svg></span>
+        </div>
+        <div class="screen-body">
+          <div class="fc-head">
+            <p class="fc-crop">🫑 මාළු මිරිස්</p>
+            <p class="fc-date">අස්වැන්න: ඔක්තෝබර් 15 පමණ</p>
+          </div>
+
+          <div class="hero-price">
+            <p class="lbl">බොහෝ විට ලැබෙන මිල</p>
+            <div class="num">රු. 552 <span class="unit">/ කිලෝ</span></div>
+            <div class="band">
+              <div class="track"><span class="marker" style="left:69%"></span></div>
+              <div class="ends"><span>රු. 233</span><span>රු. 694</span></div>
+              <div class="range-lbl">විය හැකි පරාසය</div>
+            </div>
+          </div>
+
+          <div class="conf-row">
+            <span class="conf-dots"><i class="on-good"></i><i class="on-good"></i><i class="on-good"></i><i></i></span>
+            <span class="conf-lbl good">විශ්වාසය: හොඳයි</span>
+          </div>
+          <p class="reason">දඹුල්ල වෙළඳපොලේ මෙම බෝගයේ වසර 9ක මිල දත්ත මත පදනම්ව.</p>
+
+          <div class="freq">
+            <div class="cells">
+              <span class="c f"></span><span class="c f"></span><span class="c f"></span><span class="c f"></span><span class="c f"></span><span class="c f"></span><span class="c f"></span><span class="c"></span><span class="c"></span><span class="c"></span>
+            </div>
+            <p>සමාන කන්න <b>10කින් 7කම</b> මිල රු. 480ට වැඩි විය.</p>
+          </div>
+
+          <div class="collapse-row">මිලට බලපාන කරුණු <span class="chev">▾</span></div>
+          <div class="collapse-row">මාස 12ක මිල සටහන <span class="chev">▾</span></div>
+
+          <p class="provenance">මූලාශ්‍රය: HARTI · කෘෂිකර්ම දෙපාර්තමේන්තු දත්ත</p>
+        </div>
+        <div class="tabs">
+          <span class="tab"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1Z"></path></svg>මුල</span>
+          <span class="tab"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V8"></path><path d="M12 8C12 5 9 2 5 2c0 4 3 7 7 6Z"></path><path d="M12 11c0-3 3-6 7-6 0 4-3 7-7 6Z"></path></svg>වගාව</span>
+          <span class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a9 9 0 0 0 9-9H3a9 9 0 0 0 9 9Z"></path><path d="M12 13V7"></path><path d="M12 7C12 4.5 10 2.5 7 2.5 7 5.5 9 7.5 12 7Z"></path></svg>මගේ බෝගය<span class="dot-ind"></span></span>
+          <span class="tab"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12V7a2 2 0 0 0-2-2h-5L3.6 14.4a2 2 0 0 0 0 2.8l3.2 3.2a2 2 0 0 0 2.8 0Z"></path><circle cx="15" cy="9" r="1.5"></circle></svg>මිල</span>
+        </div>
+      </div>
+      <div class="anno">
+        <h4>WHY IT LOOKS LIKE THIS</h4>
+        <ul>
+          <li><b>Bold central estimate inside the range</b> — a bare min–max misleads (users fixate on extremes); the marked dot fixes that.</li>
+          <li><b>Natural frequencies, not percentages</b>: "7 of 10 similar seasons" with an icon-array pictograph — the best-evidenced chance encoding for low-numeracy users.</li>
+          <li><b>Confidence = icon + label + plain reason</b>, mapped from the API's frozen <code>Low/Medium/High</code> + <code>Reason</code>.</li>
+          <li>Factor breakdown and chart are collapsed one tap below — depth for Tharindu without cluttering Sunil's answer.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ============ SCREEN 4 · BEST CROPS (ENGLISH) ============ -->
+    <div class="cell">
+      <h2>4 · Plant — what should I plant?</h2>
+      <p class="persona">P2 Tharindu (29, English UI) · ranked by the /best-crops API</p>
+      <div class="phone">
+        <div class="appbar">
+          <span class="logo">AgriForecast</span>
+          <span class="lang-chip">EN</span>
+          <span class="audio-btn"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="#fff" stroke="none"></polygon><path d="M15.5 8.5a5 5 0 0 1 0 7"></path><path d="M18.5 5.5a9 9 0 0 1 0 13"></path></svg></span>
+        </div>
+        <div class="screen-body">
+          <p class="greeting" style="font-size:19px;">Best crops to plant now</p>
+          <p class="section-label">Maha season · Dambulla market · updated today</p>
+
+          <div class="rank-card">
+            <span class="rank-n">1</span>
+            <span class="crop-ill">🫑</span>
+            <div class="rank-info">
+              <p class="nm">Capsicum</p>
+              <p class="pr">~ Rs. 552 /kg at harvest (Oct)</p>
+              <span class="badge strong">✓ Strongly recommended</span>
+              <div class="mini-dots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
+            </div>
+          </div>
+
+          <div class="rank-card">
+            <span class="rank-n">2</span>
+            <span class="crop-ill">🫘</span>
+            <div class="rank-info">
+              <p class="nm">Beans</p>
+              <p class="pr">~ Rs. 438 /kg at harvest (Sep)</p>
+              <span class="badge rec">✓ Recommended</span>
+              <div class="mini-dots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
+            </div>
+          </div>
+
+          <div class="rank-card">
+            <span class="rank-n">3</span>
+            <span class="crop-ill">🍅</span>
+            <div class="rank-info">
+              <p class="nm">Tomato</p>
+              <p class="pr">~ Rs. 214 /kg at harvest (Sep)</p>
+              <span class="badge neutral">— Neutral</span>
+              <div class="mini-dots"><i class="on"></i><i class="on"></i><i></i><i></i></div>
+            </div>
+          </div>
+
+          <div class="rank-card">
+            <span class="rank-n">4</span>
+            <span class="crop-ill">🥬</span>
+            <div class="rank-info">
+              <p class="nm">Cabbage</p>
+              <p class="pr">~ Rs. 96 /kg at harvest (Oct) · likely oversupply</p>
+              <span class="badge notrec">✕ Not recommended</span>
+              <div class="mini-dots"><i class="on"></i><i class="on"></i><i></i><i></i></div>
+            </div>
+          </div>
+
+          <p class="provenance">Source: HARTI · Dept. of Agriculture data</p>
+        </div>
+        <div class="tabs">
+          <span class="tab"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1Z"></path></svg>Home</span>
+          <span class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V8"></path><path d="M12 8C12 5 9 2 5 2c0 4 3 7 7 6Z"></path><path d="M12 11c0-3 3-6 7-6 0 4-3 7-7 6Z"></path></svg>Plant<span class="dot-ind"></span></span>
+          <span class="tab"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a9 9 0 0 0 9-9H3a9 9 0 0 0 9 9Z"></path><path d="M12 13V7"></path><path d="M12 7C12 4.5 10 2.5 7 2.5 7 5.5 9 7.5 12 7Z"></path></svg>My crop</span>
+          <span class="tab"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12V7a2 2 0 0 0-2-2h-5L3.6 14.4a2 2 0 0 0 0 2.8l3.2 3.2a2 2 0 0 0 2.8 0Z"></path><circle cx="15" cy="9" r="1.5"></circle></svg>Prices</span>
+        </div>
+      </div>
+      <div class="anno">
+        <h4>WHY IT LOOKS LIKE THIS</h4>
+        <ul>
+          <li>Maps the API's <code>RecommendationLevel</code> (NotRecommended → StronglyRecommended) to <b>badge + icon + color</b> — color never carries meaning alone.</li>
+          <li>Green/red appear only as <b>semantic</b> signals inside badges — never as brand surfaces (Sri Lankan party-color constraint).</li>
+          <li>A "Not recommended" entry is shown honestly with its reason — the app earns trust by advising <i>against</i> crops too.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ============ SCREEN 5 · LOW CONFIDENCE / FALLBACK ============ -->
+    <div class="cell">
+      <h2>5 · The honesty test — low-confidence fallback</h2>
+      <p class="persona">Any user · fallback-served crop (63 of 82 crops today) · LowTrust = true</p>
+      <div class="phone">
+        <div class="appbar">
+          <span class="logo">AgriForecast</span>
+          <span class="lang-chip">EN</span>
+          <span class="audio-btn"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="#fff" stroke="none"></polygon><path d="M15.5 8.5a5 5 0 0 1 0 7"></path><path d="M18.5 5.5a9 9 0 0 1 0 13"></path></svg></span>
+        </div>
+        <div class="screen-body">
+          <div class="fc-head">
+            <p class="fc-crop">🍈 Passion fruit</p>
+            <p class="fc-date">Harvest: around 20 December</p>
+          </div>
+
+          <div class="stale-banner">
+            <span>⚠️</span>
+            <span>Prices for this crop were last updated <b>12 days ago</b>. Treat this as a rough guide.</span>
+          </div>
+
+          <div class="hero-price">
+            <p class="lbl">Rough price estimate</p>
+            <div class="num">Rs. 340 <span class="unit">/ kg</span></div>
+            <div class="band">
+              <div class="track" style="background:#F3E8D8;"><span class="marker" style="left:46%; background:var(--warn);"></span></div>
+              <div class="ends"><span>Rs. 150</span><span>Rs. 560</span></div>
+              <div class="range-lbl">wide range — see why below</div>
+            </div>
+          </div>
+
+          <div class="conf-row">
+            <span class="conf-dots"><i class="on-risk"></i><i></i><i></i><i></i></span>
+            <span class="conf-lbl risk">Confidence: Low</span>
+          </div>
+          <p class="reason">This crop doesn't have enough price history yet for our forecasting model, so this is a simpler estimate based on recent averages.</p>
+
+          <div class="freq" style="background:#FDF7EF; border-color:#F0DFC8;">
+            <p>In similar situations, the real price landed inside this range about <b>6 times out of 10</b>.</p>
+          </div>
+
+          <div class="collapse-row">What would make this forecast better? <span class="chev">▾</span></div>
+
+          <p class="provenance">Source: HARTI · Dept. of Agriculture data</p>
+        </div>
+        <div class="tabs">
+          <span class="tab"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1Z"></path></svg>Home</span>
+          <span class="tab"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V8"></path><path d="M12 8C12 5 9 2 5 2c0 4 3 7 7 6Z"></path><path d="M12 11c0-3 3-6 7-6 0 4-3 7-7 6Z"></path></svg>Plant</span>
+          <span class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a9 9 0 0 0 9-9H3a9 9 0 0 0 9 9Z"></path><path d="M12 13V7"></path><path d="M12 7C12 4.5 10 2.5 7 2.5 7 5.5 9 7.5 12 7Z"></path></svg>My crop<span class="dot-ind"></span></span>
+          <span class="tab"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12V7a2 2 0 0 0-2-2h-5L3.6 14.4a2 2 0 0 0 0 2.8l3.2 3.2a2 2 0 0 0 2.8 0Z"></path><circle cx="15" cy="9" r="1.5"></circle></svg>Prices</span>
+        </div>
+      </div>
+      <div class="anno">
+        <h4>WHY IT LOOKS LIKE THIS</h4>
+        <ul>
+          <li><b>Same layout as the high-confidence screen</b> — honesty is expressed through content, not a scary different design.</li>
+          <li>"Rough price estimate" + honest reason replaces vague hedging — blanket disclaimers destroy trust; specific reasons build it.</li>
+          <li><code>LowTrust=true</code> renders the amber <b>data-age banner</b>; the wide band is shown, never a fake precise number.</li>
+          <li>This is the screen 63 of 82 crops will show today, so it must feel first-class, not like an error page.</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <section class="checklist">
+    <h2>What to check before signing the PRD</h2>
+    <p class="lead">Redline anything here and I'll revise the PRD before FE-0 wireframes begin.</p>
+    <ol>
+      <li><b>Brand feel</b> — does the teal read as trustworthy and neutral to you? (It was chosen because green/blue/red/maroon are all party-owned.)</li>
+      <li><b>The signature screen (3)</b> — hero number, range with marked centre, "7 of 10 seasons" phrasing: is this how you want uncertainty spoken to farmers?</li>
+      <li><b>The honesty screen (5)</b> — comfortable shipping a "rough estimate" framing for the 63 fallback crops, with the data-age warning visible?</li>
+      <li><b>Sinhala drafts</b> — copy is my draft, flagged for native-speaker review; tab names (මුල / වගාව / මගේ බෝගය / මිල) especially.</li>
+      <li><b>No registration wall</b> — screens assume anonymous browsing, which requires your API-6 decision (anonymous read vs guest account).</li>
+    </ol>
+  </section>
+</div>

@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgriForecast Farmer App — FE-0 Lo-Fi Wireframes v1 (desktop-first)</title>
+<style>
+  /* ============ LO-FI: grayscale only, explicit light theme ============ */
+  :root{
+    --ink:#1a1a1a; --ink2:#555; --ink3:#888;
+    --line:#9a9a9a; --line2:#c8c8c8;
+    --fill:#e9e9e9; --fill2:#dcdcdc; --fill3:#f2f2f2;
+    --page:#ffffff; --frame:#fbfbfb;
+    --radius:6px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:#efefef; color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:15px; line-height:1.5; padding:24px 16px 80px;
+  }
+  .page{max-width:1240px; margin:0 auto;}
+  h1{font-size:26px; margin:0 0 4px}
+  h2{font-size:21px; margin:48px 0 6px; border-bottom:2px solid var(--line); padding-bottom:6px}
+  h2 .kick{font-size:12px; font-weight:600; color:var(--ink3); text-transform:none}
+  h3{font-size:16px; margin:26px 0 8px; color:var(--ink2)}
+  .sub{color:var(--ink2); margin:0 0 8px; max-width:900px}
+  .meta{font-size:13px; color:var(--ink3)}
+  code{background:var(--fill3); padding:1px 5px; border-radius:4px; font-size:12px}
+
+  /* ---- legend ---- */
+  .legend{display:flex; flex-wrap:wrap; gap:16px; background:var(--page); border:1px solid var(--line2);
+    border-radius:var(--radius); padding:12px 16px; margin:14px 0}
+  .legend div{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink2)}
+  .sw{width:26px; height:16px; border:1px solid var(--line); border-radius:3px; display:inline-block}
+  .sw.xbox{background:
+    linear-gradient(45deg,transparent 45%,var(--line) 46%,var(--line) 54%,transparent 55%),
+    linear-gradient(-45deg,transparent 45%,var(--line) 46%,var(--line) 54%,transparent 55%),
+    var(--fill3)}
+
+  /* ---- flow diagrams ---- */
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:6px; background:var(--page);
+    border:1px solid var(--line2); border-radius:var(--radius); padding:16px; margin:10px 0}
+  .node{border:1.5px solid var(--line); background:var(--fill3); border-radius:var(--radius);
+    padding:8px 12px; font-size:13px; min-width:96px; text-align:center; line-height:1.3}
+  .node.start{border-radius:20px; background:var(--fill)}
+  .node.dec{background:var(--page); border-style:dashed}
+  .node.r2{border-style:dotted; color:var(--ink2); background:#f6f6f6}
+  .node small{display:block; color:var(--ink3); font-size:11px}
+  .arrow{color:var(--line); font-size:20px; font-weight:bold; line-height:1}
+  .arrow-lbl{font-size:11px; color:var(--ink3); align-self:center}
+  .flow .br{flex-basis:100%; height:0}
+
+  /* ================= DESKTOP WEB FRAME ================= */
+  .web{width:100%; max-width:1180px; border:2px solid #333; border-radius:10px; overflow:hidden;
+    background:var(--frame); box-shadow:0 2px 10px rgba(0,0,0,.12); margin:8px 0 4px}
+  .browserbar{height:30px; background:var(--fill2); display:flex; align-items:center; gap:8px; padding:0 12px; border-bottom:1px solid var(--line2)}
+  .browserbar .dots{display:flex; gap:5px}
+  .browserbar .dots i{width:10px; height:10px; border-radius:50%; background:var(--line); display:inline-block}
+  .browserbar .url{flex:1; background:var(--page); border:1px solid var(--line2); border-radius:12px; height:18px; font-size:10px; color:var(--ink3); display:flex; align-items:center; padding:0 10px}
+  .webhdr{display:flex; align-items:center; gap:16px; padding:12px 20px; background:var(--page); border-bottom:1px solid var(--line2)}
+  .brand{font-weight:800; font-size:16px}
+  .brand .mk{display:inline-block; width:22px; height:22px; border:1.5px solid var(--line); border-radius:5px; background:var(--fill3); vertical-align:middle; margin-right:6px}
+  .webnav{display:flex; gap:6px; flex:1}
+  .navlink{padding:8px 14px; font-size:13px; border-radius:var(--radius); color:var(--ink2); min-height:44px; display:flex; align-items:center}
+  .navlink.on{background:var(--fill); font-weight:700; color:var(--ink)}
+  .navlink.r2{border:1px dotted var(--line); color:var(--ink3)}
+  .webhdr .right{display:flex; align-items:center; gap:8px}
+  .webbody{padding:20px}
+  .cols2{display:grid; grid-template-columns:1.4fr 1fr; gap:18px}
+  .cols3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px}
+  .colspan{grid-column:1 / -1}
+  .panel{border:1.5px solid var(--line); border-radius:var(--radius); background:var(--page); padding:14px}
+  .panel h4{margin:0 0 8px; font-size:14px}
+
+  /* charts */
+  .viz{border:1.5px solid var(--line); border-radius:var(--radius); position:relative;
+    background:
+      linear-gradient(45deg,transparent 47.6%,var(--line2) 48%,var(--line2) 52%,transparent 52.4%),
+      linear-gradient(-45deg,transparent 47.6%,var(--line2) 48%,var(--line2) 52%,transparent 52.4%),
+      var(--fill3);
+    display:flex; align-items:center; justify-content:center; text-align:center; color:var(--ink2); font-size:12px; padding:8px}
+  .viz .vlbl{background:var(--page); border:1px solid var(--line2); border-radius:4px; padding:3px 8px; max-width:80%}
+  .axis-x{font-size:10px; color:var(--ink3); text-align:center; margin-top:3px}
+
+  /* bars (grayscale allowed) */
+  .bars{display:flex; align-items:flex-end; gap:10px; height:120px; padding:6px 4px; border-left:1.5px solid var(--line); border-bottom:1.5px solid var(--line)}
+  .bargrp{flex:1; display:flex; align-items:flex-end; justify-content:center; gap:4px}
+  .bar{width:16px; border:1px solid var(--line); border-radius:3px 3px 0 0}
+  .bar.a{background:var(--fill)} .bar.b{background:var(--fill2)} .bar.c{background:var(--line2)}
+  .barlbls{display:flex; gap:10px; font-size:10px; color:var(--ink3); text-align:center; margin-top:4px}
+  .barlbls span{flex:1}
+
+  /* seasonality heatmap strip (grayscale shades = intensity) */
+  .season{display:flex; gap:3px; margin:6px 0}
+  .season .cell{flex:1; height:38px; border:1px solid var(--line2); border-radius:3px; display:flex; align-items:flex-end; justify-content:center; font-size:9px; color:var(--ink2); padding-bottom:2px}
+
+  /* comparison table */
+  table.cmp{width:100%; border-collapse:collapse; font-size:13px}
+  .cmp th,.cmp td{border:1px solid var(--line2); padding:7px 9px; text-align:left; vertical-align:top}
+  .cmp th{background:var(--fill); font-size:12px}
+  .cmp th .sort{color:var(--ink3); font-size:10px}
+  .cmp td.num{font-weight:700}
+  .cmp tr.best td{background:var(--fill3)}
+
+  /* period selector */
+  .segbar{display:inline-flex; border:1.5px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .segbar span{padding:8px 12px; font-size:12px; min-height:44px; display:flex; align-items:center; border-right:1px solid var(--line2)}
+  .segbar span:last-child{border-right:0}
+  .segbar span.on{background:var(--fill); font-weight:700}
+
+  /* ---- phone frames ---- */
+  .screens{display:flex; flex-wrap:wrap; gap:26px; align-items:flex-start}
+  .device{width:360px; flex:0 0 360px}
+  .caption{font-size:13px; color:var(--ink2); margin:0 0 6px; font-weight:600}
+  .phone{width:360px; border:2px solid #333; border-radius:18px; background:var(--frame);
+    overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.12)}
+  .status{height:22px; background:var(--fill2); display:flex; align-items:center; justify-content:space-between;
+    padding:0 12px; font-size:10px; color:var(--ink2)}
+  .scr{padding:0; min-height:120px}
+  .hdr{display:flex; align-items:center; justify-content:space-between; padding:10px 12px;
+    border-bottom:1px solid var(--line2); background:var(--page)}
+  .hdr .title{font-weight:700; font-size:15px}
+  .hdr-actions{display:flex; gap:8px}
+  .body{padding:12px}
+  .tabbar{display:flex; border-top:1px solid var(--line2); background:var(--page)}
+  .tab{flex:1; text-align:center; padding:8px 2px; font-size:10px; color:var(--ink2); border-right:1px solid var(--line2)}
+  .tab:last-child{border-right:0}
+  .tab .ic{display:block; width:22px; height:22px; margin:0 auto 3px; border:1.5px solid var(--line); border-radius:5px; background:var(--fill3)}
+  .tab.on{background:var(--fill); font-weight:700; color:var(--ink)}
+
+  /* shared primitives */
+  .chip{border:1px solid var(--line); border-radius:16px; padding:4px 8px; font-size:11px; background:var(--fill3);
+    min-width:44px; min-height:44px; display:inline-flex; align-items:center; justify-content:center; gap:4px}
+  .spk{border:1px solid var(--line); border-radius:50%; width:44px; height:44px; display:inline-flex;
+    align-items:center; justify-content:center; font-size:15px; background:var(--fill3)}
+  .box{border:1.5px solid var(--line); border-radius:var(--radius); background:var(--page); padding:10px; margin:8px 0}
+  .lbl{font-size:13px; color:var(--ink); margin:0 0 4px}
+  .muted{color:var(--ink3)}
+  .ph-line{height:9px; background:var(--fill); border-radius:3px; margin:6px 0}
+  .ph-line.s{width:55%} .ph-line.m{width:75%} .ph-line.l{width:92%}
+  .btn{display:flex; align-items:center; justify-content:center; gap:6px; min-height:48px;
+    border:2px solid var(--line); border-radius:var(--radius); background:var(--fill); font-weight:700;
+    font-size:15px; text-align:center; padding:6px 12px; margin:8px 0}
+  .btn.ghost{background:var(--page); font-weight:600}
+  .btn.sm{min-height:44px; font-size:13px}
+  .btn.inline{display:inline-flex; margin:0; padding:8px 18px}
+  .field{border:1.5px solid var(--line); border-radius:var(--radius); background:var(--page);
+    min-height:48px; display:flex; align-items:center; padding:0 10px; color:var(--ink3); margin:4px 0}
+  .xbox{border:1.5px solid var(--line); border-radius:var(--radius); background:
+    linear-gradient(45deg,transparent 47%,var(--line2) 48%,var(--line2) 52%,transparent 53%),
+    linear-gradient(-45deg,transparent 47%,var(--line2) 48%,var(--line2) 52%,transparent 53%),
+    var(--fill3);}
+  .row{display:flex; gap:8px}
+  .grid{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px}
+  .grid.g4{grid-template-columns:repeat(4,1fr)}
+  .grid.g6{grid-template-columns:repeat(6,1fr)}
+  .tile{border:1.5px solid var(--line); border-radius:var(--radius); background:var(--page); padding:6px; text-align:center; font-size:11px}
+  .tile .xbox{height:52px; margin-bottom:5px}
+  .price{font-size:30px; font-weight:800; letter-spacing:-.5px}
+  .price.hero{font-size:40px}
+  .price small{font-size:14px; font-weight:600; color:var(--ink2)}
+  .band{position:relative; height:26px; margin:14px 0 6px}
+  .band .track{position:absolute; top:11px; left:0; right:0; height:4px; background:var(--fill2); border-radius:2px}
+  .band .fill{position:absolute; top:10px; left:14%; right:14%; height:6px; background:var(--line); border-radius:3px}
+  .band .dot{position:absolute; top:4px; left:52%; width:16px; height:16px; border-radius:50%; background:#333; border:2px solid var(--page)}
+  .band .lo{position:absolute; top:-3px; left:0; font-size:11px; color:var(--ink2)}
+  .band .hi{position:absolute; top:-3px; right:0; font-size:11px; color:var(--ink2)}
+  .dots{letter-spacing:2px; font-size:14px}
+  .banner{background:var(--fill2); border:1px dashed var(--line); border-radius:var(--radius); padding:7px 10px; font-size:12px; color:var(--ink2); margin:8px 0; display:flex; align-items:center; gap:6px}
+  .divider{height:1px; background:var(--line2); margin:10px 0}
+  .listitem{display:flex; align-items:center; gap:10px; border:1.5px solid var(--line); border-radius:var(--radius); padding:8px; background:var(--page); margin:8px 0}
+  .rank{width:26px; height:26px; border:1.5px solid var(--line); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; flex:0 0 26px}
+  .flex1{flex:1}
+  .pill{display:inline-block; border:1px solid var(--line); border-radius:12px; padding:2px 8px; font-size:11px; background:var(--fill3)}
+  .prov{font-size:10px; color:var(--ink3); margin-top:6px}
+
+  /* callouts */
+  .cnum{display:inline-flex; width:18px; height:18px; border-radius:50%; background:#333; color:#fff;
+    font-size:11px; align-items:center; justify-content:center; font-weight:700; vertical-align:middle; margin-right:2px}
+  .notes{background:var(--page); border:1px solid var(--line2); border-radius:var(--radius); padding:12px 16px; margin:10px 0; font-size:13px; max-width:900px}
+  .notes ol{margin:4px 0 0; padding-left:6px; list-style:none}
+  .notes li{margin:6px 0; padding-left:26px; position:relative}
+  .notes li .cnum{position:absolute; left:0; top:1px}
+  .i18n{background:#f6f6f6; border-left:4px solid var(--line); padding:10px 14px; font-size:13px; color:var(--ink2); margin:10px 0; max-width:900px}
+  .tag{display:inline-block; font-size:10px; border:1px solid var(--line); border-radius:4px; padding:1px 5px; color:var(--ink2); background:var(--fill3); vertical-align:middle}
+  .bp{background:var(--page); border:1px solid var(--line2); border-radius:var(--radius); padding:8px 12px; font-size:12px; color:var(--ink2); display:inline-block; margin:4px 8px 4px 0}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>AgriForecast — Farmer App</h1>
+  <p class="sub"><strong>FE-0 · Lo-Fi Wireframes v1 · DESKTOP-FIRST</strong> — one responsive React app. Owner redline: the <strong>desktop web experience leads</strong> (wide multi-column layouts), mobile is the adaptation. Second redline: an explicit <strong>rich data-representation layer</strong> (charts, tables, comparisons) on every data view. Built from PRD v1.0. <strong>Release 1 = anonymous read</strong> (API gap #6) — no login/registration; auth appears only as small <span class="tag">R2</span> annotations.</p>
+  <p class="meta">Strict lo-fi: grayscale only, X-boxes = illustration/chart placeholders, real labels, no color/branding. Grayscale shading inside charts encodes intensity only (final color-blind-safe palette is an FE-1 task). 2026-07-10, rev.2.</p>
+
+  <div class="legend">
+    <div><span class="sw"></span> box / container</div>
+    <div><span class="sw" style="background:var(--fill)"></span> button / filled control</div>
+    <div><span class="sw xbox"></span> chart / illustration placeholder</div>
+    <div><span class="cnum">1</span> numbered callout</div>
+    <div><span class="tag">R2</span> Release-2, context only</div>
+  </div>
+
+  <h3>Responsive breakpoints (one app, three layouts)</h3>
+  <div>
+    <span class="bp"><strong>&#8805;1024px — Desktop web (primary):</strong> top header nav, 2&ndash;3 column layouts, side-by-side chart + factor panel, comparison tables full width.</span>
+    <span class="bp"><strong>600&ndash;1023px — Tablet:</strong> nav collapses to condensed bar, 2-col &rarr; 1-col stacking, tables gain horizontal scroll.</span>
+    <span class="bp"><strong>&lt;600px — Mobile:</strong> bottom tab bar, single column, cards stack, tables become key-value rows (see Mobile Adaptation section).</span>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2>1 · User-flow diagrams <span class="kick">(layout-independent)</span></h2>
+  <p class="sub">Flat, linear journeys (max navigation depth 2). Dashed = decision/optional; dotted = R2. Same flows on desktop and mobile; only layout differs.</p>
+
+  <h3>1a · Onboarding (first launch only) — no registration wall</h3>
+  <div class="flow">
+    <div class="node start">App open</div><span class="arrow">&rarr;</span>
+    <div class="node">Choose language<br><small>&#3523;&#3538; / &#2980; / EN</small></div><span class="arrow">&rarr;</span>
+    <div class="node dec">District &amp; market<br><small>optional · Skip</small></div><span class="arrow">&rarr;</span>
+    <div class="node dec">Pick usual crops<br><small>optional · Skip</small></div><span class="arrow">&rarr;</span>
+    <div class="node">Home</div>
+    <div class="br"></div>
+    <span class="arrow-lbl">Language is the only required step. On desktop this is a single centered card with inline steps; on mobile, 3 sequential screens.</span>
+  </div>
+
+  <h3>1b · "What will my crop sell for?" — harvest price check (core journey)</h3>
+  <div class="flow">
+    <div class="node start">Home</div><span class="arrow">&rarr;</span>
+    <div class="node">Crop picker<br><small>illustrated grid + search</small></div><span class="arrow">&rarr;</span>
+    <div class="node">Plant-date + horizon<br><small>defaults to today</small></div><span class="arrow">&rarr;</span>
+    <div class="node dec">Forecast result<br><small>chart + band + factors, one screen</small></div>
+    <div class="br"></div>
+    <span class="arrow-lbl">On desktop the Result page shows timeline chart, confidence band, factor panel and seasonality strip together (no drill-down needed); on mobile these become stacked/collapsible sub-views.</span>
+  </div>
+
+  <h3>1c · "What should I plant?" — best crops (comparison)</h3>
+  <div class="flow">
+    <div class="node start">Home / Plant</div><span class="arrow">&rarr;</span>
+    <div class="node">Best-crops comparison table<br><small>price · confidence · season fit</small></div><span class="arrow">&rarr;</span>
+    <div class="node">Tap a crop</div><span class="arrow">&rarr;</span>
+    <div class="node dec">Forecast result<br><small>shared result page</small></div>
+  </div>
+
+  <h3>1d · Prices browser <span class="tag">R2</span> (needs API #1 markets + #2 price history)</h3>
+  <div class="flow">
+    <div class="node start r2">Prices</div><span class="arrow">&rarr;</span>
+    <div class="node r2">Market + crop pick</div><span class="arrow">&rarr;</span>
+    <div class="node r2">Price history chart + table</div><span class="arrow">&rarr;</span>
+    <div class="node r2">Market-vs-market compare</div>
+    <div class="br"></div>
+    <span class="arrow-lbl">Entire Prices journey is R2 — R1 shows an honest "coming soon" state so the nav stays stable.</span>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2>2 · Desktop web frames <span class="kick">(~1180px · primary)</span></h2>
+
+  <div class="notes" style="max-width:1000px; border:2px solid #888; padding:12px 16px; border-radius:10px;">
+    <strong>⚑ SHELL REDLINE — owner decision 2026-07-10 (post-sign-off):</strong> the desktop shell is
+    <strong>DASHBOARD-STYLE</strong> — dark sidebar navigation (Overview · My harvest · Best crops · Prices&nbsp;<em>soon</em>),
+    top filter bar (market / date), KPI tile row, and panel composition with related data on one screen
+    (chart + factors + tables side by side; workspace screens keep crop/plant-date/harvest-date controls pinned left).
+    Normative shell reference: <code>docs/dashboard-style-samples-v1.html</code> (samples A &amp; B).
+    The frames below predate this decision and show a top-nav page shell — their <em>content, components,
+    annotations and honesty rules remain normative</em>; only the shell/composition is superseded.
+    Mobile adaptation (§4) is unchanged: sidebar becomes bottom tabs, panels stack into the page flow.
+  </div>
+
+  <!-- W1 HOME -->
+  <h3>W1 · Home / Today</h3>
+  <div class="web">
+    <div class="browserbar"><span class="dots"><i></i><i></i><i></i></span><span class="url">agriforecast.lk</span></div>
+    <div class="webhdr">
+      <div class="brand"><span class="mk"></span>AgriForecast</div>
+      <nav class="webnav">
+        <span class="navlink on">Home</span>
+        <span class="navlink">Plant</span>
+        <span class="navlink">My crop</span>
+        <span class="navlink r2">Prices <span class="tag">R2</span></span>
+      </nav>
+      <div class="right"><span class="chip">&#3523;&#3538; / &#2980; / EN &#9662; <span class="cnum">1</span></span><span class="spk" title="read this page aloud">&#128266; <span class="cnum">2</span></span></div>
+    </div>
+    <div class="webbody">
+      <div class="banner">&#128246; Prices updated 2h ago · Dambulla market · <span class="muted">Source: HARTI / Dept. of Agriculture</span> <span class="cnum">3</span></div>
+      <div class="cols2">
+        <div class="panel">
+          <h4>Ready to plan? <span class="cnum">4</span></h4>
+          <div class="muted" style="font-size:13px">Check what a crop will sell for at harvest, or see the best crops to plant now.</div>
+          <div class="row" style="margin-top:12px">
+            <div class="btn inline">&#65291; Check a crop price at harvest</div>
+            <div class="btn ghost inline">See best crops to plant</div>
+          </div>
+        </div>
+        <div class="panel">
+          <h4>Today's prices — my crops</h4>
+          <div class="listitem"><div class="xbox" style="width:34px;height:34px;flex:0 0 34px"></div><div class="flex1"><strong>Cabbage</strong> <span class="muted" style="font-size:11px">/kg</span></div><div class="price" style="font-size:20px">Rs.148</div></div>
+          <div class="listitem"><div class="xbox" style="width:34px;height:34px;flex:0 0 34px"></div><div class="flex1"><strong>Capsicum</strong> <span class="muted" style="font-size:11px">/kg</span></div><div class="price" style="font-size:20px">Rs.552</div></div>
+          <div class="prov">Source: HARTI / Dambulla DEC via Dept. of Agriculture data <span class="cnum">3</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <ol>
+      <li><span class="cnum">1</span>Language switcher persists in every header (desktop &amp; mobile), never buried in settings.</li>
+      <li><span class="cnum">2</span>Audio-help speaker (&#8805;44px) in every header; content blocks also get their own "Hear this".</li>
+      <li><span class="cnum">3</span>Government data-provenance line under every price surface — #1 trust builder in research.</li>
+      <li><span class="cnum">4</span>Desktop uses the width for a two-up hero (primary CTA + my-crops snapshot) instead of one stacked CTA; still one clear primary action (filled) vs secondary (ghost).</li>
+    </ol>
+  </div>
+
+  <!-- W2 PICKER + DATE -->
+  <h3>W2 · Crop picker + plant-date &amp; horizon (two-column)</h3>
+  <div class="web">
+    <div class="browserbar"><span class="dots"><i></i><i></i><i></i></span><span class="url">agriforecast.lk/my-crop</span></div>
+    <div class="webhdr"><div class="brand"><span class="mk"></span>AgriForecast</div>
+      <nav class="webnav"><span class="navlink">Home</span><span class="navlink">Plant</span><span class="navlink on">My crop</span><span class="navlink r2">Prices <span class="tag">R2</span></span></nav>
+      <div class="right"><span class="chip">EN &#9662;</span><span class="spk">&#128266;</span></div></div>
+    <div class="webbody">
+      <div class="cols2">
+        <div class="panel">
+          <h4>Pick a crop <span class="cnum">5</span></h4>
+          <div class="field">&#128269; Search crops</div>
+          <div class="muted" style="font-size:11px; margin-top:6px">Vegetables</div>
+          <div class="grid g4">
+            <div class="tile"><div class="xbox"></div>Cabbage</div><div class="tile"><div class="xbox"></div>Capsicum</div>
+            <div class="tile"><div class="xbox"></div>Beans</div><div class="tile"><div class="xbox"></div>Tomato</div>
+            <div class="tile"><div class="xbox"></div>Carrot</div><div class="tile"><div class="xbox"></div>Leeks</div>
+            <div class="tile"><div class="xbox"></div>Bitter gourd</div><div class="tile"><div class="xbox"></div>Brinjal</div>
+          </div>
+          <div class="muted" style="font-size:11px; margin-top:6px">Fruits</div>
+          <div class="grid g4"><div class="tile"><div class="xbox"></div>Banana</div><div class="tile"><div class="xbox"></div>Papaya</div><div class="tile"><div class="xbox"></div>Mango</div><div class="tile"><div class="xbox"></div>Lime</div></div>
+        </div>
+        <div class="panel">
+          <h4>Selected: Capsicum</h4>
+          <div class="listitem"><div class="xbox" style="width:44px;height:44px;flex:0 0 44px"></div><div class="flex1"><strong>Capsicum</strong><div class="muted" style="font-size:11px">Vegetable · FRT/VEG code</div></div></div>
+          <div class="lbl" style="margin-top:8px">When will you plant?</div>
+          <div class="field">&#128197; Today · 10 Jul 2026 &#9662; <span class="cnum">6</span></div>
+          <div class="lbl" style="margin-top:10px">When will you harvest / sell?</div>
+          <div class="field">&#128197; Pick a date · 15 Oct 2026 &#9662; <span class="cnum">7</span></div>
+          <div class="muted" style="font-size:11px; margin-top:8px">Suggested from planting date + growth period</div>
+          <div class="btn">See price forecast &rarr;</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes"><ol>
+    <li><span class="cnum">5</span>Illustrated grid is primary discovery (low-literacy users scan images); search is secondary. ~30 semi-abstract SVG illustrations commissioned (X-boxes here).</li>
+    <li><span class="cnum">6</span>Date defaults to today &rarr; zero typing to get an answer.</li>
+    <li><span class="cnum">7</span><strong>Owner decision 2026-07-10:</strong> exact harvest-date picker (fixed 1/3/6-month chips dropped). Date pre-suggested as plant date + crop growth period once API #3 lands; freely pickable until then.</li>
+  </ol></div>
+
+  <!-- W3 FORECAST RESULT -->
+  <h3>W3 · Forecast result — signature uncertainty pattern + rich viz (chart, band, factors, seasonality on one wide page)</h3>
+  <div class="web">
+    <div class="browserbar"><span class="dots"><i></i><i></i><i></i></span><span class="url">agriforecast.lk/my-crop/capsicum</span></div>
+    <div class="webhdr"><div class="brand"><span class="mk"></span>AgriForecast</div>
+      <nav class="webnav"><span class="navlink">Home</span><span class="navlink">Plant</span><span class="navlink on">My crop</span><span class="navlink r2">Prices <span class="tag">R2</span></span></nav>
+      <div class="right"><span class="chip">EN &#9662;</span><span class="spk">&#128266;</span></div></div>
+    <div class="webbody">
+      <div class="muted" style="font-size:13px; margin-bottom:8px">Capsicum · plant 10 Jul · harvest ~15 Oct · Dambulla</div>
+      <div class="cols2">
+        <div class="panel">
+          <div style="text-align:center">
+            <div class="muted" style="font-size:12px">Expected price at harvest</div>
+            <div class="price hero">Rs. 552 <small>/kg</small> <span class="cnum">8</span></div>
+            <div class="band"><div class="track"></div><div class="fill"></div><div class="dot"></div><div class="lo">Rs.233</div><div class="hi">Rs.694</div></div>
+            <div class="muted" style="font-size:11px">P10&ndash;P90 range · dot = most likely (central) price <span class="cnum">9</span></div>
+          </div>
+          <div class="divider"></div>
+          <h4>12-month price timeline <span class="cnum">10</span></h4>
+          <div class="viz" style="height:180px"><span class="vlbl">LINE CHART — solid line = past prices · shaded band = forecast P10&ndash;P90 · bold line inside band = central forecast · &#9650; marker = harvest 15 Oct</span></div>
+          <div class="axis-x">Jul · Aug · Sep · Oct · Nov · Dec (Rs./kg on Y)</div>
+        </div>
+        <div>
+          <div class="panel">
+            <h4><span class="dots">&#9679;&#9679;&#9679;&#9675;</span> Confidence: Good <span class="cnum">11</span></h4>
+            <div class="muted" style="font-size:12px">"Based on 9 years of Dambulla prices for this crop."</div>
+            <div class="muted" style="font-size:12px; margin-top:4px">In 7 of 10 similar seasons the price stayed above Rs.400. <span class="cnum">12</span></div>
+            <span class="chip" style="margin-top:8px; border-radius:6px">&#128266; Hear this explanation</span>
+          </div>
+          <div class="panel" style="margin-top:14px">
+            <h4>Why this price? — factor breakdown <span class="cnum">13</span></h4>
+            <table class="cmp"><thead><tr><th>Factor</th><th>Effect</th></tr></thead><tbody>
+              <tr><td>Season / month (Oct usually higher)</td><td>&#8593; raises</td></tr>
+              <tr><td>Recent price trend (rising)</td><td>&#8593; raises</td></tr>
+              <tr><td>Supply / volume (more coming)</td><td>&#8595; lowers</td></tr>
+            </tbody></table>
+          </div>
+          <div class="panel" style="margin-top:14px">
+            <h4>Seasonality — typical price by month <span class="cnum">14</span></h4>
+            <div class="season">
+              <div class="cell" style="background:#f4f4f4">J</div><div class="cell" style="background:#eee">F</div>
+              <div class="cell" style="background:#e2e2e2">M</div><div class="cell" style="background:#d2d2d2">A</div>
+              <div class="cell" style="background:#c4c4c4">M</div><div class="cell" style="background:#bcbcbc">J</div>
+              <div class="cell" style="background:#c0c0c0">J</div><div class="cell" style="background:#b0b0b0">A</div>
+              <div class="cell" style="background:#9e9e9e">S</div><div class="cell" style="background:#8c8c8c">O</div>
+              <div class="cell" style="background:#a6a6a6">N</div><div class="cell" style="background:#c8c8c8">D</div>
+            </div>
+            <div class="muted" style="font-size:10px">Darker = typically higher price. Heatmap needs history (API #2); computed placeholder shown.</div>
+          </div>
+        </div>
+      </div>
+      <div class="panel colspan" style="margin-top:16px">
+        <h4>Same data as a table <span class="cnum">15</span></h4>
+        <table class="cmp"><thead><tr><th>Month</th><th>Type</th><th>Low (P10)</th><th>Likely</th><th>High (P90)</th></tr></thead><tbody>
+          <tr><td>Aug 2026</td><td>Past (actual)</td><td colspan="3" class="num">Rs. 500</td></tr>
+          <tr><td>Sep 2026</td><td>Past (actual)</td><td colspan="3" class="num">Rs. 528</td></tr>
+          <tr class="best"><td>Oct 2026</td><td>Forecast (harvest)</td><td class="num">Rs. 233</td><td class="num">Rs. 552</td><td class="num">Rs. 694</td></tr>
+        </tbody></table>
+        <div class="prov">Source: HARTI / Dambulla DEC via Dept. of Agriculture data</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- W3b LOW CONFIDENCE -->
+  <h3>W3b · Forecast result — LOW confidence / fallback (same layout, honestly labelled)</h3>
+  <div class="web">
+    <div class="browserbar"><span class="dots"><i></i><i></i><i></i></span><span class="url">agriforecast.lk/my-crop/bitter-gourd</span></div>
+    <div class="webhdr"><div class="brand"><span class="mk"></span>AgriForecast</div>
+      <nav class="webnav"><span class="navlink">Home</span><span class="navlink">Plant</span><span class="navlink on">My crop</span><span class="navlink r2">Prices <span class="tag">R2</span></span></nav>
+      <div class="right"><span class="chip">EN &#9662;</span><span class="spk">&#128266;</span></div></div>
+    <div class="webbody">
+      <div class="cols2">
+        <div class="panel">
+          <div style="text-align:center">
+            <div class="muted" style="font-size:12px">Rough estimate at harvest <span class="cnum">16</span></div>
+            <div class="price hero">Rs. 310 <small>/kg</small></div>
+            <div class="band"><div class="track"></div><div class="fill" style="left:6%;right:6%"></div><div class="dot"></div><div class="lo">Rs.120</div><div class="hi">Rs.520</div></div>
+            <div class="muted" style="font-size:11px">Wide range — treat as a rough guide, not a precise forecast</div>
+          </div>
+          <div class="divider"></div>
+          <div class="viz" style="height:150px"><span class="vlbl">LINE CHART — sparse history + very wide shaded band; central line dashed to signal low certainty</span></div>
+        </div>
+        <div>
+          <div class="panel">
+            <h4><span class="dots">&#9679;&#9675;&#9675;&#9675;</span> Confidence: Low <span class="cnum">16</span></h4>
+            <div class="muted" style="font-size:12px">"This crop does not yet have enough price history for the model, so this is a simple estimate — not a precise forecast."</div>
+            <div class="banner" style="margin-top:8px">&#9888; Using older data · latest reading 40 days ago <span class="cnum">17</span></div>
+            <span class="chip" style="border-radius:6px">&#128266; Hear this</span>
+          </div>
+          <div class="panel" style="margin-top:14px">
+            <h4>Why is confidence low?</h4>
+            <div class="muted" style="font-size:12px">Fewer than 2 years of readings · no strong seasonal pattern yet · last update is old. As more data arrives this improves automatically.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes"><ol>
+    <li><span class="cnum">8</span>Central estimate is the hero numeral (40px desktop) — non-literate users are numerate; never hide the number behind prose.</li>
+    <li><span class="cnum">9</span>Range = band with a <strong>marked centre dot / bold central line</strong>, never a bare interval (bare intervals make users fixate on extremes).</li>
+    <li><span class="cnum">10</span>Timeline chart: past = solid line, forecast = shaded P10&ndash;P90 band with bold central line, harvest = marker. Not a false single line.</li>
+    <li><span class="cnum">11</span>Confidence = icon (dot pictograph) + label + plain reason. Contract strings <code>Low/Medium/High</code> frozen; only the display label is translated.</li>
+    <li><span class="cnum">12</span>Chance as a natural frequency ("7 of 10 seasons"), not a percentage. Icon-array version at hi-fi.</li>
+    <li><span class="cnum">13</span>Factor breakdown lives inline on desktop (no drill-down) as a compact table with direction; on mobile it's a collapsible panel.</li>
+    <li><span class="cnum">14</span>Seasonality strip = 12-month intensity heatmap (grayscale = intensity here; color-blind-safe scale is an FE-1 decision). Needs price history (API #2).</li>
+    <li><span class="cnum">15</span>Every chart ships a text/table alternative (WCAG) — table shows P10 / Likely / P90 explicitly, past vs forecast typed.</li>
+    <li><span class="cnum">16</span>Low/fallback uses the <em>same</em> layout but labelled honestly: "Rough estimate", &#9679;&#9675;&#9675;&#9675;, wider band, dashed central line. Never dressed up as precise.</li>
+    <li><span class="cnum">17</span><code>LowTrust=true</code> surfaces a visible "older data" notice with data age.</li>
+  </ol></div>
+
+  <!-- W4 BEST CROPS COMPARISON -->
+  <h3>W4 · Best crops to plant — comparison table/grid</h3>
+  <div class="web">
+    <div class="browserbar"><span class="dots"><i></i><i></i><i></i></span><span class="url">agriforecast.lk/plant</span></div>
+    <div class="webhdr"><div class="brand"><span class="mk"></span>AgriForecast</div>
+      <nav class="webnav"><span class="navlink">Home</span><span class="navlink on">Plant</span><span class="navlink">My crop</span><span class="navlink r2">Prices <span class="tag">R2</span></span></nav>
+      <div class="right"><span class="chip">EN &#9662;</span><span class="spk">&#128266;</span></div></div>
+    <div class="webbody">
+      <div class="banner">&#128246; Updated 2h ago · Dambulla · <strong>Maha season</strong> <span class="cnum">18</span></div>
+      <h4>What should I plant now? — ranked &amp; comparable <span class="cnum">19</span></h4>
+      <table class="cmp"><thead><tr>
+        <th>#</th><th>Crop</th><th>Expected price /kg <span class="sort">&#9662; sort</span></th><th>Range (P10&ndash;P90)</th><th>Confidence <span class="sort">&#9662; sort</span></th><th>Season fit <span class="tag">API#3</span></th><th></th>
+      </tr></thead><tbody>
+        <tr class="best"><td>1</td><td><span class="xbox" style="display:inline-block;width:22px;height:22px;vertical-align:middle"></span> Capsicum</td><td class="num">Rs. 552</td><td>233&ndash;694</td><td><span class="dots">&#9679;&#9679;&#9679;&#9675;</span> Good</td><td>Maha &#10003; good</td><td><span class="btn ghost inline sm">View</span></td></tr>
+        <tr><td>2</td><td><span class="xbox" style="display:inline-block;width:22px;height:22px;vertical-align:middle"></span> Beans</td><td class="num">Rs. 310</td><td>180&ndash;420</td><td><span class="dots">&#9679;&#9679;&#9675;&#9675;</span> Fair</td><td>Maha &#10003; ok</td><td><span class="btn ghost inline sm">View</span></td></tr>
+        <tr><td>3</td><td><span class="xbox" style="display:inline-block;width:22px;height:22px;vertical-align:middle"></span> Cabbage</td><td class="num">Rs. 148</td><td>90&ndash;210</td><td><span class="dots">&#9679;&#9675;&#9675;&#9675;</span> Low</td><td>Maha ~ marginal</td><td><span class="btn ghost inline sm">View</span></td></tr>
+      </tbody></table>
+      <div class="cols2" style="margin-top:16px">
+        <div class="panel"><h4>Expected price — compare at a glance <span class="cnum">20</span></h4>
+          <div class="bars">
+            <div class="bargrp"><div class="bar a" style="height:100%"></div></div>
+            <div class="bargrp"><div class="bar a" style="height:56%"></div></div>
+            <div class="bargrp"><div class="bar a" style="height:27%"></div></div>
+          </div>
+          <div class="barlbls"><span>Capsicum</span><span>Beans</span><span>Cabbage</span></div>
+          <div class="muted" style="font-size:10px">Bar = central estimate; error whiskers (P10&ndash;P90) added at hi-fi so range stays visible.</div>
+        </div>
+        <div class="panel"><h4>Read this the other way</h4>
+          <div class="muted" style="font-size:12px">Highest expected price &ne; safest bet. Capsicum pairs a high price with Good confidence, so it leads. Cabbage's Low confidence is shown honestly, not hidden — a farmer may still prefer a crop they know.</div>
+          <div class="prov">Source: HARTI / Dept. of Agriculture data · forecasts via AgriForecast model</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes"><ol>
+    <li><span class="cnum">18</span>Best-crops is season-aware (Yala/Maha) &amp; market-scoped; season badge gated on API #3.</li>
+    <li><span class="cnum">19</span>Desktop turns the ranked list into a sortable comparison table (price · range · confidence · season fit) — direct comparison is the whole job here. Rows link to the shared Result page (W3).</li>
+    <li><span class="cnum">20</span>Bar chart gives a fast visual comparison of central prices; whiskers (range) added at hi-fi so uncertainty is never dropped from the comparison.</li>
+  </ol></div>
+
+  <!-- W5 PRICES R2 -->
+  <h3>W5 · Prices browser <span class="tag">R2</span> — history chart + sortable table + market comparison (design only; gated on API #1/#2)</h3>
+  <div class="web">
+    <div class="browserbar"><span class="dots"><i></i><i></i><i></i></span><span class="url">agriforecast.lk/prices &nbsp;— R2</span></div>
+    <div class="webhdr"><div class="brand"><span class="mk"></span>AgriForecast</div>
+      <nav class="webnav"><span class="navlink">Home</span><span class="navlink">Plant</span><span class="navlink">My crop</span><span class="navlink on r2">Prices <span class="tag">R2</span></span></nav>
+      <div class="right"><span class="chip">EN &#9662;</span><span class="spk">&#128266;</span></div></div>
+    <div class="webbody">
+      <div class="row" style="align-items:center; gap:12px; margin-bottom:10px">
+        <div class="field" style="max-width:220px; margin:0">Crop: Capsicum &#9662;</div>
+        <div class="field" style="max-width:220px; margin:0">Market: Dambulla &#9662; <span class="tag">API#1</span></div>
+        <div class="segbar" style="margin-left:auto"><span>1M</span><span class="on">3M</span><span>6M</span><span>1Y</span></div>
+        <span class="muted" style="font-size:11px"><span class="cnum">21</span> period selector</span>
+      </div>
+      <div class="cols2">
+        <div class="panel"><h4>Price history <span class="tag">API#2</span></h4>
+          <div class="viz" style="height:180px"><span class="vlbl">LINE CHART — historical daily/weekly price; hover = value; today marker; optional 7-day average line</span></div>
+          <div class="axis-x">last 3 months &rarr; today (Rs./kg)</div>
+        </div>
+        <div class="panel"><h4>Market comparison — same crop, many markets <span class="cnum">22</span></h4>
+          <div class="bars">
+            <div class="bargrp"><div class="bar a" style="height:90%"></div></div>
+            <div class="bargrp"><div class="bar b" style="height:74%"></div></div>
+            <div class="bargrp"><div class="bar c" style="height:82%"></div></div>
+            <div class="bargrp"><div class="bar a" style="height:60%"></div></div>
+          </div>
+          <div class="barlbls"><span>Dambulla</span><span>Meegoda</span><span>Nuwara E.</span><span>Keppetipola</span></div>
+          <div class="muted" style="font-size:10px">Grouped bars / small multiples across the 12 markets (needs API #1 list + #2 prices).</div>
+        </div>
+      </div>
+      <div class="panel colspan" style="margin-top:16px"><h4>Recent prices — sortable table <span class="cnum">23</span></h4>
+        <table class="cmp"><thead><tr><th>Date <span class="sort">&#9662;</span></th><th>Market <span class="sort">&#9662;</span></th><th>Price /kg <span class="sort">&#9662;</span></th><th>Change</th></tr></thead><tbody>
+          <tr><td>10 Jul 2026</td><td>Dambulla</td><td class="num">Rs. 552</td><td>&#9650; +4%</td></tr>
+          <tr><td>09 Jul 2026</td><td>Dambulla</td><td class="num">Rs. 530</td><td>&#9660; &minus;2%</td></tr>
+          <tr><td>10 Jul 2026</td><td>Meegoda</td><td class="num">Rs. 610</td><td>&#9650; +1%</td></tr>
+        </tbody></table>
+        <div class="prov">Source: HARTI / DEC via Dept. of Agriculture data</div>
+      </div>
+    </div>
+  </div>
+  <div class="notes"><ol>
+    <li><span class="cnum">21</span>Period selector (1M/3M/6M/1Y) drives both the chart and the table — one control, consistent state.</li>
+    <li><span class="cnum">22</span>Market-vs-market comparison as grouped bars / small multiples; the strongest "where can I sell higher?" answer. Fully gated on API #1 (markets) + #2 (history).</li>
+    <li><span class="cnum">23</span>Sortable table is the chart's text alternative and a data view in its own right; change column adds trend at a glance.</li>
+  </ol></div>
+
+  <!-- W6 SYSTEM STATES DESKTOP -->
+  <h3>W6 · System states (desktop) — offline, API-down, loading skeleton</h3>
+  <div class="screens">
+    <div style="flex:1 1 340px; min-width:320px">
+      <p class="caption">Offline — cached data readable + staleness</p>
+      <div class="panel">
+        <div class="banner" style="background:var(--fill); border-style:solid"><strong>&#9888; You are offline</strong> — showing saved prices from 2h ago (7 Jul, 3:10pm) <span class="cnum">24</span></div>
+        <div class="listitem"><div class="xbox" style="width:30px;height:30px;flex:0 0 30px"></div><div class="flex1"><strong>Capsicum</strong> <span class="muted" style="font-size:11px">/kg · saved</span></div><div class="price" style="font-size:18px">Rs.552</div></div>
+        <div class="btn ghost sm">&#8635; Try to refresh</div>
+        <div class="muted" style="font-size:11px">New forecasts need internet; saved data stays readable.</div>
+      </div>
+    </div>
+    <div style="flex:1 1 340px; min-width:320px">
+      <p class="caption">API-down / error — human message + retry</p>
+      <div class="panel" style="text-align:center; padding:26px">
+        <div class="xbox" style="height:52px;width:52px;margin:0 auto 12px"></div>
+        <strong>We couldn't get the forecast <span class="cnum">25</span></strong>
+        <div class="muted" style="font-size:13px; margin:6px 0 12px">The service is busy right now — this is not your fault. Please try again in a moment.</div>
+        <div class="btn inline">&#8635; Try again</div> <div class="btn ghost inline">&larr; Go back</div>
+        <div class="muted" style="font-size:10px; margin-top:10px">No error codes shown; technical detail logged internally only.</div>
+      </div>
+    </div>
+    <div style="flex:1 1 340px; min-width:320px">
+      <p class="caption">Loading — skeleton, not spinner <span class="cnum">26</span></p>
+      <div class="panel">
+        <div class="ph-line s"></div>
+        <div class="box" style="background:var(--fill3)"><div class="ph-line s" style="margin:0 auto;width:40%"></div><div class="ph-line" style="height:26px;width:60%;margin:10px auto"></div><div class="ph-line m" style="margin:0 auto"></div></div>
+        <div class="ph-line l"></div><div class="ph-line m"></div>
+      </div>
+    </div>
+  </div>
+  <div class="notes"><ol>
+    <li><span class="cnum">24</span>Never white-screens: last-fetched data stays readable with explicit relative+absolute timestamp.</li>
+    <li><span class="cnum">25</span>Human, reassuring copy ("not your fault") + big Retry; no stack traces / HTTP codes.</li>
+    <li><span class="cnum">26</span>Skeletons shaped like real content (rural bandwidth) — every async view ships loading/success/empty/error.</li>
+  </ol></div>
+
+  <!-- ============================================================ -->
+  <h2>3 · Data-representation layer <span class="kick">(the viz vocabulary, applied honestly)</span></h2>
+  <p class="sub">Where each representation is used, and the rules that keep every one of them honest and readable.</p>
+  <table class="cmp" style="max-width:1000px">
+    <thead><tr><th>Representation</th><th>Where</th><th>Answers</th><th>Honesty / a11y rule</th></tr></thead>
+    <tbody>
+      <tr><td>Confidence band (range + bold centre)</td><td>Result W3, W3b · mobile D/D2</td><td>"What price, how sure?"</td><td>Marked centre always; never a bare interval; icon+label+reason beside it.</td></tr>
+      <tr><td>Timeline line chart (history + forecast band)</td><td>Result W3 · Timeline mobile E</td><td>"Where's it heading?"</td><td>Shaded band not a single line; harvest marker; table alternative mandatory.</td></tr>
+      <tr><td>Seasonality heatmap/bar strip</td><td>Result W3 · crop detail</td><td>"Which months pay best?"</td><td>Intensity scale color-blind-safe (FE-1); needs API #2 history.</td></tr>
+      <tr><td>Comparison table (sortable)</td><td>Best crops W4 · Prices W5</td><td>"Which crop/market wins?"</td><td>Confidence column shown, never dropped; ranges kept alongside central price.</td></tr>
+      <tr><td>Grouped bars / small multiples</td><td>Best crops W4 · Market compare W5 <span class="tag">R2</span></td><td>"Compare at a glance"</td><td>Whiskers carry P10&ndash;P90; no dual axes; direct labels.</td></tr>
+      <tr><td>Factor breakdown (direction table)</td><td>Result W3 · mobile F</td><td>"Why this price?"</td><td>Plain phrases + direction icon+label; no raw feature names/weights.</td></tr>
+      <tr><td>Data table (text alternative)</td><td>Every chart</td><td>"Exact numbers"</td><td>WCAG: every graphic has an equivalent table; numbers are the product.</td></tr>
+    </tbody>
+  </table>
+  <div class="notes" style="max-width:1000px"><strong>Data-viz principles (carried into FE-1):</strong>
+    <ol style="columns:2; column-gap:32px">
+      <li><span class="cnum">a</span><strong>One message per chart</strong> — each graphic answers a single question; no kitchen-sink dashboards.</li>
+      <li><span class="cnum">b</span><strong>Direct labelling over legends</strong> where space allows (label the line/bar itself).</li>
+      <li><span class="cnum">c</span><strong>Table alternative for every graphic</strong> (WCAG 2.2, and farmers are numerate).</li>
+      <li><span class="cnum">d</span><strong>Color-blind-safe encoding</strong> planned for FE-1; encoding never relies on hue alone — shape/label/position too.</li>
+      <li><span class="cnum">e</span><strong>No dual axes, no 3D, no decoration</strong> — maximise data-ink ratio; grayscale here proves the layout reads without color.</li>
+      <li><span class="cnum">f</span><strong>Uncertainty never dropped</strong> — bands, whiskers and confidence labels travel with every number, including inside comparisons.</li>
+      <li><span class="cnum">g</span><strong>Provenance under every chart</strong> (HARTI / DOA) — trust is a data-viz requirement here.</li>
+    </ol>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2>4 · Mobile adaptation <span class="kick">(&lt;600px · secondary — same app, stacked layout + bottom tabs)</span></h2>
+  <p class="sub">The mobile layout of the identical React app: header nav collapses to a bottom tab bar, columns stack to one, comparison tables become key-value cards. Audio-help, language switcher, &#8805;44px targets and honest-uncertainty rules are unchanged.</p>
+
+  <h3>Onboarding (mobile) — O1 language · O2 district · O3 crops</h3>
+  <div class="screens">
+    <div class="device"><p class="caption">O1 — Choose language</p>
+      <div class="phone"><div class="status"><span>9:41</span><span>&#9646;&#9646;&#9647; &#9662;</span></div><div class="scr"><div class="body" style="text-align:center; padding-top:22px">
+        <div class="xbox" style="height:56px;width:56px;margin:0 auto 10px"></div>
+        <div style="font-weight:700;font-size:18px">AgriForecast</div><div class="muted" style="margin-bottom:16px">Choose your language</div>
+        <div class="btn">&#3523;&#3538;&#3458;&#3524;&#3517;</div><div class="btn">&#2980;&#2990;&#3007;&#2996;&#3021;</div><div class="btn">English</div>
+        <div class="spk" style="margin:18px auto 0">&#128266;</div></div></div></div></div>
+    <div class="device"><p class="caption">O2 — District &amp; market (skippable)</p>
+      <div class="phone"><div class="status"><span>9:41</span><span>&#9646;&#9646;&#9647; &#9662;</span></div><div class="scr">
+        <div class="hdr"><span class="title">Where are you?</span><div class="hdr-actions"><span class="chip">EN &#9662;</span><span class="spk">&#128266;</span></div></div>
+        <div class="body"><div class="lbl">Your district</div><div class="field">Select district &#9662;</div>
+          <div class="lbl" style="margin-top:10px">Nearest market</div><div class="field">Dambulla (default) &#9662;</div>
+          <div class="btn">Continue</div><div class="btn ghost">Skip for now</div></div></div></div></div>
+    <div class="device"><p class="caption">O3 — Usual crops (skippable)</p>
+      <div class="phone"><div class="status"><span>9:41</span><span>&#9646;&#9646;&#9647; &#9662;</span></div><div class="scr">
+        <div class="hdr"><span class="title">Your crops</span><div class="hdr-actions"><span class="chip">EN &#9662;</span><span class="spk">&#128266;</span></div></div>
+        <div class="body"><div class="field">&#128269; Search crops</div>
+          <div class="grid" style="margin-top:8px"><div class="tile"><div class="xbox"></div>Cabbage &#10003;</div><div class="tile"><div class="xbox"></div>Capsicum &#10003;</div><div class="tile"><div class="xbox"></div>Beans</div><div class="tile"><div class="xbox"></div>Tomato</div><div class="tile"><div class="xbox"></div>Carrot</div><div class="tile"><div class="xbox"></div>Leeks</div></div>
+          <div class="btn">Done</div><div class="btn ghost">Skip</div></div></div></div></div>
+  </div>
+
+  <h3>Core screens (mobile) — Home · Picker · Date · Result · Timeline · Factors · Best-crops · Prices stub · Offline · Error</h3>
+  <div class="screens">
+    <div class="device"><p class="caption">A — Home</p>
+      <div class="phone"><div class="status"><span>9:41</span><span>&#9646;&#9646;&#9647; &#9662;</span></div><div class="scr">
+        <div class="hdr"><span class="title">&#3486;&#3517;&#3540;&#3510;&#3537;&#3520;&#3505;&#3530; &#128075;</span><div class="hdr-actions"><span class="chip">&#3523;&#3538; &#9662;</span><span class="spk">&#128266;</span></div></div>
+        <div class="body"><div class="banner">&#128246; Updated 2h ago · Dambulla</div>
+          <div class="listitem"><div class="xbox" style="width:38px;height:38px;flex:0 0 38px"></div><div class="flex1"><strong>Cabbage</strong><div class="muted" style="font-size:11px">/kg</div></div><div class="price" style="font-size:22px">Rs.148</div></div>
+          <div class="listitem"><div class="xbox" style="width:38px;height:38px;flex:0 0 38px"></div><div class="flex1"><strong>Capsicum</strong><div class="muted" style="font-size:11px">/kg</div></div><div class="price" style="font-size:22px">Rs.552</div></div>
+          <div class="btn">&#65291; Check a crop price at harvest</div>
+          <div class="prov" style="text-align:center">Source: HARTI / Dept. of Agriculture</div></div>
+        <div class="tabbar"><div class="tab on"><span class="ic"></span>Home</div><div class="tab"><span class="ic"></span>Plant</div><div class="tab"><span class="ic"></span>My crop</div><div class="tab"><span class="ic"></span>Prices</div></div></div></div></div>
+
+    <div class="device"><p class="caption">B — Crop picker</p>
+      <div class="phone"><div class="status"><span>9:41</span><span>&#9646;&#9646;&#9647; &#9662;</span></div><div class="scr">
+        <div class="hdr"><span class="title">&larr; Pick a crop</span><div class="hdr-actions"><span class="chip">EN &#9662;</span><span class="spk">&#128266;</span></div></div>
+        <div class="body"><div class="field">&#128269; Search crops</div>
+          <div class="muted" style="font-size:11px;margin-top:6px">Vegetables</div>
+          <div class="grid"><div class="tile"><div class="xbox"></div>Cabbage</div><div class="tile"><div class="xbox"></div>Capsicum</div><div class="tile"><div class="xbox"></div>Beans</div><div class="tile"><div class="xbox"></div>Tomato</div><div class="tile"><div class="xbox"></div>Carrot</div><div class="tile"><div class="xbox"></div>Leeks</div></div>
+          <div class="muted" style="font-size:11px;margin-top:8px">Fruits</div>
+          <div class="grid"><div class="tile"><div class="xbox"></div>Banana</div><div class="tile"><div class="xbox"></div>Papaya</div><div class="tile"><div class="xbox"></div>Mango</div></div></div></div></div></div>
+
+    <div class="device"><p class="caption">C — Plant-date &amp; horizon</p>
+      <div class="phone"><div class="status"><span>9:41</span><span>&#9646;&#9646;&#9647; &#9662;</span></div><div class="scr">
+        <div class="hdr"><span class="title">&larr; Capsicum</span><div class="hdr-actions"><span class="chip">EN &#9662;</span><span class="spk">&#128266;</span></div></div>
+        <div class="body"><div class="listitem"><div class="xbox" style="width:44px;height:44px;flex:0 0 44px"></div><div class="flex1"><strong>Capsicum</strong><div class="muted" style="font-size:11px">Vegetable</div></div></div>
+          <div class="lbl" style="margin-top:6px">When will you plant?</div><div class="field">&#128197; Today · 10 Jul 2026 &#9662;</div>
+          <div class="lbl" style="margin-top:10px">When will you harvest / sell?</div>
+          <div class="field">&#128197; Pick a date · 15 Oct 2026 &#9662;</div>
+          <div class="muted" style="font-size:11px;margin-top:6px">Suggested from planting date + growth period</div>
+          <div class="btn">See price forecast &rarr;</div></div></div></div></div>
+
+    <div class="device"><p class="caption">D — Result (Good confidence)</p>
+      <div class="phone"><div class="status"><span>9:41</span><span>&#9646;&#9646;&#9647; &#9662;</span></div><div class="scr">
+        <div class="hdr"><span class="title">&larr; Capsicum</span><div class="hdr-actions"><span class="chip">EN &#9662;</span><span class="spk">&#128266;</span></div></div>
+        <div class="body"><div class="muted" style="font-size:12px">Capsicum · harvest ~15 Oct · Dambulla</div>
+          <div class="box" style="text-align:center;background:var(--fill3)"><div class="muted" style="font-size:11px">Expected price at harvest</div>
+            <div class="price">Rs. 552 <small>/kg</small></div>
+            <div class="band"><div class="track"></div><div class="fill"></div><div class="dot"></div><div class="lo">Rs.233</div><div class="hi">Rs.694</div></div>
+            <div class="muted" style="font-size:11px">the range it will likely fall in</div></div>
+          <div class="box"><div><span class="dots">&#9679;&#9679;&#9679;&#9675;</span> <strong>Confidence: Good</strong></div>
+            <div class="muted" style="font-size:12px;margin-top:4px">"Based on 9 years of Dambulla prices." In 7 of 10 seasons it stayed above Rs.400.</div>
+            <span class="chip" style="margin-top:6px;border-radius:6px">&#128266; Hear this</span></div>
+          <div class="btn ghost sm">&#128200; See 12-month timeline &rarr;</div>
+          <div class="btn ghost sm">&#65291; Why this price? (factors)</div></div></div></div></div>
+
+    <div class="device"><p class="caption">D2 — Result (Low / fallback)</p>
+      <div class="phone"><div class="status"><span>9:41</span><span>&#9646;&#9646;&#9647; &#9662;</span></div><div class="scr">
+        <div class="hdr"><span class="title">&larr; Bitter gourd</span><div class="hdr-actions"><span class="chip">EN &#9662;</span><span class="spk">&#128266;</span></div></div>
+        <div class="body"><div class="muted" style="font-size:12px">Bitter gourd · harvest ~Oct · Dambulla</div>
+          <div class="box" style="text-align:center;background:var(--fill3)"><div class="muted" style="font-size:11px">Rough estimate at harvest</div>
+            <div class="price">Rs. 310 <small>/kg</small></div>
+            <div class="band"><div class="track"></div><div class="fill" style="left:6%;right:6%"></div><div class="dot"></div><div class="lo">Rs.120</div><div class="hi">Rs.520</div></div>
+            <div class="muted" style="font-size:11px">wide range — treat as a rough guide</div></div>
+          <div class="box"><div><span class="dots">&#9679;&#9675;&#9675;&#9675;</span> <strong>Confidence: Low</strong></div>
+            <div class="muted" style="font-size:12px;margin-top:4px">"Not enough price history yet — a simple estimate, not a precise forecast."</div>
+            <div class="banner" style="margin-top:6px">&#9888; Older data · latest 40 days ago</div></div></div></div></div></div>
+
+    <div class="device"><p class="caption">E — Timeline chart</p>
+      <div class="phone"><div class="status"><span>9:41</span><span>&#9646;&#9646;&#9647; &#9662;</span></div><div class="scr">
+        <div class="hdr"><span class="title">&larr; Capsicum · timeline</span><div class="hdr-actions"><span class="chip">EN &#9662;</span><span class="spk">&#128266;</span></div></div>
+        <div class="body"><div class="muted" style="font-size:12px">Past prices + forecast band · /kg</div>
+          <div class="viz" style="height:150px"><span class="vlbl">LINE CHART · past solid · forecast band · &#9650; harvest</span></div>
+          <div class="muted" style="font-size:11px;margin-top:4px">&#9642; past · &#9642; forecast range · &#9650; harvest ~15 Oct</div>
+          <div class="divider"></div><div class="lbl">Same data as a table</div>
+          <div class="box" style="padding:6px"><div class="row" style="font-size:12px;border-bottom:1px solid var(--line2);padding-bottom:4px"><div class="flex1"><strong>Month</strong></div><div><strong>Price</strong></div></div>
+            <div class="row" style="font-size:12px;padding-top:4px"><div class="flex1">Aug (past)</div><div>Rs.500</div></div>
+            <div class="row" style="font-size:12px"><div class="flex1">Oct (forecast)</div><div>Rs.233&ndash;694</div></div></div></div></div></div></div>
+
+    <div class="device"><p class="caption">F — Factor panel</p>
+      <div class="phone"><div class="status"><span>9:41</span><span>&#9646;&#9646;&#9647; &#9662;</span></div><div class="scr">
+        <div class="hdr"><span class="title">&larr; Why this price?</span><div class="hdr-actions"><span class="chip">EN &#9662;</span><span class="spk">&#128266;</span></div></div>
+        <div class="body"><div class="muted" style="font-size:12px">What pushed Capsicum up or down</div>
+          <div class="box"><div class="row"><div class="flex1"><strong>Season / month</strong><div class="muted" style="font-size:11px">Oct usually higher</div></div><div class="pill">&#8593; raises</div></div></div>
+          <div class="box"><div class="row"><div class="flex1"><strong>Recent trend</strong><div class="muted" style="font-size:11px">rising</div></div><div class="pill">&#8593; raises</div></div></div>
+          <div class="box"><div class="row"><div class="flex1"><strong>Supply / volume</strong><div class="muted" style="font-size:11px">more coming</div></div><div class="pill">&#8595; lowers</div></div></div>
+          <span class="chip" style="border-radius:6px">&#128266; Hear explanation</span>
+          <div class="prov" style="text-align:center">Source: HARTI / Dept. of Agriculture</div></div></div></div></div>
+
+    <div class="device"><p class="caption">G — Best crops (stacked cards)</p>
+      <div class="phone"><div class="status"><span>9:41</span><span>&#9646;&#9646;&#9647; &#9662;</span></div><div class="scr">
+        <div class="hdr"><span class="title">What to plant now</span><div class="hdr-actions"><span class="chip">EN &#9662;</span><span class="spk">&#128266;</span></div></div>
+        <div class="body"><div class="banner">&#128246; Updated 2h ago · Maha season</div>
+          <div class="listitem"><div class="rank">1</div><div class="xbox" style="width:40px;height:40px;flex:0 0 40px"></div><div class="flex1"><strong>Capsicum</strong><div class="muted" style="font-size:11px">Rs.552/kg · <span class="dots">&#9679;&#9679;&#9679;&#9675;</span> Good</div></div><span class="pill">Best</span></div>
+          <div class="listitem"><div class="rank">2</div><div class="xbox" style="width:40px;height:40px;flex:0 0 40px"></div><div class="flex1"><strong>Beans</strong><div class="muted" style="font-size:11px">Rs.310/kg · <span class="dots">&#9679;&#9679;&#9675;&#9675;</span> Fair</div></div><span class="pill">Good</span></div>
+          <div class="listitem"><div class="rank">3</div><div class="xbox" style="width:40px;height:40px;flex:0 0 40px"></div><div class="flex1"><strong>Cabbage</strong><div class="muted" style="font-size:11px">Rs.148/kg · <span class="dots">&#9679;&#9675;&#9675;&#9675;</span> Low</div></div><span class="pill">Fair</span></div>
+          <div class="muted" style="font-size:11px">Comparison table (desktop W4) becomes stacked cards here.</div></div>
+        <div class="tabbar"><div class="tab"><span class="ic"></span>Home</div><div class="tab on"><span class="ic"></span>Plant</div><div class="tab"><span class="ic"></span>My crop</div><div class="tab"><span class="ic"></span>Prices</div></div></div></div></div>
+
+    <div class="device"><p class="caption">H — Prices tab (R1 stub) <span class="tag">R2</span></p>
+      <div class="phone"><div class="status"><span>9:41</span><span>&#9646;&#9646;&#9647; &#9662;</span></div><div class="scr">
+        <div class="hdr"><span class="title">Market prices</span><div class="hdr-actions"><span class="chip">EN &#9662;</span><span class="spk">&#128266;</span></div></div>
+        <div class="body" style="text-align:center;padding-top:26px"><div class="xbox" style="height:60px;width:60px;margin:0 auto 12px"></div>
+          <strong>Market prices coming soon</strong>
+          <div class="muted" style="font-size:12px;margin:6px 0 14px">Browse recent prices across 12 markets in the next update.</div>
+          <div class="btn ghost">Back to Home</div>
+          <div class="muted" style="font-size:11px;margin-top:16px">Needs API #1 (markets) + #2 (history)</div></div>
+        <div class="tabbar"><div class="tab"><span class="ic"></span>Home</div><div class="tab"><span class="ic"></span>Plant</div><div class="tab"><span class="ic"></span>My crop</div><div class="tab on"><span class="ic"></span>Prices</div></div></div></div></div>
+
+    <div class="device"><p class="caption">I — Offline (mobile)</p>
+      <div class="phone"><div class="status"><span>9:41</span><span>&#9992; &#9662;</span></div><div class="scr">
+        <div class="hdr"><span class="title">&#3486;&#3517;&#3540;&#3510;&#3537;&#3520;&#3505;&#3530; &#128075;</span><div class="hdr-actions"><span class="chip">&#3523;&#3538; &#9662;</span><span class="spk">&#128266;</span></div></div>
+        <div class="body"><div class="banner" style="background:var(--fill);border-style:solid"><strong>&#9888; Offline</strong> — saved prices from 2h ago (7 Jul, 3:10pm)</div>
+          <div class="listitem"><div class="xbox" style="width:38px;height:38px;flex:0 0 38px"></div><div class="flex1"><strong>Capsicum</strong><div class="muted" style="font-size:11px">/kg · saved</div></div><div class="price" style="font-size:22px">Rs.552</div></div>
+          <div class="btn ghost">&#8635; Try to refresh</div>
+          <div class="muted" style="font-size:11px;text-align:center">Saved data readable; new forecasts need internet.</div></div>
+        <div class="tabbar"><div class="tab on"><span class="ic"></span>Home</div><div class="tab"><span class="ic"></span>Plant</div><div class="tab"><span class="ic"></span>My crop</div><div class="tab"><span class="ic"></span>Prices</div></div></div></div></div>
+
+    <div class="device"><p class="caption">J — API-down / error (mobile)</p>
+      <div class="phone"><div class="status"><span>9:41</span><span>&#9646;&#9646;&#9647; &#9662;</span></div><div class="scr">
+        <div class="hdr"><span class="title">&larr; Capsicum</span><div class="hdr-actions"><span class="chip">EN &#9662;</span><span class="spk">&#128266;</span></div></div>
+        <div class="body" style="text-align:center;padding-top:24px"><div class="xbox" style="height:56px;width:56px;margin:0 auto 12px"></div>
+          <strong>We couldn't get the forecast</strong>
+          <div class="muted" style="font-size:13px;margin:6px 0 14px">The service is busy — not your fault. Please try again.</div>
+          <div class="btn">&#8635; Try again</div><div class="btn ghost">&larr; Go back</div>
+          <span class="chip" style="margin:14px auto 0;border-radius:6px">&#128266; Hear this</span></div></div></div></div>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2>5 · Cross-cutting design notes <span class="kick">(every frame, both layouts)</span></h2>
+  <div class="notes" style="max-width:100%">
+    <ol style="columns:2; column-gap:32px">
+      <li><span class="cnum">A</span><strong>Audio-help everywhere:</strong> speaker (&#128266;, &#8805;44px) in every header; key blocks (confidence, factors, errors) get their own "Hear this".</li>
+      <li><span class="cnum">B</span><strong>Language switcher</strong> in every header (&#3523;&#3538; / &#2980; / EN), first-launch forces the choice once.</li>
+      <li><span class="cnum">C</span><strong>Touch/click targets &#8805;44px</strong>; primary buttons 48px; comfortable on desktop pointer and mobile touch alike.</li>
+      <li><span class="cnum">D</span><strong>One primary action per screen;</strong> secondaries are ghost. Max nav depth 2 (header nav desktop / bottom tabs mobile).</li>
+      <li><span class="cnum">E</span><strong>Numbers-first:</strong> price is the largest element; confidence never hidden; ranges always show a marked centre.</li>
+      <li><span class="cnum">F</span><strong>Provenance line</strong> (HARTI / DOA) under every price and chart.</li>
+      <li><span class="cnum">G</span><strong>Four async states</strong> (loading / success / empty / error) for every data view.</li>
+      <li><span class="cnum">H</span><strong>Honest uncertainty</strong> is a hard rule: Low/Medium/High &rarr; distinct pictograph + label + plain reason; fallbacks labelled "rough estimate", never polished into precision; contract strings frozen, only display labels translated.</li>
+    </ol>
+  </div>
+  <div class="i18n"><strong>i18n / typography tolerance:</strong> buttons, nav links, table cells and cards wrap instead of truncating (Sinhala/Tamil run 20&ndash;40% longer than English); no fixed-height text box uses <code>overflow:hidden</code>; body &#8805;16px, price numerals 28&ndash;40px; line-height &#8805;1.7 (Tamil 1.8); no <code>uppercase</code>. Reason/Explanation need reason <em>codes</em> from the API (gap #5) so the client owns translation. Numbers/dates locale-aware (LKR "Rs.", local date format). Desktop's extra width is used for content, not larger fonts — the trilingual type scale is identical across breakpoints.</div>
+
+  <!-- ============================================================ -->
+  <h2>6 · Owner decisions <span class="kick">(answered &amp; signed off 2026-07-10)</span></h2>
+  <div class="notes" style="max-width:1000px"><ol>
+    <li><span class="cnum">1</span><strong>Confidence display labels</strong> — ✅ keep current wording "Low / Fair / Good" for now; revisit later if it doesn't fit. Contract strings <code>Low/Medium/High</code> stay frozen underneath.</li>
+    <li><span class="cnum">2</span><strong>Prices tab in R1</strong> — ✅ visible "coming soon" stub; nav stays stable across releases.</li>
+    <li><span class="cnum">3</span><strong>Horizon control</strong> — ✅ <strong>exact harvest-date picker</strong> (chips dropped — frames W2 and C updated above). Date pre-suggested from plant date + growth period once API #3 exists.</li>
+    <li><span class="cnum">4</span><strong>Chance framing</strong> — ✅ natural-frequency sentence only if the API genuinely exposes it; otherwise dropped, never fabricated.</li>
+    <li><span class="cnum">5</span><strong>Best-crops season logic</strong> — ✅ design Yala/Maha season fit now; badge/column ships gated behind API #3.</li>
+  </ol></div>
+
+  <p class="meta" style="margin-top:30px">FE-0 lo-fi wireframes v1 rev.4 · desktop-first · grayscale · inline CSS, zero network references · from PRD v1.0 · <strong>SIGNED OFF by owner 2026-07-10</strong> (5 decisions above) · <strong>shell redline: DASHBOARD style</strong> (see §2 banner; normative shell = dashboard-style-samples-v1.html) → FE-1 design system → FE-2 scaffold.</p>
+
+</div>
+</body>
+</html>
