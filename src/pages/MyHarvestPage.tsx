@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
-import type { Crop, HarvestForecast } from '../api/types';
+import type { Crop, CropTimeline, HarvestForecast } from '../api/types';
 import { cropDisplayName } from '../lib/crops';
-import { formatDate } from '../lib/format';
+import { formatDate, ymdLocal } from '../lib/format';
+import { isLowTrust } from '../lib/forecast';
 import CropPicker from '../components/CropPicker';
 import ForecastResult from '../components/ForecastResult';
+import TimelineChart from '../components/TimelineChart';
 import AudioHelpButton from '../components/AudioHelpButton';
 
 // My harvest — forecast workspace (FE-3, ClickUp 86cacw5wy).
@@ -18,19 +20,16 @@ import AudioHelpButton from '../components/AudioHelpButton';
 const HORIZON_DAYS = 60; // how far ahead a farmer may plan a planting date
 const LOOKBACK_DAYS = 365; // how far back a planting date may be back-dated
 
-function ymd(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
 function shiftDays(base: Date, days: number): string {
   const d = new Date(base);
   d.setDate(d.getDate() + days);
-  return ymd(d);
+  return ymdLocal(d);
 }
 
 export default function MyHarvestPage() {
   const { t, i18n } = useTranslation();
   const today = useMemo(() => new Date(), []);
-  const todayStr = useMemo(() => ymd(today), [today]);
+  const todayStr = useMemo(() => ymdLocal(today), [today]);
   const minDate = useMemo(() => shiftDays(today, -LOOKBACK_DAYS), [today]);
   const maxDate = useMemo(() => shiftDays(today, HORIZON_DAYS), [today]);
 
@@ -43,6 +42,9 @@ export default function MyHarvestPage() {
   const [forecast, setForecast] = useState<HarvestForecast | null>(null);
   const [fcLoading, setFcLoading] = useState(false);
   const [fcError, setFcError] = useState(false);
+  const [timeline, setTimeline] = useState<CropTimeline | null>(null);
+  const [tlLoading, setTlLoading] = useState(false);
+  const [tlError, setTlError] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
@@ -83,14 +85,32 @@ export default function MyHarvestPage() {
     }
   }, [selected, plantDate]);
 
+  // Timeline is loaded independently of the harvest call (same crop, asOf=today,
+  // months=12). Fail-soft: a timeline error must NOT fail the whole result panel.
+  const runTimeline = useCallback(async () => {
+    if (!selected) return;
+    setTlLoading(true);
+    setTlError(false);
+    try {
+      const data = await api.getCropTimeline(selected.id, 12, todayStr);
+      setTimeline(data);
+    } catch {
+      setTlError(true);
+    } finally {
+      setTlLoading(false);
+    }
+  }, [selected, todayStr]);
+
   const onGetForecast = useCallback(() => {
     if (!canSubmit) return;
     setSubmitted(true);
     setForecast(null); // clear any prior result so the skeleton shows
+    setTimeline(null);
     void runForecast();
+    void runTimeline();
     // Move focus/scroll to the result so the flow feels connected.
     requestAnimationFrame(() => resultRef.current?.focus());
-  }, [canSubmit, runForecast]);
+  }, [canSubmit, runForecast, runTimeline]);
 
   const selectedLabel = selected ? cropDisplayName(selected, i18n.language) : null;
 
@@ -188,6 +208,19 @@ export default function MyHarvestPage() {
             onRetry={() => void runForecast()}
             cropLabel={selectedLabel}
           />
+
+          {/* 12-month timeline (FE-5) — stacks under the hero; fail-soft on error. */}
+          <div className="hv-timeline">
+            <TimelineChart
+              timeline={timeline}
+              loading={tlLoading}
+              error={tlError}
+              onRetry={() => void runTimeline()}
+              harvestDate={forecast?.harvestDate ?? null}
+              cropLabel={selectedLabel}
+              lowTrust={forecast ? isLowTrust(forecast) : false}
+            />
+          </div>
         </section>
       )}
     </>

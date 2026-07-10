@@ -5,6 +5,7 @@
 // NOT be presented as real prices in production (VITE_API_MODE unset => live API).
 // Values are illustrative and mirror the design-sample numbers; NOT real HARTI data.
 // =============================================================================
+import { ymdLocal } from '../lib/format';
 import {
   ForecastConfidenceCode,
   PriceTrend,
@@ -121,7 +122,7 @@ function addDays(ymd: string, days: number | null): string | null {
   const d = new Date(ymd + 'T00:00:00');
   if (Number.isNaN(d.getTime())) return null;
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  return ymdLocal(d);
 }
 
 export function fxForecastFor(cropId: string, plantDate: string): HarvestForecast {
@@ -134,6 +135,7 @@ export function fxForecastFor(cropId: string, plantDate: string): HarvestForecas
   };
 }
 
+// HIGH-tier, full 12-month history (Capsicum). Forecast cones out to the harvest.
 export const fxTimeline: CropTimeline = {
   cropName: 'Capsicum',
   activePredictor: 'residual',
@@ -160,6 +162,66 @@ export const fxTimeline: CropTimeline = {
     { horizonMonths: 3, date: '2026-10-15', predictedPrice: 552, lowerBound: 233, upperBound: 694 },
   ],
 };
+
+// MEDIUM-tier, full history (Beans). Steadier trend, moderate band width.
+export const fxTimelineMedium: CropTimeline = {
+  cropName: 'Beans',
+  activePredictor: 'residual',
+  confidence: 'Medium',
+  modelVersion: 'v13',
+  explanation: 'Based on a few years of Dambulla prices — reasonable, but not rock-solid.',
+  history: [
+    { month: '2025-08', avgPrice: 260 },
+    { month: '2025-09', avgPrice: 275 },
+    { month: '2025-10', avgPrice: 300 },
+    { month: '2025-11', avgPrice: 288 },
+    { month: '2025-12', avgPrice: 272 },
+    { month: '2026-01', avgPrice: 265 },
+    { month: '2026-02', avgPrice: 280 },
+    { month: '2026-03', avgPrice: 292 },
+    { month: '2026-04', avgPrice: 300 },
+    { month: '2026-05', avgPrice: 295 },
+    { month: '2026-06', avgPrice: 285 },
+    { month: '2026-07', avgPrice: 290 },
+  ],
+  forecast: [
+    { horizonMonths: 1, date: '2026-08-11', predictedPrice: 298, lowerBound: 250, upperBound: 380 },
+    { horizonMonths: 2, date: '2026-09-13', predictedPrice: 310, lowerBound: 240, upperBound: 420 },
+  ],
+};
+
+// LOW-tier / fallback (Passion Fruit): deliberately THIN history (4 months) + a
+// WIDE amber band so the low-trust chart treatment + short-history note are demo-able.
+// Honest by construction — we do not fabricate months that don't exist.
+export const fxTimelineLow: CropTimeline = {
+  cropName: 'Passion Fruit',
+  activePredictor: 'crop_mean_fallback',
+  confidence: 'Low',
+  modelVersion: null,
+  explanation: 'This crop does not yet have enough price history for the ML model.',
+  history: [
+    { month: '2026-04', avgPrice: 200 },
+    { month: '2026-05', avgPrice: 165 },
+    { month: '2026-06', avgPrice: 195 },
+    { month: '2026-07', avgPrice: 180 },
+  ],
+  forecast: [
+    { horizonMonths: 1, date: '2026-08-20', predictedPrice: 195, lowerBound: 110, upperBound: 300 },
+    { horizonMonths: 2, date: '2026-09-20', predictedPrice: 205, lowerBound: 100, upperBound: 330 },
+    { horizonMonths: 3, date: '2026-11-20', predictedPrice: 210, lowerBound: 90, upperBound: 360 },
+  ],
+};
+
+// Per-crop timeline resolver for fixture mode — mirrors fxHarvestByCrop so the
+// chart's confidence story lines up with the FE-4 hero for the same crop.
+const fxTimelineByCrop: Record<string, CropTimeline> = {
+  'c0000002-0000-0000-0000-000000000002': fxTimelineMedium, // Beans
+  'c0000004-0000-0000-0000-000000000004': fxTimelineLow, // Passion Fruit
+};
+
+export function fxTimelineFor(cropId: string): CropTimeline {
+  return fxTimelineByCrop[cropId] ?? fxTimeline; // default = High tier (Capsicum)
+}
 
 export const fxBestCrops: BestCrop[] = [
   { cropId: 'c0000001-0000-0000-0000-000000000001', cropName: 'Capsicum', cropCode: 'VEG000012', averagePrice: 552, trend: PriceTrend.Up, confidence: ForecastConfidenceCode.High, recommendationLevel: RecommendationLevel.StronglyRecommended },

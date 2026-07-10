@@ -633,3 +633,189 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* =============================================================================
+   TIMELINE CHART (FE-5) — 12-month price history + forecast band + markers.
+   Single-hue teal (amber when low-trust); shape-coded markers; readable at 360px.
+   ========================================================================== */
+.hv-timeline {
+  margin-top: var(--sp-6);
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--line);
+}
+.tl__title {
+  font-size: var(--fs-title);
+  font-weight: var(--fw-bold);
+  color: var(--text-1);
+  margin: 0 0 var(--sp-2);
+}
+
+/* honest thin-data note + empty state */
+.tl-thin {
+  font-size: var(--fs-sm);
+  color: var(--warn-fg);
+  background: var(--warn-bg);
+  border: 1px solid var(--lowtrust-border);
+  border-radius: var(--r-sm);
+  padding: var(--sp-2) var(--sp-3);
+  margin: 0 0 var(--sp-3);
+}
+.tl-empty__body {
+  font-size: var(--fs-body);
+  color: var(--text-2);
+  margin: var(--sp-2) 0 0;
+}
+
+/* direct labels (no legend-hunting) */
+.tl-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+}
+.tl-key {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.tl-key--history::before {
+  content: '';
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--chart-past);
+}
+.tl-key--band::before {
+  content: '';
+  width: 16px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--chart-band-fill);
+  border: 1px solid var(--chart-band-stroke);
+}
+.tl-key--band.is-low::before {
+  background: var(--warn-bg);
+  border-color: var(--lowtrust-border);
+}
+.tl-key--harvest { color: var(--chart-marker); font-weight: var(--fw-bold); }
+.tl-key--today { color: var(--text-3); }
+
+/* the SVG chart */
+.tl-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 660px;
+  margin-top: var(--sp-2);
+}
+.tl-grid { stroke: var(--chart-grid); stroke-width: 1; }
+.tl-axisline { stroke: var(--line-strong); stroke-width: 1; }
+.tl-axis {
+  fill: var(--chart-axis);
+  font-size: 12px;
+  font-variant-numeric: var(--fvn-tabular);
+}
+.tl-xtick.is-harvest { fill: var(--chart-marker); font-weight: var(--fw-bold); }
+
+.tl-band { fill: var(--chart-band-fill); stroke: var(--chart-band-stroke); stroke-width: 1; }
+.tl-svg.is-low .tl-band { fill: var(--warn-bg); stroke: var(--lowtrust-border); }
+
+.tl-hist { stroke: var(--chart-past); stroke-width: 3.5; stroke-linejoin: round; stroke-linecap: round; }
+.tl-fc {
+  stroke: var(--chart-line);
+  stroke-width: 3.5;
+  stroke-dasharray: 6 5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.tl-svg.is-low .tl-fc { stroke: var(--chart-line-low); }
+
+.tl-today { stroke: var(--chart-today); stroke-width: 1.5; stroke-dasharray: 3 4; }
+.tl-harvest__line { stroke: var(--chart-marker); stroke-width: 1.5; stroke-dasharray: 3 4; }
+.tl-harvest__dot { fill: var(--chart-marker); stroke: #fff; stroke-width: 2; }
+.tl-harvest__label { fill: var(--chart-marker); font-size: 13px; font-weight: var(--fw-bold); }
+
+/* table alternative — reuse the fc-table look */
+.tl-table { margin-top: var(--sp-4); }
+.tl-table__summary {
+  min-height: var(--touch-min);
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  color: var(--brand-strong);
+  cursor: pointer;
+}
+.tl-table__summary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-sm);
+}
+.tl-table__grid {
+  width: 100%;
+  max-width: 480px;
+  border-collapse: collapse;
+  margin-top: var(--sp-3);
+  font-size: var(--fs-sm);
+}
+.tl-table__grid th,
+.tl-table__grid td {
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+.tl-table__grid thead th {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  font-weight: var(--fw-bold);
+}
+.tl-table__grid tbody th {
+  font-weight: var(--fw-medium);
+  color: var(--text-2);
+}
+.tl-table__num {
+  text-align: right;
+  font-variant-numeric: var(--fvn-tabular);
+}
+.tl-table__grid tr.is-harvest { background: var(--brand-tint); }
+.tl-table__grid tr.is-harvest th { color: var(--chart-marker); }
+
+/* compact fail-soft chart-error note (NOT a full-panel failure) */
+.tl-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-md);
+  padding: var(--sp-3) var(--sp-4);
+}
+.tl-note__body { font-size: var(--fs-sm); color: var(--text-2); margin: 0; }
+.tl-note__retry {
+  width: auto;
+  min-width: 120px;
+  border: 1.5px solid var(--brand);
+}
+
+/* skeleton */
+.tl-skel {
+  border-radius: var(--r-md);
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  animation: cp-pulse 1.2s ease-in-out infinite;
+}
+.tl-skel__title { height: 20px; width: 60%; margin-bottom: var(--sp-3); }
+.tl-skel__chart { height: 180px; margin-bottom: var(--sp-3); }
+.tl-skel__line { height: 16px; }
+.tl-skel--short { width: 40%; }
+@media (prefers-reduced-motion: reduce) {
+  .tl-skel { animation: none; }
+}
+
+/* <600px: full-width chart stacked under the hero, slightly taller axis text */
+@media (max-width: 600px) {
+  .tl-svg { max-width: 100%; }
+  .tl-axis { font-size: 13px; }
+}

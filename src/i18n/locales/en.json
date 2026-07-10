@@ -70,6 +70,27 @@
     "takeLabel": "Our take",
     "provAsOf": "Prices as of {{date}}"
   },
+  "timeline": {
+    "title": "12-month price — past and forecast",
+    "keyHistory": "Past prices",
+    "keyBand": "Likely range",
+    "keyHarvest": "Harvest",
+    "keyToday": "Today",
+    "shortHistory": "Only {{count}} months of price data so far — the forecast is a rough guide.",
+    "emptyBody": "No price history yet for this crop, so we cannot draw a timeline.",
+    "errorNote": "Could not load the price timeline. Your forecast above is still valid.",
+    "summaryAria": "12-month price for {{crop}}. Based on {{months}} months of past prices; expected about {{mid}} per kg at harvest around {{date}}, likely between {{min}} and {{max}}. Full numbers in the table below.",
+    "summaryAriaNoHarvest": "12-month price for {{crop}}, based on {{months}} months of past prices. Full numbers in the table below.",
+    "tableToggle": "View as table",
+    "tableMonth": "Month",
+    "tableType": "Type",
+    "tableLow": "Low",
+    "tableLikely": "Likely",
+    "tableHigh": "High",
+    "typePast": "Past price",
+    "typeForecast": "Forecast",
+    "typeHarvest": "Forecast (harvest)"
+  },
   "crop": {
     "searchLabel": "Search for your crop",
     "searchPlaceholder": "Type a crop name…",
