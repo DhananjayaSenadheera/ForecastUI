@@ -1,0 +1,342 @@
+/* =============================================================================
+   Overview / landing dashboard (FE-1). Composition follows dashboard sample A:
+   KPI row + panels. Honest subset — movers, latest-prices sparklines, best-crops
+   teaser. Tokens + chart colours come from tokens.css; this file only lays out.
+   Movers direction is NEUTRAL (never red — red is the "Not recommended" verdict).
+   ========================================================================== */
+.ov-sub {
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  margin: 0 0 var(--sp-4);
+}
+.ov-window {
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+  margin: 0 0 var(--sp-4);
+}
+
+.ov-panel__title {
+  font-size: var(--fs-title);
+  font-weight: var(--fw-bold);
+  margin: 0 0 var(--sp-3);
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+.ov-panel__more {
+  margin-left: auto;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  color: var(--brand);
+  white-space: nowrap;
+}
+.ov-grid {
+  align-items: start;
+}
+
+/* ---- biggest-mover KPI meta (neutral direction) ---- */
+.ov-mover__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: var(--fw-medium);
+  color: var(--text-2);
+}
+.ov-mover__glyph {
+  color: var(--text-3); /* neutral — never red/green for a mover */
+  font-size: 0.85em;
+}
+
+/* ---- movers panel ---- */
+.ov-mvgroup + .ov-mvgroup {
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+}
+.ov-mvgroup__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  color: var(--text-2);
+  margin: 0 0 var(--sp-2);
+}
+.ov-mvgroup__empty {
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+  margin: 0;
+}
+.ov-mvlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ov-mvrow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) 0;
+  min-height: var(--touch-min);
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+}
+.ov-mvlist li:last-child .ov-mvrow {
+  border-bottom: none;
+}
+.ov-mvrow:hover {
+  background: var(--surface-3);
+}
+.ov-mvrow__main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+.ov-mvrow__crop {
+  font-weight: var(--fw-bold);
+  overflow-wrap: break-word;
+}
+.ov-mvrow__market {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  overflow-wrap: break-word;
+}
+.ov-mvrow__nums {
+  display: flex;
+  flex-direction: column;
+  text-align: right;
+  flex: none;
+}
+.ov-mvrow__price {
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+}
+.ov-mvrow__chg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  font-size: var(--fs-xs);
+  color: var(--text-2); /* neutral for both rising & falling */
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- latest prices table + sparkline ---- */
+.ov-latest__sub {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  margin: 0 0 var(--sp-3);
+}
+.ov-tablewrap {
+  overflow-x: auto;
+}
+.ov-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+.ov-table th {
+  text-align: left;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  font-weight: var(--fw-bold);
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--line);
+}
+.ov-table td {
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--chart-grid);
+  vertical-align: middle;
+}
+.ov-table tbody th[scope='row'] {
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--chart-grid);
+  font-weight: var(--fw-bold);
+  text-align: left;
+}
+.ov-table__num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.ov-c-market,
+.ov-c-date {
+  color: var(--text-2);
+}
+.ov-spark {
+  width: 100px;
+  height: 24px;
+  display: block;
+}
+.ov-spark__line {
+  stroke: var(--chart-line);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.ov-spark__dot {
+  fill: var(--chart-marker);
+}
+.ov-spark--empty {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+
+.ov-details {
+  margin-top: var(--sp-3);
+}
+.ov-details__summary {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--brand-strong);
+  cursor: pointer;
+  padding: var(--sp-2) 0;
+  min-height: var(--touch-min);
+}
+.ov-table--alt {
+  margin-top: var(--sp-2);
+}
+
+/* ---- best-crops teaser ---- */
+.ov-teaser {
+  margin-top: var(--sp-4);
+}
+.ov-teaser__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-3);
+}
+.ov-teaser__card {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-3);
+}
+.ov-teaser__card--skel {
+  height: 96px;
+  background: var(--surface-3);
+  animation: ov-pulse 1.4s ease-in-out infinite;
+}
+.ov-teaser__link {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--sp-3);
+  color: var(--text);
+  min-height: 88px;
+}
+.ov-teaser__crop {
+  font-weight: var(--fw-bold);
+  overflow-wrap: break-word;
+}
+.ov-teaser__price {
+  font-size: var(--fs-price-sm);
+  font-weight: var(--fw-black);
+  color: var(--price-fg);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--ls-tight);
+}
+.ov-teaser__note {
+  font-size: var(--fs-sm);
+  color: var(--warn-fg);
+  background: var(--warn-bg);
+  border: 1px solid var(--lowtrust-border);
+  border-radius: var(--r-md);
+  padding: var(--sp-3);
+  margin: 0;
+}
+
+/* verdict badge (FE-7 idiom; icon + label + semantic colour, RED = not-rec only) */
+.ov-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  align-self: flex-start;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  border-radius: var(--r-pill);
+  padding: 3px 10px;
+}
+.ov-badge--good { background: var(--good-bg); color: var(--good-fg); }
+.ov-badge--neutral { background: var(--neutral-bg); color: var(--neutral-fg); }
+.ov-badge--warn { background: var(--warn-bg); color: var(--warn-fg); }
+.ov-badge--critical { background: var(--critical-bg); color: var(--critical-fg); }
+
+/* ---- states ---- */
+.ov-state { text-align: center; padding: var(--sp-6) var(--sp-4); }
+.ov-state__title { font-weight: var(--fw-bold); font-size: var(--fs-body-lg); margin-bottom: var(--sp-2); }
+.ov-state__body { color: var(--text-2); font-size: var(--fs-sm); margin-bottom: var(--sp-3); }
+.ov-state__retry { width: auto; min-width: 160px; margin: 0 auto; border: 1.5px solid var(--brand); }
+
+.ov-empty { text-align: center; padding: var(--sp-8) var(--sp-4); }
+.ov-empty__icon { font-size: 32px; margin: 0 0 var(--sp-2); }
+.ov-empty__title { font-weight: var(--fw-bold); font-size: var(--fs-body-lg); margin: 0 0 var(--sp-2); }
+.ov-empty__body { color: var(--text-2); font-size: var(--fs-sm); margin: 0 auto; max-width: 42ch; }
+
+/* ---- skeletons ---- */
+.ov-skel {
+  display: block;
+  background: var(--surface-3);
+  border-radius: var(--r-sm);
+  animation: ov-pulse 1.4s ease-in-out infinite;
+}
+.ov-skel-kpi { display: flex; flex-direction: column; gap: var(--sp-2); }
+.ov-skel--lbl { height: 12px; width: 60%; }
+.ov-skel--val { height: 24px; width: 45%; }
+.ov-skel--title { height: 16px; width: 40%; margin-bottom: var(--sp-3); }
+.ov-skel-row {
+  height: 36px;
+  background: var(--surface-3);
+  border-radius: var(--r-sm);
+  margin-bottom: var(--sp-2);
+  animation: ov-pulse 1.4s ease-in-out infinite;
+}
+@keyframes ov-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+@media (prefers-reduced-motion: reduce) {
+  .ov-skel, .ov-skel-row, .ov-teaser__card--skel { animation: none; }
+}
+
+/* ---- mobile: tables -> key-value cards, teaser -> single column ---- */
+@media (max-width: 600px) {
+  .ov-teaser__list { grid-template-columns: 1fr; }
+
+  .ov-table thead { display: none; }
+  .ov-table,
+  .ov-table tbody,
+  .ov-table tr,
+  .ov-table td,
+  .ov-table tbody th[scope='row'] {
+    display: block;
+    width: 100%;
+  }
+  .ov-table tr {
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    padding: var(--sp-2) var(--sp-3);
+    margin-bottom: var(--sp-3);
+  }
+  .ov-table tbody th[scope='row'] {
+    border-bottom: 1px solid var(--line);
+    padding: var(--sp-2) 0;
+    font-size: var(--fs-body);
+  }
+  .ov-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--sp-3);
+    border-bottom: none;
+    padding: var(--sp-1) 0;
+  }
+  .ov-table td::before {
+    content: attr(data-label);
+    font-size: var(--fs-xs);
+    color: var(--text-3);
+    font-weight: var(--fw-bold);
+  }
+  .ov-table__num { text-align: right; }
+  /* The alternative numeric table keeps a plain stacked layout too. */
+  .ov-table--alt td { justify-content: space-between; }
+}

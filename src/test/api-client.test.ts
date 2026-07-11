@@ -37,4 +37,17 @@ describe('API client (fixture mode)', () => {
     expect(history[0]).toHaveProperty('minPrice');
     expect(history[0]).toHaveProperty('maxPrice');
   });
+
+  it('serves the market overview fixture (API-7) with movers + latest prices', async () => {
+    const ov = await api.getMarketOverview(30);
+    expect(ov.windowDays).toBe(30);
+    expect(ov.asOf).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    // both risers and fallers present; direction is the frozen wire string
+    expect(ov.movers.some((m) => m.direction === 'up')).toBe(true);
+    expect(ov.movers.some((m) => m.direction === 'down')).toBe(true);
+    expect(ov.movers.every((m) => m.direction === 'up' || m.direction === 'down')).toBe(true);
+    // latest prices carry a spark; at least one is sparse (< 5 points)
+    expect(ov.latestPrices.length).toBeGreaterThan(0);
+    expect(ov.latestPrices.some((p) => p.spark.length < 5 && p.spark.length > 0)).toBe(true);
+  });
 });

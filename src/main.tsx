@@ -6,6 +6,7 @@ import './styles/fonts.css';
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/shell.css';
+import './styles/overview.css';
 import './styles/harvest.css';
 import './styles/bestcrops.css';
 import './styles/prices.css';
