@@ -8,6 +8,7 @@
 // can be built and tested before the backend hold lifts (~2026-07-16).
 // =============================================================================
 import * as fx from './fixtures';
+import { reportFromHeaders } from './cacheSignal';
 import { ymdLocal } from '../lib/format';
 import type {
   BestCrop,
@@ -58,6 +59,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     // Network / CORS / server-down — surface a retryable human error, no leak.
     throw new ApiError('network', 0);
   }
+
+  // Cache-provenance signal (FE-9): the SW stamps X-SW-Cache on offline-served
+  // responses. Fresh network responses clear the flag. No-op when no SW (headers
+  // absent -> treated as fresh) and in fixture mode (request() is never reached).
+  reportFromHeaders(res.headers);
 
   if (!res.ok) {
     let message = `HTTP ${res.status}`;

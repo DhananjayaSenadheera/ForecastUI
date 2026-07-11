@@ -35,7 +35,15 @@
     "updated": "Updated",
     "source": "Source: HARTI / Dept. of Agriculture",
     "perKg": "/kg",
-    "rs": "Rs."
+    "rs": "Rs.",
+    "staleBanner": "Showing saved prices from {{date}} — reconnect for the latest.",
+    "staleBannerNoDate": "Showing saved data — reconnect for the latest.",
+    "dismiss": "Dismiss"
+  },
+  "error": {
+    "boundaryTitle": "This part could not open",
+    "boundaryBody": "Something went wrong here. Other parts of the app still work — please reload to try again.",
+    "reload": "Reload"
   },
   "filter": {
     "market": "Market",
@@ -124,7 +132,13 @@
       "kpiRising": "Crops rising this week",
       "kpiMover": "Biggest 7-day mover",
       "kpiSeason": "Season now",
-      "kpiConfidence": "Forecast confidence"
+      "kpiConfidence": "Forecast confidence",
+      "pending": "Not available yet",
+      "panelSoon": "This panel will arrive in a coming update.",
+      "panel_forecast": "12-month price outlook",
+      "panel_factors": "Why this price",
+      "panel_prices": "Today's prices — my crops",
+      "panel_bestCrops": "Best crops at a glance"
     },
     "myHarvest": {
       "title": "My harvest forecast",

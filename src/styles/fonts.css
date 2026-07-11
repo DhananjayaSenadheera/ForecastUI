@@ -1,0 +1,34 @@
+/* =============================================================================
+   AgriForecast — self-hosted Noto fonts (FE-9). CURRENT 2020+ builds (v42) from
+   fonts.gstatic.com. The pre-2020 Noto Sans Sinhala ascender-clip defect is fixed
+   in these v42 files. Each is a VARIABLE font: one woff2 per family covers the
+   whole weight axis (100-900), so we ship 3 files, not 9. font-display:swap +
+   unicode-range => a user downloads ONLY the script(s) they actually render.
+   ============================================================================= */
+
+@font-face {
+  font-family: 'Noto Sans';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/notosans-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Noto Sans Sinhala';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/notosinh-sinhala.woff2') format('woff2');
+  unicode-range: U+0964-0965, U+0D81-0DF4, U+1CF2, U+200C-200D, U+25CC, U+111E1-111F4;
+}
+
+@font-face {
+  font-family: 'Noto Sans Tamil';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/nototam-tamil.woff2') format('woff2');
+  unicode-range: U+0964-0965, U+0B82-0BFA, U+200C-200D, U+20B9, U+25CC;
+}
