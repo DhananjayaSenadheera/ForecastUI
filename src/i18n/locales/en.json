@@ -70,6 +70,22 @@
     "takeLabel": "Our take",
     "provAsOf": "Prices as of {{date}}"
   },
+  "factor": {
+    "title": "Why this forecast?",
+    "dir": {
+      "up": "Pushes price up",
+      "down": "Pushes price down",
+      "neutral": "Mixed effect"
+    },
+    "weightAria": "Relative strength {{pct}} percent",
+    "noBreakdown": "We don't have a detailed factor breakdown for this crop yet — this estimate is based on the note above.",
+    "codes": {
+      "recent_price_trend": "Recent price trend",
+      "festival_demand": "Festival demand",
+      "seasonal_supply": "Seasonal supply",
+      "weather_monsoon": "Weather and monsoon"
+    }
+  },
   "timeline": {
     "title": "12-month price — past and forecast",
     "keyHistory": "Past prices",

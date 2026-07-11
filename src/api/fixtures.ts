@@ -61,6 +61,15 @@ export const fxHarvestForecast: HarvestForecast = {
   upsidePct: 20,
   intervalWidthPct: 83,
   lowTrust: false,
+  // FE-6 structured factors (API-5, provisional). Codes match real model features
+  // (price lags/rolling means, festival calendar, seasonal supply, monsoon). Weights
+  // are relative magnitudes on a shared scale (demo values, not authoritative).
+  topFactors: [
+    { code: 'recent_price_trend', direction: 'up', weight: 0.9 },
+    { code: 'festival_demand', direction: 'up', weight: 0.7 },
+    { code: 'seasonal_supply', direction: 'up', weight: 0.5 },
+    { code: 'weather_monsoon', direction: 'neutral', weight: 0.3 },
+  ],
 };
 
 // A MEDIUM-confidence fixture (Beans) so the middle "Fair ●●○○" tier is demo-able.
@@ -83,6 +92,11 @@ export const fxHarvestForecastMedium: HarvestForecast = {
   upsidePct: 7,
   intervalWidthPct: 58,
   lowTrust: false,
+  // Two factors — exercises a shorter structured list on a Medium-tier crop.
+  topFactors: [
+    { code: 'recent_price_trend', direction: 'up', weight: 0.6 },
+    { code: 'seasonal_supply', direction: 'neutral', weight: 0.4 },
+  ],
 };
 
 // A deliberately LOW-confidence / fallback fixture so uncertainty UI is exercised
@@ -106,6 +120,8 @@ export const fxHarvestForecastLow: HarvestForecast = {
   upsidePct: 17,
   intervalWidthPct: 129,
   lowTrust: true,
+  // NO topFactors: the fallback predictor has no structured breakdown, so the
+  // WhyForecast panel must degrade to the free-text explanation + honest note.
 };
 
 // Per-crop forecast resolver for fixture mode: maps the crop id to its confidence

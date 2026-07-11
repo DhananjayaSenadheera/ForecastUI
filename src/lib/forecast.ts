@@ -10,7 +10,13 @@
 //   - RED is reserved for the "Not recommended" verdict (FE-7). In FE-4 the verdict
 //     is a NEUTRAL hint, so a critical/red tone is clamped to neutral here.
 // =============================================================================
-import { RecommendationLevel, type ConfidenceString, type HarvestForecast } from '../api/types';
+import {
+  RecommendationLevel,
+  type ConfidenceString,
+  type FactorDirection,
+  type ForecastFactor,
+  type HarvestForecast,
+} from '../api/types';
 
 /**
  * Marked-centre position (0–100%) of the central estimate inside the P10–P90 band.
@@ -50,4 +56,42 @@ export function forecastVerdictTone(level: RecommendationLevel): ForecastVerdict
 /** i18n label key for a confidence string's short display word (Good/Fair/Low). */
 export function confidenceLabelKey(c: ConfidenceString): 'confidence.good' | 'confidence.fair' | 'confidence.low' {
   return c === 'High' ? 'confidence.good' : c === 'Medium' ? 'confidence.fair' : 'confidence.low';
+}
+
+// ---------------------------------------------------------------------------
+// FE-6 "Why this forecast?" factor breakdown (API-5, provisional). Pure helpers
+// so the shared-scale weight-bar geometry + direction/label mapping stay tested
+// and the WhyForecast component stays presentational.
+// ---------------------------------------------------------------------------
+
+/** Direction glyph paired ALWAYS with a text word (never color/glyph-only). */
+export const factorGlyph: Record<FactorDirection, string> = {
+  up: '↑',
+  down: '↓',
+  neutral: '→',
+};
+
+/** i18n key for a factor direction's plain-language word. */
+export function factorDirectionKey(d: FactorDirection): 'factor.dir.up' | 'factor.dir.down' | 'factor.dir.neutral' {
+  return d === 'up' ? 'factor.dir.up' : d === 'down' ? 'factor.dir.down' : 'factor.dir.neutral';
+}
+
+/** i18n key for a factor's farmer-language label (`factor.codes.<code>`). */
+export function factorLabelKey(code: string): string {
+  return `factor.codes.${code}`;
+}
+
+/** Largest positive weight in the set (0 if none) — the shared-scale reference. */
+export function maxFactorWeight(factors: ForecastFactor[]): number {
+  return factors.reduce((m, f) => (typeof f.weight === 'number' && f.weight > m ? f.weight : m), 0);
+}
+
+/**
+ * Weight bar length (0–100%) on the panel's SHARED scale. Returns null when there
+ * is nothing honest to draw (no/zero weight, or no positive reference), so the row
+ * simply omits the bar instead of showing a misleading empty/full one.
+ */
+export function factorWeightPct(weight: number | undefined | null, maxWeight: number): number | null {
+  if (typeof weight !== 'number' || !(weight > 0) || !(maxWeight > 0)) return null;
+  return Math.min(100, Math.max(0, (weight / maxWeight) * 100));
 }

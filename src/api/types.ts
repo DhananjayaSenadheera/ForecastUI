@@ -82,6 +82,42 @@ export interface CropCreateCommand {
 }
 
 // ---------------------------------------------------------------------------
+// Structured "why this forecast?" factor (FE-6) — PROVISIONAL, gated on API-5.
+//
+// CONTRACT PROPOSAL for agri-dotnet (API-5, blocked until after 2026-07-16):
+// the LIVE HarvestForecast today carries ONLY free-text `explanation`/`reason`,
+// which are NOT translatable. API-5 should add an OPTIONAL `topFactors` array of
+// STABLE REASON CODES so the UI can map each to farmer-language i18n strings
+// (that is the entire point: codes translate, English prose does not).
+//
+//   {
+//     "code": "recent_price_trend",   // stable snake_case id -> i18n key
+//                                      //   `factor.codes.<code>`; unknown codes
+//                                      //   degrade (UI shows the raw code muted).
+//     "direction": "up",              // "up" | "down" | "neutral" — glyph+word,
+//                                      //   NEVER color-only, NEVER a verdict.
+//     "weight": 0.9                    // OPTIONAL relative magnitude, positive;
+//                                      //   compared on a SHARED scale within the
+//                                      //   panel (max -> full bar). Unit-agnostic.
+//   }
+//
+// Codes SHOULD map to real model features (price lags / rolling means, festival
+// calendar, monsoon/season, planting extent). When `topFactors` is absent/empty
+// (fallback predictor, or pre-API-5), the panel degrades to the free-text
+// `explanation` + an honest "no detailed breakdown yet" note — never fabricated.
+// ---------------------------------------------------------------------------
+export type FactorDirection = 'up' | 'down' | 'neutral';
+
+export interface ForecastFactor {
+  /** Stable reason code; UI maps to `factor.codes.<code>` i18n label. */
+  code: string;
+  /** Which way this factor pushes the price. Rendered as glyph + word. */
+  direction: FactorDirection;
+  /** Optional relative magnitude (positive); shared-scale bar within the panel. */
+  weight?: number;
+}
+
+// ---------------------------------------------------------------------------
 // Harvest forecast — GET /api/forecast/crop/{cropId}/harvest?plantDate=YYYY-MM-DD
 // (HarvestForecast_GetDto). The honest-uncertainty payload.
 // ---------------------------------------------------------------------------
@@ -104,6 +140,8 @@ export interface HarvestForecast {
   upsidePct: number;
   intervalWidthPct: number;
   lowTrust: boolean; // true -> show "old data" notice with data age
+  // ---- API-5 (optional; absent on the live route today, present in fixtures) ----
+  topFactors?: ForecastFactor[] | null; // structured "why this forecast?" breakdown
 }
 
 // ---------------------------------------------------------------------------

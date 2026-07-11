@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import type { HarvestForecast } from '../api/types';
 import { formatDate, formatPrice, mapConfidenceString, mapVerdict } from '../lib/format';
 import { bandCentrePct, forecastVerdictTone, isLowTrust } from '../lib/forecast';
+import WhyForecast from './WhyForecast';
 
 export interface ForecastResultProps {
   forecast: HarvestForecast | null;
@@ -208,6 +209,10 @@ export default function ForecastResult({ forecast, loading, error, onRetry, crop
             <p className="fc-take__verdict">{t(verdict.labelKey)}</p>
             {f.reason && <p className="fc-take__reason">{f.reason}</p>}
           </div>
+
+          {/* "Why this forecast?" factor breakdown (FE-6) — structured when the
+              API-5 topFactors are present, honest degraded note otherwise. */}
+          <WhyForecast factors={f.topFactors} explanation={f.explanation} />
 
           <p className="fc-prov">
             <span className="prov">{t('common.source')}</span>
