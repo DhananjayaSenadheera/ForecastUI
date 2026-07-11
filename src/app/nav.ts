@@ -11,5 +11,5 @@ export const NAV_DESTINATIONS: NavDest[] = [
   { to: '/overview', labelKey: 'nav.overview', icon: '📊' },
   { to: '/my-harvest', labelKey: 'nav.myHarvest', icon: '🌾' },
   { to: '/best-crops', labelKey: 'nav.bestCrops', icon: '🥇' },
-  { to: '/prices', labelKey: 'nav.prices', icon: '💰', soon: true },
+  { to: '/prices', labelKey: 'nav.prices', icon: '💰' },
 ];

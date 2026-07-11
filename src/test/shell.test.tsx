@@ -18,14 +18,15 @@ describe('AppShell', () => {
     await i18n.changeLanguage('en');
   });
 
-  it('renders the four nav destinations with the Prices "soon" tag', () => {
+  it('renders the four nav destinations (Prices is now a real route, no "soon" tag)', () => {
     renderShell();
     // sidebar nav (there are duplicates in the mobile tab bar, so scope to <nav>s)
     expect(screen.getAllByText('Overview').length).toBeGreaterThan(0);
     expect(screen.getAllByText('My harvest').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Best crops').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Prices').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('soon').length).toBeGreaterThan(0);
+    // FE-12 promoted Prices out of the stub — the "soon" pill is gone.
+    expect(screen.queryByText('soon')).not.toBeInTheDocument();
   });
 
   it('exposes the audio-help stub and a labelled language switcher', () => {

@@ -94,6 +94,17 @@
       "weather_monsoon": "Weather and monsoon"
     }
   },
+  "share": {
+    "button": "Share",
+    "copied": "Copied",
+    "copyManual": "Copy this text:",
+    "lineCrop": "{{crop}} — harvest around {{date}}",
+    "lineCropNoDate": "{{crop}} — harvest forecast",
+    "lineExpected": "Expected price: {{mid}}{{unit}} (likely {{min}} – {{max}})",
+    "lineConfidence": "Confidence: {{label}}",
+    "lineCaveat": "Note: rough estimate only — little data, so treat this as a rough guide, not a promise.",
+    "appLine": "— {{app}}"
+  },
   "timeline": {
     "title": "12-month price — past and forecast",
     "keyHistory": "Past prices",
@@ -189,7 +200,27 @@
     "prices": {
       "title": "Prices",
       "soonTitle": "Prices are coming soon",
-      "soonBody": "Recent market prices and short history will appear here in a future update."
+      "soonBody": "Recent market prices and short history will appear here in a future update.",
+      "subtitle": "Recent daily prices by market. Prices are the observed low–high range, not a forecast.",
+      "cropLabel": "Crop",
+      "marketLabel": "Market",
+      "economicCentre": "economic centre",
+      "chartTitle": "Daily price — {{crop}} at {{market}}",
+      "chartAria": "Daily low–high price for {{crop}} at {{market}}: {{days}} days, from {{min}} to {{max}} per kg. Full numbers in the table below.",
+      "keyRange": "Daily low–high",
+      "keyMid": "Midpoint",
+      "shortHistory": "Only {{count}} days of price data so far — treat this as a rough guide.",
+      "emptyChart": "No recent price data for this crop at this market yet.",
+      "comparisonTitle": "Compare markets — {{crop}}",
+      "comparisonLegend": "Bars compare each market's average price on one scale, Rs. 0 to {{max}}. The line shows the low–high range.",
+      "rangeShort": "{{min}} – {{max}}",
+      "barAria": "{{market}}: average {{avg}} per kg, ranging {{min}} to {{max}}.",
+      "tableToggle": "View as table",
+      "tableDate": "Date",
+      "tableLow": "Low",
+      "tableHigh": "High",
+      "tableMarket": "Market",
+      "tableAvg": "Average"
     }
   }
 }
