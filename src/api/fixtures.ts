@@ -15,6 +15,9 @@ import {
   type CropTimeline,
   type HarvestForecast,
   type Market,
+  type MarketLatestPrice,
+  type MarketMover,
+  type MarketOverview,
   type PriceHistoryPoint,
 } from './types';
 
@@ -329,3 +332,89 @@ export function fxPriceHistoryFor(cropId: string, marketId?: string): PriceHisto
   }
   return out;
 }
+
+// ---------------------------------------------------------------------------
+// FE-1 market overview (API-7). LIVE contract, but no live route yet, so fixtures
+// stand in for offline dev + tests. Values are CONSISTENT with the other fixtures:
+// - movers reuse the best-crops / forecast price levels (Capsicum in the 540s-550s,
+//   Green Chilli ~430, etc.) and carry a GENUINE spread of risers AND fallers.
+// - latestPrices + their sparklines are DERIVED from fxPriceHistoryFor so the "latest
+//   price" strip agrees with the Prices page for the same crop/market (Dambulla DEC =
+//   cheapest economic centre; Meegoda is deliberately THIN -> a 3-point SPARSE spark
+//   to exercise the thin-sparkline rendering). DEMO data behind the fixtures flag.
+// ---------------------------------------------------------------------------
+const DAMBULLA_ID = 'm0000001-0000-0000-0000-000000000001';
+const PETTAH_ID = 'm0000002-0000-0000-0000-000000000002';
+const MEEGODA_ID = 'm0000004-0000-0000-0000-000000000004';
+const DAMBULLA = 'Dambulla Dedicated Economic Centre';
+const PETTAH = 'Colombo (Pettah)';
+const MEEGODA = 'Meegoda';
+
+const mover = (
+  cropId: string,
+  cropName: string,
+  marketName: string,
+  previousPrice: number,
+  latestPrice: number,
+): MarketMover => ({
+  cropId,
+  cropName,
+  marketName,
+  latestPrice,
+  previousPrice,
+  // one decimal, matching a server-rounded percent
+  changePct: Math.round(((latestPrice - previousPrice) / previousPrice) * 1000) / 10,
+  direction: latestPrice >= previousPrice ? 'up' : 'down',
+});
+
+/** Latest observed price + sparkline for a crop, derived from the price-history fixture. */
+function latestPrice(
+  cropId: string,
+  cropName: string,
+  marketName: string,
+  marketId: string,
+): MarketLatestPrice {
+  const hist = fxPriceHistoryFor(cropId, marketId);
+  const last = hist[hist.length - 1];
+  return {
+    cropId,
+    cropName,
+    marketName,
+    date: last.date,
+    price: Math.round((last.minPrice + last.maxPrice) / 2),
+    minPrice: last.minPrice,
+    maxPrice: last.maxPrice,
+    spark: hist.map((h) => ({ date: h.date, price: Math.round((h.minPrice + h.maxPrice) / 2) })),
+  };
+}
+
+export const fxMarketOverview: MarketOverview = {
+  asOf: PRICE_ANCHOR, // '2026-07-10'
+  windowDays: 30,
+  marketsWithData: 10,
+  cropsWithData: 24,
+  // Up to 5 risers THEN up to 5 fallers, server order preserved (never re-sorted).
+  movers: [
+    mover('c0000001-0000-0000-0000-000000000001', 'Capsicum', DAMBULLA, 480, 552), // +15.0%
+    mover('c0000005-0000-0000-0000-000000000005', 'Green Chilli', PETTAH, 387, 430), // +11.1%
+    mover('c0000010-0000-0000-0000-000000000010', 'Leeks', DAMBULLA, 280, 302), // +7.9%
+    mover('c0000002-0000-0000-0000-000000000002', 'Beans', DAMBULLA, 292, 310), // +6.2%
+    mover('c0000006-0000-0000-0000-000000000006', 'Carrot', DAMBULLA, 269, 280), // +4.1%
+    mover('c0000007-0000-0000-0000-000000000007', 'Cabbage', DAMBULLA, 108, 95), // -12.0%
+    mover('c0000009-0000-0000-0000-000000000009', 'Pumpkin', DAMBULLA, 86, 80), // -7.0%
+    mover('c0000008-0000-0000-0000-000000000008', 'Brinjal', DAMBULLA, 240, 226), // -5.8%
+    mover('c0000003-0000-0000-0000-000000000003', 'Tomato', DAMBULLA, 198, 182), // -8.1%
+    mover('c0000011-0000-0000-0000-000000000011', 'Beetroot', DAMBULLA, 150, 144), // -4.0%
+  ],
+  // Up to 8 crops. Green Chilli reads from Colombo (Pettah) = dearest market; Passion
+  // Fruit from Meegoda (thin, 3 days) => a SPARSE 3-point spark; rest at Dambulla DEC.
+  latestPrices: [
+    latestPrice('c0000001-0000-0000-0000-000000000001', 'Capsicum', DAMBULLA, DAMBULLA_ID),
+    latestPrice('c0000005-0000-0000-0000-000000000005', 'Green Chilli', PETTAH, PETTAH_ID),
+    latestPrice('c0000002-0000-0000-0000-000000000002', 'Beans', DAMBULLA, DAMBULLA_ID),
+    latestPrice('c0000003-0000-0000-0000-000000000003', 'Tomato', DAMBULLA, DAMBULLA_ID),
+    latestPrice('c0000006-0000-0000-0000-000000000006', 'Carrot', DAMBULLA, DAMBULLA_ID),
+    latestPrice('c0000007-0000-0000-0000-000000000007', 'Cabbage', DAMBULLA, DAMBULLA_ID),
+    latestPrice('c0000004-0000-0000-0000-000000000004', 'Passion Fruit', MEEGODA, MEEGODA_ID),
+  ],
+};

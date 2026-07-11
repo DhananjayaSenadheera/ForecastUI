@@ -203,6 +203,69 @@ export interface BestCrop {
 }
 
 // ---------------------------------------------------------------------------
+// Market overview — GET /api/forecast/market-overview?days=30 (MarketOverview_GetDto).
+//
+// CONTRACT (API-7 — LOCKED 2026-07-11; the .NET route is being built against this
+// EXACT camelCase shape in parallel, so it must be consumed verbatim, NOT invented).
+// Feeds the landing dashboard (FE-1 OverviewPage): KPI tiles + risers/fallers movers
+// + a "latest prices" strip with per-crop sparklines. All fields are honest counts /
+// observed prices the endpoint actually computes — the UI never fabricates a mover,
+// a spark point, or a KPI the payload does not carry.
+//
+//   asOf            "YYYY-MM-DD" of the newest data in the window, or NULL when the
+//                   window has NO data at all (null + empty arrays => honest
+//                   "no market data yet" state; never a fake skeleton/number).
+//   windowDays      the price window this snapshot summarises (echoes the `days` arg).
+//   marketsWithData count of markets that reported at least one price in the window.
+//   cropsWithData   count of crops that had at least one price in the window.
+//   movers          up to 5 RISERS then up to 5 FALLERS (server order preserved as-is
+//                   — never re-sorted client-side). `direction` is a STRING "up"|"down"
+//                   rendered as glyph + word; movers are NEVER colour-coded (RED is
+//                   reserved app-wide for the "Not recommended" verdict).
+//   latestPrices    up to 8 crops' most-recent observed price + a short sparkline.
+//   spark           up to 14 chronological daily points; MAY be sparse/short — the
+//                   sparkline degrades honestly (dot-only for 1 point, none for 0).
+// ---------------------------------------------------------------------------
+
+/** One riser/faller row. `direction` is the frozen wire string, not a colour. */
+export interface MarketMover {
+  cropId: string; // Guid — deep-links to /my-harvest?crop=<cropId>
+  cropName: string;
+  marketName: string;
+  latestPrice: number;
+  previousPrice: number;
+  changePct: number; // signed percent change over the window
+  direction: 'up' | 'down';
+}
+
+/** A single point in a latest-prices sparkline (observed daily price). */
+export interface MarketSparkPoint {
+  date: string; // "YYYY-MM-DD"
+  price: number;
+}
+
+/** Latest observed price for one crop, with a short sparkline of recent days. */
+export interface MarketLatestPrice {
+  cropId: string; // Guid — deep-links to /my-harvest?crop=<cropId>
+  cropName: string;
+  marketName: string;
+  date: string; // "YYYY-MM-DD" of the latest price
+  price: number; // latest observed price (whole rupees)
+  minPrice: number; // that day's observed low
+  maxPrice: number; // that day's observed high
+  spark: MarketSparkPoint[]; // up to 14 chronological points; may be sparse/short
+}
+
+export interface MarketOverview {
+  asOf: string | null; // newest data date, or null when the window has no data
+  windowDays: number;
+  marketsWithData: number;
+  cropsWithData: number;
+  movers: MarketMover[]; // risers then fallers, server order preserved
+  latestPrices: MarketLatestPrice[];
+}
+
+// ---------------------------------------------------------------------------
 // FIXTURE-ONLY endpoints (NOT built on the API yet — API gaps #1 / #2).
 // Shapes are the FE proposal from the PRD gap list; treat as provisional.
 // ---------------------------------------------------------------------------

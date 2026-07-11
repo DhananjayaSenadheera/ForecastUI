@@ -138,6 +138,65 @@ export function buildPriceLineGeometry(
   };
 }
 
+// ---- sparkline (FE-1 overview latest-prices strip) --------------------------
+// A minimal single-series trend line: no axis, no band — just a shape that reads
+// at a glance in a table cell. Shares the {date, price} idiom and the same "lay out
+// only what exists / degrade honestly" contract as the fuller line above, so a
+// sparse or single-point series never fabricates a fake trend. The NUMBER stays the
+// product: the component always shows the price + an aria sentence, never spark-only.
+export interface SparkInput {
+  date: string;
+  price: number;
+}
+export interface SparkGeometry {
+  width: number;
+  height: number;
+  /** "x,y x,y …" for the trend polyline (>=2 points). */
+  polyline: string;
+  /** Position of the latest point (always present) for an end dot. */
+  last: { x: number; y: number };
+  /** True when only one point exists — the component draws a dot, not a line. */
+  singlePoint: boolean;
+  min: number;
+  max: number;
+}
+
+export interface SparkOpts {
+  width?: number;
+  height?: number;
+  /** Vertical inset so the stroke + end dot are never clipped at the edges. */
+  pad?: number;
+}
+
+/**
+ * Lay out a short price series into a tiny SVG trend line. Returns null when there
+ * is nothing to draw (empty series). A flat/degenerate range is centred vertically
+ * so the line sits mid-cell instead of hugging an edge. Never invents points.
+ */
+export function buildSparkline(points: SparkInput[], opts: SparkOpts = {}): SparkGeometry | null {
+  const n = points.length;
+  if (n < 1) return null;
+  const width = opts.width ?? 100;
+  const height = opts.height ?? 24;
+  const pad = opts.pad ?? 3;
+
+  const prices = points.map((p) => p.price);
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  const span = max - min;
+
+  const xFor = (i: number): number =>
+    n <= 1 ? width / 2 : (i / (n - 1)) * (width - 2 * pad) + pad;
+  const yFor = (v: number): number =>
+    span > 0 ? height - pad - ((v - min) / span) * (height - 2 * pad) : height / 2;
+
+  const coords = points.map((p, i) => ({ x: xFor(i), y: yFor(p.price) }));
+  const polyline = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ');
+  const last = coords[coords.length - 1];
+
+  return { width, height, polyline, last, singlePoint: n === 1, min, max };
+}
+
 // ---- market comparison ------------------------------------------------------
 // Okabe–Ito categorical quartet (design-tokens 4b). Colours are assigned by
 // STABLE market-id order — never by price rank — so a given market keeps its

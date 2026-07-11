@@ -17,6 +17,7 @@ import type {
   CropTimeline,
   HarvestForecast,
   Market,
+  MarketOverview,
   PriceHistoryPoint,
 } from './types';
 
@@ -118,6 +119,13 @@ export const api = {
   async getBestCrops(lookbackMonths = 3): Promise<BestCrop[]> {
     if (USE_FIXTURES) return fx.fxBestCrops;
     return request<BestCrop[]>(`/api/forecast/best-crops?lookbackMonths=${lookbackMonths}`);
+  },
+
+  // Landing-dashboard snapshot (FE-1). LIVE route being built against the API-7
+  // contract in parallel; consumed verbatim (camelCase). days defaults to 30.
+  async getMarketOverview(days = 30): Promise<MarketOverview> {
+    if (USE_FIXTURES) return fx.fxMarketOverview;
+    return request<MarketOverview>(`/api/forecast/market-overview?days=${days}`);
   },
 
   // ---- FIXTURE-ONLY endpoints (API gaps #1/#2 — no live route yet) ---------
