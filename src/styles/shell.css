@@ -232,7 +232,7 @@
   color: var(--text-3);
 }
 
-/* placeholder slot marker (dev-only visible outline for empty layout slots) */
+/* placeholder slot marker (visible outline for not-yet-built layout slots) */
 .slot {
   border: 1px dashed var(--line-strong);
   border-radius: var(--r-md);
@@ -240,6 +240,93 @@
   color: var(--text-3);
   font-size: var(--fs-sm);
   text-align: center;
+}
+
+/* Overview honest "not available yet" treatment (FE-9). */
+.ov-panel__title {
+  font-size: var(--fs-title);
+  margin: 0 0 10px;
+}
+.kpi__val--pending {
+  color: var(--text-3);
+  font-weight: var(--fw-bold);
+}
+.slot--pending {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  background: var(--surface-3);
+}
+.slot__icon {
+  font-size: 22px;
+}
+.slot__text {
+  margin: 0;
+}
+
+/* Staleness banner (FE-9) — amber caution, sits atop the main column. */
+.stale-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  background: var(--lowtrust-bg);
+  color: var(--lowtrust-fg);
+  border: 1px solid var(--lowtrust-border);
+  border-radius: var(--r-md);
+  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+.stale-banner__icon {
+  font-size: 18px;
+  line-height: var(--lh-body);
+}
+.stale-banner__text {
+  margin: 0;
+  flex: 1;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+.stale-banner__dismiss {
+  min-height: var(--touch-min);
+  min-width: var(--touch-min);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--lowtrust-fg);
+  font-size: 16px;
+  flex: none;
+}
+
+/* Error-boundary fallback (FE-9) — localized, offers reload. */
+.err-fallback {
+  text-align: center;
+  border-radius: var(--r-lg);
+}
+.err-fallback--page {
+  max-width: 480px;
+  margin: 48px auto;
+  padding: var(--sp-6);
+}
+.err-fallback--panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: var(--sp-8) var(--sp-6);
+  margin: var(--sp-2) 0;
+}
+.err-fallback__title {
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-bold);
+  margin: 0 0 var(--sp-2);
+}
+.err-fallback__body {
+  color: var(--text-2);
+  margin: 0 auto var(--sp-5);
+  max-width: 40ch;
+}
+.err-fallback__reload {
+  width: auto;
+  min-width: 160px;
 }
 
 /* ---------------- bottom tab bar (mobile only) ---------------- */

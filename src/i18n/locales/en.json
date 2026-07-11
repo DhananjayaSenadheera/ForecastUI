@@ -35,7 +35,15 @@
     "updated": "Updated",
     "source": "Source: HARTI / Dept. of Agriculture",
     "perKg": "/kg",
-    "rs": "Rs."
+    "rs": "Rs.",
+    "staleBanner": "Showing saved prices from {{date}} — reconnect for the latest.",
+    "staleBannerNoDate": "Showing saved data — reconnect for the latest.",
+    "dismiss": "Dismiss"
+  },
+  "error": {
+    "boundaryTitle": "This part could not open",
+    "boundaryBody": "Something went wrong here. Other parts of the app still work — please reload to try again.",
+    "reload": "Reload"
   },
   "filter": {
     "market": "Market",
@@ -53,24 +61,130 @@
     "littleData": "Little data",
     "notRecommended": "Not recommended"
   },
+  "forecast": {
+    "expectedAt": "Expected price at harvest",
+    "harvestAround": "Harvest around {{date}}",
+    "rangeTitle": "Likely price range",
+    "bandMin": "Low end",
+    "bandMid": "Most likely",
+    "bandMax": "High end",
+    "bandAria": "Most likely about {{mid}} per kg, and likely between {{min}} and {{max}}.",
+    "tableToggle": "View as table",
+    "tableWhat": "Estimate",
+    "tablePrice": "Price per kg",
+    "currentPrice": "Today's price",
+    "lowTrustTitle": "Rough estimate only",
+    "lowTrustLead": "This is a rough guide, not a promise — check other sources before you decide.",
+    "takeLabel": "Our take",
+    "provAsOf": "Prices as of {{date}}"
+  },
+  "factor": {
+    "title": "Why this forecast?",
+    "dir": {
+      "up": "Pushes price up",
+      "down": "Pushes price down",
+      "neutral": "Mixed effect"
+    },
+    "weightAria": "Relative strength {{pct}} percent",
+    "noBreakdown": "We don't have a detailed factor breakdown for this crop yet — this estimate is based on the note above.",
+    "codes": {
+      "recent_price_trend": "Recent price trend",
+      "festival_demand": "Festival demand",
+      "seasonal_supply": "Seasonal supply",
+      "weather_monsoon": "Weather and monsoon"
+    }
+  },
+  "timeline": {
+    "title": "12-month price — past and forecast",
+    "keyHistory": "Past prices",
+    "keyBand": "Likely range",
+    "keyHarvest": "Harvest",
+    "keyToday": "Today",
+    "shortHistory": "Only {{count}} months of price data so far — the forecast is a rough guide.",
+    "emptyBody": "No price history yet for this crop, so we cannot draw a timeline.",
+    "errorNote": "Could not load the price timeline. Your forecast above is still valid.",
+    "summaryAria": "12-month price for {{crop}}. Based on {{months}} months of past prices; expected about {{mid}} per kg at harvest around {{date}}, likely between {{min}} and {{max}}. Full numbers in the table below.",
+    "summaryAriaNoHarvest": "12-month price for {{crop}}, based on {{months}} months of past prices. Full numbers in the table below.",
+    "tableToggle": "View as table",
+    "tableMonth": "Month",
+    "tableType": "Type",
+    "tableLow": "Low",
+    "tableLikely": "Likely",
+    "tableHigh": "High",
+    "typePast": "Past price",
+    "typeForecast": "Forecast",
+    "typeHarvest": "Forecast (harvest)"
+  },
+  "crop": {
+    "searchLabel": "Search for your crop",
+    "searchPlaceholder": "Type a crop name…",
+    "resultCount_one": "{{count}} crop",
+    "resultCount_other": "{{count}} crops",
+    "emptyTitle": "No crops found",
+    "emptyBody": "No crop matches “{{query}}”. Try another word.",
+    "catAll": "All crops",
+    "catVegetables": "Vegetables",
+    "catFruits": "Fruits"
+  },
   "pages": {
     "overview": {
       "title": "Market overview",
       "kpiRising": "Crops rising this week",
       "kpiMover": "Biggest 7-day mover",
       "kpiSeason": "Season now",
-      "kpiConfidence": "Forecast confidence"
+      "kpiConfidence": "Forecast confidence",
+      "pending": "Not available yet",
+      "panelSoon": "This panel will arrive in a coming update.",
+      "panel_forecast": "12-month price outlook",
+      "panel_factors": "Why this price",
+      "panel_prices": "Today's prices — my crops",
+      "panel_bestCrops": "Best crops at a glance"
     },
     "myHarvest": {
       "title": "My harvest forecast",
       "myCrop": "My crop",
+      "chooseCrop": "Choose your crop",
       "plantDate": "Planting date",
+      "plantDateQ": "When did you plant?",
+      "plantDateHint": "We use this to work out your harvest time. You can pick a past or planned date.",
       "harvestDate": "Harvest / sell date",
       "harvestHint": "Suggested from growth period — change freely",
-      "expectedAt": "Expected at harvest"
+      "expectedAt": "Expected at harvest",
+      "summaryLabel": "Your selection",
+      "noCropYet": "Not chosen yet",
+      "getForecast": "Get forecast",
+      "pickToContinue": "Choose a crop to continue.",
+      "forecastComingFor": "Your price forecast for {{crop}} planted on {{date}} will appear here."
     },
     "bestCrops": {
-      "title": "Best crops to plant now"
+      "title": "Best crops to plant now",
+      "subtitle": "Ranked by our price forecast for the months ahead.",
+      "lookbackLabel": "Price window",
+      "lookback3": "3 months",
+      "lookback6": "6 months",
+      "lookback12": "12 months",
+      "lookbackCaption": "Ranked using the last {{count}} months of prices.",
+      "scaleLegend": "Bars compare the expected price on one scale, Rs. 0 to {{max}}.",
+      "scaleAria": "Expected {{price}} per kg, on a shared scale up to {{max}}.",
+      "colCrop": "Crop",
+      "colTake": "Our take",
+      "colPrice": "Expected price",
+      "colTrend": "Price trend",
+      "colConfidence": "Confidence",
+      "colAction": "Plan",
+      "sortBy": "Sort by {{col}}",
+      "action": "See my harvest",
+      "actionAria": "Plan {{crop}} in My harvest",
+      "trendUp": "Rising",
+      "trendFlat": "Steady",
+      "trendDown": "Falling",
+      "inSeason": "In season · {{season}}",
+      "offSeason": "Out of season · {{season}}",
+      "caveatNotRec": "We don't suggest planting this now — recent prices and the trend look weak.",
+      "caveatLittleData": "Little price data for this crop yet — treat this as a rough guide.",
+      "emptyTitle": "No crop suggestions yet",
+      "emptyBody": "We could not rank any crops for this period. Try a longer price window.",
+      "tableCaption": "Best crops to plant, ranked, using the last {{count}} months of prices."
     },
     "prices": {
       "title": "Prices",

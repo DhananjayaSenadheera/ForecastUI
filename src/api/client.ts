@@ -8,6 +8,8 @@
 // can be built and tested before the backend hold lifts (~2026-07-16).
 // =============================================================================
 import * as fx from './fixtures';
+import { reportFromHeaders } from './cacheSignal';
+import { ymdLocal } from '../lib/format';
 import type {
   BestCrop,
   Crop,
@@ -58,6 +60,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError('network', 0);
   }
 
+  // Cache-provenance signal (FE-9): the SW stamps X-SW-Cache on offline-served
+  // responses. Fresh network responses clear the flag. No-op when no SW (headers
+  // absent -> treated as fresh) and in fixture mode (request() is never reached).
+  reportFromHeaders(res.headers);
+
   if (!res.ok) {
     let message = `HTTP ${res.status}`;
     try {
@@ -73,8 +80,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-const iso = (d: string | Date): string =>
-  typeof d === 'string' ? d : d.toISOString().slice(0, 10);
+const iso = (d: string | Date): string => (typeof d === 'string' ? d : ymdLocal(d));
 
 // =============================================================================
 // Public API surface. Each method has a fixture branch (VITE_API_MODE=fixtures).
@@ -96,14 +102,14 @@ export const api = {
   },
 
   async getHarvestForecast(cropId: string, plantDate: string | Date): Promise<HarvestForecast> {
-    if (USE_FIXTURES) return fx.fxHarvestForecast;
+    if (USE_FIXTURES) return fx.fxForecastFor(cropId, iso(plantDate));
     return request<HarvestForecast>(
       `/api/forecast/crop/${cropId}/harvest?plantDate=${iso(plantDate)}`,
     );
   },
 
   async getCropTimeline(cropId: string, months = 12, asOf?: string | Date): Promise<CropTimeline> {
-    if (USE_FIXTURES) return fx.fxTimeline;
+    if (USE_FIXTURES) return fx.fxTimelineFor(cropId);
     const q = new URLSearchParams({ months: String(months) });
     if (asOf) q.set('asOf', iso(asOf));
     return request<CropTimeline>(`/api/forecast/crop/${cropId}/timeline?${q.toString()}`);

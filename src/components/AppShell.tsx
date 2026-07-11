@@ -1,8 +1,10 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { NAV_DESTINATIONS } from '../app/nav';
 import LanguageSwitcher from './LanguageSwitcher';
 import AudioHelpButton from './AudioHelpButton';
+import StalenessBanner from './StalenessBanner';
+import ErrorBoundary from './ErrorBoundary';
 
 // Dashboard shell (normative ref: dashboard-style-samples-v1).
 // Desktop/tablet: dark teal sidebar (nav + footer audio/lang). Mobile: sidebar is
@@ -10,6 +12,7 @@ import AudioHelpButton from './AudioHelpButton';
 // The shell is a layout wrapper; routed pages render into <Outlet/>.
 export default function AppShell() {
   const { t } = useTranslation();
+  const location = useLocation();
 
   return (
     <div className="shell">
@@ -57,7 +60,13 @@ export default function AppShell() {
 
       {/* ---- main column: pages render here ---- */}
       <main className="main">
-        <Outlet />
+        {/* Honest "showing saved data" notice when the SW served an offline cache. */}
+        <StalenessBanner />
+        {/* Route-level boundary: a crashed page shows a localized fallback while the
+            shell/nav stay usable; the pathname resetKey clears it on navigation. */}
+        <ErrorBoundary variant="panel" resetKey={location.pathname}>
+          <Outlet />
+        </ErrorBoundary>
       </main>
 
       {/* ---- mobile bottom tab bar ---- */}

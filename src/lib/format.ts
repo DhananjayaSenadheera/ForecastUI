@@ -105,3 +105,14 @@ export function formatDate(value: string | Date, lang: string): string {
     year: 'numeric',
   }).format(d);
 }
+
+/**
+ * "YYYY-MM-DD" from the user's LOCAL calendar date. Never use
+ * toISOString().slice(0,10) for calendar dates: it converts to UTC first,
+ * which is yesterday until 05:30 AM in Sri Lanka (UTC+5:30).
+ */
+export function ymdLocal(d: Date): string {
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}

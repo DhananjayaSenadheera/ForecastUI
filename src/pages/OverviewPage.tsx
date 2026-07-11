@@ -1,7 +1,13 @@
 import { useTranslation } from 'react-i18next';
 
-// Overview / landing dashboard (FE-2 = layout slots only; data wiring in later FEs).
-// KPI row + panel grid per the normative dashboard sample.
+// Overview / landing dashboard. The data panels + KPIs are NOT wired yet (they
+// depend on the not-yet-built markets/price-history routes, API gaps #1/#2). Per
+// the honest-data rule we show an explicit "not available yet" placeholder — never
+// fabricated numbers and never a fake loading skeleton that implies data is on the
+// way. Internal task-IDs are kept OUT of farmer-facing copy (localized strings).
+const KPI_KEYS = ['kpiRising', 'kpiMover', 'kpiSeason', 'kpiConfidence'] as const;
+const PANELS = ['forecast', 'factors', 'prices', 'bestCrops'] as const;
+
 export default function OverviewPage() {
   const { t } = useTranslation();
   return (
@@ -15,43 +21,46 @@ export default function OverviewPage() {
         </span>
       </div>
 
-      {/* KPI row slot */}
+      {/* KPI row — honest "not available yet" placeholders (no fabricated values). */}
       <div className="kpis">
-        <div className="kpi">
-          <div className="kpi__lbl">{t('pages.overview.kpiRising')}</div>
-          <div className="kpi__val">—</div>
-        </div>
-        <div className="kpi">
-          <div className="kpi__lbl">{t('pages.overview.kpiMover')}</div>
-          <div className="kpi__val">—</div>
-        </div>
-        <div className="kpi">
-          <div className="kpi__lbl">{t('pages.overview.kpiSeason')}</div>
-          <div className="kpi__val">—</div>
-        </div>
-        <div className="kpi">
-          <div className="kpi__lbl">{t('pages.overview.kpiConfidence')}</div>
-          <div className="kpi__val">—</div>
-        </div>
+        {KPI_KEYS.map((k) => (
+          <div className="kpi" key={k}>
+            <div className="kpi__lbl">{t(`pages.overview.${k}`)}</div>
+            <div className="kpi__val kpi__val--pending">
+              <span aria-hidden="true">—</span>
+              <span className="sr-only">{t('pages.overview.pending')}</span>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* panel grid slot */}
+      {/* Panel grid — each panel states plainly that it is not built yet. */}
       <div className="panelgrid panelgrid--main">
-        <section className="panel" aria-label="12-month price outlook">
-          <div className="slot">12-month forecast chart — FE-5</div>
-        </section>
-        <section className="panel" aria-label="Why this price">
-          <div className="slot">Why this price / factors — FE-6</div>
-        </section>
+        {PANELS.slice(0, 2).map((p) => (
+          <OverviewPanelStub key={p} nameKey={`pages.overview.panel_${p}`} />
+        ))}
       </div>
       <div className="panelgrid panelgrid--half" style={{ marginTop: 14 }}>
-        <section className="panel" aria-label="Today's prices">
-          <div className="slot">Today's prices — my crops (needs API #2)</div>
-        </section>
-        <section className="panel" aria-label="Best crops mini">
-          <div className="slot">Best crops mini comparison — FE-7</div>
-        </section>
+        {PANELS.slice(2).map((p) => (
+          <OverviewPanelStub key={p} nameKey={`pages.overview.panel_${p}`} />
+        ))}
       </div>
     </>
+  );
+}
+
+function OverviewPanelStub({ nameKey }: { nameKey: string }) {
+  const { t } = useTranslation();
+  const title = t(nameKey);
+  return (
+    <section className="panel" aria-label={title}>
+      <h2 className="ov-panel__title">{title}</h2>
+      <div className="slot slot--pending">
+        <span className="slot__icon" aria-hidden="true">
+          🕓
+        </span>
+        <p className="slot__text">{t('pages.overview.panelSoon')}</p>
+      </div>
+    </section>
   );
 }
