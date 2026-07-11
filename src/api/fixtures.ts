@@ -270,3 +270,62 @@ export const fxPriceHistory: PriceHistoryPoint[] = [
   { date: '2026-07-09', minPrice: 455, maxPrice: 530 },
   { date: '2026-07-10', minPrice: 470, maxPrice: 552 },
 ];
+
+// ---------------------------------------------------------------------------
+// FE-12 prices browsing — per-market daily price history (API gap #2).
+//
+// CONTRACT NOTE (provisional): the eventual live route is
+//   GET /api/prices/crop/{cropId}/history?marketId=...  ->  PriceHistoryPoint[]
+// returning ONE market's daily low–high series. Until API-2 lands, fixtures
+// SYNTHESISE a plausible 14-day series per (crop, market) so the single-market
+// line AND the cross-market comparison are demo-able. Values are DEMO-ONLY
+// (illustrative Rs. levels consistent with the other fixtures), NOT real HARTI
+// data. Dambulla (the economic centre) reads cheapest; Colombo (Pettah) dearest;
+// Meegoda is deliberately THIN (3 days) so the "only N days" note is exercised.
+// The generator is deterministic so tests and the demo stay stable.
+// ---------------------------------------------------------------------------
+const PRICE_ANCHOR = '2026-07-10'; // last day of the demo window (matches fixtures)
+const PRICE_WINDOW_DAYS = 14;
+
+interface MarketPriceProfile {
+  level: number; // multiplier vs the crop's reference price
+  spread: number; // daily low–high width as a fraction of the mid
+  days: number; // series length (Meegoda is thin on purpose)
+}
+const MARKET_PROFILES: Record<string, MarketPriceProfile> = {
+  'm0000001-0000-0000-0000-000000000001': { level: 0.9, spread: 0.1, days: PRICE_WINDOW_DAYS }, // Dambulla DEC — cheapest
+  'm0000002-0000-0000-0000-000000000002': { level: 1.16, spread: 0.13, days: PRICE_WINDOW_DAYS }, // Colombo (Pettah) — dearest
+  'm0000003-0000-0000-0000-000000000003': { level: 1.0, spread: 0.11, days: PRICE_WINDOW_DAYS }, // Kandy
+  'm0000004-0000-0000-0000-000000000004': { level: 1.05, spread: 0.12, days: 3 }, // Meegoda — thin
+};
+const DEFAULT_MARKET_ID = 'm0000001-0000-0000-0000-000000000001'; // economic centre
+
+/** Reference (mid) price for a crop — reuse best-crops avg where known. */
+function cropReferencePrice(cropId: string): number {
+  const bc = fxBestCrops.find((c) => c.cropId === cropId);
+  if (bc) return bc.averagePrice;
+  return (fxHarvestByCrop[cropId] ?? fxHarvestForecast).predictedPrice;
+}
+
+/** Deterministic small offset in ~[-0.03, 0.03] from a market id + day index. */
+function seededJitter(marketId: string, d: number): number {
+  let h = 0;
+  const s = `${marketId}:${d}`;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) & 0xffff;
+  return ((h % 61) - 30) / 1000;
+}
+
+export function fxPriceHistoryFor(cropId: string, marketId?: string): PriceHistoryPoint[] {
+  const ref = cropReferencePrice(cropId);
+  const id = marketId ?? DEFAULT_MARKET_ID;
+  const prof = MARKET_PROFILES[id] ?? { level: 1, spread: 0.1, days: PRICE_WINDOW_DAYS };
+  const out: PriceHistoryPoint[] = [];
+  for (let d = 0; d < prof.days; d++) {
+    const wave = 0.05 * Math.sin((d / Math.max(1, prof.days - 1)) * Math.PI * 1.5);
+    const mid = ref * prof.level * (1 + wave + seededJitter(id, d));
+    const half = (mid * prof.spread) / 2;
+    const date = addDays(PRICE_ANCHOR, -(prof.days - 1 - d)) ?? PRICE_ANCHOR;
+    out.push({ date, minPrice: Math.round(mid - half), maxPrice: Math.round(mid + half) });
+  }
+  return out;
+}

@@ -1,0 +1,229 @@
+/* =============================================================================
+   Prices page (FE-12). Browse historical market prices: a single-market daily
+   low–high line + a cross-market comparison. Desktop dashboard panel; stacks on
+   mobile <600px like the other pages. Chart tokens + Okabe–Ito market colours
+   come from tokens.css; this file only lays out the page.
+   ========================================================================== */
+.pr-sub {
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  margin: 0 0 var(--sp-4);
+}
+
+/* ---- controls: crop + market selects ---- */
+.pr-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
+}
+.pr-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.pr-select {
+  width: 100%;
+  padding: 0 var(--sp-3);
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--r-md);
+}
+
+/* ---- chart shell ---- */
+.pr-chart {
+  margin-bottom: var(--sp-6);
+}
+.pr-chart__title {
+  font-size: var(--fs-body-lg);
+  font-weight: var(--fw-bold);
+  margin: 0 0 var(--sp-3);
+}
+.pr-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+.pr-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.pr-key::before {
+  content: '';
+  width: 16px;
+  height: 3px;
+  border-radius: var(--r-pill);
+}
+.pr-key--range::before {
+  height: 12px;
+  background: var(--chart-band-fill);
+  border: 1px solid var(--chart-band-stroke);
+}
+.pr-key--mid::before {
+  background: var(--chart-line);
+}
+
+.pr-svg {
+  width: 100%;
+  height: auto;
+  max-width: 680px;
+  display: block;
+}
+.pr-grid { stroke: var(--chart-grid); stroke-width: 1; }
+.pr-axisline { stroke: var(--line-strong); stroke-width: 1; }
+.pr-axis { font-size: 12px; fill: var(--chart-axis); }
+.pr-band { fill: var(--chart-band-fill); stroke: var(--chart-band-stroke); stroke-width: 1; }
+.pr-mid { stroke: var(--chart-line); stroke-width: 2.5; }
+
+/* ---- honest thin / empty notes (amber caution pattern) ---- */
+.pr-thin,
+.pr-empty {
+  font-size: var(--fs-sm);
+  color: var(--warn-fg);
+  background: var(--warn-bg);
+  border: 1px solid var(--lowtrust-border);
+  border-radius: var(--r-md);
+  padding: var(--sp-3);
+  margin: 0 0 var(--sp-3);
+}
+.pr-chart--empty .pr-empty { margin-bottom: 0; }
+
+/* ---- market comparison ---- */
+.pr-cmp {
+  margin-top: var(--sp-6);
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--line);
+}
+.pr-cmp__title {
+  font-size: var(--fs-body-lg);
+  font-weight: var(--fw-bold);
+  margin: 0 0 var(--sp-2);
+}
+.pr-cmp__legend {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  margin: 0 0 var(--sp-4);
+}
+.pr-cmp__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.pr-cmp__row {
+  display: grid;
+  grid-template-columns: minmax(96px, 22%) 1fr minmax(120px, auto);
+  align-items: center;
+  gap: var(--sp-3);
+}
+.pr-cmp__name {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text);
+  overflow-wrap: break-word;
+}
+.pr-cmp__bar {
+  position: relative;
+  display: block;
+  height: 16px;
+}
+.pr-cmp__track {
+  position: absolute;
+  inset: 6px 0;
+  background: var(--line);
+  border-radius: var(--r-pill);
+}
+.pr-cmp__fill {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  height: 4px;
+  border-radius: var(--r-pill);
+}
+.pr-cmp__whisker {
+  position: absolute;
+  top: 1px;
+  height: 14px;
+  border-left: 2px solid var(--text-3);
+  border-right: 2px solid var(--text-3);
+}
+.pr-cmp__val {
+  display: flex;
+  flex-direction: column;
+  text-align: right;
+}
+.pr-cmp__avg {
+  font-size: var(--fs-body);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+}
+.pr-cmp__range {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- table alternatives ---- */
+.pr-table { margin-top: var(--sp-3); }
+.pr-table__summary {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--brand-strong);
+  cursor: pointer;
+  padding: var(--sp-2) 0;
+}
+.pr-table__grid {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: var(--sp-2);
+  font-size: var(--fs-sm);
+}
+.pr-table__grid th,
+.pr-table__grid td {
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+.pr-table__num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- provenance ---- */
+.pr-prov {
+  margin: var(--sp-5) 0 0;
+  font-size: var(--fs-xs);
+}
+
+/* ---- states ---- */
+.pr-state { text-align: center; padding: var(--sp-6) var(--sp-4); }
+.pr-state__title { font-weight: var(--fw-bold); font-size: var(--fs-body-lg); margin-bottom: var(--sp-2); }
+.pr-state__body { color: var(--text-2); font-size: var(--fs-sm); margin-bottom: var(--sp-3); }
+.pr-state__retry { width: auto; min-width: 160px; margin: 0 auto; border: 1.5px solid var(--brand); }
+
+.pr-skeleton { display: flex; flex-direction: column; gap: var(--sp-4); }
+.pr-skel { background: var(--surface-3); border-radius: var(--r-md); animation: pr-pulse 1.4s ease-in-out infinite; }
+.pr-skel--controls { height: 56px; }
+.pr-skel--chart { height: 200px; }
+@keyframes pr-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+@media (prefers-reduced-motion: reduce) {
+  .pr-skel { animation: none; }
+}
+
+/* ---- mobile ---- */
+@media (max-width: 600px) {
+  .pr-controls { flex-direction: column; gap: var(--sp-3); }
+  .pr-cmp__row { grid-template-columns: 1fr; gap: var(--sp-1); }
+  .pr-cmp__val { text-align: left; flex-direction: row; gap: var(--sp-2); align-items: baseline; }
+  .pr-axis { font-size: 13px; }
+}

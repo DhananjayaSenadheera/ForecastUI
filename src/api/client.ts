@@ -126,8 +126,8 @@ export const api = {
     throw new ApiError('markets endpoint not built yet (API gap #1)', 501);
   },
 
-  async getPriceHistory(_cropId: string, _marketId?: string): Promise<PriceHistoryPoint[]> {
-    if (USE_FIXTURES) return fx.fxPriceHistory;
+  async getPriceHistory(cropId: string, marketId?: string): Promise<PriceHistoryPoint[]> {
+    if (USE_FIXTURES) return fx.fxPriceHistoryFor(cropId, marketId);
     throw new ApiError('price-history endpoint not built yet (API gap #2)', 501);
   },
 };

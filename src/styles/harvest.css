@@ -949,3 +949,48 @@
   .tl-svg { max-width: 100%; }
   .tl-axis { font-size: 13px; }
 }
+
+/* =============================================================================
+   Share-a-forecast (FE-11) — a secondary action in the result aside. Ghost
+   button + polite "Copied" confirmation + a manual-copy textarea fallback.
+   ========================================================================== */
+.fc-share {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.fc-share__btn {
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.fc-share__icon {
+  display: inline-flex;
+  color: var(--brand);
+}
+.fc-share__status {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--good-fg);
+}
+.fc-share__status:empty {
+  display: none;
+}
+.fc-share__manual {
+  flex: 1 1 100%;
+  display: block;
+}
+.fc-share__text {
+  width: 100%;
+  margin-top: var(--sp-2);
+  padding: var(--sp-3);
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: var(--text);
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  resize: vertical;
+}
