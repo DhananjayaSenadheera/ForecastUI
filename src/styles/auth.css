@@ -5,6 +5,34 @@
    live here.
    ============================================================================= */
 
+/* ---------------- boot shell (FE-21 silent renew) ----------------
+   Shown briefly on reload while the session is restored from the refresh cookie.
+   Deliberately minimal + calm (no login flash, no layout jump). */
+.boot {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: var(--surface-2);
+}
+.boot__spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--line);
+  border-top-color: var(--brand, currentColor);
+  border-radius: 50%;
+  animation: boot-spin 0.9s linear infinite;
+}
+@keyframes boot-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .boot__spinner {
+    animation-duration: 2.4s;
+  }
+}
+
 /* ---------------- full-screen auth page ---------------- */
 .authpage {
   min-height: 100vh;

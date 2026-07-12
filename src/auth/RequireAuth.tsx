@@ -5,11 +5,25 @@
 // caused by a token rejection mid-session, pass reason:"expired" for a friendlier
 // message.
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from './AuthContext';
 
 export default function RequireAuth() {
-  const { isAuthenticated, sessionExpired } = useAuth();
+  const { isAuthenticated, sessionExpired, booting } = useAuth();
   const location = useLocation();
+  const { t } = useTranslation();
+
+  // FE-21: while the boot-time silent refresh is in flight, hold a subtle shell
+  // instead of bouncing to /login — otherwise a reload of a valid session would
+  // flash the login page before refresh resolves.
+  if (booting) {
+    return (
+      <div className="boot" role="status" aria-live="polite">
+        <span className="boot__spinner" aria-hidden="true" />
+        <span className="sr-only">{t('common.loading')}</span>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return (

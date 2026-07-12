@@ -34,11 +34,13 @@ export class ApiError extends Error {
   }
 }
 
-// --- auth (FE-17) -------------------------------------------------------------
+// --- auth (FE-17 / FE-21) -----------------------------------------------------
 // SECURITY: the JWT lives in MODULE MEMORY ONLY — never localStorage /
-// sessionStorage / cookies. A page refresh loses it BY DESIGN (the R2 backlog
-// item is a refresh-token / silent-renew flow; there is none on the backend yet).
-// This is the hook the FE-2 scaffold left commented for R2.
+// sessionStorage / cookies. FE-21 adds SILENT RENEW: the backend now issues an
+// httpOnly refresh cookie (`agriforecast_refresh`, sent on /api/auth/* only) the
+// JS can never read; a page reload restores the session by exchanging that cookie
+// for a fresh access token via POST /api/auth/refresh. The access token still
+// lives only here in memory.
 let authToken: string | null = null;
 
 /** Set (or clear, with null) the in-memory bearer token. Called by AuthContext. */
@@ -62,13 +64,33 @@ export function setUnauthorizedHandler(handler: (() => void) | null): void {
   onUnauthorized = handler;
 }
 
+// --- silent renew (FE-21) -----------------------------------------------------
+// AuthContext registers a refresh callback here. On the FIRST 401 from a data
+// route we call it once: if it renews the access token we retry the failed
+// request exactly once; only if renew ALSO fails do we fall to onUnauthorized
+// (the signed-out path). Returns true when a fresh token is in memory.
+let onRefresh: (() => Promise<boolean>) | null = null;
+
+/** Register the silent-renew callback (AuthContext). Pass null to unregister. */
+export function setRefreshHandler(handler: (() => Promise<boolean>) | null): void {
+  onRefresh = handler;
+}
+
 const AUTH_PATH_PREFIX = '/api/auth/';
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+// `allowRefresh` is an internal flag: false on the single retry after a renew, so
+// a request can never trigger more than one refresh (no refresh/retry loop).
+async function request<T>(path: string, init?: RequestInit, allowRefresh = true): Promise<T> {
+  const isAuthPath = path.startsWith(AUTH_PATH_PREFIX);
   let res: Response;
   try {
     res = await fetch(`${BASE_URL}${path}`, {
       ...init,
+      // Auth routes are the ONLY calls that carry the httpOnly refresh cookie
+      // (login/register set it; refresh reads+rotates it; logout clears it). It
+      // is cross-origin (:4173 -> :5282), so credentials:'include' is required.
+      // Data routes stay Bearer-only — no ambient cookies app-wide.
+      ...(isAuthPath ? { credentials: 'include' as const } : {}),
       headers: {
         Accept: 'application/json',
         ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
@@ -87,10 +109,21 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   reportFromHeaders(res.headers);
 
   if (!res.ok) {
-    // Session-expiry interceptor: a 401 on any NON-auth route means our token is
-    // no longer accepted -> clear the session + redirect. Auth routes are exempt
-    // (there a 401 is a credentials error the login form surfaces itself).
-    if (res.status === 401 && !path.startsWith(AUTH_PATH_PREFIX)) {
+    // Session-expiry interceptor: a 401 on any NON-auth route means our access
+    // token is no longer accepted. Auth routes are exempt (there a 401 is a
+    // credentials error the login form surfaces itself).
+    if (res.status === 401 && !isAuthPath) {
+      // Silent renew (FE-21): try ONE refresh + retry before giving up. Only if
+      // renew fails (or is unavailable) do we clear the session / redirect.
+      if (allowRefresh && onRefresh) {
+        let renewed = false;
+        try {
+          renewed = await onRefresh();
+        } catch {
+          renewed = false;
+        }
+        if (renewed) return request<T>(path, init, false); // one retry, no re-refresh
+      }
       onUnauthorized?.();
     }
     let message = `HTTP ${res.status}`;
