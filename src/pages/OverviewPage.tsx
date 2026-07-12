@@ -23,6 +23,7 @@ import type { BestCrop, MarketLatestPrice, MarketMover, MarketOverview } from '.
 import { formatDate, formatPrice, mapVerdict } from '../lib/format';
 import { biggestMover, moverGlyph, moverDirectionKey, overviewHasData, partitionMovers } from '../lib/overview';
 import { buildSparkline } from '../lib/prices';
+import TablePagination, { usePagination } from '../components/TablePagination';
 
 const WINDOW_OPTS = [7, 30, 90] as const;
 const DEFAULT_WINDOW = 30;
@@ -312,6 +313,10 @@ function MoverList({
 // ---------------------------------------------------------------------------
 function LatestPricesPanel({ prices, lang, t }: { prices: MarketLatestPrice[]; lang: string; t: TFn }) {
   const rs = t('common.rs');
+  // The contract caps latestPrices at 8 today, so the pager stays hidden — wired
+  // anyway (owner: pagination on ALL tables) so a future cap change pages cleanly.
+  // The WCAG numeric alternative below mirrors the SAME page slice.
+  const pager = usePagination(prices);
   return (
     <section className="panel ov-latest" aria-label={t('pages.overview.latestTitle')}>
       <h2 className="ov-panel__title">
@@ -337,7 +342,7 @@ function LatestPricesPanel({ prices, lang, t }: { prices: MarketLatestPrice[]; l
                 </tr>
               </thead>
               <tbody>
-                {prices.map((p) => (
+                {pager.pageRows.map((p) => (
                   <tr key={`${p.cropId}-${p.marketName}`}>
                     <th scope="row" className="ov-c-crop" data-label={t('pages.overview.colCrop')}>
                       {p.cropName}
@@ -354,6 +359,7 @@ function LatestPricesPanel({ prices, lang, t }: { prices: MarketLatestPrice[]; l
                 ))}
               </tbody>
             </table>
+            <TablePagination {...pager} />
           </div>
 
           {/* MANDATORY numeric alternative for the sparklines (WCAG). */}
@@ -375,7 +381,7 @@ function LatestPricesPanel({ prices, lang, t }: { prices: MarketLatestPrice[]; l
                 </tr>
               </thead>
               <tbody>
-                {prices.map((p) => {
+                {pager.pageRows.map((p) => {
                   const sparkPrices = p.spark.map((s) => s.price);
                   const earliest = sparkPrices[0] ?? p.price;
                   const lo = sparkPrices.length ? Math.min(...sparkPrices) : p.minPrice;

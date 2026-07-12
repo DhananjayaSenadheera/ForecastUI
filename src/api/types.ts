@@ -330,11 +330,142 @@ export interface Market {
   id: string;
   name: string;
   district: string | null;
-  marketType: number;
+  marketType: number; // MarketType enum (integer wire value) — see MarketType below
   isEconomicCenter: boolean;
 }
 export interface PriceHistoryPoint {
   date: string; // "YYYY-MM-DD"
   minPrice: number;
   maxPrice: number;
+}
+
+/** MarketType enum (Domain.Enums.MarketType) — integer wire value, verified against
+ *  the .NET seeds 2026-07-12. NO JsonStringEnumConverter, so this arrives as an int. */
+export enum MarketType {
+  Wholesale = 0,
+  Retail = 1,
+  DEC = 2, // Dedicated Economic Centre
+  NationalAggregate = 3,
+}
+
+// ===========================================================================
+// ADMIN CONSOLE — Policy flags (ADM-2). GET /api/policy-flag/get/all is LIVE
+// ([Authorize] bearer, base :5282, camelCase JSON). Audited read-only against the
+// .NET PolicyFlagController + PolicyFlag_GetDto + PolicyType/PolicyDirection enums
+// on 2026-07-12.
+//
+// SERIALIZATION: same as the forecast surface — NO JsonStringEnumConverter, so the
+// enums serialize as INTEGERS. `direction` is NOT 0-based: Bearish = -1.
+//
+// EMPTY-RESULT QUIRK (load-bearing): the GetAll handler returns a FAILURE result
+// ("No policy flags found.") when the list is empty — the controller maps that to
+// HTTP 400, NOT a 200 with []. Likewise an ?asOfDate= with no active flags. The
+// admin page treats a 400 on this route as the honest EMPTY state, not a hard error.
+// ===========================================================================
+
+/** PolicyType enum (Domain.Enums.PolicyType) — integer wire value. */
+export enum PolicyType {
+  Subsidy = 0,
+  ImportBan = 1,
+  ExportBan = 2,
+  PriceCeiling = 3,
+  PriceFloor = 4,
+  FertiliserSubsidy = 5,
+  FuelPriceChange = 6,
+  Other = 7,
+  Budget = 8,
+}
+
+/** PolicyDirection enum (Domain.Enums.PolicyDirection) — integer wire value.
+ *  NOTE the -1: this is NOT a 0-based enum. */
+export enum PolicyDirection {
+  Bearish = -1, // expected to push prices down
+  Neutral = 0,
+  Bullish = 1, // expected to push prices up
+}
+
+/** GET /api/policy-flag/get/all -> PolicyFlag_GetDto[] (camelCase over the wire). */
+export interface PolicyFlag {
+  id: string; // Guid
+  policyType: number; // PolicyType enum (integer)
+  title: string;
+  description: string | null;
+  effectiveFrom: string; // ISO datetime
+  effectiveTo: string | null; // ISO datetime | null (open-ended => still in effect)
+  direction: number; // PolicyDirection enum (integer; Bearish = -1)
+  source: string | null;
+  referenceUrl: string | null;
+  createdAtUtc: string; // ISO datetime
+}
+
+/** Derived client-side lifecycle status (NOT on the wire) — from effective dates. */
+export type PolicyStatus = 'active' | 'scheduled' | 'expired';
+
+// ===========================================================================
+// ADMIN CONSOLE — PROVISIONAL wire shapes (ADM-4..7). These endpoints do NOT exist
+// on the .NET API yet (owner scope-extension 2026-07-12: build the UI on fixtures now,
+// connect real data after the backend hold lifts ~2026-07-16). Shapes are FE PROPOSALS
+// — same convention as Market/PriceHistoryPoint above — to be confirmed with agri-dotnet.
+// Every admin page that consumes these renders an honest "demo data" note in fixtures
+// mode. Enums (eventType/direction) DELIBERATELY reuse PolicyType/PolicyDirection so the
+// same tested mappers apply.
+// ===========================================================================
+
+/** ADM-4 users. PROPOSAL. NOTE: User.Role is a STRING column on the backend (not an
+ *  enum), so role is the literal 'Farmer' | 'Admin' string, not an int. */
+export interface AdminUser {
+  id: string; // Guid
+  username: string;
+  email: string;
+  role: 'Farmer' | 'Admin';
+  createdAt: string; // ISO datetime
+  updatedAt: string; // ISO datetime
+}
+
+/** ADM-5 festival calendar. PROPOSAL (mirrors FestivalCalendarEntry, camelCase). One
+ *  row PER occurrence-year (movable festivals repeat each year). This table feeds the
+ *  forecasting model, so edits carry a warning + Source is required on save. */
+export interface FestivalEntry {
+  id: string; // Guid
+  festivalKey: string; // e.g. 'AVURUDU' | 'THAI_PONGAL' | 'CHRISTMAS' | 'VESAK' | 'DEEPAVALI'
+  date: string; // "YYYY-MM-DD" of the occurrence
+  leadUpDays: number; // demand build-up window (default 14)
+  isProvisional: boolean; // date not yet officially confirmed
+  source: string | null;
+  createdAtUtc: string; // ISO datetime
+}
+
+/** ADM-6 daily indicator point (e.g. USD_LKR). PROPOSAL. */
+export interface DailyIndicatorPoint {
+  date: string; // "YYYY-MM-DD"
+  indicatorCode: string; // 'USD_LKR'
+  value: number;
+  source: string | null;
+}
+
+/** ADM-6 vintage-aware macro point (e.g. CCPI). PROPOSAL. BOTH dates are load-bearing
+ *  and MUST always be shown together — never collapse them:
+ *   referenceDate = the period the figure describes (e.g. month end);
+ *   publishedAt   = when the figure became knowable (release date, weeks later). */
+export interface MacroSeriesPoint {
+  seriesKey: string; // e.g. 'CCPI_BASE2021'
+  referenceDate: string; // "YYYY-MM-DD" — period described
+  publishedAt: string; // "YYYY-MM-DD" — when knowable
+  value: number;
+  source: string | null;
+}
+
+/** ADM-7 structured news event. PROPOSAL. Owner decision: capture STRUCTURED events
+ *  (facts + publish date), NOT manual point weights — the model learns weights later.
+ *  eventType reuses PolicyType labels; direction reuses PolicyDirection (Bearish = -1). */
+export interface NewsEvent {
+  id: string; // Guid
+  eventType: number; // PolicyType enum (integer)
+  direction: number; // PolicyDirection enum (integer; Bearish = -1)
+  title: string;
+  description: string | null;
+  publishedAt: string; // "YYYY-MM-DD"
+  sourceUrl: string | null;
+  affectedCropIds: string[]; // optional multi-pick from the crops list
+  createdAtUtc: string; // ISO datetime
 }

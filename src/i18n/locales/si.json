@@ -1,5 +1,8 @@
 {
   "_note": "DRAFT — Sinhala strings pending native-speaker review (PRD risk + API gap #5). Do not treat as final copy.",
+  "admin": {
+    "_note": "ADMIN CONSOLE (ADM-1..7) — internal tool. Strings intentionally NOT translated yet; they fall back to English (fallbackLng) pending FE-8 native-speaker review. Translate this block only after the admin UI is signed off."
+  },
   "app": {
     "name": "AgriForecast",
     "tagline": "අවංක බෝග මිල අනාවැකි"
@@ -339,5 +342,14 @@
       "tableMarket": "වෙළඳපොල",
       "tableAvg": "සාමාන්‍ය"
     }
+  },
+  "pagination": {
+    "label": "වගු පිටු",
+    "itemsPerPage": "පිටුවකට පේළි",
+    "pageOf": "{{total}} න් {{page}}",
+    "first": "පළමු පිටුව",
+    "prev": "පෙර පිටුව",
+    "next": "ඊළඟ පිටුව",
+    "last": "අවසන් පිටුව"
   }
 }

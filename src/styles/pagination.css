@@ -1,0 +1,72 @@
+/* TablePagination (.tpg) — app-wide table pager, farmer + admin. Matches the
+   classic items-per-page / arrows / "x of y" idiom restyled with our tokens. */
+.tpg {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  padding: var(--sp-3) var(--sp-1) 0;
+  margin-top: var(--sp-1);
+  border-top: 1px solid var(--line);
+}
+.tpg__size {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+.tpg__select {
+  min-height: var(--touch-min);
+  min-width: 64px;
+  padding: var(--sp-1) var(--sp-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+}
+.tpg__select:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.tpg__nav {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.tpg__count {
+  min-width: 64px;
+  text-align: center;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  font-variant-numeric: var(--fvn-tabular);
+}
+.tpg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--brand-strong);
+  font-size: var(--fs-body);
+  line-height: 1;
+  cursor: pointer;
+}
+.tpg-btn:hover:not(:disabled) {
+  background: var(--brand-tint);
+}
+.tpg-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.tpg-btn:disabled {
+  color: var(--text-3);
+  opacity: 0.45;
+  cursor: default;
+}

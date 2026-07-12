@@ -9,8 +9,12 @@
 // =============================================================================
 import {
   ForecastConfidenceCode,
+  MarketType,
+  PolicyDirection,
+  PolicyType,
   RecommendationLevel,
   type ConfidenceString,
+  type PolicyStatus,
 } from '../api/types';
 
 /** Display buckets. Tone drives icon+color pairing (color is never sole signal). */
@@ -124,6 +128,97 @@ export function clampPlantDateToRange(
   if (Number.isNaN(d.getTime())) return fallback;
   if (date < min || date > max) return fallback;
   return date;
+}
+
+// ===========================================================================
+// ADMIN CONSOLE mappers (ADM-2 / ADM-3). Int enum -> i18n label key, following the
+// existing confidence/verdict mapper pattern. UNKNOWN ints degrade to a muted raw
+// label ("#<n>") and NEVER crash — a future backend enum value must not blank the
+// admin table. `labelKey === null` signals the caller to render `fallback` muted.
+// ===========================================================================
+
+/** An enum display: i18n key when the int is known, else a muted raw fallback. */
+export interface EnumLabel {
+  /** i18n key when the wire int is a known enum member; null when unknown. */
+  labelKey: string | null;
+  /** Raw label to show (muted) when labelKey is null. */
+  fallback: string;
+}
+
+const POLICY_TYPE_KEYS: Record<number, string> = {
+  [PolicyType.Subsidy]: 'admin.policy.type.subsidy',
+  [PolicyType.ImportBan]: 'admin.policy.type.importBan',
+  [PolicyType.ExportBan]: 'admin.policy.type.exportBan',
+  [PolicyType.PriceCeiling]: 'admin.policy.type.priceCeiling',
+  [PolicyType.PriceFloor]: 'admin.policy.type.priceFloor',
+  [PolicyType.FertiliserSubsidy]: 'admin.policy.type.fertiliserSubsidy',
+  [PolicyType.FuelPriceChange]: 'admin.policy.type.fuelPriceChange',
+  [PolicyType.Other]: 'admin.policy.type.other',
+  [PolicyType.Budget]: 'admin.policy.type.budget',
+};
+
+/** PolicyType int -> label. Unknown int -> muted "#<n>" (never crash). */
+export function mapPolicyType(type: number): EnumLabel {
+  const labelKey = POLICY_TYPE_KEYS[type] ?? null;
+  return { labelKey, fallback: `#${type}` };
+}
+
+/** Direction display: glyph + word, never colour-ONLY. Toned badges (owner request
+ *  2026-07-12): bullish=green (--good), bearish=amber (--warn). RED stays reserved
+ *  for the farmer "Not recommended" verdict, and green/amber survives red-green CVD. */
+export interface DirectionLabel extends EnumLabel {
+  /** Text glyph paired with the word (▲ Bullish / ▼ Bearish / – Neutral). */
+  glyph: string;
+  /** Badge tone -> .is-<tone> CSS modifier; null (unknown int) keeps neutral styling. */
+  tone: 'bullish' | 'bearish' | 'neutral' | null;
+}
+
+/** PolicyDirection int -> glyph + label + tone. Handles the -1 (Bearish); unknown -> "•". */
+export function mapPolicyDirection(direction: number): DirectionLabel {
+  switch (direction) {
+    case PolicyDirection.Bullish:
+      return { labelKey: 'admin.policy.dir.bullish', glyph: '▲', fallback: '#1', tone: 'bullish' };
+    case PolicyDirection.Bearish:
+      return { labelKey: 'admin.policy.dir.bearish', glyph: '▼', fallback: '#-1', tone: 'bearish' };
+    case PolicyDirection.Neutral:
+      return { labelKey: 'admin.policy.dir.neutral', glyph: '–', fallback: '#0', tone: 'neutral' };
+    default:
+      return { labelKey: null, glyph: '•', fallback: `#${direction}`, tone: null };
+  }
+}
+
+const MARKET_TYPE_KEYS: Record<number, string> = {
+  [MarketType.Wholesale]: 'admin.markets.type.wholesale',
+  [MarketType.Retail]: 'admin.markets.type.retail',
+  [MarketType.DEC]: 'admin.markets.type.dec',
+  [MarketType.NationalAggregate]: 'admin.markets.type.nationalAggregate',
+};
+
+/** MarketType int -> label. Unknown int -> muted "#<n>" (never crash). */
+export function mapMarketType(type: number): EnumLabel {
+  const labelKey = MARKET_TYPE_KEYS[type] ?? null;
+  return { labelKey, fallback: `#${type}` };
+}
+
+/**
+ * Derive a policy flag's lifecycle status from its effective window, client-side:
+ *   Active    — effectiveFrom <= today <= (effectiveTo or open-ended)
+ *   Scheduled — effectiveFrom > today (not started yet)
+ *   Expired   — effectiveTo < today (window closed)
+ * Compares calendar dates (YYYY-MM-DD) so a datetime's clock time never flips the
+ * status; ISO date strings sort lexicographically, so string comparison is correct.
+ */
+export function derivePolicyStatus(
+  effectiveFrom: string,
+  effectiveTo: string | null,
+  today: Date = new Date(),
+): PolicyStatus {
+  const todayYmd = ymdLocal(today);
+  const fromYmd = (effectiveFrom ?? '').slice(0, 10);
+  const toYmd = effectiveTo ? effectiveTo.slice(0, 10) : null;
+  if (fromYmd && fromYmd > todayYmd) return 'scheduled';
+  if (toYmd && toYmd < todayYmd) return 'expired';
+  return 'active';
 }
 
 /**

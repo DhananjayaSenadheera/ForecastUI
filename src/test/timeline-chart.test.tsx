@@ -64,14 +64,17 @@ describe('TimelineChart (FE-5)', () => {
     expect(document.querySelector('.tl-harvest__label')?.textContent).toContain('Rs. 552');
   });
 
-  it('provides the <details> table alternative with a row per history + forecast point', () => {
+  it('provides the <details> table alternative, paged at 10 rows (history then forecast)', () => {
     renderChart();
     const summary = screen.getByText(/View as table/);
-    const table = within(summary.closest('details') as HTMLElement).getByRole('table');
-    // 12 history + 3 forecast = 15 body rows
-    const rows = within(table).getAllByRole('row');
-    // + 1 header row
-    expect(rows.length).toBe(fxTimeline.history.length + fxTimeline.forecast.length + 1);
+    const details = summary.closest('details') as HTMLElement;
+    const table = within(details).getByRole('table');
+    // 12 history + 3 forecast = 15 rows total -> page 1 shows 10 (+1 header row)
+    expect(within(table).getAllByRole('row').length).toBe(10 + 1);
+    expect(within(details).getByText('1 of 2')).toBeInTheDocument();
+    // page 2 carries the remaining history + the 3 forecast rows incl. harvest
+    fireEvent.click(within(details).getByLabelText('Next page'));
+    expect(within(table).getAllByRole('row').length).toBe(5 + 1);
     expect(within(table).getByText('Rs. 552')).toBeInTheDocument();
     expect(within(table).getByText('Rs. 233')).toBeInTheDocument(); // P10 at harvest
     expect(within(table).getByText('Rs. 694')).toBeInTheDocument(); // P90 at harvest

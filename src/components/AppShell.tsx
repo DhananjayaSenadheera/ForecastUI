@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { NAV_DESTINATIONS } from '../app/nav';
+import { ADMIN_NAV_DESTINATIONS, NAV_DESTINATIONS } from '../app/nav';
+import { useAuth } from '../auth/AuthContext';
 import LanguageSwitcher from './LanguageSwitcher';
 import TextSizeToggle from './TextSizeToggle';
 import AudioHelpButton from './AudioHelpButton';
@@ -15,6 +16,10 @@ import SessionMenu from './SessionMenu';
 export default function AppShell() {
   const { t } = useTranslation();
   const location = useLocation();
+  const { session } = useAuth();
+  // Admin nav appears ONLY for role 'Admin' — zero visual change for farmers.
+  const isAdmin = session?.role === 'Admin';
+  const tabItems = isAdmin ? [...NAV_DESTINATIONS, ...ADMIN_NAV_DESTINATIONS] : NAV_DESTINATIONS;
 
   return (
     <div className="shell">
@@ -41,6 +46,26 @@ export default function AppShell() {
               {d.soon && <span className="navitem__soon">{t('nav.soon')}</span>}
             </NavLink>
           ))}
+
+          {isAdmin && (
+            <>
+              <p className="sidebar__group" aria-hidden="true">
+                {t('nav.admin.group')}
+              </p>
+              {ADMIN_NAV_DESTINATIONS.map((d) => (
+                <NavLink
+                  key={d.to}
+                  to={d.to}
+                  className={({ isActive }) => `navitem${isActive ? ' is-active' : ''}`}
+                >
+                  <span className="navitem__icon" aria-hidden="true">
+                    {d.icon}
+                  </span>
+                  <span className="wrap-label">{t(d.labelKey)}</span>
+                </NavLink>
+              ))}
+            </>
+          )}
         </nav>
 
         <div className="sidebar__foot">
@@ -79,7 +104,7 @@ export default function AppShell() {
 
       {/* ---- mobile bottom tab bar ---- */}
       <nav className="tabbar" aria-label={t('nav.overview')}>
-        {NAV_DESTINATIONS.map((d) => (
+        {tabItems.map((d) => (
           <NavLink
             key={d.to}
             to={d.to}
