@@ -265,6 +265,63 @@ export interface MarketOverview {
   latestPrices: MarketLatestPrice[];
 }
 
+// ===========================================================================
+// AUTH — FE-17. Contract AUDITED read-only against the live .NET backend on
+// 2026-07-12 (AuthController + Application/Requests/Auth DTOs, commands,
+// validators, handlers, JwtTokenGenerator, Program.cs CORS).
+//
+// ROUTES (AuthController, [ApiController] Route "api/auth", [AllowAnonymous],
+//         [EnableRateLimiting("auth")] — stricter anti-brute-force limit):
+//   POST /api/auth/register  body: { "registerDto": { username, email, password } }
+//   POST /api/auth/login     body: { "loginDto":    { username, password } }
+//   ^ BODIES ARE WRAPPED. The controller binds [FromBody] Register/LoginCommand,
+//     and each command has a single property (RegisterDto / LoginDto). Sending the
+//     bare DTO binds to nothing -> validation fails. This mirrors the crops
+//     createDto wrapper already handled in client.ts.
+//   ^ LOGIN IS BY USERNAME, not email. LoginDto has NO email field. The login
+//     form's identity input must be labelled "username" and map to loginDto.username.
+//
+// SUCCESS 200 -> AuthResponseDto (below). ExpiresAtUtc is the JWT expiry (no
+//   refresh token is issued — Generate() returns only (token, expiresAt)).
+// REGISTER FAILURE -> 400 { errors: [ { property: "Auth", message } ] }
+//   messages: "Username is already taken." / "Email is already registered." /
+//   FluentValidation messages (username req/<=50, email req+valid+<=256,
+//   password req + 8..128 chars).
+// LOGIN FAILURE -> 401 { errors: [ { property: "Auth", message } ] }
+//   message: "Invalid username or password." (same for unknown-user OR bad
+//   password — deliberately non-enumerable; the UI shows it verbatim).
+// Both error shapes match request()'s existing errors[0].message extraction.
+//
+// AUTHORIZATION MAP (all data routes require a Bearer token):
+//   ForecastController  [Authorize]  (monthly, harvest, timeline, best-crops,
+//                                     market-overview)
+//   CropController      [Authorize]  (get/all, get/{id}, create)
+//   MarketController    [Authorize]
+//   AuthController      [AllowAnonymous]  (register + login only)
+//
+// NO refresh-token / silent-renew mechanism exists on the backend. In-memory
+// token + page-refresh-loses-session is the deliberate R2 posture; the renew
+// flow is flagged as a backend backlog item (see AuthContext).
+//
+// ⚠️ LIVE-LOGIN BLOCKER (FLAGGED to the hub, backend is read-only + on hold):
+//   CORS is fail-closed. Program.cs reads Cors:AllowedOrigins and NEVER falls
+//   back to AllowAnyOrigin (security fix F-07). The real appsettings.Development
+//   .json carries NO Cors section, and the example lists only http://localhost
+//   :5173 — but this app runs on :4173. Until the backend adds
+//   "http://localhost:4173" to Cors:AllowedOrigins, the browser blocks every
+//   cross-origin call (auth included) and LIVE mode cannot authenticate. FIXTURES
+//   mode (VITE_API_MODE=fixtures, simulated auth) is unaffected and demoable now.
+// ===========================================================================
+
+/** POST /api/auth/{login,register} success body (Application AuthResponseDto). */
+export interface AuthResponseDto {
+  accessToken: string;
+  expiresAtUtc: string; // ISO datetime — JWT expiry (no refresh token issued)
+  username: string;
+  email: string;
+  role: string; // "Farmer" for self-registration
+}
+
 // ---------------------------------------------------------------------------
 // FIXTURE-ONLY endpoints (NOT built on the API yet — API gaps #1 / #2).
 // Shapes are the FE proposal from the PRD gap list; treat as provisional.

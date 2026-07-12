@@ -1,0 +1,76 @@
+/* =============================================================================
+   Shared chart tooltip (FE-20). A positioned overlay used by every SVG line chart
+   (timeline, prices single + overlay, compare). Tokens only; pointer-events none so
+   it never steals the hover; flips near the right edge; respects reduced-motion.
+   ========================================================================== */
+.ct-wrap {
+  position: relative;
+}
+/* The focusable chart shows a visible ring for keyboard users. */
+.ct-wrap svg:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-sm);
+}
+
+.ct-tip {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 12px));
+  min-width: 96px;
+  max-width: 220px;
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface);
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--e-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--fs-sm);
+  line-height: 1.35;
+  transition: left var(--dur-fast) var(--ease), top var(--dur-fast) var(--ease);
+}
+/* Near the right edge: anchor to the point's left so it never clips off-screen. */
+.ct-tip--flip {
+  transform: translate(-90%, calc(-100% - 12px));
+}
+/* Point sits high in the plot: drop the tooltip BELOW the point instead of above. */
+.ct-tip--below {
+  transform: translate(-50%, 12px);
+}
+.ct-tip--flip.ct-tip--below {
+  transform: translate(-90%, 12px);
+}
+.ct-tip__name {
+  font-weight: var(--fw-bold);
+  color: var(--text);
+}
+.ct-tip__label {
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+}
+.ct-tip__price {
+  font-weight: var(--fw-bold);
+  color: var(--text);
+  font-variant-numeric: var(--fvn-tabular);
+}
+.ct-tip__band {
+  color: var(--warn-fg);
+  font-size: var(--fs-xs);
+  font-variant-numeric: var(--fvn-tabular);
+}
+
+/* Active-point highlight dot drawn inside the SVG at the hovered/focused point. */
+.ct-dot {
+  fill: var(--surface);
+  stroke: var(--chart-marker);
+  stroke-width: 2.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ct-tip {
+    transition: none;
+  }
+}
