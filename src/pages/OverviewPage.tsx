@@ -15,7 +15,7 @@
 // sentence + the panel ships a <details> numeric table alternative (the number is the
 // product, never chart-only); no fabricated values, no internal task IDs in copy.
 // =============================================================================
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
@@ -24,7 +24,8 @@ import { formatDate, formatPrice, mapVerdict } from '../lib/format';
 import { biggestMover, moverGlyph, moverDirectionKey, overviewHasData, partitionMovers } from '../lib/overview';
 import { buildSparkline } from '../lib/prices';
 
-const WINDOW_DAYS = 30;
+const WINDOW_OPTS = [7, 30, 90] as const;
+const DEFAULT_WINDOW = 30;
 const TEASER_COUNT = 3;
 const SPARK_W = 100;
 const SPARK_H = 24;
@@ -42,20 +43,32 @@ export default function OverviewPage() {
   const lang = i18n.language;
 
   // ---- source 1: market overview (KPIs + movers + latest prices) ----
+  const [windowDays, setWindowDays] = useState<number>(DEFAULT_WINDOW);
   const [ov, setOv] = useState<MarketOverview | null>(null);
-  const [ovLoading, setOvLoading] = useState(true);
+  const [ovLoading, setOvLoading] = useState(true); // initial-only full skeleton
+  const [ovBusy, setOvBusy] = useState(false); // window-switch refetch (keep last data)
   const [ovError, setOvError] = useState(false);
+  const hasLoadedRef = useRef(false);
 
-  const loadOverview = useCallback(async () => {
-    setOvLoading(true);
+  // A window switch keeps the last snapshot visible under a subtle busy state
+  // (aria-busy) rather than blanking the page; only the very first load skeletons.
+  const loadOverview = useCallback(async (days: number) => {
     setOvError(false);
+    if (hasLoadedRef.current) setOvBusy(true);
+    else setOvLoading(true);
     try {
-      setOv(await api.getMarketOverview(WINDOW_DAYS));
+      setOv(await api.getMarketOverview(days));
+      hasLoadedRef.current = true;
     } catch {
       setOvError(true);
     } finally {
       setOvLoading(false);
+      setOvBusy(false);
     }
+  }, []);
+
+  const onWindow = useCallback((days: number) => {
+    setWindowDays((cur) => (cur === days ? cur : days));
   }, []);
 
   // ---- source 2: best-crops teaser (independent, fail-soft) ----
@@ -75,10 +88,14 @@ export default function OverviewPage() {
     }
   }, []);
 
+  // Refetch when the window changes; the teaser is independent (mount only).
   useEffect(() => {
-    void loadOverview();
+    void loadOverview(windowDays);
+  }, [loadOverview, windowDays]);
+
+  useEffect(() => {
     void loadTeaser();
-  }, [loadOverview, loadTeaser]);
+  }, [loadTeaser]);
 
   const hasData = ov !== null && overviewHasData(ov);
 
@@ -92,11 +109,30 @@ export default function OverviewPage() {
       </div>
       <p className="ov-sub">{t('pages.overview.subtitle')}</p>
 
+      {/* Window selector — 7 / 30 / 90 days. Drives the market-overview refetch;
+          the caption + KPIs follow the SERVED windowDays, never this local pick. */}
+      <div className="ov-winsel" role="group" aria-label={t('pages.overview.windowLabel')}>
+        <span className="ov-winsel__label">{t('pages.overview.windowLabel')}</span>
+        <div className="bc-seg">
+          {WINDOW_OPTS.map((d) => (
+            <button
+              key={d}
+              type="button"
+              className={`bc-seg__btn${windowDays === d ? ' is-active' : ''}`}
+              aria-pressed={windowDays === d}
+              onClick={() => onWindow(d)}
+            >
+              {t(`pages.overview.window${d}`)}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {ovError ? (
         <section className="panel ov-state" role="alert" aria-label={t('pages.overview.title')}>
           <p className="ov-state__title">{t('common.errorTitle')}</p>
           <p className="ov-state__body">{t('common.errorBody')}</p>
-          <button type="button" className="btn-ghost ov-state__retry" onClick={() => void loadOverview()}>
+          <button type="button" className="btn-ghost ov-state__retry" onClick={() => void loadOverview(windowDays)}>
             {t('common.retry')}
           </button>
         </section>
@@ -109,14 +145,14 @@ export default function OverviewPage() {
           <p className="ov-empty__body">{t('pages.overview.emptyBody')}</p>
         </section>
       ) : (
-        <>
+        <div className={`ov-live${ovBusy ? ' is-busy' : ''}`} aria-busy={ovBusy || undefined}>
           <KpiRow ov={ov!} lang={lang} t={t} />
           <p className="ov-window">{t('pages.overview.windowCaption', { count: ov!.windowDays })}</p>
           <div className="panelgrid panelgrid--main ov-grid">
             <LatestPricesPanel prices={ov!.latestPrices} lang={lang} t={t} />
             <MoversPanel movers={ov!.movers} lang={lang} t={t} />
           </div>
-        </>
+        </div>
       )}
 
       {/* Best-crops teaser — independent fetch, fail-soft (never sinks the page). */}

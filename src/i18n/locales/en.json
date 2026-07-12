@@ -23,6 +23,9 @@
   "audio": {
     "listen": "Listen to this page"
   },
+  "a11y": {
+    "textSize": "Larger text"
+  },
   "common": {
     "loading": "Loading…",
     "retry": "Retry",
@@ -135,7 +138,8 @@
     "emptyBody": "No crop matches “{{query}}”. Try another word.",
     "catAll": "All crops",
     "catVegetables": "Vegetables",
-    "catFruits": "Fruits"
+    "catFruits": "Fruits",
+    "recent": "Recent"
   },
   "pages": {
     "overview": {
@@ -152,6 +156,10 @@
       "moverPct": "{{pct}}% {{dir}}",
       "rising": "rising",
       "falling": "falling",
+      "windowLabel": "Time window",
+      "window7": "7 days",
+      "window30": "30 days",
+      "window90": "90 days",
       "windowCaption": "Based on the last {{count}} days of market prices.",
       "moversTitle": "Price movers",
       "moversRising": "Rising",
@@ -230,6 +238,28 @@
       "emptyTitle": "No crop suggestions yet",
       "emptyBody": "We could not rank any crops for this period. Try a longer price window.",
       "tableCaption": "Best crops to plant, ranked, using the last {{count}} months of prices."
+    },
+    "compare": {
+      "title": "Compare crops",
+      "subtitle": "See how 2–3 crops' 12-month price outlook compares on one shared scale.",
+      "entry": "Compare crops",
+      "backToBest": "Best crops",
+      "pick": "Choose crops to compare",
+      "pickHint": "Tap up to {{max}} crops to overlay their price timelines.",
+      "capNote": "You can compare up to {{max}} crops at a time. Remove one to add another.",
+      "chartHeading": "12-month price — past and forecast",
+      "chartAria": "12-month price comparison for {{count}} crops: {{crops}}. Solid lines are past prices, dashed lines are the forecast. Full numbers in the table below.",
+      "keyHistory": "Past prices (solid)",
+      "keyForecast": "Forecast (dashed)",
+      "bandCaption": "Shaded bands show each crop's approximate price range — wider means less certain.",
+      "thinNote": "Only {{count}} months of price data for {{crop}} — its line is a rough guide.",
+      "failNote": "Could not load the price timeline for {{crop}}.",
+      "allFailed": "Could not load price timelines for the chosen crops. Please try again.",
+      "emptyTitle": "Pick crops to compare",
+      "emptyBody": "Choose 2 or 3 crops above to see their price outlooks side by side.",
+      "tableToggle": "View as table",
+      "tableMonth": "Month",
+      "tableNote": "Past prices are the monthly average; ~ marks a forecast (approximate)."
     },
     "prices": {
       "title": "Prices",

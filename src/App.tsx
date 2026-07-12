@@ -5,6 +5,7 @@ import LanguageGate, { hasSeenLanguageGate } from './components/LanguageGate';
 import OverviewPage from './pages/OverviewPage';
 import MyHarvestPage from './pages/MyHarvestPage';
 import BestCropsPage from './pages/BestCropsPage';
+import CompareCropsPage from './pages/CompareCropsPage';
 import PricesPage from './pages/PricesPage';
 
 export default function App() {
@@ -22,6 +23,8 @@ export default function App() {
         <Route path="/overview" element={<OverviewPage />} />
         <Route path="/my-harvest" element={<MyHarvestPage />} />
         <Route path="/best-crops" element={<BestCropsPage />} />
+        {/* Non-tab child route — keeps the 4-tab IA; Best-crops nav stays active. */}
+        <Route path="/best-crops/compare" element={<CompareCropsPage />} />
         <Route path="/prices" element={<PricesPage />} />
         <Route path="*" element={<Navigate to="/overview" replace />} />
       </Route>

@@ -4,8 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import type { Crop, CropTimeline, HarvestForecast } from '../api/types';
 import { cropDisplayName } from '../lib/crops';
-import { formatDate, ymdLocal } from '../lib/format';
+import { clampPlantDateToRange, formatDate, ymdLocal } from '../lib/format';
 import { isLowTrust } from '../lib/forecast';
+import { pushRecentCrop, readLastHarvest, readRecentCrops, writeLastHarvest } from '../lib/storage';
 import CropPicker from '../components/CropPicker';
 import ForecastResult from '../components/ForecastResult';
 import TimelineChart from '../components/TimelineChart';
@@ -46,10 +47,12 @@ export default function MyHarvestPage() {
   const [timeline, setTimeline] = useState<CropTimeline | null>(null);
   const [tlLoading, setTlLoading] = useState(false);
   const [tlError, setTlError] = useState(false);
+  const [recentIds, setRecentIds] = useState<string[]>(() => readRecentCrops());
   const resultRef = useRef<HTMLDivElement>(null);
 
-  // Deep-link from the Best-crops screen (FE-7): /my-harvest?crop=<id> preselects
-  // that crop once the list loads. Runs once so a later manual change isn't undone.
+  // Preselect precedence (runs ONCE after the list loads, so a later manual change
+  // is never undone): a /my-harvest?crop=<id> deep-link (FE-7) ALWAYS wins; failing
+  // that, the last-forecast crop + planting date remembered in localStorage (FE-16).
   const [searchParams] = useSearchParams();
   const cropParam = searchParams.get('crop');
   const didPreselect = useRef(false);
@@ -72,14 +75,29 @@ export default function MyHarvestPage() {
   }, [load]);
 
   useEffect(() => {
-    if (didPreselect.current || !cropParam || crops.length === 0) return;
-    const match = crops.find((c) => c.id === cropParam);
-    if (match) {
-      setSelected(match);
-      setSubmitted(false);
-    }
+    if (didPreselect.current || crops.length === 0) return;
     didPreselect.current = true;
-  }, [cropParam, crops]);
+
+    // URL ?crop= ALWAYS wins over the remembered crop (even if it doesn't match).
+    if (cropParam) {
+      const match = crops.find((c) => c.id === cropParam);
+      if (match) {
+        setSelected(match);
+        setSubmitted(false);
+      }
+      return;
+    }
+
+    // Otherwise restore the last-forecast crop + date, if the crop still exists and
+    // the date is within [today-365, today+60] (else the date falls back to today).
+    const last = readLastHarvest();
+    if (!last) return;
+    const match = crops.find((c) => c.id === last.cropId);
+    if (!match) return;
+    setSelected(match);
+    setSubmitted(false);
+    setPlantDate(clampPlantDateToRange(last.plantDate, todayStr, minDate, maxDate));
+  }, [cropParam, crops, todayStr, minDate, maxDate]);
 
   const onSelect = useCallback((crop: Crop) => {
     setSelected(crop);
@@ -95,6 +113,9 @@ export default function MyHarvestPage() {
     try {
       const data = await api.getHarvestForecast(selected.id, plantDate);
       setForecast(data);
+      // Remember this successful pick (crop + date) + push it onto the Recent list.
+      writeLastHarvest(selected.id, plantDate);
+      setRecentIds(pushRecentCrop(selected.id));
     } catch {
       setFcError(true);
     } finally {
@@ -153,6 +174,7 @@ export default function MyHarvestPage() {
           onRetry={() => void load()}
           selectedId={selected?.id ?? null}
           onSelect={onSelect}
+          recentIds={recentIds}
         />
       </section>
 

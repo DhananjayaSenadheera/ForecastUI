@@ -124,7 +124,7 @@ export const api = {
   // Landing-dashboard snapshot (FE-1). LIVE route being built against the API-7
   // contract in parallel; consumed verbatim (camelCase). days defaults to 30.
   async getMarketOverview(days = 30): Promise<MarketOverview> {
-    if (USE_FIXTURES) return fx.fxMarketOverview;
+    if (USE_FIXTURES) return fx.fxMarketOverviewFor(days);
     return request<MarketOverview>(`/api/forecast/market-overview?days=${days}`);
   },
 

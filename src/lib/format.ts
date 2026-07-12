@@ -107,6 +107,26 @@ export function formatDate(value: string | Date, lang: string): string {
 }
 
 /**
+ * Clamp a remembered "YYYY-MM-DD" planting date into the allowed window. Returns
+ * the date when it is a valid ISO day AND within [min,max]; otherwise falls back
+ * to `fallback` (today). Keeps a restored plant date honest — a stale value can
+ * never leak an out-of-range date into the picker. (ISO YYYY-MM-DD strings sort
+ * lexicographically, so string comparison is a correct range check.)
+ */
+export function clampPlantDateToRange(
+  date: string,
+  fallback: string,
+  min: string,
+  max: string,
+): string {
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return fallback;
+  const d = new Date(date + 'T00:00:00');
+  if (Number.isNaN(d.getTime())) return fallback;
+  if (date < min || date > max) return fallback;
+  return date;
+}
+
+/**
  * "YYYY-MM-DD" from the user's LOCAL calendar date. Never use
  * toISOString().slice(0,10) for calendar dates: it converts to UTC first,
  * which is yesterday until 05:30 AM in Sri Lanka (UTC+5:30).

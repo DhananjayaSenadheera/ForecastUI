@@ -388,33 +388,62 @@ function latestPrice(
   };
 }
 
-export const fxMarketOverview: MarketOverview = {
-  asOf: PRICE_ANCHOR, // '2026-07-10'
-  windowDays: 30,
-  marketsWithData: 10,
-  cropsWithData: 24,
-  // Up to 5 risers THEN up to 5 fallers, server order preserved (never re-sorted).
-  movers: [
-    mover('c0000001-0000-0000-0000-000000000001', 'Capsicum', DAMBULLA, 480, 552), // +15.0%
-    mover('c0000005-0000-0000-0000-000000000005', 'Green Chilli', PETTAH, 387, 430), // +11.1%
-    mover('c0000010-0000-0000-0000-000000000010', 'Leeks', DAMBULLA, 280, 302), // +7.9%
-    mover('c0000002-0000-0000-0000-000000000002', 'Beans', DAMBULLA, 292, 310), // +6.2%
-    mover('c0000006-0000-0000-0000-000000000006', 'Carrot', DAMBULLA, 269, 280), // +4.1%
-    mover('c0000007-0000-0000-0000-000000000007', 'Cabbage', DAMBULLA, 108, 95), // -12.0%
-    mover('c0000009-0000-0000-0000-000000000009', 'Pumpkin', DAMBULLA, 86, 80), // -7.0%
-    mover('c0000008-0000-0000-0000-000000000008', 'Brinjal', DAMBULLA, 240, 226), // -5.8%
-    mover('c0000003-0000-0000-0000-000000000003', 'Tomato', DAMBULLA, 198, 182), // -8.1%
-    mover('c0000011-0000-0000-0000-000000000011', 'Beetroot', DAMBULLA, 150, 144), // -4.0%
-  ],
-  // Up to 8 crops. Green Chilli reads from Colombo (Pettah) = dearest market; Passion
-  // Fruit from Meegoda (thin, 3 days) => a SPARSE 3-point spark; rest at Dambulla DEC.
-  latestPrices: [
-    latestPrice('c0000001-0000-0000-0000-000000000001', 'Capsicum', DAMBULLA, DAMBULLA_ID),
-    latestPrice('c0000005-0000-0000-0000-000000000005', 'Green Chilli', PETTAH, PETTAH_ID),
-    latestPrice('c0000002-0000-0000-0000-000000000002', 'Beans', DAMBULLA, DAMBULLA_ID),
-    latestPrice('c0000003-0000-0000-0000-000000000003', 'Tomato', DAMBULLA, DAMBULLA_ID),
-    latestPrice('c0000006-0000-0000-0000-000000000006', 'Carrot', DAMBULLA, DAMBULLA_ID),
-    latestPrice('c0000007-0000-0000-0000-000000000007', 'Cabbage', DAMBULLA, DAMBULLA_ID),
-    latestPrice('c0000004-0000-0000-0000-000000000004', 'Passion Fruit', MEEGODA, MEEGODA_ID),
-  ],
-};
+// Up to 5 risers THEN up to 5 fallers, server order preserved (never re-sorted).
+const ALL_MOVERS: MarketMover[] = [
+  mover('c0000001-0000-0000-0000-000000000001', 'Capsicum', DAMBULLA, 480, 552), // +15.0%
+  mover('c0000005-0000-0000-0000-000000000005', 'Green Chilli', PETTAH, 387, 430), // +11.1%
+  mover('c0000010-0000-0000-0000-000000000010', 'Leeks', DAMBULLA, 280, 302), // +7.9%
+  mover('c0000002-0000-0000-0000-000000000002', 'Beans', DAMBULLA, 292, 310), // +6.2%
+  mover('c0000006-0000-0000-0000-000000000006', 'Carrot', DAMBULLA, 269, 280), // +4.1%
+  mover('c0000007-0000-0000-0000-000000000007', 'Cabbage', DAMBULLA, 108, 95), // -12.0%
+  mover('c0000009-0000-0000-0000-000000000009', 'Pumpkin', DAMBULLA, 86, 80), // -7.0%
+  mover('c0000008-0000-0000-0000-000000000008', 'Brinjal', DAMBULLA, 240, 226), // -5.8%
+  mover('c0000003-0000-0000-0000-000000000003', 'Tomato', DAMBULLA, 198, 182), // -8.1%
+  mover('c0000011-0000-0000-0000-000000000011', 'Beetroot', DAMBULLA, 150, 144), // -4.0%
+];
+
+// Up to 8 crops. Green Chilli reads from Colombo (Pettah) = dearest market; Passion
+// Fruit from Meegoda (thin, 3 days) => a SPARSE 3-point spark; rest at Dambulla DEC.
+const LATEST_PRICES: MarketLatestPrice[] = [
+  latestPrice('c0000001-0000-0000-0000-000000000001', 'Capsicum', DAMBULLA, DAMBULLA_ID),
+  latestPrice('c0000005-0000-0000-0000-000000000005', 'Green Chilli', PETTAH, PETTAH_ID),
+  latestPrice('c0000002-0000-0000-0000-000000000002', 'Beans', DAMBULLA, DAMBULLA_ID),
+  latestPrice('c0000003-0000-0000-0000-000000000003', 'Tomato', DAMBULLA, DAMBULLA_ID),
+  latestPrice('c0000006-0000-0000-0000-000000000006', 'Carrot', DAMBULLA, DAMBULLA_ID),
+  latestPrice('c0000007-0000-0000-0000-000000000007', 'Cabbage', DAMBULLA, DAMBULLA_ID),
+  latestPrice('c0000004-0000-0000-0000-000000000004', 'Passion Fruit', MEEGODA, MEEGODA_ID),
+];
+
+// FE-15: the overview window selector (7 / 30 / 90 days) drives this. Fixtures VARY
+// by window so the control visibly changes the snapshot — a short 7-day window
+// surfaces fewer movers (3 up / 3 down) and slightly fewer crops/markets with data;
+// a long 90-day window a few more. windowDays always ECHOES the requested `days` so
+// the "based on the last N days" caption stays honest. asOf/latestPrices are stable
+// (the newest observed prices don't change with the summary window).
+export function fxMarketOverviewFor(days = 30): MarketOverview {
+  const risers = ALL_MOVERS.filter((m) => m.direction === 'up');
+  const fallers = ALL_MOVERS.filter((m) => m.direction === 'down');
+  let nUp = risers.length;
+  let nDown = fallers.length;
+  let marketsWithData = 10;
+  let cropsWithData = 24;
+  if (days <= 7) {
+    nUp = 3;
+    nDown = 3;
+    marketsWithData = 8;
+    cropsWithData = 18;
+  } else if (days >= 90) {
+    marketsWithData = 12;
+    cropsWithData = 28;
+  }
+  return {
+    asOf: PRICE_ANCHOR, // '2026-07-10'
+    windowDays: days,
+    marketsWithData,
+    cropsWithData,
+    movers: [...risers.slice(0, nUp), ...fallers.slice(0, nDown)],
+    latestPrices: LATEST_PRICES,
+  };
+}
+
+export const fxMarketOverview: MarketOverview = fxMarketOverviewFor(30);

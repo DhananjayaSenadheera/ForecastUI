@@ -1,0 +1,254 @@
+/* =============================================================================
+   Crop-vs-crop comparison (FE-14). Tokens only. The overlay chart draws up to 3
+   crops on ONE shared scale: history solid, forecast dashed, low-opacity bands in
+   each crop's Okabe–Ito colour (assigned by selection order, applied inline). A
+   month×crop table is the mandatory text alternative. NEUTRAL palette — no red
+   (red stays reserved app-wide for the "Not recommended" verdict).
+   ========================================================================== */
+.cmp-sub {
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  margin: 0 0 var(--sp-4);
+}
+.cmp-back {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  color: var(--brand);
+  white-space: nowrap;
+}
+
+/* ---- selection ---- */
+.cmp-pick {
+  margin-bottom: var(--sp-4);
+}
+.cmp-pick__title {
+  font-size: var(--fs-title);
+  margin: 0 0 var(--sp-1);
+}
+.cmp-pick__hint {
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+  margin: 0 0 var(--sp-3);
+}
+.cmp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.cmp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: var(--touch-min);
+  padding: 8px 14px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text);
+}
+.cmp-chip:hover {
+  border-color: var(--brand);
+  color: var(--brand-strong);
+}
+.cmp-chip.is-on {
+  border-color: var(--brand);
+  background: var(--brand-tint);
+  color: var(--brand-dark);
+  font-weight: var(--fw-bold);
+}
+.cmp-chip:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.cmp-chip__swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex: none;
+}
+.cmp-chip--skel {
+  width: 84px;
+  border-style: dashed;
+  border-color: var(--line);
+  color: transparent;
+  animation: cp-pulse 1.2s ease-in-out infinite;
+}
+.cmp-chips--skel {
+  pointer-events: none;
+}
+.cmp-cap {
+  margin: var(--sp-3) 0 0;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--warn-fg);
+}
+
+/* ---- chart ---- */
+.cmp-chart__title {
+  font-size: var(--fs-title);
+  margin: 0 0 var(--sp-3);
+}
+.cmp-svgwrap {
+  transition: opacity var(--dur-base) var(--ease);
+}
+.cmp-svgwrap.is-busy {
+  opacity: 0.6;
+}
+.cmp-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.cmp-grid { stroke: var(--chart-grid); stroke-width: 1; }
+.cmp-axisline { stroke: var(--line-strong); stroke-width: 1; }
+.cmp-axis {
+  fill: var(--chart-axis);
+  font-size: 12px;
+  font-variant-numeric: var(--fvn-tabular);
+}
+.cmp-band {
+  fill-opacity: 0.12;
+  stroke: none;
+}
+.cmp-hist {
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.cmp-fc {
+  stroke-width: 2.5;
+  stroke-dasharray: 6 4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.cmp-endlabel {
+  font-size: 12px;
+  font-weight: var(--fw-bold);
+}
+
+.cmp-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  margin: var(--sp-3) 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+.cmp-key {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.cmp-key::before {
+  content: '';
+  width: 20px;
+  height: 0;
+  border-top: 2.5px solid var(--text-3);
+}
+.cmp-key--fc::before {
+  border-top-style: dashed;
+}
+.cmp-caption {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+
+/* ---- notes (thin history / per-crop fail-soft) ---- */
+.cmp-note {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin: var(--sp-3) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  line-height: var(--lh-body);
+}
+.cmp-note--error {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  background: var(--warn-bg);
+  border: 1px solid var(--lowtrust-border);
+  border-radius: var(--r-md);
+  padding: var(--sp-3) var(--sp-4);
+  color: var(--warn-fg);
+}
+.cmp-note__retry {
+  width: auto;
+  min-width: 120px;
+  border: 1.5px solid var(--brand);
+}
+
+/* ---- provenance ---- */
+.cmp-prov {
+  margin: var(--sp-4) 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+
+/* ---- empty (0 selected) ---- */
+.cmp-empty {
+  text-align: center;
+  padding: var(--sp-8) var(--sp-6);
+}
+.cmp-empty__icon { font-size: 30px; }
+.cmp-empty__title {
+  font-size: var(--fs-body-lg);
+  font-weight: var(--fw-bold);
+  margin: var(--sp-2) 0;
+}
+.cmp-empty__body { color: var(--text-2); font-size: var(--fs-sm); }
+
+/* ---- skeleton ---- */
+.cmp-skel__chart {
+  height: 240px;
+  border-radius: var(--r-md);
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  animation: cp-pulse 1.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cmp-chip--skel,
+  .cmp-skel__chart { animation: none; }
+}
+
+/* ---- table alternative ---- */
+.cmp-table { margin-top: var(--sp-4); }
+.cmp-table__summary {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  color: var(--brand-strong);
+  cursor: pointer;
+  min-height: var(--touch-min);
+  display: inline-flex;
+  align-items: center;
+}
+.cmp-table__grid {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: var(--sp-3);
+  font-size: var(--fs-sm);
+}
+.cmp-table__grid th,
+.cmp-table__grid td {
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+.cmp-table__num {
+  text-align: right;
+  font-variant-numeric: var(--fvn-tabular);
+}
+.cmp-table__grid thead th {
+  border-bottom: 2px solid var(--line-strong);
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  font-weight: var(--fw-bold);
+}
+.cmp-table__note {
+  margin-top: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}

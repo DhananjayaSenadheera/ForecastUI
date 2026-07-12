@@ -231,3 +231,147 @@ export function buildTimelineGeometry(timeline: CropTimeline, opts: TimelineGeom
     bandPolygon,
   };
 }
+
+// =============================================================================
+// Multi-crop comparison geometry (FE-14, ClickUp 86canmejq). Lays 2–3 crops'
+// 12-month timelines onto ONE shared y-scale + ONE shared date x-axis so the
+// lines are directly comparable. REUSES niceScale + the month/forecast date
+// parsers above rather than forking a second scaling implementation.
+//
+// HONESTY: the y-domain and x-domain are computed from EVERY series' real points
+// (history avg + forecast lower/upper/predicted), so a crop with a thin history
+// (e.g. Passion) simply starts later and draws a shorter line — we never pad or
+// fabricate months to make series look uniform. Forecast bands are returned per
+// crop so the component can render them at low opacity (approximate ranges), and
+// the mandatory table alternative is built by the component from the same data.
+// =============================================================================
+export interface CompareSeriesInput {
+  cropId: string;
+  label: string;
+  timeline: CropTimeline;
+}
+export interface CompareSeriesGeometry {
+  cropId: string;
+  label: string;
+  historyPolyline: string; // solid past line ("" when no history)
+  forecastPolyline: string; // dashed forecast line, anchored at last history point
+  bandPolygon: string; // low-opacity P10–P90 band ("" when no forecast)
+  end: { x: number; y: number } | null; // anchor for the direct end-label
+  hasForecast: boolean;
+}
+export interface CompareGeometry {
+  dims: { width: number; height: number; plot: { left: number; right: number; top: number; bottom: number } };
+  domain: { min: number; max: number };
+  yTicks: AxisTick[];
+  xTicks: { x: number; label: string }[];
+  series: CompareSeriesGeometry[];
+}
+export interface CompareGeometryOpts {
+  width?: number;
+  height?: number;
+  monthLabel?: (d: Date) => string;
+  maxXLabels?: number;
+}
+
+export function buildCompareGeometry(
+  inputs: CompareSeriesInput[],
+  opts: CompareGeometryOpts = {},
+): CompareGeometry | null {
+  const width = opts.width ?? 680;
+  const height = opts.height ?? 300;
+  const monthLabel = opts.monthLabel ?? ((d: Date) => d.toLocaleString('en', { month: 'short' }));
+  const maxXLabels = opts.maxXLabels ?? 7;
+  // Extra right padding leaves room for the direct end-labels (no legend).
+  const plot = { left: 46, right: width - 70, top: 24, bottom: height - 34 };
+
+  const allT: number[] = [];
+  const allV: number[] = [];
+  const parsed = inputs.map((s) => {
+    const hist = s.timeline.history.map((h) => ({ t: monthDate(h).getTime(), v: h.avgPrice }));
+    const fc = s.timeline.forecast.map((f) => ({
+      t: forecastDate(f).getTime(),
+      v: f.predictedPrice,
+      lo: f.lowerBound,
+      hi: f.upperBound,
+    }));
+    for (const h of hist) {
+      allT.push(h.t);
+      allV.push(h.v);
+    }
+    for (const f of fc) {
+      allT.push(f.t);
+      allV.push(f.v, f.lo, f.hi);
+    }
+    return { s, hist, fc };
+  });
+
+  if (allT.length === 0) return null;
+
+  const minT = Math.min(...allT);
+  const maxT = Math.max(...allT);
+  const { niceMin, niceMax, ticks } = niceScale(Math.min(...allV), Math.max(...allV), 4);
+
+  const xFor = (t: number): number =>
+    maxT <= minT ? (plot.left + plot.right) / 2 : plot.left + ((t - minT) / (maxT - minT)) * (plot.right - plot.left);
+  const yFor = (v: number): number =>
+    plot.bottom - ((v - niceMin) / (niceMax - niceMin || 1)) * (plot.bottom - plot.top);
+
+  const series: CompareSeriesGeometry[] = parsed.map(({ s, hist, fc }) => {
+    const histXY = hist.map((h) => ({ x: xFor(h.t), y: yFor(h.v) }));
+    const anchor = histXY.length ? histXY[histXY.length - 1] : null;
+    const fcXY = fc.map((f) => ({ x: xFor(f.t), y: yFor(f.v), yLo: yFor(f.lo), yHi: yFor(f.hi) }));
+
+    const historyPolyline = histXY.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+    const forecastPolyline = fcXY.length
+      ? [...(anchor ? [anchor] : []), ...fcXY.map((p) => ({ x: p.x, y: p.y }))]
+          .map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`)
+          .join(' ')
+      : '';
+
+    let bandPolygon = '';
+    if (fcXY.length) {
+      const top = [...(anchor ? [{ x: anchor.x, y: anchor.y }] : []), ...fcXY.map((p) => ({ x: p.x, y: p.yHi }))];
+      const bottom = [
+        ...fcXY.map((p) => ({ x: p.x, y: p.yLo })).reverse(),
+        ...(anchor ? [{ x: anchor.x, y: anchor.y }] : []),
+      ];
+      bandPolygon = [...top, ...bottom].map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+    }
+
+    const lastPt = fcXY.length ? fcXY[fcXY.length - 1] : histXY.length ? histXY[histXY.length - 1] : null;
+    return {
+      cropId: s.cropId,
+      label: s.label,
+      historyPolyline,
+      forecastPolyline,
+      bandPolygon,
+      end: lastPt ? { x: lastPt.x, y: lastPt.y } : null,
+      hasForecast: fcXY.length > 0,
+    };
+  });
+
+  const yTicks: AxisTick[] = ticks.map((v) => ({ value: v, y: yFor(v), label: String(v) }));
+
+  // Monthly x ticks across the shared domain, thinned so labels stay readable.
+  const months: Date[] = [];
+  const cur = new Date(new Date(minT).getFullYear(), new Date(minT).getMonth(), 1);
+  const endMonth = new Date(maxT);
+  while (cur.getTime() <= endMonth.getTime()) {
+    months.push(new Date(cur));
+    cur.setMonth(cur.getMonth() + 1);
+  }
+  const step = Math.max(1, Math.ceil(months.length / maxXLabels));
+  const xTicks: { x: number; label: string }[] = [];
+  months.forEach((d, i) => {
+    if (i % step !== 0 && i !== months.length - 1) return;
+    xTicks.push({ x: xFor(d.getTime()), label: monthLabel(d) });
+  });
+
+  return {
+    dims: { width, height, plot },
+    domain: { min: niceMin, max: niceMax },
+    yTicks,
+    xTicks,
+    series,
+  };
+}
