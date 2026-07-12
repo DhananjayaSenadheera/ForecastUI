@@ -32,6 +32,7 @@ import {
   type MarketOverlayInput,
 } from '../lib/prices';
 import { ChartTooltip, useChartTooltip, type TooltipPoint } from '../lib/chartTooltip';
+import TablePagination, { usePagination } from '../components/TablePagination';
 
 const VIEW_W = 640;
 const VIEW_H = 220;
@@ -291,6 +292,9 @@ function PriceLineChart({ history, cropLabel, marketName, lang }: PriceLineChart
   const { t } = useTranslation();
   const rs = t('common.rs');
   const dayLabel = useDayLabel(lang);
+  // Table alternative pages like every other table; the chart always shows the
+  // full series — pagination applies to the tabular view only.
+  const pager = usePagination(history);
 
   const geo = useMemo(
     () => buildPriceLineGeometry(history, { width: VIEW_W, height: VIEW_H, dayLabel }),
@@ -398,7 +402,7 @@ function PriceLineChart({ history, cropLabel, marketName, lang }: PriceLineChart
             </tr>
           </thead>
           <tbody>
-            {history.map((h) => (
+            {pager.pageRows.map((h) => (
               <tr key={h.date}>
                 <th scope="row">{formatDate(h.date, lang)}</th>
                 <td className="pr-table__num">{formatPrice(h.minPrice, lang, rs)}</td>
@@ -407,6 +411,7 @@ function PriceLineChart({ history, cropLabel, marketName, lang }: PriceLineChart
             ))}
           </tbody>
         </table>
+        <TablePagination {...pager} />
       </details>
     </div>
   );
@@ -587,6 +592,8 @@ function MarketDayTable({ inputs, cropLabel, lang }: { inputs: MarketOverlayInpu
     });
   }, [rows, sortKey, sortDir]);
 
+  const pager = usePagination(sorted);
+
   const onSort = (key: DayColKey) => {
     if (key === sortKey) setSortDir((p) => (p === 'asc' ? 'desc' : 'asc'));
     else {
@@ -626,7 +633,7 @@ function MarketDayTable({ inputs, cropLabel, lang }: { inputs: MarketOverlayInpu
           </tr>
         </thead>
         <tbody>
-          {sorted.map((r, i) => (
+          {pager.pageRows.map((r, i) => (
             <tr key={`${r.market}-${r.date}-${i}`}>
               <th scope="row">{formatDate(r.date, lang)}</th>
               <td>{r.market}</td>
@@ -637,6 +644,7 @@ function MarketDayTable({ inputs, cropLabel, lang }: { inputs: MarketOverlayInpu
           ))}
         </tbody>
       </table>
+      <TablePagination {...pager} />
     </details>
   );
 }

@@ -29,6 +29,12 @@ describe('AppShell', () => {
     expect(screen.queryByText('soon')).not.toBeInTheDocument();
   });
 
+  it('does NOT show admin nav for a non-admin (default/anon) session — zero farmer change', () => {
+    renderShell();
+    expect(screen.queryByText('Policy flags')).not.toBeInTheDocument();
+    expect(screen.queryByText('Markets')).not.toBeInTheDocument();
+  });
+
   it('exposes the audio-help stub and a labelled language switcher', () => {
     renderShell();
     expect(screen.getByRole('button', { name: 'Listen to this page' })).toBeInTheDocument();

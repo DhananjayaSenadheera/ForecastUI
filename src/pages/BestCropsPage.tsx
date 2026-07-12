@@ -20,6 +20,7 @@ import { api } from '../api/client';
 import type { BestCrop } from '../api/types';
 import { formatPrice, mapConfidenceCode, mapVerdict } from '../lib/format';
 import { CropArt } from '../components/cropArt';
+import TablePagination, { usePagination } from '../components/TablePagination';
 import {
   ariaSortFor,
   bestCropCaveatKey,
@@ -81,6 +82,7 @@ export default function BestCropsPage() {
   }, [scale]);
 
   const sorted = useMemo(() => sortBestCrops(crops, sortKey, sortDir), [crops, sortKey, sortDir]);
+  const pager = usePagination(sorted);
 
   const onSort = useCallback(
     (key: BestCropSortKey) => {
@@ -180,7 +182,7 @@ export default function BestCropsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sorted.map((c) => {
+                  {pager.pageRows.map((c) => {
                     // best-crops payload carries no localized names (API gap #3),
                     // so the English cropName is shown — honest graceful fallback.
                     const name = c.cropName;
@@ -277,6 +279,7 @@ export default function BestCropsPage() {
                   })}
                 </tbody>
               </table>
+              <TablePagination {...pager} />
             </div>
           </>
         )}

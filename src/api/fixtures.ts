@@ -8,17 +8,26 @@
 import { ymdLocal } from '../lib/format';
 import {
   ForecastConfidenceCode,
+  MarketType,
+  PolicyDirection,
+  PolicyType,
   PriceTrend,
   RecommendationLevel,
+  type AdminUser,
   type BestCrop,
   type ConfidenceString,
   type Crop,
   type CropTimeline,
+  type DailyIndicatorPoint,
+  type FestivalEntry,
   type HarvestForecast,
+  type MacroSeriesPoint,
   type Market,
   type MarketLatestPrice,
   type MarketMover,
   type MarketOverview,
+  type NewsEvent,
+  type PolicyFlag,
   type PriceHistoryPoint,
 } from './types';
 
@@ -616,3 +625,269 @@ export function fxMarketOverviewFor(days = 30): MarketOverview {
 }
 
 export const fxMarketOverview: MarketOverview = fxMarketOverviewFor(30);
+
+// ===========================================================================
+// ADMIN CONSOLE fixtures (ADM-2 / ADM-3). DEMO data behind VITE_API_MODE=fixtures.
+// Policy flags mirror the REAL .NET HasData seed rows (a1f1c001-…) plus a few extra
+// rows so the admin table exercises every PolicyType, both non-neutral directions,
+// and all three derived statuses (Active / Scheduled / Expired). "today" for the
+// demo is ~2026-07-12. NOT authoritative policy data — illustrative for dev/tests.
+// ===========================================================================
+export const fxPolicyFlags: PolicyFlag[] = [
+  {
+    id: 'a1f1c001-0000-0000-0000-000000000001',
+    policyType: PolicyType.ImportBan,
+    title: 'Chemical fertiliser & agrochemical import ban',
+    description:
+      'Government banned imports of chemical fertilisers, pesticides and weedicides, forcing a nationwide shift to organic farming. Cut yields sharply across paddy and vegetables, pushing harvest-time prices up.',
+    effectiveFrom: '2021-05-06T00:00:00',
+    effectiveTo: '2021-11-24T00:00:00',
+    direction: PolicyDirection.Bullish,
+    source: 'Government of Sri Lanka',
+    referenceUrl:
+      'https://en.wikipedia.org/wiki/2021%E2%80%932022_Sri_Lankan_political_crisis',
+    createdAtUtc: '2026-07-01T00:00:00Z',
+  },
+  {
+    id: 'a1f1c001-0000-0000-0000-000000000002',
+    policyType: PolicyType.FertiliserSubsidy,
+    title: 'Aswesuma / fertiliser cash subsidy for paddy farmers',
+    description:
+      'Reinstated fertiliser support for the 2022/23 Maha season via direct cash and subsidised fertiliser to paddy farmers, easing input costs and partially recovering yields.',
+    effectiveFrom: '2022-10-01T00:00:00',
+    effectiveTo: '2023-03-31T00:00:00',
+    direction: PolicyDirection.Bearish,
+    source: 'Ministry of Agriculture, Sri Lanka',
+    referenceUrl: null,
+    createdAtUtc: '2026-07-01T00:00:00Z',
+  },
+  {
+    id: 'a1f1c001-0000-0000-0000-000000000003',
+    policyType: PolicyType.FuelPriceChange,
+    title: 'Monthly fuel price formula (CPC pricing formula)',
+    description:
+      'Introduction of a transparent monthly fuel pricing formula. Transport/diesel cost feeds into farm-gate to wholesale transport margins; ongoing, still in effect.',
+    effectiveFrom: '2022-09-01T00:00:00',
+    effectiveTo: null,
+    direction: PolicyDirection.Neutral,
+    source: 'Ceylon Petroleum Corporation',
+    referenceUrl: null,
+    createdAtUtc: '2026-07-01T00:00:00Z',
+  },
+  {
+    id: 'a1f1c001-0000-0000-0000-000000000004',
+    policyType: PolicyType.ImportBan,
+    title: 'Big onion & potato import restrictions',
+    description:
+      'Import controls / suspension on big onions and potatoes to protect local growers around the harvest window, tightening domestic supply and lifting prices.',
+    effectiveFrom: '2020-07-01T00:00:00',
+    effectiveTo: '2021-02-28T00:00:00',
+    direction: PolicyDirection.Bullish,
+    source: 'Department of Imports and Exports Control, Sri Lanka',
+    referenceUrl: null,
+    createdAtUtc: '2026-07-01T00:00:00Z',
+  },
+  {
+    id: 'a1f1c001-0000-0000-0000-000000000005',
+    policyType: PolicyType.PriceCeiling,
+    title: 'Maximum retail price on rice varieties',
+    description:
+      'Consumer Affairs Authority imposed maximum retail prices (price ceilings) on Nadu, Samba and Keeri Samba rice to curb retail inflation during the economic crisis.',
+    effectiveFrom: '2023-02-13T00:00:00',
+    effectiveTo: '2024-01-31T00:00:00',
+    direction: PolicyDirection.Bearish,
+    source: 'Consumer Affairs Authority, Sri Lanka',
+    referenceUrl: null,
+    createdAtUtc: '2026-07-01T00:00:00Z',
+  },
+  {
+    id: 'a1f1c001-0000-0000-0000-000000000006',
+    policyType: PolicyType.FertiliserSubsidy,
+    title: 'Fertiliser subsidy scheme continuation (2023/24)',
+    description:
+      'Continued subsidised fertiliser distribution to paddy farmers for the 2023/24 Maha season, supporting normalised yields; still in effect.',
+    effectiveFrom: '2023-10-01T00:00:00',
+    effectiveTo: null,
+    direction: PolicyDirection.Bearish,
+    source: 'Ministry of Agriculture, Sri Lanka',
+    referenceUrl: null,
+    createdAtUtc: '2026-07-01T00:00:00Z',
+  },
+  // ---- extra demo rows to exercise Budget / ExportBan / PriceFloor + scheduled ----
+  {
+    id: 'a1f1c001-0000-0000-0000-000000000007',
+    policyType: PolicyType.Budget,
+    title: '2026 Budget — agriculture modernisation allocation',
+    description:
+      'Annual budget allocation for seed, irrigation and farm-mechanisation support. Broad, slow-acting measure with no clear single-season price direction.',
+    effectiveFrom: '2025-11-18T00:00:00',
+    effectiveTo: null,
+    direction: PolicyDirection.Neutral,
+    source: 'Ministry of Finance, Sri Lanka',
+    referenceUrl: 'https://www.treasury.gov.lk/',
+    createdAtUtc: '2026-07-01T00:00:00Z',
+  },
+  {
+    id: 'a1f1c001-0000-0000-0000-000000000008',
+    policyType: PolicyType.ExportBan,
+    title: 'Temporary vegetable export restriction (supply shortage)',
+    description:
+      'Short-term restriction on selected vegetable exports to keep domestic supply stable during a shortage. Still in effect.',
+    effectiveFrom: '2026-01-10T00:00:00',
+    effectiveTo: null,
+    direction: PolicyDirection.Bearish,
+    source: 'Department of Imports and Exports Control, Sri Lanka',
+    referenceUrl: null,
+    createdAtUtc: '2026-07-01T00:00:00Z',
+  },
+  {
+    id: 'a1f1c001-0000-0000-0000-000000000009',
+    policyType: PolicyType.PriceFloor,
+    title: 'Guaranteed paddy price floor — 2026 Maha season',
+    description:
+      'Scheduled guaranteed minimum purchase price for paddy in the upcoming Maha season, intended to support farm-gate prices at harvest.',
+    effectiveFrom: '2026-09-15T00:00:00',
+    effectiveTo: '2027-03-31T00:00:00',
+    direction: PolicyDirection.Bullish,
+    source: 'Ministry of Agriculture, Sri Lanka',
+    referenceUrl: null,
+    createdAtUtc: '2026-07-01T00:00:00Z',
+  },
+];
+
+/** Fixture resolver for GET /api/policy-flag/get/all. When `asOfDate` (YYYY-MM-DD)
+ *  is given, mirror the backend GetActiveAsOfAsync: only flags whose window contains
+ *  that date (from <= asOf <= to-or-open). ISO date strings compare lexicographically. */
+export function fxPolicyFlagsFor(asOfDate?: string): PolicyFlag[] {
+  if (!asOfDate) return fxPolicyFlags;
+  const d = asOfDate.slice(0, 10);
+  return fxPolicyFlags.filter((f) => {
+    const from = f.effectiveFrom.slice(0, 10);
+    const to = f.effectiveTo ? f.effectiveTo.slice(0, 10) : null;
+    return from <= d && (to === null || d <= to);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// ADMIN markets registry (ADM-3). Mirrors the REAL 12 seeded markets (verified
+// against AgriForecast.Infrastructure DbContext Market HasData, 2026-07-12): true
+// GUIDs, names, districts, MarketType, and IsEconomicCenter. Only Dambulla
+// (MKT00000001) carries IsEconomicCenter=true; note Keppetipola/Thambuttegama/etc.
+// are MarketType.DEC yet IsEconomicCenter=false (MarketType classifies the kind,
+// IsEconomicCenter flags the single feature-reference DEC). No live GET route yet
+// (API gap #1) — this stands in until the markets API lands.
+// ---------------------------------------------------------------------------
+export const fxAdminMarkets: Market[] = [
+  { id: 'b2a20001-0000-0000-0000-000000000001', name: 'Dambulla Dedicated Economic Centre', district: 'Matale', marketType: MarketType.DEC, isEconomicCenter: true },
+  { id: 'b2a20001-0000-0000-0000-000000000002', name: 'Keppetipola Dedicated Economic Centre', district: 'Badulla', marketType: MarketType.DEC, isEconomicCenter: false },
+  { id: 'b2a20001-0000-0000-0000-000000000003', name: 'Thambuttegama Dedicated Economic Centre', district: 'Anuradhapura', marketType: MarketType.DEC, isEconomicCenter: false },
+  { id: 'b2a20001-0000-0000-0000-000000000004', name: 'Pettah (HARTI wholesale)', district: 'Colombo', marketType: MarketType.Wholesale, isEconomicCenter: false },
+  { id: 'b2a20001-0000-0000-0000-000000000005', name: 'Narahenpita (HARTI retail)', district: 'Colombo', marketType: MarketType.Retail, isEconomicCenter: false },
+  { id: 'b2a20001-0000-0000-0000-000000000006', name: 'CBSL national average (pseudo-market)', district: null, marketType: MarketType.NationalAggregate, isEconomicCenter: false },
+  { id: 'b2a20001-0000-0000-0000-000000000007', name: 'Kandy (HARTI wholesale)', district: 'Kandy', marketType: MarketType.Wholesale, isEconomicCenter: false },
+  { id: 'b2a20001-0000-0000-0000-000000000008', name: 'Meegoda Dedicated Economic Centre', district: 'Colombo', marketType: MarketType.DEC, isEconomicCenter: false },
+  { id: 'b2a20001-0000-0000-0000-000000000009', name: 'Norochchole (HARTI wholesale)', district: 'Puttalam', marketType: MarketType.Wholesale, isEconomicCenter: false },
+  { id: 'b2a20001-0000-0000-0000-000000000010', name: 'Nuwara Eliya Dedicated Economic Centre', district: 'Nuwara Eliya', marketType: MarketType.DEC, isEconomicCenter: false },
+  { id: 'b2a20001-0000-0000-0000-000000000011', name: 'Bandarawela (HARTI wholesale)', district: 'Badulla', marketType: MarketType.Wholesale, isEconomicCenter: false },
+  { id: 'b2a20001-0000-0000-0000-000000000012', name: 'Veyangoda Dedicated Economic Centre', district: 'Gampaha', marketType: MarketType.DEC, isEconomicCenter: false },
+];
+
+// ---------------------------------------------------------------------------
+// ADM-4 users (PROVISIONAL — no live endpoint). 13 demo accounts incl. the `admin`
+// account (used to simulate the admin role in fixtures login) and `claudetest` (the
+// real-data E2E test farmer). Mutations in the page operate on a COPY of this array
+// in component state — this seed is never mutated. DEMO data behind the fixtures flag.
+// ---------------------------------------------------------------------------
+export const fxAdminUsers: AdminUser[] = [
+  { id: 'd0000001-0000-0000-0000-000000000001', username: 'admin', email: 'admin@agriforecast.lk', role: 'Admin', createdAt: '2026-01-02T08:00:00Z', updatedAt: '2026-06-30T10:00:00Z' },
+  { id: 'd0000002-0000-0000-0000-000000000002', username: 'claudetest', email: 'claudetest@agriforecast.lk', role: 'Farmer', createdAt: '2026-07-12T06:00:00Z', updatedAt: '2026-07-12T06:00:00Z' },
+  { id: 'd0000003-0000-0000-0000-000000000003', username: 'nimal_perera', email: 'nimal.perera@example.lk', role: 'Farmer', createdAt: '2026-02-11T09:20:00Z', updatedAt: '2026-05-01T09:20:00Z' },
+  { id: 'd0000004-0000-0000-0000-000000000004', username: 'kamala_silva', email: 'kamala.silva@example.lk', role: 'Farmer', createdAt: '2026-02-18T11:00:00Z', updatedAt: '2026-06-14T11:00:00Z' },
+  { id: 'd0000005-0000-0000-0000-000000000005', username: 'sunil_bandara', email: 'sunil.bandara@example.lk', role: 'Farmer', createdAt: '2026-03-03T07:45:00Z', updatedAt: '2026-03-03T07:45:00Z' },
+  { id: 'd0000006-0000-0000-0000-000000000006', username: 'ruwan_fernando', email: 'ruwan.fernando@example.lk', role: 'Admin', createdAt: '2026-01-20T13:30:00Z', updatedAt: '2026-07-02T13:30:00Z' },
+  { id: 'd0000007-0000-0000-0000-000000000007', username: 'anushka_jaya', email: 'anushka.jaya@example.lk', role: 'Farmer', createdAt: '2026-03-22T10:10:00Z', updatedAt: '2026-06-28T10:10:00Z' },
+  { id: 'd0000008-0000-0000-0000-000000000008', username: 'thilaka_mendis', email: 'thilaka.mendis@example.lk', role: 'Farmer', createdAt: '2026-04-05T08:05:00Z', updatedAt: '2026-04-05T08:05:00Z' },
+  { id: 'd0000009-0000-0000-0000-000000000009', username: 'pradeep_kumar', email: 'pradeep.kumar@example.lk', role: 'Farmer', createdAt: '2026-04-19T14:50:00Z', updatedAt: '2026-06-01T14:50:00Z' },
+  { id: 'd0000010-0000-0000-0000-000000000010', username: 'ishara_wick', email: 'ishara.wickramasinghe@example.lk', role: 'Farmer', createdAt: '2026-05-02T09:00:00Z', updatedAt: '2026-05-02T09:00:00Z' },
+  { id: 'd0000011-0000-0000-0000-000000000011', username: 'malani_rathnayake', email: 'malani.rathnayake@example.lk', role: 'Farmer', createdAt: '2026-05-16T12:15:00Z', updatedAt: '2026-07-05T12:15:00Z' },
+  { id: 'd0000012-0000-0000-0000-000000000012', username: 'chandana_gunawardena', email: 'chandana.g@example.lk', role: 'Farmer', createdAt: '2026-06-04T07:30:00Z', updatedAt: '2026-06-04T07:30:00Z' },
+  { id: 'd0000013-0000-0000-0000-000000000013', username: 'dilani_seneviratne', email: 'dilani.seneviratne@example.lk', role: 'Farmer', createdAt: '2026-06-25T15:40:00Z', updatedAt: '2026-07-08T15:40:00Z' },
+];
+
+// ---------------------------------------------------------------------------
+// ADM-5 festival calendar (PROVISIONAL). One row per occurrence-year — movable
+// festivals (Avurudu/Vesak/Thai Pongal/Deepavali) repeat annually with dates that
+// shift, so 2025 and 2026 are SEPARATE rows. 2026 poya/movable dates are marked
+// isProvisional until officially gazetted. This table feeds the forecasting model.
+// DEMO data behind the fixtures flag; dates are plausible, not the official gazette.
+// ---------------------------------------------------------------------------
+export const fxFestivals: FestivalEntry[] = [
+  { id: 'f0000001-0000-0000-0000-000000000001', festivalKey: 'THAI_PONGAL', date: '2025-01-14', leadUpDays: 10, isProvisional: false, source: 'Public holidays gazette 2025', createdAtUtc: '2026-07-01T00:00:00Z' },
+  { id: 'f0000002-0000-0000-0000-000000000002', festivalKey: 'AVURUDU', date: '2025-04-14', leadUpDays: 21, isProvisional: false, source: 'Public holidays gazette 2025', createdAtUtc: '2026-07-01T00:00:00Z' },
+  { id: 'f0000003-0000-0000-0000-000000000003', festivalKey: 'VESAK', date: '2025-05-12', leadUpDays: 14, isProvisional: false, source: 'Public holidays gazette 2025', createdAtUtc: '2026-07-01T00:00:00Z' },
+  { id: 'f0000004-0000-0000-0000-000000000004', festivalKey: 'DEEPAVALI', date: '2025-10-20', leadUpDays: 14, isProvisional: false, source: 'Public holidays gazette 2025', createdAtUtc: '2026-07-01T00:00:00Z' },
+  { id: 'f0000005-0000-0000-0000-000000000005', festivalKey: 'CHRISTMAS', date: '2025-12-25', leadUpDays: 21, isProvisional: false, source: 'Fixed date', createdAtUtc: '2026-07-01T00:00:00Z' },
+  { id: 'f0000006-0000-0000-0000-000000000006', festivalKey: 'THAI_PONGAL', date: '2026-01-14', leadUpDays: 10, isProvisional: false, source: 'Public holidays gazette 2026', createdAtUtc: '2026-07-01T00:00:00Z' },
+  { id: 'f0000007-0000-0000-0000-000000000007', festivalKey: 'AVURUDU', date: '2026-04-14', leadUpDays: 21, isProvisional: false, source: 'Public holidays gazette 2026', createdAtUtc: '2026-07-01T00:00:00Z' },
+  { id: 'f0000008-0000-0000-0000-000000000008', festivalKey: 'VESAK', date: '2026-05-01', leadUpDays: 14, isProvisional: true, source: 'Provisional poya estimate', createdAtUtc: '2026-07-01T00:00:00Z' },
+  { id: 'f0000009-0000-0000-0000-000000000009', festivalKey: 'DEEPAVALI', date: '2026-11-08', leadUpDays: 14, isProvisional: true, source: 'Provisional estimate', createdAtUtc: '2026-07-01T00:00:00Z' },
+  { id: 'f0000010-0000-0000-0000-000000000010', festivalKey: 'CHRISTMAS', date: '2026-12-25', leadUpDays: 21, isProvisional: false, source: 'Fixed date', createdAtUtc: '2026-07-01T00:00:00Z' },
+];
+
+// ---------------------------------------------------------------------------
+// ADM-6 indicators (PROVISIONAL). Two series kinds:
+//  • daily USD_LKR — ~90 days ending at the price anchor, deterministic wave in the
+//    ~295–310 range (plausible 2026 level). NOT a real FX feed.
+//  • monthly CCPI (vintage-aware) — 12 months, each with a referenceDate (month end)
+//    AND a publishedAt ~3 weeks later (real release lag). Both dates always shown.
+// ---------------------------------------------------------------------------
+const USD_LKR_DAYS = 90;
+function genUsdLkr(): DailyIndicatorPoint[] {
+  const out: DailyIndicatorPoint[] = [];
+  for (let d = 0; d < USD_LKR_DAYS; d++) {
+    const t = d / (USD_LKR_DAYS - 1);
+    const wave = Math.sin(t * Math.PI * 3) * 4 + Math.sin(t * Math.PI * 7) * 1.5;
+    const drift = t * 6; // gentle depreciation over the window
+    const value = Math.round((299 + drift + wave + seededJitter('USD_LKR', d) * 30) * 100) / 100;
+    const date = addDays(PRICE_ANCHOR, -(USD_LKR_DAYS - 1 - d)) ?? PRICE_ANCHOR;
+    out.push({ date, indicatorCode: 'USD_LKR', value, source: 'CBSL (demo)' });
+  }
+  return out;
+}
+export const fxUsdLkr: DailyIndicatorPoint[] = genUsdLkr();
+
+const CCPI_MONTH_ENDS = [
+  '2025-07-31', '2025-08-31', '2025-09-30', '2025-10-31', '2025-11-30', '2025-12-31',
+  '2026-01-31', '2026-02-28', '2026-03-31', '2026-04-30', '2026-05-31', '2026-06-30',
+] as const;
+export const fxCcpi: MacroSeriesPoint[] = CCPI_MONTH_ENDS.map((refEnd, i) => ({
+  seriesKey: 'CCPI_BASE2021',
+  referenceDate: refEnd,
+  // release ~3 weeks after the month end (real DCS/CBSL publication lag)
+  publishedAt: addDays(refEnd, 21) ?? refEnd,
+  value: Math.round((196 + i * 0.8 + Math.sin(i / 2) * 0.6) * 10) / 10,
+  source: 'DCS / CBSL (demo)',
+}));
+
+export function fxIndicatorDaily(code: string): DailyIndicatorPoint[] {
+  return code === 'USD_LKR' ? fxUsdLkr : [];
+}
+export function fxIndicatorMacro(seriesKey: string): MacroSeriesPoint[] {
+  return seriesKey === 'CCPI_BASE2021' ? fxCcpi : [];
+}
+
+// ---------------------------------------------------------------------------
+// ADM-7 structured news events (PROVISIONAL). 7 realistic events spanning fuel,
+// fertiliser, budget, import duty, export, weather. eventType reuses PolicyType and
+// direction reuses PolicyDirection (Bearish = -1). affectedCropIds reference fxCrops.
+// Mutations in the page operate on a COPY in component state; this seed is untouched.
+// ---------------------------------------------------------------------------
+export const fxNewsEvents: NewsEvent[] = [
+  { id: 'e0000001-0000-0000-0000-000000000001', eventType: PolicyType.FuelPriceChange, direction: PolicyDirection.Bullish, title: 'Diesel price raised by Rs. 25/litre', description: 'CPC monthly revision lifted auto-diesel; transport costs from farm to wholesale expected to rise.', publishedAt: '2026-07-01', sourceUrl: 'https://ceypetco.gov.lk/', affectedCropIds: [], createdAtUtc: '2026-07-01T00:00:00Z' },
+  { id: 'e0000002-0000-0000-0000-000000000002', eventType: PolicyType.FertiliserSubsidy, direction: PolicyDirection.Bearish, title: 'Second fertiliser subsidy tranche released', description: 'Ministry released the 2026 Yala fertiliser cash tranche to registered paddy and vegetable farmers.', publishedAt: '2026-06-12', sourceUrl: null, affectedCropIds: ['c0000002-0000-0000-0000-000000000002', 'c0000003-0000-0000-0000-000000000003'], createdAtUtc: '2026-06-12T00:00:00Z' },
+  { id: 'e0000003-0000-0000-0000-000000000003', eventType: PolicyType.Budget, direction: PolicyDirection.Neutral, title: 'Mid-year budget review — no major agri change', description: 'Interim fiscal review kept existing agriculture allocations broadly unchanged.', publishedAt: '2026-05-28', sourceUrl: 'https://www.treasury.gov.lk/', affectedCropIds: [], createdAtUtc: '2026-05-28T00:00:00Z' },
+  { id: 'e0000004-0000-0000-0000-000000000004', eventType: PolicyType.ImportBan, direction: PolicyDirection.Bullish, title: 'Import duty raised on big onions', description: 'A higher special commodity levy on imported big onions to protect local growers ahead of harvest.', publishedAt: '2026-05-10', sourceUrl: null, affectedCropIds: [], createdAtUtc: '2026-05-10T00:00:00Z' },
+  { id: 'e0000005-0000-0000-0000-000000000005', eventType: PolicyType.ExportBan, direction: PolicyDirection.Bearish, title: 'Temporary green chilli export pause', description: 'Short export pause on green chilli to ease a domestic supply squeeze.', publishedAt: '2026-04-22', sourceUrl: null, affectedCropIds: ['c0000005-0000-0000-0000-000000000005'], createdAtUtc: '2026-04-22T00:00:00Z' },
+  { id: 'e0000006-0000-0000-0000-000000000006', eventType: PolicyType.Other, direction: PolicyDirection.Bullish, title: 'Heavy monsoon rains in Nuwara Eliya district', description: 'Prolonged rain damaged up-country vegetable crops; short-term supply tightening expected.', publishedAt: '2026-04-05', sourceUrl: null, affectedCropIds: ['c0000006-0000-0000-0000-000000000006', 'c0000007-0000-0000-0000-000000000007'], createdAtUtc: '2026-04-05T00:00:00Z' },
+  { id: 'e0000007-0000-0000-0000-000000000007', eventType: PolicyType.PriceCeiling, direction: PolicyDirection.Bearish, title: 'Retail price cap reintroduced on selected vegetables', description: 'CAA set maximum retail prices on a few staple vegetables during a festival demand spike.', publishedAt: '2026-03-30', sourceUrl: null, affectedCropIds: ['c0000003-0000-0000-0000-000000000003'], createdAtUtc: '2026-03-30T00:00:00Z' },
+];

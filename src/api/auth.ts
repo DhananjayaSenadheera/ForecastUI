@@ -8,6 +8,11 @@
 // mints a fake in-memory session so the whole flow is demoable offline. The fake
 // session is clearly marked (simulated:true) and a subtle dev-only badge is shown
 // in the shell. The guards/pages behave IDENTICALLY to live mode.
+//
+// ADMIN SIMULATION (ADM-1): in fixtures mode the username `admin` (case-insensitive)
+// logs in with role 'Admin' so the admin console (/admin) is demoable offline; EVERY
+// other fixture username stays 'Farmer'. Live mode ignores this — role comes from the
+// real AuthResponseDto. This marker is worthless (no credential); it only picks a role.
 // =============================================================================
 import { request, USE_FIXTURES, ApiError } from './client';
 import type { AuthResponseDto } from './types';
@@ -73,17 +78,20 @@ function toSession(dto: AuthResponseDto, simulated: boolean): AuthSession {
   };
 }
 
-/** A clearly-fenced fake session for fixtures/offline demo. NEVER used in live mode. */
+/** A clearly-fenced fake session for fixtures/offline demo. NEVER used in live mode.
+ *  Username `admin` (case-insensitive) simulates an Admin so the admin console is
+ *  demoable offline; every other username is a Farmer. */
 function fakeSession(username: string, email = ''): AuthSession {
   const in12h = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
+  const uname = username.trim();
   return {
     // Not a real JWT — a marker string. authHeaders() will send it, but fixtures
     // mode never calls request(), so it is never put on the wire.
     token: 'fixtures.simulated.session',
     expiresAtUtc: in12h,
-    username: username.trim(),
+    username: uname,
     email: email.trim(),
-    role: 'Farmer',
+    role: uname.toLowerCase() === 'admin' ? 'Admin' : 'Farmer',
     simulated: true,
   };
 }

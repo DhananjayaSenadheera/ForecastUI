@@ -1,0 +1,626 @@
+/* =============================================================================
+   Admin console styles (ADM-1..7). Loaded ONLY inside the lazy admin chunk (imported
+   by adminShared.tsx) — never in the farmer first-load bundle. Reuses the design
+   tokens (tokens.css) and the shared .panel / .topbar / .btn-ghost primitives.
+   Admin is an internal desktop-first tool; tables collapse to key-value cards <720px
+   using the same data-label idiom as the farmer BestCrops table.
+   ============================================================================= */
+
+.adm-topbar {
+  align-items: flex-start;
+}
+.adm-sub,
+.adm-caption {
+  margin-top: var(--sp-1);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+.adm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+/* Honest demo-data + live notes -------------------------------------------- */
+.adm-demonote,
+.adm-note {
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-md);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+}
+.adm-demonote {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  border: 1px solid var(--lowtrust-border);
+}
+.adm-note {
+  background: var(--surface-3);
+  color: var(--text-2);
+  border: 1px solid var(--line);
+}
+
+/* Filters / forms ----------------------------------------------------------- */
+.adm-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sp-3);
+}
+.adm-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+.adm-input,
+.adm-select,
+.adm-textarea {
+  min-height: var(--touch-min);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-body);
+}
+.adm-textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+.adm-input:focus-visible,
+.adm-select:focus-visible,
+.adm-textarea:focus-visible,
+.adm-sort:focus-visible,
+.adm-clear:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.adm-clear {
+  width: auto;
+}
+.adm-field--check {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+/* Tables -------------------------------------------------------------------- */
+.adm-tablewrap {
+  width: 100%;
+  overflow-x: auto;
+}
+.adm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+.adm-table caption {
+  text-align: left;
+}
+.adm-table th,
+.adm-table td {
+  padding: var(--sp-3);
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+}
+.adm-table thead th {
+  border-bottom: 2px solid var(--line-strong);
+  color: var(--text-2);
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+  /* middle-align so plain-text headers (e.g. Source) sit on the same line as the
+     sortable button-in-th headers (owner redline 2026-07-13). */
+  vertical-align: middle;
+}
+.adm-table thead th .adm-sort {
+  vertical-align: middle;
+}
+.adm-th--num,
+.adm-table td.adm-td--num {
+  text-align: right;
+  font-variant-numeric: var(--fvn-tabular);
+}
+.adm-table tbody tr:hover {
+  background: var(--surface-3);
+}
+.adm-c-title {
+  min-width: 220px;
+}
+.adm-title {
+  display: block;
+  font-weight: var(--fw-medium);
+  color: var(--text);
+}
+.adm-desc {
+  display: block;
+  margin-top: var(--sp-1);
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-body);
+  max-width: 46ch;
+}
+.adm-muted {
+  color: var(--text-3);
+}
+.adm-yes {
+  color: var(--good-fg);
+  font-weight: var(--fw-medium);
+}
+
+/* Sortable header button ---------------------------------------------------- */
+.adm-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-weight: var(--fw-medium);
+  color: var(--text-2);
+  cursor: pointer;
+}
+.adm-sort.is-active {
+  color: var(--brand-strong);
+}
+.adm-sort__caret {
+  font-size: var(--fs-xs);
+}
+
+/* Badges (type / direction). Direction badges are TONED (owner request 2026-07-12):
+   bullish = --good (green), bearish = --warn (amber), neutral = grey-green. Red is
+   NOT used — reserved for the "Not recommended" verdict; green/amber also stays
+   distinguishable under red-green CVD. Glyph + word always accompany the colour. */
+.adm-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-pill);
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+}
+.adm-badge.is-unknown {
+  background: var(--surface-3);
+  color: var(--text-3);
+  border: 1px dashed var(--line-strong);
+}
+.adm-badge--dir {
+  background: var(--brand-tint-2);
+  color: var(--brand-dark);
+}
+.adm-badge--dir.is-bullish {
+  background: var(--good-bg);
+  color: var(--good-fg);
+}
+.adm-badge--dir.is-bearish {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+.adm-badge--dir.is-neutral {
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+}
+.adm-badge__glyph {
+  font-size: var(--fs-sm);
+  line-height: 1;
+}
+
+/* Status text badges -------------------------------------------------------- */
+.adm-status {
+  display: inline-block;
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+}
+.adm-status--active {
+  background: var(--good-bg);
+  color: var(--good-fg);
+}
+.adm-status--scheduled {
+  background: var(--brand-tint-2);
+  color: var(--brand-dark);
+}
+.adm-status--expired {
+  background: var(--surface-3);
+  color: var(--text-3);
+  border: 1px solid var(--line);
+}
+
+.adm-reflink,
+.adm-source {
+  font-size: var(--fs-xs);
+}
+.adm-reflink {
+  color: var(--brand-strong);
+  white-space: nowrap;
+}
+
+/* Provisional / warning banners (festivals, news) --------------------------- */
+.adm-warn {
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-md);
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  border: 1px solid var(--lowtrust-border);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+}
+.adm-provisional {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+
+/* Toolbar (add button etc.) ------------------------------------------------- */
+.adm-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  align-items: center;
+  justify-content: space-between;
+}
+.adm-btn {
+  min-height: var(--touch-min);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--r-md);
+  border: 1px solid transparent;
+  background: var(--brand);
+  color: var(--text-on-brand);
+  font: inherit;
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+}
+.adm-btn:hover {
+  background: var(--brand-strong);
+}
+.adm-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.adm-btn--danger {
+  background: var(--surface);
+  color: var(--critical-fg);
+  border-color: var(--line-strong);
+}
+.adm-rowbtn {
+  min-height: 36px;
+  padding: var(--sp-1) var(--sp-3);
+  margin-right: var(--sp-2);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+.adm-rowbtn:hover {
+  background: var(--surface-3);
+}
+.adm-rowbtn--danger {
+  color: var(--critical-fg);
+}
+.adm-rowbtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Year group headings (festivals) ------------------------------------------ */
+.adm-yeargroup {
+  margin: var(--sp-4) 0 var(--sp-2);
+  font-size: var(--fs-h3);
+  color: var(--brand-dark);
+}
+
+/* Section grouping heading in the sidebar (admin nav) ---------------------- */
+.sidebar__group {
+  margin: var(--sp-4) 0 var(--sp-1);
+  padding-left: var(--sp-3);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.04em;
+  color: var(--teal-200);
+  opacity: 0.85;
+}
+
+/* Async states -------------------------------------------------------------- */
+.adm-state {
+  padding: var(--sp-6);
+  text-align: center;
+  background: var(--surface-3);
+  border-radius: var(--r-md);
+}
+.adm-state__title {
+  font-weight: var(--fw-medium);
+  color: var(--text);
+}
+.adm-state__body {
+  margin-top: var(--sp-1);
+  color: var(--text-2);
+}
+.adm-state__retry {
+  margin-top: var(--sp-3);
+  width: auto;
+}
+.adm-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.adm-skel-row {
+  height: 44px;
+  border-radius: var(--r-sm);
+  background: linear-gradient(90deg, var(--surface-3) 25%, var(--surface-2) 37%, var(--surface-3) 63%);
+  background-size: 400% 100%;
+  animation: adm-shimmer 1.4s ease infinite;
+}
+@keyframes adm-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .adm-skel-row {
+    animation: none;
+  }
+}
+
+/* No-access state ----------------------------------------------------------- */
+.adm-noaccess {
+  max-width: 420px;
+  margin: var(--sp-8) auto;
+  text-align: center;
+}
+.adm-noaccess__glyph {
+  font-size: 40px;
+}
+.adm-noaccess__title {
+  font-size: var(--fs-h2);
+  margin: var(--sp-2) 0;
+}
+.adm-noaccess__body {
+  color: var(--text-2);
+  line-height: var(--lh-body);
+}
+.adm-noaccess__back {
+  display: inline-block;
+  margin-top: var(--sp-4);
+  width: auto;
+}
+
+/* Dialog -------------------------------------------------------------------- */
+.adm-dialog__backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 40, 35, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-4);
+  z-index: 100;
+}
+.adm-dialog {
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  box-shadow: var(--e-3);
+  padding: var(--sp-5);
+}
+.adm-dialog__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+.adm-dialog__title {
+  font-size: var(--fs-h3);
+}
+.adm-dialog__close {
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  border: none;
+  background: none;
+  font-size: var(--fs-h3);
+  color: var(--text-2);
+  cursor: pointer;
+}
+.adm-dialog__close:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.adm-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.adm-form__actions {
+  display: flex;
+  gap: var(--sp-3);
+  justify-content: flex-end;
+}
+.adm-error {
+  color: var(--critical-fg);
+  font-size: var(--fs-sm);
+}
+
+/* Chip multi-select (news affected crops) ---------------------------------- */
+.adm-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.adm-chip {
+  min-height: 36px;
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+.adm-chip.is-on {
+  background: var(--brand-tint-2);
+  color: var(--brand-dark);
+  border-color: var(--brand);
+}
+
+/* News event list ----------------------------------------------------------- */
+.adm-newslist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.adm-newsitem {
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+.adm-newsitem__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+.adm-newsitem__date {
+  margin-left: auto;
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+}
+.adm-newsitem__crops {
+  margin-top: var(--sp-2);
+  font-size: var(--fs-sm);
+}
+
+/* Indicator chart. max-width keeps the SVG from scaling up to a giant on wide
+   desktop panels (owner redline 2026-07-12) — same footprint as the farmer
+   TimelineChart, and it still shrinks fluidly below 680px. ------------------- */
+.adm-chart {
+  width: 100%;
+  max-width: 680px;
+}
+.adm-svg {
+  width: 100%;
+  height: auto;
+}
+.adm-chartcaption {
+  margin: var(--sp-4) 0 var(--sp-1);
+}
+
+/* Two-up chart layout (owner redline 2026-07-13: stacked charts read as a wall —
+   line chart + gauge sit side by side on desktop, stack below 900px). */
+.adm-duo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--sp-5);
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .adm-duo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Inflation-pace gauge. Zone hues: grey = falling, teal = mild, ambers = elevated/
+   high. Light-only R1 literals from the token neighbourhood; red never used
+   (reserved for the "Not recommended" verdict). */
+.adm-gauge__zone--fall { stroke: #C6CCCA; }
+.adm-gauge__zone--mild { stroke: #7FCBB4; }
+.adm-gauge__zone--elev { stroke: #F5CE8A; }
+.adm-gauge__zone--high { stroke: #EFA83F; }
+.adm-gauge__needle { stroke: var(--brand-strong); }
+.adm-gauge__hub { fill: var(--brand-strong); }
+.adm-gauge__value { fill: var(--brand-dark); font-weight: var(--fw-medium); }
+.adm-gauge__zonelabel { fill: var(--text-2); }
+.adm-gauge__tick { fill: var(--chart-axis); }
+.adm-gauge-stats {
+  display: flex;
+  justify-content: center;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  margin-top: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+.adm-gauge-stats strong {
+  color: var(--text-2);
+  font-weight: var(--fw-medium);
+}
+
+.adm-grid {
+  stroke: var(--chart-grid);
+  stroke-width: 1;
+}
+.adm-axis {
+  fill: var(--chart-axis);
+  font-size: 10px;
+}
+.adm-line {
+  stroke: var(--chart-line);
+  stroke-width: 2;
+  fill: none;
+}
+.adm-axisline {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+
+/* Card layout under 720px --------------------------------------------------- */
+@media (max-width: 720px) {
+  .adm-table,
+  .adm-table thead,
+  .adm-table tbody,
+  .adm-table tr,
+  .adm-table th,
+  .adm-table td {
+    display: block;
+  }
+  .adm-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .adm-table tr {
+    margin-bottom: var(--sp-3);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    padding: var(--sp-2);
+  }
+  .adm-table td,
+  .adm-table th {
+    border-bottom: none;
+    padding: var(--sp-1) var(--sp-2);
+  }
+  .adm-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: var(--fs-xs);
+    color: var(--text-3);
+    margin-bottom: 2px;
+  }
+}

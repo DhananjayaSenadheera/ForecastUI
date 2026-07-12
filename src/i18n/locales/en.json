@@ -55,7 +55,16 @@
     "myHarvest": "My harvest",
     "bestCrops": "Best crops",
     "prices": "Prices",
-    "soon": "soon"
+    "soon": "soon",
+    "admin": {
+      "group": "Admin",
+      "policyFlags": "Policy flags",
+      "markets": "Markets",
+      "users": "Users",
+      "festivals": "Festivals",
+      "indicators": "Indicators",
+      "news": "News events"
+    }
   },
   "audio": {
     "listen": "Listen to this page"
@@ -338,5 +347,198 @@
       "tableMarket": "Market",
       "tableAvg": "Average"
     }
+  },
+  "admin": {
+    "demoNote": "Demo data — connects to the live API after backend work lands.",
+    "demoNoteNoApi": "Demo data — this screen connects to the live API after backend work lands (around mid-July 2026).",
+    "sortBy": "Sort by {{col}}",
+    "noAccess": {
+      "title": "You don't have access to this area",
+      "body": "This section is for administrators only. If you think this is a mistake, contact your team."
+    },
+    "policy": {
+      "title": "Policy flags",
+      "subtitle": "National policy measures the forecasting model uses. View only.",
+      "asOfLabel": "Active on date",
+      "asOfClear": "Show all flags",
+      "asOfCaption": "Showing flags active on {{date}}.",
+      "colType": "Type",
+      "colTitle": "Title",
+      "colDirection": "Direction",
+      "colFrom": "Effective from",
+      "colTo": "Effective to",
+      "colStatus": "Status",
+      "colSource": "Source",
+      "openEnded": "Open-ended",
+      "reference": "Reference",
+      "emptyTitle": "No policy flags",
+      "emptyBody": "There are no policy flags recorded yet.",
+      "emptyAsOf": "No policy flags were active on the chosen date.",
+      "type": {
+        "subsidy": "Subsidy",
+        "importBan": "Import ban",
+        "exportBan": "Export ban",
+        "priceCeiling": "Price ceiling",
+        "priceFloor": "Price floor",
+        "fertiliserSubsidy": "Fertiliser subsidy",
+        "fuelPriceChange": "Fuel price change",
+        "other": "Other",
+        "budget": "Budget"
+      },
+      "dir": {
+        "bullish": "Bullish",
+        "bearish": "Bearish",
+        "neutral": "Neutral"
+      },
+      "status": {
+        "active": "Active",
+        "scheduled": "Scheduled",
+        "expired": "Expired"
+      }
+    },
+    "markets": {
+      "title": "Markets",
+      "subtitle": "The market registry the price data is organised by.",
+      "liveNote": "Live market data arrives with the markets API.",
+      "colName": "Name",
+      "colDistrict": "District",
+      "colType": "Type",
+      "colEconomic": "Economic centre",
+      "economicYes": "Economic centre",
+      "economicNo": "Not an economic centre",
+      "emptyTitle": "No markets",
+      "emptyBody": "No markets are registered yet.",
+      "type": {
+        "wholesale": "Wholesale",
+        "retail": "Retail",
+        "dec": "Economic centre (DEC)",
+        "nationalAggregate": "National average"
+      }
+    },
+    "users": {
+      "title": "Users",
+      "subtitle": "Accounts and roles. Changes here are demo-only for now.",
+      "colUsername": "Username",
+      "colEmail": "Email",
+      "colRole": "Role",
+      "colCreated": "Joined",
+      "colActions": "Actions",
+      "you": "You",
+      "role": {
+        "farmer": "Farmer",
+        "admin": "Admin"
+      },
+      "editRole": "Edit role",
+      "editRoleTitle": "Edit role — {{name}}",
+      "delete": "Delete",
+      "deleteTitle": "Delete user",
+      "deleteConfirm": "Delete the account “{{name}}”? This cannot be undone.",
+      "cannotDeleteSelf": "You cannot delete your own account.",
+      "cancel": "Cancel",
+      "save": "Save",
+      "savedFlash": "Role updated (demo).",
+      "deletedFlash": "Deleted “{{name}}” (demo).",
+      "emptyTitle": "No users",
+      "emptyBody": "There are no user accounts to show."
+    },
+    "festivals": {
+      "title": "Festival calendar",
+      "subtitle": "Festival dates and their demand lead-up window, grouped by year.",
+      "modelWarning": "This table feeds the forecasting model — changes affect festival-demand signals in the price forecast.",
+      "add": "Add festival",
+      "addTitle": "Add festival",
+      "editTitle": "Edit festival",
+      "edit": "Edit",
+      "delete": "Delete",
+      "deleteTitle": "Delete festival",
+      "deleteWarning": "This entry feeds the forecasting model. Deleting it removes its festival-demand signal.",
+      "deleteConfirm": "Delete {{festival}} on {{date}}?",
+      "cancel": "Cancel",
+      "save": "Save",
+      "colFestival": "Festival",
+      "colDate": "Date",
+      "colLeadUp": "Lead-up",
+      "colStatus": "Status",
+      "colSource": "Source",
+      "colActions": "Actions",
+      "days": "{{count}} days",
+      "provisional": "Provisional",
+      "confirmed": "Confirmed",
+      "isProvisional": "Date is provisional (not yet confirmed)",
+      "sourcePlaceholder": "e.g. Public holidays gazette 2026",
+      "errDate": "Please choose a date.",
+      "errSource": "Source is required — this data feeds the model.",
+      "yearCaption": "Festivals in {{year}}",
+      "emptyTitle": "No festivals",
+      "emptyBody": "No festival entries yet. Add one to get started.",
+      "key": {
+        "AVURUDU": "Sinhala & Tamil New Year (Avurudu)",
+        "THAI_PONGAL": "Thai Pongal",
+        "VESAK": "Vesak",
+        "DEEPAVALI": "Deepavali",
+        "CHRISTMAS": "Christmas"
+      }
+    },
+    "indicators": {
+      "title": "Economic indicators",
+      "subtitle": "Macro series the forecasting model draws on. Read only.",
+      "seriesLabel": "Series",
+      "usdLkr": "USD / LKR exchange rate (daily)",
+      "ccpi": "Colombo Consumer Price Index (monthly)",
+      "explainer": "This index tracks what a fixed basket of everyday goods costs. When it climbs, money is losing buying power and all prices — vegetables included — drift up with it. The forecasting model reads it as background inflation, so it can tell a crop that is genuinely getting scarce apart from prices that are simply rising everywhere.",
+      "lineCaption": "Index level",
+      "gaugeCaption": "Inflation pace — latest month",
+      "gaugeAria": "Inflation pace gauge: {{value}}% per month, {{zone}}.",
+      "perMonth": "per month",
+      "zone": {
+        "fall": "falling prices",
+        "mild": "mild",
+        "elev": "elevated",
+        "high": "high"
+      },
+      "statLast": "Last month",
+      "statPrev": "Month before",
+      "statAvg": "12-month average",
+      "vintageNote": "Each point shows two dates: the period it describes, and when it was published. Both matter — the value only became knowable on the publish date.",
+      "chartAria": "{{series}}: {{count}} points, from {{min}} to {{max}}.",
+      "noData": "No data for this series yet.",
+      "tableToggle": "Data table",
+      "colDate": "Date",
+      "colRefDate": "Reference date (period)",
+      "colPublished": "Published on",
+      "colValue": "Value",
+      "colSource": "Source"
+    },
+    "news": {
+      "title": "News events",
+      "subtitle": "Structured market-moving events, newest first.",
+      "explainer": "Record the facts and the publish date. You don't set weights — the model learns how much each event matters from the data.",
+      "add": "Add event",
+      "addTitle": "Add news event",
+      "cancel": "Cancel",
+      "save": "Save",
+      "affects": "Affects:",
+      "source": "Source",
+      "colType": "Event type",
+      "colDirection": "Expected direction",
+      "colTitle": "Title",
+      "colDescription": "Description",
+      "colPublished": "Published on",
+      "colSourceUrl": "Source link",
+      "affectedCrops": "Affected crops (optional)",
+      "errTitle": "Please enter a title.",
+      "errDate": "Please choose the publish date.",
+      "emptyTitle": "No events",
+      "emptyBody": "No news events recorded yet. Add one to get started."
+    }
+  },
+  "pagination": {
+    "label": "Table pages",
+    "itemsPerPage": "Items per page",
+    "pageOf": "{{page}} of {{total}}",
+    "first": "First page",
+    "prev": "Previous page",
+    "next": "Next page",
+    "last": "Last page"
   }
 }

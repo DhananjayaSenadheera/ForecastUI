@@ -11,13 +11,19 @@ import * as fx from './fixtures';
 import { reportFromHeaders } from './cacheSignal';
 import { ymdLocal } from '../lib/format';
 import type {
+  AdminUser,
   BestCrop,
   Crop,
   CropCreateCommand,
   CropTimeline,
+  DailyIndicatorPoint,
+  FestivalEntry,
   HarvestForecast,
+  MacroSeriesPoint,
   Market,
   MarketOverview,
+  NewsEvent,
+  PolicyFlag,
   PriceHistoryPoint,
 } from './types';
 
@@ -200,6 +206,55 @@ export const api = {
   async getPriceHistory(cropId: string, marketId?: string): Promise<PriceHistoryPoint[]> {
     if (USE_FIXTURES) return fx.fxPriceHistoryFor(cropId, marketId);
     throw new ApiError('price-history endpoint not built yet (API gap #2)', 501);
+  },
+
+  // ---- ADMIN CONSOLE ------------------------------------------------------
+  // Policy flags (ADM-2). LIVE route exists: GET /api/policy-flag/get/all
+  // [Authorize]; optional ?asOfDate=YYYY-MM-DD returns only flags active that day.
+  // CONTRACT QUIRK: an EMPTY result comes back as HTTP 400 ("No policy flags
+  // found."), not 200 []. Callers treat a 400 on this route as the empty state.
+  async getPolicyFlags(asOfDate?: string): Promise<PolicyFlag[]> {
+    if (USE_FIXTURES) return fx.fxPolicyFlagsFor(asOfDate);
+    const q = asOfDate ? `?asOfDate=${asOfDate}` : '';
+    return request<PolicyFlag[]>(`/api/policy-flag/get/all${q}`);
+  },
+
+  // Markets registry (ADM-3). FIXTURE-ONLY today — no live GET route yet (API gap
+  // #1, backlogged as API-1). Stubbed like getMarkets so live mode flips on later
+  // with no page change. Distinct from getMarkets() (which the farmer Prices page
+  // uses with a small price-carrying subset): this returns the FULL 12-market registry.
+  async getAdminMarkets(): Promise<Market[]> {
+    if (USE_FIXTURES) return fx.fxAdminMarkets;
+    throw new ApiError('markets registry endpoint not built yet (API gap #1)', 501);
+  },
+
+  // ---- ADMIN CONSOLE — PROVISIONAL (no live endpoint yet; scope-extension 2026-07-12)
+  // Read-only fixture reads. Live routes are FE proposals to be built after the backend
+  // hold lifts (~2026-07-16); until then live mode throws 501 and pages surface a
+  // retryable state. Demo CRUD in these pages mutates COMPONENT state, not the server.
+  async getAdminUsers(): Promise<AdminUser[]> {
+    if (USE_FIXTURES) return fx.fxAdminUsers;
+    throw new ApiError('users endpoint not built yet (provisional)', 501);
+  },
+
+  async getFestivals(): Promise<FestivalEntry[]> {
+    if (USE_FIXTURES) return fx.fxFestivals;
+    throw new ApiError('festivals endpoint not built yet (provisional)', 501);
+  },
+
+  async getIndicatorDaily(code: string): Promise<DailyIndicatorPoint[]> {
+    if (USE_FIXTURES) return fx.fxIndicatorDaily(code);
+    throw new ApiError('indicators endpoint not built yet (provisional)', 501);
+  },
+
+  async getIndicatorMacro(seriesKey: string): Promise<MacroSeriesPoint[]> {
+    if (USE_FIXTURES) return fx.fxIndicatorMacro(seriesKey);
+    throw new ApiError('macro indicators endpoint not built yet (provisional)', 501);
+  },
+
+  async getNewsEvents(): Promise<NewsEvent[]> {
+    if (USE_FIXTURES) return fx.fxNewsEvents;
+    throw new ApiError('news-events endpoint not built yet (provisional)', 501);
   },
 };
 

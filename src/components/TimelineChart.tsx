@@ -21,6 +21,7 @@ import type { CropTimeline } from '../api/types';
 import { formatPrice, formatDate } from '../lib/format';
 import { buildTimelineGeometry, isShortHistory, SHORT_HISTORY_MONTHS } from '../lib/timeline';
 import { ChartTooltip, useChartTooltip, type TooltipPoint } from '../lib/chartTooltip';
+import TablePagination, { usePagination } from './TablePagination';
 
 export interface TimelineChartProps {
   timeline: CropTimeline | null;
@@ -77,6 +78,17 @@ export default function TimelineChart({ timeline, loading, error, onRetry, harve
   }, [geo, timeline, monthLabel, lang, rs, t]);
 
   const tt = useChartTooltip(tipPoints, VIEW_W, VIEW_H);
+
+  // Table-alternative rows: history + forecast in one paged sequence (the CHART
+  // always shows the full series; pagination applies to the tabular view only).
+  const tableRows = useMemo(
+    () => [
+      ...(timeline?.history ?? []).map((h) => ({ kind: 'past' as const, h })),
+      ...(timeline?.forecast ?? []).map((f) => ({ kind: 'fc' as const, f })),
+    ],
+    [timeline],
+  );
+  const pager = usePagination(tableRows);
 
   // ---- compact chart-error note (fail-soft: FE-4 hero already rendered) -------
   if (error) {
@@ -226,18 +238,20 @@ export default function TimelineChart({ timeline, loading, error, onRetry, harve
             </tr>
           </thead>
           <tbody>
-            {timeline.history.map((h) => {
-              const [y, m] = h.month.split('-').map(Number);
-              const label = monthLabel(new Date(y, (m || 1) - 1, 1)) + ' ' + y;
-              return (
-                <tr key={`h${h.month}`}>
-                  <th scope="row">{label}</th>
-                  <td>{t('timeline.typePast')}</td>
-                  <td className="tl-table__num" colSpan={3}>{formatPrice(h.avgPrice, lang, rs)}</td>
-                </tr>
-              );
-            })}
-            {timeline.forecast.map((f) => {
+            {pager.pageRows.map((row) => {
+              if (row.kind === 'past') {
+                const h = row.h;
+                const [y, m] = h.month.split('-').map(Number);
+                const label = monthLabel(new Date(y, (m || 1) - 1, 1)) + ' ' + y;
+                return (
+                  <tr key={`h${h.month}`}>
+                    <th scope="row">{label}</th>
+                    <td>{t('timeline.typePast')}</td>
+                    <td className="tl-table__num" colSpan={3}>{formatPrice(h.avgPrice, lang, rs)}</td>
+                  </tr>
+                );
+              }
+              const f = row.f;
               const isHarvest = harvest?.date != null && f.date === harvest.date;
               const label = formatDate(f.date, lang);
               return (
@@ -255,6 +269,7 @@ export default function TimelineChart({ timeline, loading, error, onRetry, harve
             })}
           </tbody>
         </table>
+        <TablePagination {...pager} />
       </details>
     </div>
   );

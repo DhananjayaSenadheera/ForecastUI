@@ -13,3 +13,16 @@ export const NAV_DESTINATIONS: NavDest[] = [
   { to: '/best-crops', labelKey: 'nav.bestCrops', icon: '🥇' },
   { to: '/prices', labelKey: 'nav.prices', icon: '💰' },
 ];
+
+// Admin console destinations (ADM-1). Rendered in the shell nav ONLY when the
+// signed-in role is 'Admin' — farmers never see these, so the locked 4-tab farmer
+// IA is unchanged. This is an internal tool, so more than 4 entries is acceptable
+// for admins (unlike the farmer bottom tab bar).
+export const ADMIN_NAV_DESTINATIONS: NavDest[] = [
+  { to: '/admin/policy-flags', labelKey: 'nav.admin.policyFlags', icon: '🏳️' },
+  { to: '/admin/markets', labelKey: 'nav.admin.markets', icon: '🏪' },
+  { to: '/admin/users', labelKey: 'nav.admin.users', icon: '👥' },
+  { to: '/admin/festivals', labelKey: 'nav.admin.festivals', icon: '🗓️' },
+  { to: '/admin/indicators', labelKey: 'nav.admin.indicators', icon: '📈' },
+  { to: '/admin/news', labelKey: 'nav.admin.news', icon: '📰' },
+];
