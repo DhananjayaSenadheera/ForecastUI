@@ -15,6 +15,29 @@
   margin: 0 0 var(--sp-4);
 }
 
+/* ---- window selector (7 / 30 / 90 days) — reuses .bc-seg button idiom ---- */
+.ov-winsel {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin: 0 0 var(--sp-4);
+}
+.ov-winsel__label {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  color: var(--text-2);
+}
+
+/* Window-switch busy state: dim + freeze the last snapshot instead of blanking. */
+.ov-live {
+  transition: opacity var(--dur-base) var(--ease);
+}
+.ov-live.is-busy {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 .ov-panel__title {
   font-size: var(--fs-title);
   font-weight: var(--fw-bold);

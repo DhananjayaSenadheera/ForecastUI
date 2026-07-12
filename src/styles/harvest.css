@@ -87,6 +87,16 @@
   margin: 0 0 var(--sp-3);
 }
 
+/* "Recent" group pinned at the top — a subtle divider sets it apart from categories. */
+.cp-group--recent {
+  padding-bottom: var(--sp-4);
+  margin-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--line);
+}
+.cp-group--recent .cp-group__title {
+  color: var(--brand-strong);
+}
+
 /* ---- crop grid + cards ---- */
 .cp-grid {
   list-style: none;

@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { NAV_DESTINATIONS } from '../app/nav';
 import LanguageSwitcher from './LanguageSwitcher';
+import TextSizeToggle from './TextSizeToggle';
 import AudioHelpButton from './AudioHelpButton';
 import StalenessBanner from './StalenessBanner';
 import ErrorBoundary from './ErrorBoundary';
@@ -43,7 +44,10 @@ export default function AppShell() {
 
         <div className="sidebar__foot">
           <AudioHelpButton />
-          <LanguageSwitcher />
+          <div className="sidebar__prefs">
+            <LanguageSwitcher />
+            <TextSizeToggle />
+          </div>
         </div>
       </aside>
 
@@ -55,6 +59,7 @@ export default function AppShell() {
         <strong style={{ fontSize: 16 }}>{t('app.name')}</strong>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
           <LanguageSwitcher />
+          <TextSizeToggle />
         </div>
       </div>
 

@@ -127,6 +127,13 @@ export default function BestCropsPage() {
         </div>
         <p className="bc-caption">{t('pages.bestCrops.lookbackCaption', { count: lookback })}</p>
 
+        {/* Entry to the crop-vs-crop comparison (non-tab child route). */}
+        <Link className="bc-compare" to="/best-crops/compare">
+          <span aria-hidden="true">⚖ </span>
+          {t('pages.compare.entry')}
+          <span aria-hidden="true"> →</span>
+        </Link>
+
         {/* ---- error ---- */}
         {error ? (
           <div className="bc-state" role="alert">

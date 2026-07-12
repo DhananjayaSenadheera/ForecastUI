@@ -237,6 +237,28 @@
 }
 
 /* -----------------------------------------------------------------------------
+   A11Y · LARGE-TEXT MODE (FE-16). Toggled via html.a11y-large (TextSizeToggle),
+   persisted in localStorage, applied before first paint. It re-declares the
+   --fs-* type ramp ~18% larger; because every text component sizes off these
+   tokens, one class scales the whole app. px-based SVG chart labels (.tl-axis
+   etc. use literal px) intentionally stay fixed inside their viewBox — honest and
+   acceptable. Minimums are preserved (Sinhala/Tamil never drop below 14px).
+----------------------------------------------------------------------------- */
+html.a11y-large {
+  --fs-price-hero: 47px;
+  --fs-price:      35px;
+  --fs-price-sm:   26px;
+  --fs-h1:         31px;
+  --fs-h2:         25px;
+  --fs-h3:         21px;
+  --fs-title:      20px;
+  --fs-body-lg:    21px;
+  --fs-body:       19px;
+  --fs-sm:         16px;
+  --fs-xs:         14px;
+}
+
+/* -----------------------------------------------------------------------------
    RESPONSIVE BREAKPOINTS (desktop-first; documented here, applied in components)
      >=1024px  Desktop web (PRIMARY): header nav, 2–3 column layouts.
      600–1023  Tablet: condensed nav, 2-col → 1-col, tables scroll.

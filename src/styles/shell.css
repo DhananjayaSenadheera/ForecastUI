@@ -114,6 +114,46 @@
   color: #0b3b34;
 }
 
+/* preferences row (language + text-size) in the sidebar foot */
+.sidebar__prefs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* large-text toggle (FE-16) — pill on the dark sidebar / mobile bar */
+.textsize {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: var(--r-pill);
+  color: #bfd8d3;
+  min-height: var(--touch-min);
+  min-width: var(--touch-min);
+  padding: 6px 12px;
+  flex: none;
+}
+.textsize:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+.textsize.is-active {
+  background: #fff;
+  color: #0b3b34;
+  border-color: #fff;
+}
+.textsize__glyph {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1px;
+  font-weight: var(--fw-black);
+  line-height: 1;
+}
+.textsize__a-sm { font-size: 13px; }
+.textsize__a-lg { font-size: 18px; }
+
 /* audio-help button (stub) */
 .audiohelp {
   display: flex;

@@ -67,6 +67,25 @@ export function groupCropsByCategory(crops: Crop[]): CropGroup[] {
   return order.map((code) => groups.get(code)!);
 }
 
+/**
+ * Parse a comma-separated crop-id list (the FE-14 compare deep-link `?crops=`).
+ * Trims, drops empties, dedupes (first-seen order preserved), and caps at `max`.
+ * Pure string handling — validity against the loaded crop list is the caller's job.
+ */
+export function parseCropIdList(raw: string | null, max: number): string[] {
+  if (!raw) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const part of raw.split(',')) {
+    const id = part.trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
 /** i18n key for a category code; unknown codes fall back to the API name / "all". */
 export function categoryLabelKey(code: string | null): string {
   switch (code) {

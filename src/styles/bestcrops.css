@@ -66,6 +66,29 @@
   margin: 0 0 var(--sp-3);
 }
 
+/* ---- compare-crops entry (link to the non-tab /best-crops/compare route) ---- */
+.bc-compare {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-height: var(--touch-min);
+  margin-bottom: var(--sp-4);
+  padding: 8px 14px;
+  border: 1.5px solid var(--brand);
+  border-radius: var(--r-md);
+  color: var(--brand-strong);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  text-decoration: none;
+}
+.bc-compare:hover {
+  background: var(--brand-tint);
+}
+.bc-compare:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 /* ---- table ---- */
 .bc-tablewrap {
   width: 100%;
