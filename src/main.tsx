@@ -11,8 +11,11 @@ import './styles/harvest.css';
 import './styles/bestcrops.css';
 import './styles/prices.css';
 import './styles/compare.css';
+import './styles/chart-tooltip.css';
+import './styles/auth.css';
 import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
+import { AuthProvider } from './auth/AuthContext';
 import { applyStoredTextSize } from './lib/storage';
 
 // Apply the persisted large-text preference BEFORE first paint (no flash of small text).
@@ -22,7 +25,9 @@ createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErrorBoundary>
       <BrowserRouter>
-        <App />
+        <AuthProvider>
+          <App />
+        </AuthProvider>
       </BrowserRouter>
     </ErrorBoundary>
   </React.StrictMode>,

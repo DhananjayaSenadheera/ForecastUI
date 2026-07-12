@@ -138,6 +138,126 @@ export function buildPriceLineGeometry(
   };
 }
 
+// ---- multi-market overlay (FE-18) -------------------------------------------
+// Overlay up to 4 markets' daily MID price for one crop on ONE shared date x-axis
+// + ONE shared Rs. y-scale so the lines are directly comparable. Colours are the
+// SAME Okabe–Ito set assigned by stable market id (assignMarketColors), so a market
+// keeps its colour across the single-market key, the overlay and the bars. REUSES
+// niceScale + the daily {min,max,mid} idiom above — no forked scaling. Honest: a
+// market with a thin/short series simply draws a shorter line; nothing is padded.
+export interface MarketOverlayInput {
+  marketId: string;
+  name: string;
+  history: PriceHistoryPoint[];
+  /** Stable colour assigned from the FULL market list so it never shifts with selection. */
+  colorVar?: string;
+}
+export interface MarketOverlayPoint {
+  x: number;
+  y: number;
+  date: string;
+  mid: number;
+  min: number;
+  max: number;
+}
+export interface MarketOverlaySeries {
+  marketId: string;
+  name: string;
+  colorVar: string;
+  midPolyline: string;
+  points: MarketOverlayPoint[];
+  end: { x: number; y: number } | null;
+  count: number;
+}
+export interface MarketOverlayGeometry {
+  dims: { width: number; height: number; plot: { left: number; right: number; top: number; bottom: number } };
+  domain: { min: number; max: number };
+  yTicks: PriceAxisTick[];
+  xTicks: PriceXTick[];
+  series: MarketOverlaySeries[];
+}
+export interface MarketOverlayOpts {
+  width?: number;
+  height?: number;
+  dayLabel?: (d: Date) => string;
+  maxXLabels?: number;
+}
+
+const dayTime = (date: string): number => new Date(date + 'T00:00:00').getTime();
+
+export function buildMarketOverlayGeometry(
+  inputs: MarketOverlayInput[],
+  opts: MarketOverlayOpts = {},
+): MarketOverlayGeometry | null {
+  const withData = inputs.filter((s) => s.history.length > 0);
+  if (withData.length === 0) return null;
+
+  const width = opts.width ?? 640;
+  const height = opts.height ?? 240;
+  const dayLabel = opts.dayLabel ?? ((d: Date) => d.toLocaleString('en', { month: 'short', day: 'numeric' }));
+  const maxXLabels = opts.maxXLabels ?? 6;
+  // Extra right padding for the direct end-labels (no legend).
+  const plot = { left: 46, right: width - 64, top: 20, bottom: height - 30 };
+
+  const colors = assignMarketColors(inputs.map((s) => s.marketId));
+
+  const allT: number[] = [];
+  const allV: number[] = [];
+  const parsed = withData.map((s) => {
+    const pts = toPricePoints(s.history)
+      .map((p) => ({ ...p, t: dayTime(p.date) }))
+      .sort((a, b) => a.t - b.t);
+    for (const p of pts) {
+      allT.push(p.t);
+      allV.push(p.min, p.max);
+    }
+    return { s, pts };
+  });
+
+  const minT = Math.min(...allT);
+  const maxT = Math.max(...allT);
+  const { niceMin, niceMax, ticks } = niceScale(Math.min(...allV), Math.max(...allV), 4);
+
+  const xFor = (t: number): number =>
+    maxT <= minT ? (plot.left + plot.right) / 2 : plot.left + ((t - minT) / (maxT - minT)) * (plot.right - plot.left);
+  const yFor = (v: number): number =>
+    plot.bottom - ((v - niceMin) / (niceMax - niceMin || 1)) * (plot.bottom - plot.top);
+
+  const series: MarketOverlaySeries[] = parsed.map(({ s, pts }) => {
+    const xy: MarketOverlayPoint[] = pts.map((p) => ({
+      x: xFor(p.t),
+      y: yFor(p.mid),
+      date: p.date,
+      mid: p.mid,
+      min: p.min,
+      max: p.max,
+    }));
+    const last = xy[xy.length - 1] ?? null;
+    return {
+      marketId: s.marketId,
+      name: s.name,
+      colorVar: s.colorVar ?? colors.get(s.marketId) ?? marketColorVar(0),
+      midPolyline: xy.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' '),
+      points: xy,
+      end: last ? { x: last.x, y: last.y } : null,
+      count: xy.length,
+    };
+  });
+
+  const yTicks: PriceAxisTick[] = ticks.map((v) => ({ value: v, y: yFor(v), label: String(v) }));
+
+  // x ticks from the union of dates, thinned so labels stay readable at 360px.
+  const uniqueT = [...new Set(allT)].sort((a, b) => a - b);
+  const step = Math.max(1, Math.ceil(uniqueT.length / maxXLabels));
+  const xTicks: PriceXTick[] = [];
+  uniqueT.forEach((t, i) => {
+    if (i % step !== 0 && i !== uniqueT.length - 1) return;
+    xTicks.push({ x: xFor(t), label: dayLabel(new Date(t)) });
+  });
+
+  return { dims: { width, height, plot }, domain: { min: niceMin, max: niceMax }, yTicks, xTicks, series };
+}
+
 // ---- sparkline (FE-1 overview latest-prices strip) --------------------------
 // A minimal single-series trend line: no axis, no band — just a shape that reads
 // at a glance in a table cell. Shares the {date, price} idiom and the same "lay out

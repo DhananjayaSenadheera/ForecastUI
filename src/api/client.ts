@@ -22,7 +22,7 @@ import type {
 } from './types';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5282';
-const USE_FIXTURES = import.meta.env.VITE_API_MODE === 'fixtures';
+export const USE_FIXTURES = import.meta.env.VITE_API_MODE === 'fixtures';
 
 /** Thrown for non-2xx responses / network failures; carries a human message. */
 export class ApiError extends Error {
@@ -34,15 +34,35 @@ export class ApiError extends Error {
   }
 }
 
-// --- auth hook point (R2) -----------------------------------------------------
-// R1 is anonymous read. When JWT auth lands, resolve the in-memory token here and
-// merge Authorization into the request headers. Kept commented so R1 ships no auth.
-//   let authToken: string | null = null;
-//   export function setAuthToken(t: string | null) { authToken = t; }
-function authHeaders(): Record<string, string> {
-  // return authToken ? { Authorization: `Bearer ${authToken}` } : {};
-  return {};
+// --- auth (FE-17) -------------------------------------------------------------
+// SECURITY: the JWT lives in MODULE MEMORY ONLY — never localStorage /
+// sessionStorage / cookies. A page refresh loses it BY DESIGN (the R2 backlog
+// item is a refresh-token / silent-renew flow; there is none on the backend yet).
+// This is the hook the FE-2 scaffold left commented for R2.
+let authToken: string | null = null;
+
+/** Set (or clear, with null) the in-memory bearer token. Called by AuthContext. */
+export function setAuthToken(t: string | null): void {
+  authToken = t;
 }
+
+function authHeaders(): Record<string, string> {
+  return authToken ? { Authorization: `Bearer ${authToken}` } : {};
+}
+
+// --- 401 interceptor ----------------------------------------------------------
+// A single global handler the AuthContext registers to clear the session and
+// bounce to /login when the API rejects our token (expired / revoked). Auth
+// routes are EXEMPT: a 401 from /api/auth/login means "wrong credentials", not
+// "session expired", and must not trigger a logout/redirect loop.
+let onUnauthorized: (() => void) | null = null;
+
+/** Register the session-expiry handler (AuthContext). Pass null to unregister. */
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  onUnauthorized = handler;
+}
+
+const AUTH_PATH_PREFIX = '/api/auth/';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
@@ -67,6 +87,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   reportFromHeaders(res.headers);
 
   if (!res.ok) {
+    // Session-expiry interceptor: a 401 on any NON-auth route means our token is
+    // no longer accepted -> clear the session + redirect. Auth routes are exempt
+    // (there a 401 is a credentials error the login form surfaces itself).
+    if (res.status === 401 && !path.startsWith(AUTH_PATH_PREFIX)) {
+      onUnauthorized?.();
+    }
     let message = `HTTP ${res.status}`;
     try {
       const body = await res.json();
@@ -80,6 +106,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }
+
+// Exported for the auth module (src/api/auth.ts) so login/register reuse the same
+// fetch pipeline: error-message parsing, network-error shaping, the 401 exemption.
+export { request };
 
 const iso = (d: string | Date): string => (typeof d === 'string' ? d : ymdLocal(d));
 

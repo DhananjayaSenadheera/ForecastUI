@@ -11,6 +11,7 @@ import {
   PriceTrend,
   RecommendationLevel,
   type BestCrop,
+  type ConfidenceString,
   type Crop,
   type CropTimeline,
   type HarvestForecast,
@@ -44,6 +45,42 @@ export const fxCrops: Crop[] = [
   { id: 'c0000012-0000-0000-0000-000000000012', name: 'Banana', nameSi: 'කෙසෙල්', nameTa: 'வாழை', cropCode: 'FRT000002', category: FRT, growthDays: 300, externalProductId: 2, source: 'HARTI', createdAt: '2026-01-05T00:00:00Z', updatedAt: '2026-07-01T00:00:00Z' },
   { id: 'c0000013-0000-0000-0000-000000000013', name: 'Papaya', nameSi: 'පැපොල්', nameTa: 'பப்பாளி', cropCode: 'FRT000004', category: FRT, growthDays: 270, externalProductId: 4, source: 'HARTI', createdAt: '2026-01-05T00:00:00Z', updatedAt: '2026-07-01T00:00:00Z' },
 ];
+
+// =============================================================================
+// FE-19 — PER-CROP REFERENCE PRICE (single source of truth).
+//
+// BUG FIXED: previously every crop WITHOUT a dedicated fixture fell back to
+// Capsicum's 552 reference (fxForecastFor/fxTimelineFor/fxPriceHistoryFor all
+// defaulted to Capsicum), so the Compare screen showed identical prices for most
+// crop pairs. Now EVERY fxCrops crop has a DISTINCT reference (Rs/kg wholesale
+// level) and the timeline / harvest / price-history / overview / compare surfaces
+// all derive from this ONE table, so they agree per crop and differ across crops.
+//
+// Values match fxBestCrops.averagePrice where those exist (Capsicum 552, Green
+// Chilli 430, Tomato 360, Beans 310, Carrot 280, Passion 240, Cabbage 95) and are
+// plausible distinct Sri Lanka wholesale levels for the remaining crops. DEMO data.
+// =============================================================================
+export const CROP_REFERENCE: Record<string, number> = {
+  'c0000001-0000-0000-0000-000000000001': 552, // Capsicum
+  'c0000005-0000-0000-0000-000000000005': 430, // Green Chilli
+  'c0000003-0000-0000-0000-000000000003': 360, // Tomato
+  'c0000002-0000-0000-0000-000000000002': 310, // Beans
+  'c0000010-0000-0000-0000-000000000010': 300, // Leeks
+  'c0000006-0000-0000-0000-000000000006': 280, // Carrot
+  'c0000004-0000-0000-0000-000000000004': 240, // Passion Fruit
+  'c0000008-0000-0000-0000-000000000008': 210, // Brinjal
+  'c0000011-0000-0000-0000-000000000011': 175, // Beetroot
+  'c0000012-0000-0000-0000-000000000012': 160, // Banana
+  'c0000013-0000-0000-0000-000000000013': 130, // Papaya
+  'c0000009-0000-0000-0000-000000000009': 100, // Pumpkin
+  'c0000007-0000-0000-0000-000000000007': 95, // Cabbage
+};
+const DEFAULT_REFERENCE = 300; // used only for a crop id absent from the table
+
+/** Reference (average) Rs/kg price for a crop — the single source of truth. */
+export function cropReferencePrice(cropId: string): number {
+  return CROP_REFERENCE[cropId] ?? DEFAULT_REFERENCE;
+}
 
 export const fxHarvestForecast: HarvestForecast = {
   cropId: 'c0000001-0000-0000-0000-000000000001',
@@ -131,7 +168,11 @@ export const fxHarvestForecastLow: HarvestForecast = {
 // tier so every state is demo-able (Tomato/Capsicum=High, Beans=Medium, Passion=Low).
 // The requested plantDate is echoed back and harvestDate is derived from it +
 // growthPeriodDays, matching the server behaviour so the demo stays honest.
+// Hand-authored confidence-tier fixtures (High/Medium/Low) keep their PINNED
+// values so the tier showcase (Capsicum=High, Beans=Medium, Passion=Low) stays
+// demoable and stable. Every OTHER crop is generated from CROP_REFERENCE below.
 const fxHarvestByCrop: Record<string, HarvestForecast> = {
+  'c0000001-0000-0000-0000-000000000001': fxHarvestForecast, // Capsicum (High)
   'c0000002-0000-0000-0000-000000000002': fxHarvestForecastMedium, // Beans
   'c0000004-0000-0000-0000-000000000004': fxHarvestForecastLow, // Passion Fruit
 };
@@ -144,14 +185,146 @@ function addDays(ymd: string, days: number | null): string | null {
   return ymdLocal(d);
 }
 
-export function fxForecastFor(cropId: string, plantDate: string): HarvestForecast {
-  const base = fxHarvestByCrop[cropId] ?? fxHarvestForecast; // default = High tier
+// ---------------------------------------------------------------------------
+// FE-19 deterministic per-crop generator. From a crop's reference price + a
+// stable per-crop "shape" (amplitude / phase / trend seeded from the crop id) we
+// synthesise a 12-month history + a 3-point forecast that is REALISTIC, DISTINCT
+// per crop, and STABLE across runs (no Date.now / unseeded Math.random). The same
+// shape drives the harvest forecast so the hero, chart, prices and compare agree.
+// ---------------------------------------------------------------------------
+const TIMELINE_MONTHS = [
+  '2025-08', '2025-09', '2025-10', '2025-11', '2025-12', '2026-01',
+  '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07',
+] as const;
+const FORECAST_DATES = ['2026-08-10', '2026-09-10', '2026-10-15'] as const;
+
+/** FNV-1a hash of a string -> unsigned 32-bit; deterministic per crop id. */
+function hashStr(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+interface CropShape {
+  amp: number; // seasonal swing, fraction of reference
+  phase: number; // seasonal phase (radians)
+  trend: number; // 12-month drift, fraction of reference
+}
+function cropShape(cropId: string): CropShape {
+  const h = hashStr(cropId);
   return {
-    ...base,
-    cropId,
-    plantDate,
-    harvestDate: addDays(plantDate, base.growthPeriodDays) ?? base.harvestDate,
+    amp: 0.05 + ((h % 100) / 100) * 0.12, // 0.05–0.17
+    phase: (((h >>> 7) % 360) * Math.PI) / 180, // 0–2π
+    trend: -0.05 + (((h >>> 15) % 100) / 100) * 0.16, // -0.05–0.11
   };
+}
+
+/** Tiny deterministic per-crop, per-index wobble in ~[-0.02, 0.02]. */
+function shapeJitter(cropId: string, i: number): number {
+  const h = hashStr(`${cropId}#${i}`);
+  return ((h % 41) - 20) / 1000;
+}
+
+function confCodeToString(c: ForecastConfidenceCode): ConfidenceString {
+  return c === ForecastConfidenceCode.High ? 'High' : c === ForecastConfidenceCode.Low ? 'Low' : 'Medium';
+}
+
+function genHistory(cropId: string, ref: number, shape: CropShape): { month: string; avgPrice: number }[] {
+  const n = TIMELINE_MONTHS.length;
+  return TIMELINE_MONTHS.map((month, i) => {
+    const frac = i / (n - 1);
+    const seasonal = shape.amp * Math.sin((i / 12) * Math.PI * 2 + shape.phase);
+    const avg = ref * (1 + shape.trend * frac + seasonal + shapeJitter(cropId, i));
+    return { month, avgPrice: Math.max(1, Math.round(avg)) };
+  });
+}
+
+function genForecast(shape: CropShape, lastAvg: number) {
+  return FORECAST_DATES.map((date, k) => {
+    const h = k + 1;
+    const drift = shape.trend * 0.5 * h + shape.amp * 0.4 * Math.sin(shape.phase + h);
+    const predicted = Math.max(1, Math.round(lastAvg * (1 + drift)));
+    const widthFrac = 0.16 + 0.09 * h; // band widens with horizon
+    return {
+      horizonMonths: h,
+      date,
+      predictedPrice: predicted,
+      lowerBound: Math.max(1, Math.round(predicted * (1 - widthFrac))),
+      upperBound: Math.round(predicted * (1 + widthFrac)),
+    };
+  });
+}
+
+/** Generated 12-month timeline for a crop that has no hand-authored fixture. */
+function genTimeline(cropId: string): CropTimeline {
+  const ref = cropReferencePrice(cropId);
+  const shape = cropShape(cropId);
+  const history = genHistory(cropId, ref, shape);
+  const forecast = genForecast(shape, history[history.length - 1].avgPrice);
+  const crop = fxCrops.find((c) => c.id === cropId);
+  const bc = fxBestCrops.find((c) => c.cropId === cropId);
+  const confidence = bc ? confCodeToString(bc.confidence) : 'Medium';
+  return {
+    cropName: crop?.name ?? null,
+    activePredictor: 'residual',
+    confidence,
+    modelVersion: 'v13',
+    explanation: 'Based on recent Dambulla prices for this crop.',
+    history,
+    forecast,
+  };
+}
+
+/** Generated harvest forecast for a crop with no hand-authored fixture. */
+function genHarvest(cropId: string, plantDate: string): HarvestForecast {
+  const shape = cropShape(cropId);
+  const tl = genTimeline(cropId);
+  const current = tl.history[tl.history.length - 1].avgPrice;
+  const hp = tl.forecast[tl.forecast.length - 1];
+  const crop = fxCrops.find((c) => c.id === cropId);
+  const bc = fxBestCrops.find((c) => c.cropId === cropId);
+  const growthDays = crop?.growthDays ?? 90;
+  const predicted = hp.predictedPrice;
+  return {
+    cropId,
+    cropName: crop?.name ?? null,
+    plantDate,
+    harvestDate: addDays(plantDate, growthDays) ?? hp.date,
+    growthPeriodDays: growthDays,
+    currentPrice: current,
+    predictedPrice: predicted,
+    lowerBound: hp.lowerBound,
+    upperBound: hp.upperBound,
+    confidence: bc ? confCodeToString(bc.confidence) : 'Medium',
+    activePredictor: 'residual',
+    modelVersion: 'v13',
+    explanation: 'Based on recent Dambulla prices for this crop.',
+    recommendationLevel: bc?.recommendationLevel ?? RecommendationLevel.Recommended,
+    reason: 'Some recent price data and a fairly steady trend.',
+    upsidePct: Math.round(((predicted - current) / current) * 100),
+    intervalWidthPct: Math.round(((hp.upperBound - hp.lowerBound) / predicted) * 100),
+    lowTrust: false,
+    topFactors: [
+      { code: 'recent_price_trend', direction: shape.trend >= 0 ? 'up' : 'down', weight: 0.6 },
+      { code: 'seasonal_supply', direction: 'neutral', weight: 0.4 },
+    ],
+  };
+}
+
+export function fxForecastFor(cropId: string, plantDate: string): HarvestForecast {
+  const base = fxHarvestByCrop[cropId];
+  if (base) {
+    return {
+      ...base,
+      cropId,
+      plantDate,
+      harvestDate: addDays(plantDate, base.growthPeriodDays) ?? base.harvestDate,
+    };
+  }
+  return genHarvest(cropId, plantDate); // distinct per-crop synthetic forecast
 }
 
 // HIGH-tier, full 12-month history (Capsicum). Forecast cones out to the harvest.
@@ -234,12 +407,15 @@ export const fxTimelineLow: CropTimeline = {
 // Per-crop timeline resolver for fixture mode — mirrors fxHarvestByCrop so the
 // chart's confidence story lines up with the FE-4 hero for the same crop.
 const fxTimelineByCrop: Record<string, CropTimeline> = {
-  'c0000002-0000-0000-0000-000000000002': fxTimelineMedium, // Beans
-  'c0000004-0000-0000-0000-000000000004': fxTimelineLow, // Passion Fruit
+  'c0000001-0000-0000-0000-000000000001': fxTimeline, // Capsicum (High, 12mo)
+  'c0000002-0000-0000-0000-000000000002': fxTimelineMedium, // Beans (Medium)
+  'c0000004-0000-0000-0000-000000000004': fxTimelineLow, // Passion Fruit (Low, thin)
 };
 
 export function fxTimelineFor(cropId: string): CropTimeline {
-  return fxTimelineByCrop[cropId] ?? fxTimeline; // default = High tier (Capsicum)
+  // Hand-authored tier fixtures for Capsicum/Beans/Passion; every other crop gets
+  // a DISTINCT generated series from its reference price (no more Capsicum fallback).
+  return fxTimelineByCrop[cropId] ?? genTimeline(cropId);
 }
 
 // Full-spectrum ranked list so FE-7 exercises every honest state: two strong/High
@@ -302,13 +478,6 @@ const MARKET_PROFILES: Record<string, MarketPriceProfile> = {
   'm0000004-0000-0000-0000-000000000004': { level: 1.05, spread: 0.12, days: 3 }, // Meegoda — thin
 };
 const DEFAULT_MARKET_ID = 'm0000001-0000-0000-0000-000000000001'; // economic centre
-
-/** Reference (mid) price for a crop — reuse best-crops avg where known. */
-function cropReferencePrice(cropId: string): number {
-  const bc = fxBestCrops.find((c) => c.cropId === cropId);
-  if (bc) return bc.averagePrice;
-  return (fxHarvestByCrop[cropId] ?? fxHarvestForecast).predictedPrice;
-}
 
 /** Deterministic small offset in ~[-0.03, 0.03] from a market id + day index. */
 function seededJitter(marketId: string, d: number): number {

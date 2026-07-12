@@ -1,0 +1,253 @@
+/* =============================================================================
+   AgriForecast — auth screens + session control (FE-17).
+   Depends on tokens.css. Mobile-first, sunlight-readable, >=44px targets, generous
+   type. Reuses .btn-primary and the global focus ring; only auth-specific pieces
+   live here.
+   ============================================================================= */
+
+/* ---------------- full-screen auth page ---------------- */
+.authpage {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-5);
+  background: var(--surface-2);
+}
+
+.authcard {
+  width: 100%;
+  max-width: 440px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--e-3);
+  overflow: hidden;
+}
+
+/* Teal header strip — also gives the LanguageSwitcher its intended dark backdrop
+   so language stays changeable at login without a farmer getting trapped. */
+.authcard__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  padding: var(--sp-4) var(--sp-5);
+  background: var(--brand-dark);
+  color: var(--text-on-brand);
+}
+.authcard__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-title);
+}
+.authcard__leaf {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.16);
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+}
+
+.authcard__body {
+  padding: var(--sp-6) var(--sp-5) var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.authcard__title {
+  font-size: var(--fs-h1);
+}
+.authcard__sub {
+  color: var(--text-2);
+  font-size: var(--fs-body);
+  margin-bottom: var(--sp-1);
+}
+
+/* Demo-mode badge — subtle, dev-only (fixtures). Amber = caution, never a lie. */
+.authcard__demo {
+  align-self: flex-start;
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  border: 1px solid var(--lowtrust-border);
+  border-radius: var(--r-pill);
+  padding: 4px 12px;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+
+/* Session-expired notice (info tone — teal, not alarm). */
+.authcard__notice {
+  background: var(--brand-tint);
+  color: var(--brand-dark);
+  border: 1px solid var(--teal-200);
+  border-radius: var(--r-md);
+  padding: var(--sp-3) var(--sp-4);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+
+/* ---------------- form + fields ---------------- */
+.authform {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  margin-top: var(--sp-2);
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.field__label {
+  font-weight: var(--fw-medium);
+  font-size: var(--fs-body);
+}
+.field__input {
+  width: 100%;
+  min-height: var(--touch-primary);
+  padding: 12px 14px;
+  font-size: var(--fs-body-lg);
+  color: var(--text);
+  background: var(--surface);
+  border: 2px solid var(--line-strong);
+  border-radius: var(--r-md);
+}
+.field__input:focus-visible {
+  border-color: var(--brand);
+}
+.field__input[aria-invalid='true'] {
+  border-color: var(--critical);
+}
+
+/* Password field: input + inline show/hide toggle. */
+.field__pw {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: stretch;
+}
+.field__pw .field__input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.field__pwtoggle {
+  flex: 0 0 auto;
+  min-height: var(--touch-primary);
+  padding: 0 14px;
+  color: var(--brand);
+  font-weight: var(--fw-medium);
+  font-size: var(--fs-sm);
+  border: 2px solid var(--line-strong);
+  border-radius: var(--r-md);
+  white-space: nowrap;
+}
+.field__pwtoggle:hover {
+  background: var(--brand-tint);
+}
+
+.field__hint {
+  color: var(--text-3);
+  font-size: var(--fs-sm);
+}
+.field__error {
+  color: var(--critical-fg);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+
+/* Whole-form error (bad credentials, taken username, network). */
+.authform__error {
+  background: var(--critical-bg);
+  color: var(--critical-fg);
+  border: 1px solid #E9C9C4;
+  border-radius: var(--r-md);
+  padding: var(--sp-3) var(--sp-4);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-medium);
+}
+
+.authcard__alt {
+  text-align: center;
+  color: var(--text-2);
+  font-size: var(--fs-body);
+  margin-top: var(--sp-2);
+}
+.authcard__alt a {
+  font-weight: var(--fw-bold);
+}
+
+/* ---------------- session menu (shell) ---------------- */
+/* Sidebar variant — on the dark teal sidebar (light text). */
+.session {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.session--sidebar {
+  padding-bottom: var(--sp-2);
+  margin-bottom: var(--sp-1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+.session__who {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.session__label {
+  font-size: var(--fs-xs);
+  color: #bfd8d3;
+}
+.session__name {
+  font-weight: var(--fw-bold);
+  color: #fff;
+  font-size: var(--fs-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+.session__demo {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--warn-fg);
+  background: var(--warn-bg);
+  border-radius: var(--r-pill);
+  padding: 1px 8px;
+}
+.session__logout {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: var(--touch-min);
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: var(--r-pill);
+  color: #eaf5f2;
+  font-weight: var(--fw-medium);
+  font-size: var(--fs-sm);
+  width: max-content;
+}
+.session__logout:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Mobile variant — compact icon-only button in the top bar (label via aria). */
+.session--mobile {
+  flex-direction: row;
+}
+.session--mobile .session__who {
+  display: none;
+}
+.session--mobile .session__logout {
+  padding: 8px;
+  width: var(--touch-min);
+  justify-content: center;
+}
+.session--mobile .session__logouttext {
+  display: none;
+}

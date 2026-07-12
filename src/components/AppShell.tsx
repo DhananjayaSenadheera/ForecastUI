@@ -6,6 +6,7 @@ import TextSizeToggle from './TextSizeToggle';
 import AudioHelpButton from './AudioHelpButton';
 import StalenessBanner from './StalenessBanner';
 import ErrorBoundary from './ErrorBoundary';
+import SessionMenu from './SessionMenu';
 
 // Dashboard shell (normative ref: dashboard-style-samples-v1).
 // Desktop/tablet: dark teal sidebar (nav + footer audio/lang). Mobile: sidebar is
@@ -43,6 +44,7 @@ export default function AppShell() {
         </nav>
 
         <div className="sidebar__foot">
+          <SessionMenu variant="sidebar" />
           <AudioHelpButton />
           <div className="sidebar__prefs">
             <LanguageSwitcher />
@@ -58,6 +60,7 @@ export default function AppShell() {
         </span>
         <strong style={{ fontSize: 16 }}>{t('app.name')}</strong>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <SessionMenu variant="mobile" />
           <LanguageSwitcher />
           <TextSizeToggle />
         </div>

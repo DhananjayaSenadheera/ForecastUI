@@ -24,9 +24,10 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import type { Crop, CropTimeline } from '../api/types';
 import { cropDisplayName, parseCropIdList } from '../lib/crops';
-import { formatPrice, ymdLocal } from '../lib/format';
+import { formatDate, formatPrice, ymdLocal } from '../lib/format';
 import { buildCompareGeometry, isShortHistory, type CompareSeriesInput } from '../lib/timeline';
 import { marketColorVar } from '../lib/prices';
+import { ChartTooltip, useChartTooltip, type TooltipPoint } from '../lib/chartTooltip';
 
 const COMPARE_MAX = 3;
 const VIEW_W = 680;
@@ -93,26 +94,24 @@ export default function CompareCropsPage() {
   const requestedRef = useRef<Set<string>>(new Set());
   const [retryNonce, setRetryNonce] = useState(0);
 
+  // No cancelled flag here: requestedRef survives StrictMode's dev double-mount,
+  // so a first-pass "cancelled" fetch would never re-run and the panel would sit
+  // on "loading" forever. Late setState after unmount is a no-op in React 18.
   useEffect(() => {
-    let cancelled = false;
     selectedIds.forEach((id) => {
       if (requestedRef.current.has(id)) return;
       requestedRef.current.add(id);
       setTimelines((prev) => ({ ...prev, [id]: { status: 'loading' } }));
       api.getCropTimeline(id, 12, todayStr).then(
         (tl) => {
-          if (!cancelled) setTimelines((prev) => ({ ...prev, [id]: { status: 'ok', timeline: tl } }));
+          setTimelines((prev) => ({ ...prev, [id]: { status: 'ok', timeline: tl } }));
         },
         () => {
-          if (cancelled) return;
           requestedRef.current.delete(id); // allow a retry
           setTimelines((prev) => ({ ...prev, [id]: { status: 'error' } }));
         },
       );
     });
-    return () => {
-      cancelled = true;
-    };
   }, [selectedIds, todayStr, retryNonce]);
 
   const retryCrop = useCallback((id: string) => {
@@ -162,6 +161,30 @@ export default function CompareCropsPage() {
     () => buildCompareGeometry(okSeries, { width: VIEW_W, height: VIEW_H, monthLabel }),
     [okSeries, monthLabel],
   );
+
+  // ---- FE-20 shared tooltip: nearest point across ALL overlaid crops. Past
+  // points show crop + month + price; forecast points also show the "likely" band.
+  const tipPoints: TooltipPoint[] = useMemo(() => {
+    if (!geo) return [];
+    const out: TooltipPoint[] = [];
+    for (const s of geo.series) {
+      for (const p of s.histPoints) {
+        const [y, m] = p.month.split('-').map(Number);
+        const label = `${monthLabel(new Date(y, (m || 1) - 1, 1))} ${y}`;
+        const valueText = formatPrice(p.value, lang, rs);
+        out.push({ key: `${s.cropId}-h-${p.month}`, x: p.x, y: p.y, seriesName: s.label, label, valueText, announce: [s.label, label, valueText].join(' · ') });
+      }
+      for (const p of s.fcPoints) {
+        const label = formatDate(p.date, lang);
+        const valueText = formatPrice(p.value, lang, rs);
+        const bandText = t('tooltip.likely', { min: formatPrice(p.lower, lang, rs), max: formatPrice(p.upper, lang, rs) });
+        out.push({ key: `${s.cropId}-f-${p.date}`, x: p.x, y: p.y, seriesName: s.label, label, valueText, bandText, announce: [s.label, label, valueText, bandText].join(' · ') });
+      }
+    }
+    return out;
+  }, [geo, monthLabel, lang, rs, t]);
+
+  const tt = useChartTooltip(tipPoints, VIEW_W, VIEW_H);
 
   const summary = t('pages.compare.chartAria', {
     crops: okIds.map((id) => nameFor(id)).join(', '),
@@ -247,8 +270,8 @@ export default function CompareCropsPage() {
 
           {okIds.length > 0 && geo ? (
             <>
-              <div className={`cmp-svgwrap${anyLoading ? ' is-busy' : ''}`} aria-busy={anyLoading || undefined}>
-                <svg className="cmp-svg" viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} role="img" aria-label={summary}>
+              <div className={`cmp-svgwrap ct-wrap${anyLoading ? ' is-busy' : ''}`} aria-busy={anyLoading || undefined}>
+                <svg className="cmp-svg" viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} role="img" aria-label={summary} {...tt.svgProps}>
                   {/* y gridlines + Rs. labels */}
                   {geo.yTicks.map((tk) => (
                     <g key={`y${tk.value}`}>
@@ -300,7 +323,10 @@ export default function CompareCropsPage() {
                       {tk.label}
                     </text>
                   ))}
+
+                  {tt.active && <circle className="ct-dot" cx={tt.active.x} cy={tt.active.y} r={5} />}
                 </svg>
+                <ChartTooltip point={tt.active} mode={tt.mode} viewW={VIEW_W} viewH={VIEW_H} />
               </div>
 
               <p className="cmp-keys" aria-hidden="true">

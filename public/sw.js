@@ -71,6 +71,16 @@ async function apiStrategy(request) {
   }
 }
 
+// Logout hook (FE-17): the app posts { type: 'CLEAR_DATA_CACHE' } on sign-out so
+// one farmer's cached authenticated /api responses (network-first fallback copies)
+// cannot leak to the next person who signs in on the same device. Only the DATA
+// cache is dropped; the public app shell stays precached for offline launch.
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'CLEAR_DATA_CACHE') {
+    event.waitUntil(caches.delete(DATA_CACHE));
+  }
+});
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;

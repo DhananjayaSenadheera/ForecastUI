@@ -250,6 +250,20 @@ export interface CompareSeriesInput {
   label: string;
   timeline: CropTimeline;
 }
+export interface CompareHistPoint {
+  x: number;
+  y: number;
+  month: string;
+  value: number;
+}
+export interface CompareFcPoint {
+  x: number;
+  y: number;
+  date: string;
+  value: number;
+  lower: number;
+  upper: number;
+}
 export interface CompareSeriesGeometry {
   cropId: string;
   label: string;
@@ -258,6 +272,9 @@ export interface CompareSeriesGeometry {
   bandPolygon: string; // low-opacity P10–P90 band ("" when no forecast)
   end: { x: number; y: number } | null; // anchor for the direct end-label
   hasForecast: boolean;
+  // FE-20 hit targets for the shared tooltip (values also live in the table alt).
+  histPoints: CompareHistPoint[];
+  fcPoints: CompareFcPoint[];
 }
 export interface CompareGeometry {
   dims: { width: number; height: number; plot: { left: number; right: number; top: number; bottom: number } };
@@ -339,6 +356,20 @@ export function buildCompareGeometry(
     }
 
     const lastPt = fcXY.length ? fcXY[fcXY.length - 1] : histXY.length ? histXY[histXY.length - 1] : null;
+    const histPoints: CompareHistPoint[] = histXY.map((p, i) => ({
+      x: p.x,
+      y: p.y,
+      month: s.timeline.history[i].month,
+      value: s.timeline.history[i].avgPrice,
+    }));
+    const fcPoints: CompareFcPoint[] = fcXY.map((p, i) => ({
+      x: p.x,
+      y: p.y,
+      date: s.timeline.forecast[i].date,
+      value: s.timeline.forecast[i].predictedPrice,
+      lower: s.timeline.forecast[i].lowerBound,
+      upper: s.timeline.forecast[i].upperBound,
+    }));
     return {
       cropId: s.cropId,
       label: s.label,
@@ -347,6 +378,8 @@ export function buildCompareGeometry(
       bandPolygon,
       end: lastPt ? { x: lastPt.x, y: lastPt.y } : null,
       hasForecast: fcXY.length > 0,
+      histPoints,
+      fcPoints,
     };
   });
 

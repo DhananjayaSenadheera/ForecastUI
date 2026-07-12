@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import type { CropTimeline } from '../api/types';
 import { formatPrice, formatDate } from '../lib/format';
 import { buildTimelineGeometry, isShortHistory, SHORT_HISTORY_MONTHS } from '../lib/timeline';
+import { ChartTooltip, useChartTooltip, type TooltipPoint } from '../lib/chartTooltip';
 
 export interface TimelineChartProps {
   timeline: CropTimeline | null;
@@ -52,6 +53,30 @@ export default function TimelineChart({ timeline, loading, error, onRetry, harve
     if (!timeline || timeline.history.length < 1) return null;
     return buildTimelineGeometry(timeline, { width: VIEW_W, height: VIEW_H, harvestDate, monthLabel });
   }, [timeline, harvestDate, monthLabel]);
+
+  // ---- FE-20 tooltip: past points show the month + price; forecast points also
+  // show the honest "likely" band range. Values also live in the table below. ----
+  const tipPoints: TooltipPoint[] = useMemo(() => {
+    if (!geo || !timeline) return [];
+    const out: TooltipPoint[] = [];
+    geo.history.forEach((p, i) => {
+      const hm = timeline.history[i];
+      const [y, m] = hm.month.split('-').map(Number);
+      const label = `${monthLabel(new Date(y, (m || 1) - 1, 1))} ${y}`;
+      const valueText = formatPrice(p.value, lang, rs);
+      out.push({ key: `h${i}`, x: p.x, y: p.y, label, valueText, announce: [label, valueText].join(' · ') });
+    });
+    geo.forecast.forEach((p, i) => {
+      const f = timeline.forecast[i];
+      const label = formatDate(f.date, lang);
+      const valueText = formatPrice(p.value, lang, rs);
+      const bandText = t('tooltip.likely', { min: formatPrice(p.lower, lang, rs), max: formatPrice(p.upper, lang, rs) });
+      out.push({ key: `f${i}`, x: p.x, y: p.y, label, valueText, bandText, announce: [label, valueText, bandText].join(' · ') });
+    });
+    return out;
+  }, [geo, timeline, monthLabel, lang, rs, t]);
+
+  const tt = useChartTooltip(tipPoints, VIEW_W, VIEW_H);
 
   // ---- compact chart-error note (fail-soft: FE-4 hero already rendered) -------
   if (error) {
@@ -128,7 +153,8 @@ export default function TimelineChart({ timeline, loading, error, onRetry, harve
         <span className="tl-key tl-key--today">┊ {t('timeline.keyToday')}</span>
       </p>
 
-      <svg className={`tl-svg${lowTrust ? ' is-low' : ''}`} viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} role="img" aria-label={summary}>
+      <div className="ct-wrap">
+      <svg className={`tl-svg${lowTrust ? ' is-low' : ''}`} viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} role="img" aria-label={summary} {...tt.svgProps}>
         {/* y gridlines + Rs. labels */}
         {geo.yTicks.map((tk) => (
           <g key={`y${tk.value}`}>
@@ -174,7 +200,11 @@ export default function TimelineChart({ timeline, loading, error, onRetry, harve
             {tk.label}
           </text>
         ))}
+
+        {tt.active && <circle className="ct-dot" cx={tt.active.x} cy={tt.active.y} r={5} />}
       </svg>
+        <ChartTooltip point={tt.active} mode={tt.mode} viewW={VIEW_W} viewH={VIEW_H} />
+      </div>
 
       {/* MANDATORY table alternative (WCAG) — the number is the product. */}
       <details className="tl-table">
