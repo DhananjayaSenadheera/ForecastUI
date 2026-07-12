@@ -11,7 +11,16 @@ const { loginMock, registerMock } = vi.hoisted(() => ({
   loginMock: vi.fn(),
   registerMock: vi.fn(),
 }));
-vi.mock('../api/auth', () => ({ login: loginMock, register: registerMock }));
+// AuthContext also imports refresh/logout/fxRestoreSession/fxClearMarker (FE-21);
+// stub them so the mocked module stays complete (fxRestoreSession -> no session).
+vi.mock('../api/auth', () => ({
+  login: loginMock,
+  register: registerMock,
+  refresh: vi.fn().mockRejectedValue(new Error('no session')),
+  logout: vi.fn().mockResolvedValue(undefined),
+  fxRestoreSession: () => null,
+  fxClearMarker: vi.fn(),
+}));
 
 const session = {
   token: 't',
