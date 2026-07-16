@@ -40,6 +40,11 @@
   color: var(--text-2);
   border: 1px solid var(--line);
 }
+.adm-note--error {
+  background: var(--critical-bg);
+  color: var(--critical-fg);
+  border-color: var(--critical-fg);
+}
 
 /* Filters / forms ----------------------------------------------------------- */
 .adm-filters {

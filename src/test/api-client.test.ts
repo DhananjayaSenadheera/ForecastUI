@@ -106,4 +106,31 @@ describe('API client (live mode — markets + price history URLs)', () => {
     await (await liveApi()).getPriceHistory('crop-1');
     expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:5282/api/prices/crop/crop-1/history?days=90');
   });
+
+  // ---- ADM-4 users (API-9, backend PR #26) --------------------------------
+  it('getAdminUsers hits /api/users/get/all with no paging params (default 500 cap)', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes([]));
+    vi.stubGlobal('fetch', fetchMock);
+    await (await liveApi()).getAdminUsers();
+    expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:5282/api/users/get/all');
+  });
+
+  it('updateUserRole PUTs /api/users/update-role with a {userId, role} body', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes({ id: 'u1', role: 'Admin' }));
+    vi.stubGlobal('fetch', fetchMock);
+    await (await liveApi()).updateUserRole('u1', 'Admin');
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('http://localhost:5282/api/users/update-role');
+    expect(init.method).toBe('PUT');
+    expect(JSON.parse(init.body as string)).toEqual({ userId: 'u1', role: 'Admin' });
+  });
+
+  it('deleteUser DELETEs /api/users/delete/{id}', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes(true));
+    vi.stubGlobal('fetch', fetchMock);
+    await (await liveApi()).deleteUser('u-42');
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('http://localhost:5282/api/users/delete/u-42');
+    expect(init.method).toBe('DELETE');
+  });
 });

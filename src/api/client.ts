@@ -153,6 +153,16 @@ export { request };
 
 const iso = (d: string | Date): string => (typeof d === 'string' ? d : ymdLocal(d));
 
+// Fixtures-mode working copy for the ADM-4 users demo CRUD (API-9 has no fixture
+// server): cloned lazily from the seed on first read so role edits + deletes
+// persist within a session with no backend. The exported seed (fx.fxAdminUsers)
+// is never mutated. Live mode never touches this.
+let fxUsersWorking: AdminUser[] | null = null;
+function fxUsers(): AdminUser[] {
+  if (!fxUsersWorking) fxUsersWorking = fx.fxAdminUsers.map((u) => ({ ...u }));
+  return fxUsersWorking;
+}
+
 // =============================================================================
 // Public API surface. Each method has a fixture branch (VITE_API_MODE=fixtures).
 // =============================================================================
@@ -245,15 +255,60 @@ export const api = {
     return request<Market[]>('/api/markets/get/all');
   },
 
+  // ---- ADMIN CONSOLE — USERS (ADM-4 / API-9 — LIVE, backend PR #26) --------
+  // Role is a plain STRING on the wire ('Admin' | 'Farmer'), camelCase throughout.
+  // There is NO admin-create-user route by design: /register (anonymous, always
+  // role Farmer) is the ONLY account-creation path. Admins assign roles here.
+  //
+  // GET /api/users/get/all?page=&pageSize= [Admin-only] -> flat AdminUser[],
+  // newest-first. Paging is OPTIONAL: the server clamps page>=1, pageSize in
+  // [1,500], default 500. The page paginates CLIENT-SIDE today, so we fetch with
+  // NO params — the default 500 covers current scale. ⚠️ CAP: past 500 accounts
+  // this silently truncates; wire server paging through before the user base grows.
+  async getAdminUsers(): Promise<AdminUser[]> {
+    if (USE_FIXTURES) return fxUsers().map((u) => ({ ...u }));
+    return request<AdminUser[]>('/api/users/get/all');
+  },
+
+  // PUT /api/users/update-role  body {userId, role:'Admin'|'Farmer'} [Admin-only]
+  // -> the updated AdminUser. Any other role string -> 400. Load-bearing server
+  // guards arrive as the house error shape {errors:[{property:'User',message}]}
+  // (HTTP 400): "cannot demote the last remaining admin". request() extracts that
+  // message; the page surfaces it verbatim. STALE-SESSION NOTE: with stateless
+  // refresh tokens a demoted user's existing session survives up to ~60 min
+  // (access-token expiry); their next silent renew re-reads reality.
+  async updateUserRole(userId: string, role: 'Admin' | 'Farmer'): Promise<AdminUser> {
+    if (USE_FIXTURES) {
+      const u = fxUsers().find((x) => x.id === userId);
+      if (!u) throw new ApiError('User not found.', 400);
+      u.role = role;
+      u.updatedAt = new Date().toISOString();
+      return { ...u };
+    }
+    return request<AdminUser>('/api/users/update-role', {
+      method: 'PUT',
+      body: JSON.stringify({ userId, role }),
+    });
+  },
+
+  // DELETE /api/users/delete/{id} [Admin-only] -> 200 true. Server guards (400,
+  // house error shape): "cannot delete yourself" + "cannot delete the last
+  // remaining admin" — surfaced verbatim in the page. STALE-SESSION NOTE: a
+  // deleted user's in-flight session lingers up to ~60 min until access-token
+  // expiry, then their next refresh is rejected.
+  async deleteUser(userId: string): Promise<boolean> {
+    if (USE_FIXTURES) {
+      const before = fxUsers().length;
+      fxUsersWorking = fxUsers().filter((x) => x.id !== userId);
+      return fxUsersWorking.length < before;
+    }
+    return request<boolean>(`/api/users/delete/${userId}`, { method: 'DELETE' });
+  },
+
   // ---- ADMIN CONSOLE — PROVISIONAL (no live endpoint yet; scope-extension 2026-07-12)
   // Read-only fixture reads. Live routes are FE proposals to be built after the backend
   // hold lifts (~2026-07-16); until then live mode throws 501 and pages surface a
   // retryable state. Demo CRUD in these pages mutates COMPONENT state, not the server.
-  async getAdminUsers(): Promise<AdminUser[]> {
-    if (USE_FIXTURES) return fx.fxAdminUsers;
-    throw new ApiError('users endpoint not built yet (provisional)', 501);
-  },
-
   async getFestivals(): Promise<FestivalEntry[]> {
     if (USE_FIXTURES) return fx.fxFestivals;
     throw new ApiError('festivals endpoint not built yet (provisional)', 501);
