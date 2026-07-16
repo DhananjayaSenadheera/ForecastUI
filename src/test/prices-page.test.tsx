@@ -75,11 +75,14 @@ describe('PricesPage (FE-12)', () => {
     expect(document.querySelectorAll('.pr-mchip.is-on').length).toBe(4);
   });
 
-  it('shows the honest "coming soon" state (not an error) on a 501 gap', async () => {
+  it('treats a 501 as a real (retryable) error, not "coming soon" — the endpoint exists now', async () => {
+    // API-1/2 shipped (backend PR #24), so a 501 today means a deployment mismatch,
+    // NOT "coming soon". It must surface the honest error state with retry.
     vi.spyOn(api, 'getMarkets').mockRejectedValueOnce(new ApiError('gap', 501));
     renderPage();
-    await screen.findByText(/Prices are coming soon/);
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.queryByText(/coming soon/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 
   it('renders an honest empty-chart note when a market has no price data', async () => {

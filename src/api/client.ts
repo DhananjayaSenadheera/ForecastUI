@@ -4,8 +4,9 @@
 // hook point is left commented for R2 (JWT in memory, never localStorage).
 //
 // FIXTURE MODE: set VITE_API_MODE=fixtures to serve realistic fixture JSON for
-// every endpoint (incl. not-yet-built markets/prices = API gaps #1/#2), so the UI
-// can be built and tested before the backend hold lifts (~2026-07-16).
+// every endpoint, so the UI can be built and demoed without a live backend. The
+// markets + price-history routes (formerly API gaps #1/#2) are now LIVE — backend
+// PR #24 (API-1/2), wired below and consumed verbatim.
 // =============================================================================
 import * as fx from './fixtures';
 import { reportFromHeaders } from './cacheSignal';
@@ -197,15 +198,31 @@ export const api = {
     return request<MarketOverview>(`/api/forecast/market-overview?days=${days}`);
   },
 
-  // ---- FIXTURE-ONLY endpoints (API gaps #1/#2 — no live route yet) ---------
+  // ---- Markets + price history (API-1 / API-2 — LIVE, backend PR #24) ------
+  // GET /api/markets/get/all?hasPrices={bool} [Authorize] -> Market[] (camelCase,
+  // matches the Market interface exactly), ordered by name. The farmer Prices page
+  // charts prices, so it asks for the price-carrying SUBSET (hasPrices=true = the 10
+  // markets that actually have price rows; the full registry has 12 — see
+  // getAdminMarkets). Empty -> 200 [] (no 400-on-empty quirk here).
   async getMarkets(): Promise<Market[]> {
     if (USE_FIXTURES) return fx.fxMarkets;
-    throw new ApiError('markets endpoint not built yet (API gap #1)', 501);
+    return request<Market[]>('/api/markets/get/all?hasPrices=true');
   },
 
+  // GET /api/prices/crop/{cropId}/history?marketId={guid?}&days={int} [Authorize]
+  // -> PriceHistoryPoint[]: one row per calendar date, chronological (oldest first),
+  // consumed verbatim (no mapping layer). We pass an explicit days=90 so the FE owns
+  // its window rather than trusting the server default silently (server clamps days
+  // to [7,365]). Empty -> 200 [] (NOT the policy-flag 400-on-empty quirk).
+  // ⚠️ QUIRK: OMITTING marketId returns a CROSS-MARKET daily envelope (excluding the
+  // NationalAggregate pseudo-market), NOT a single default-market series. PricesPage
+  // always passes a marketId today, so the omitted-marketId envelope is unused.
   async getPriceHistory(cropId: string, marketId?: string): Promise<PriceHistoryPoint[]> {
     if (USE_FIXTURES) return fx.fxPriceHistoryFor(cropId, marketId);
-    throw new ApiError('price-history endpoint not built yet (API gap #2)', 501);
+    const q = new URLSearchParams();
+    if (marketId) q.set('marketId', marketId);
+    q.set('days', '90');
+    return request<PriceHistoryPoint[]>(`/api/prices/crop/${cropId}/history?${q.toString()}`);
   },
 
   // ---- ADMIN CONSOLE ------------------------------------------------------
@@ -219,13 +236,13 @@ export const api = {
     return request<PolicyFlag[]>(`/api/policy-flag/get/all${q}`);
   },
 
-  // Markets registry (ADM-3). FIXTURE-ONLY today — no live GET route yet (API gap
-  // #1, backlogged as API-1). Stubbed like getMarkets so live mode flips on later
-  // with no page change. Distinct from getMarkets() (which the farmer Prices page
-  // uses with a small price-carrying subset): this returns the FULL 12-market registry.
+  // Markets registry (ADM-3, API-1 — LIVE, backend PR #24). GET /api/markets/get/all
+  // [Authorize] with NO hasPrices flag = the full registry (all 12 markets, ordered
+  // by name). Distinct from getMarkets() (which passes hasPrices=true for the 10
+  // price-carrying markets the farmer Prices page can chart). Empty -> 200 [].
   async getAdminMarkets(): Promise<Market[]> {
     if (USE_FIXTURES) return fx.fxAdminMarkets;
-    throw new ApiError('markets registry endpoint not built yet (API gap #1)', 501);
+    return request<Market[]>('/api/markets/get/all');
   },
 
   // ---- ADMIN CONSOLE — PROVISIONAL (no live endpoint yet; scope-extension 2026-07-12)

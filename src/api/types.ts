@@ -323,8 +323,13 @@ export interface AuthResponseDto {
 }
 
 // ---------------------------------------------------------------------------
-// FIXTURE-ONLY endpoints (NOT built on the API yet — API gaps #1 / #2).
-// Shapes are the FE proposal from the PRD gap list; treat as provisional.
+// Markets + price history — LIVE (API-1 / API-2, backend PR #24). The wire shapes
+// below match the .NET DTOs EXACTLY (camelCase), so both routes are consumed
+// verbatim with no mapping layer:
+//   GET /api/markets/get/all?hasPrices={bool}         -> Market[]  (client.getMarkets / getAdminMarkets)
+//   GET /api/prices/crop/{cropId}/history?marketId=&days=  -> PriceHistoryPoint[]  (client.getPriceHistory)
+// (These were formerly the FE-proposed "API gaps #1/#2"; the backend adopted the
+// proposed shapes, so the interfaces are unchanged.)
 // ---------------------------------------------------------------------------
 export interface Market {
   id: string;
