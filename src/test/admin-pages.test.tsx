@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import i18n from '../i18n';
 import { AuthProvider } from '../auth/AuthContext';
 import { api, ApiError } from '../api/client';
+import type { PolicyFlag } from '../api/types';
 import { ymdLocal } from '../lib/format';
 import PolicyFlagsPage from '../admin/PolicyFlagsPage';
 import MarketsPage from '../admin/MarketsPage';
@@ -70,6 +71,95 @@ describe('Admin console pages', () => {
       expect(input.value).toBe(ymdLocal(new Date()));
       fireEvent.change(input, { target: { value: '2021-06-01' } });
       await waitFor(() => expect(spy).toHaveBeenCalledWith('2021-06-01'));
+    });
+
+    // ---- API-13 Edit / Delete / trainingDataWarning banner ----------------
+    const FUEL = 'Monthly fuel price formula (CPC pricing formula)';
+
+    it('opens a prefilled edit dialog and saves the edited flag (no banner when warning is null)', async () => {
+      const spy = vi
+        .spyOn(api, 'updatePolicyFlag')
+        .mockResolvedValue({ id: 'x', trainingDataWarning: null });
+      renderPage(<PolicyFlagsPage />);
+      const row = (await screen.findByText(FUEL)).closest('tr')!;
+      fireEvent.click(within(row).getByText('Edit'));
+      const dialog = screen.getByRole('dialog');
+      // prefilled: the first text input is the Title, seeded from the row
+      const title = dialog.querySelector('input[type="text"]') as HTMLInputElement;
+      expect(title.value).toBe(FUEL);
+      fireEvent.change(title, { target: { value: 'Updated fuel price formula' } });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+      await waitFor(() => expect(spy).toHaveBeenCalled());
+      const dto = spy.mock.calls[0][0];
+      expect(dto.title).toBe('Updated fuel price formula');
+      expect(dto.source).toBeTruthy(); // required citation preserved through the form
+      expect(await screen.findByText('Policy flag updated.')).toBeInTheDocument();
+      // trainingDataWarning was null -> no amber banner
+      expect(screen.queryByText(/This touched training data/)).toBeNull();
+    });
+
+    it('shows a dismissible amber banner (not an error) when a mutation returns trainingDataWarning', async () => {
+      vi.spyOn(api, 'updatePolicyFlag').mockResolvedValue({
+        id: 'x',
+        trainingDataWarning: 'past window touched',
+      });
+      renderPage(<PolicyFlagsPage />);
+      const row = (await screen.findByText(FUEL)).closest('tr')!;
+      fireEvent.click(within(row).getByText('Edit'));
+      const dialog = screen.getByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+      // banner appears as a status note (mutation succeeded) — never role=alert
+      const banner = (await screen.findByText(/This touched training data/)).closest('.adm-warn')!;
+      expect(banner).toBeInTheDocument();
+      expect(banner.getAttribute('role')).toBe('status');
+      // and the success flash is still shown (the edit succeeded)
+      expect(screen.getByText('Policy flag updated.')).toBeInTheDocument();
+      // dismissible
+      fireEvent.click(screen.getByLabelText('Dismiss'));
+      await waitFor(() => expect(screen.queryByText(/This touched training data/)).toBeNull());
+    });
+
+    it('deletes a flag through the confirm dialog and refetches the register', async () => {
+      const mk = (id: string, title: string): PolicyFlag => ({
+        id,
+        policyType: 6,
+        title,
+        description: null,
+        effectiveFrom: '2022-09-01T00:00:00',
+        effectiveTo: null,
+        direction: 0,
+        source: 'Gov',
+        referenceUrl: null,
+        createdAtUtc: '2026-07-01T00:00:00Z',
+      });
+      const fuel = mk('pf-fuel', FUEL);
+      const other = mk('pf-other', 'Some other flag');
+      vi.spyOn(api, 'getPolicyFlags')
+        .mockResolvedValueOnce([fuel, other]) // initial load
+        .mockResolvedValue([other]); // post-delete refetch
+      const delSpy = vi
+        .spyOn(api, 'deletePolicyFlag')
+        .mockResolvedValue({ id: 'pf-fuel', trainingDataWarning: null });
+      renderPage(<PolicyFlagsPage />);
+      const row = (await screen.findByText(FUEL)).closest('tr')!;
+      fireEvent.click(within(row).getByRole('button', { name: 'Delete' }));
+      const dialog = screen.getByRole('dialog');
+      fireEvent.click(dialog.querySelector('.adm-btn--danger') as HTMLButtonElement);
+      await waitFor(() => expect(delSpy).toHaveBeenCalledWith('pf-fuel'));
+      await waitFor(() => expect(screen.queryByText(FUEL)).toBeNull());
+      expect(screen.getByText('Some other flag')).toBeInTheDocument();
+      expect(screen.getByText(/deleted/i)).toBeInTheDocument();
+    });
+
+    it('surfaces a server guard message verbatim when a delete is rejected', async () => {
+      const msg = 'Policy flag does not exist.';
+      vi.spyOn(api, 'deletePolicyFlag').mockRejectedValueOnce(new ApiError(msg, 400));
+      renderPage(<PolicyFlagsPage />);
+      const row = (await screen.findByText(FUEL)).closest('tr')!;
+      fireEvent.click(within(row).getByRole('button', { name: 'Delete' }));
+      const dialog = screen.getByRole('dialog');
+      fireEvent.click(dialog.querySelector('.adm-btn--danger') as HTMLButtonElement);
+      expect(await screen.findByText(msg)).toBeInTheDocument();
     });
   });
 

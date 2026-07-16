@@ -144,7 +144,12 @@
       "recent_price_trend": "Recent price trend",
       "festival_demand": "Festival demand",
       "seasonal_supply": "Seasonal supply",
-      "weather_monsoon": "Weather and monsoon"
+      "weather_monsoon": "Weather and monsoon",
+      "market_conditions": "Market conditions",
+      "economic_conditions": "Economic conditions"
+    },
+    "reasonCodes": {
+      "unavailable": "Forecast not available"
     }
   },
   "share": {
@@ -358,7 +363,7 @@
     },
     "policy": {
       "title": "Policy flags",
-      "subtitle": "National policy measures the forecasting model uses. View only.",
+      "subtitle": "National policy measures the forecasting model uses.",
       "asOfLabel": "Active on date",
       "asOfClear": "Show all flags",
       "asOfCaption": "Showing flags active on {{date}}.",
@@ -369,11 +374,35 @@
       "colTo": "Effective to",
       "colStatus": "Status",
       "colSource": "Source",
+      "colDescription": "Description",
+      "colReference": "Reference URL",
+      "colActions": "Actions",
       "openEnded": "Open-ended",
       "reference": "Reference",
       "emptyTitle": "No policy flags",
       "emptyBody": "There are no policy flags recorded yet.",
       "emptyAsOf": "No policy flags were active on the chosen date.",
+      "edit": "Edit",
+      "delete": "Delete",
+      "cancel": "Cancel",
+      "save": "Save changes",
+      "working": "Working…",
+      "editTitle": "Edit policy flag",
+      "sourceRequired": "Source is required — policy flags feed the forecasting model, so every edit needs a citation.",
+      "sourcePlaceholder": "e.g. Ministry of Agriculture, Sri Lanka",
+      "referencePlaceholder": "https://…",
+      "openEndedHint": "Leave empty for an open-ended flag (still in effect).",
+      "errTitle": "Please enter a title.",
+      "errFrom": "Please choose an effective-from date.",
+      "errSource": "Please enter a source.",
+      "errDateOrder": "The effective-to date must be on or after the effective-from date.",
+      "deleteTitle": "Delete policy flag",
+      "deleteConfirm": "Delete “{{title}}”? This cannot be undone.",
+      "deleteWarning": "This policy flag feeds the forecasting model. Removing a past-dated flag may require a retrain.",
+      "savedFlash": "Policy flag updated.",
+      "deletedFlash": "Policy flag “{{title}}” deleted.",
+      "trainingWarningTitle": "This touched training data",
+      "trainingWarning": "This flag's effective window starts in the past. Because policy flags feed the forecasting model's training data, this change may require a retrain.",
       "type": {
         "subsidy": "Subsidy",
         "importBan": "Import ban",

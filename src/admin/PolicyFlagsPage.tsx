@@ -1,5 +1,5 @@
-// ADM-2 — Policy flags VIEW page (/admin/policy-flags). Sortable data table over the
-// LIVE GET /api/policy-flag/get/all. VIEW ONLY in this slice (no create/edit UI).
+// ADM-2 — Policy flags admin page (/admin/policy-flags). Sortable data table over the
+// LIVE GET /api/policy-flag/get/all, with LIVE Edit + Delete (API-13).
 //
 // Honest display: Direction is a GLYPH + WORD on a NEUTRAL badge — never colour-only,
 // and never red/green (RED is reserved app-wide for the farmer "Not recommended"
@@ -7,15 +7,25 @@
 // effective window (derivePolicyStatus, tested). An as-of date filter maps to the
 // ?asOfDate= query. referenceUrl renders as an external link when present.
 //
+// MUTATIONS (API-13, Admin-only): PUT /api/policy-flag/update (full-object; wrapped
+// under policyFlagUpdateDto) and DELETE /api/policy-flag/delete/{id}. Both return
+// { id, trainingDataWarning }: policy flags are as-of-joined into the model's training
+// data, so mutating a PAST-dated flag returns a non-null warning. The mutation still
+// SUCCEEDED — we surface the warning in a dismissible amber note, NEVER as an error.
+// After a mutation we REFETCH (honest re-read of server truth). Server guard messages
+// are surfaced verbatim in the flash (house pattern from UsersPage).
+//
 // EMPTY-RESULT QUIRK: the .NET GetAll handler returns HTTP 400 ("No policy flags
 // found.") for an empty list (and for an as-of date with no active flags), NOT 200 [].
 // We treat a 400 on this route as the honest EMPTY state, not a hard error.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, ApiError } from '../api/client';
-import type { PolicyFlag, PolicyStatus } from '../api/types';
+import { PolicyDirection, PolicyType } from '../api/types';
+import type { PolicyFlag, PolicyFlagUpdateDto, PolicyStatus } from '../api/types';
 import { derivePolicyStatus, formatDate, mapPolicyDirection, mapPolicyType, ymdLocal } from '../lib/format';
 import {
+  AdminDialog,
   AdminEmpty,
   AdminError,
   AdminLoading,
@@ -29,12 +39,28 @@ import {
 
 type SortKey = 'type' | 'title' | 'direction' | 'from' | 'to' | 'status';
 type SortDir = 'asc' | 'desc';
+type Flash = { msg: string; kind: 'ok' | 'error' };
 
 const STATUS_LABEL: Record<PolicyStatus, string> = {
   active: 'admin.policy.status.active',
   scheduled: 'admin.policy.status.scheduled',
   expired: 'admin.policy.status.expired',
 };
+
+// Option orders for the edit form. Types 0..8 in enum order; direction Bullish/Neutral/
+// Bearish (the -1 is the LAST option so the list reads high→low market impact).
+const POLICY_TYPE_OPTIONS: number[] = [
+  PolicyType.Subsidy,
+  PolicyType.ImportBan,
+  PolicyType.ExportBan,
+  PolicyType.PriceCeiling,
+  PolicyType.PriceFloor,
+  PolicyType.FertiliserSubsidy,
+  PolicyType.FuelPriceChange,
+  PolicyType.Other,
+  PolicyType.Budget,
+];
+const DIRECTION_OPTIONS: number[] = [PolicyDirection.Bullish, PolicyDirection.Neutral, PolicyDirection.Bearish];
 
 export default function PolicyFlagsPage() {
   const { t, i18n } = useTranslation();
@@ -51,6 +77,13 @@ export default function PolicyFlagsPage() {
   const [asOf, setAsOf] = useState(() => ymdLocal(new Date()));
   const [sortKey, setSortKey] = useState<SortKey>('from');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [editing, setEditing] = useState<PolicyFlag | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<PolicyFlag | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [flash, setFlash] = useState<Flash | null>(null);
+  // trainingDataWarning banner: a non-null warning off a SUCCESSFUL mutation (never
+  // an error). Dismissible; cleared on the next mutation attempt.
+  const [warning, setWarning] = useState<string | null>(null);
 
   const load = useCallback(async (asOfDate: string) => {
     setLoading(true);
@@ -88,6 +121,55 @@ export default function PolicyFlagsPage() {
     [sortKey],
   );
 
+  // Server guard / validation messages (house error shape) arrive on ApiError.message
+  // — surface them verbatim so honest constraints reach the admin. Network -> generic.
+  const errMessage = useCallback(
+    (e: unknown) => (e instanceof ApiError && e.message && e.status !== 0 ? e.message : t('common.errorBody')),
+    [t],
+  );
+
+  const save = useCallback(
+    async (dto: PolicyFlagUpdateDto) => {
+      setBusyId(dto.id);
+      setFlash(null);
+      setWarning(null);
+      try {
+        const res = await api.updatePolicyFlag(dto);
+        setEditing(null);
+        setFlash({ msg: t('admin.policy.savedFlash'), kind: 'ok' });
+        setWarning(res.trainingDataWarning);
+        await load(asOf);
+      } catch (e) {
+        setEditing(null);
+        setFlash({ msg: errMessage(e), kind: 'error' });
+      } finally {
+        setBusyId(null);
+      }
+    },
+    [t, load, asOf, errMessage],
+  );
+
+  const doDelete = useCallback(
+    async (f: PolicyFlag) => {
+      setBusyId(f.id);
+      setFlash(null);
+      setWarning(null);
+      try {
+        const res = await api.deletePolicyFlag(f.id);
+        setConfirmDelete(null);
+        setFlash({ msg: t('admin.policy.deletedFlash', { title: f.title }), kind: 'ok' });
+        setWarning(res.trainingDataWarning);
+        await load(asOf);
+      } catch (e) {
+        setConfirmDelete(null);
+        setFlash({ msg: errMessage(e), kind: 'error' });
+      } finally {
+        setBusyId(null);
+      }
+    },
+    [t, load, asOf, errMessage],
+  );
+
   const rows = useMemo(() => {
     const withDerived = flags.map((f) => ({
       f,
@@ -122,6 +204,31 @@ export default function PolicyFlagsPage() {
       <AdminTopbar title={t('admin.policy.title')} subtitle={t('admin.policy.subtitle')} />
       <section className="panel adm" aria-label={t('admin.policy.title')}>
         <DemoNote />
+
+        {flash && (
+          <p className={`adm-note${flash.kind === 'error' ? ' adm-note--error' : ''}`} role="status">
+            {flash.msg}
+          </p>
+        )}
+        {warning && (
+          <div className="adm-warn adm-warn--dismiss" role="status" aria-live="polite">
+            <span className="adm-warn__body">
+              <span className="adm-warn__title">
+                <span aria-hidden="true">⚠️ </span>
+                {t('admin.policy.trainingWarningTitle')}
+              </span>{' '}
+              {t('admin.policy.trainingWarning')}
+            </span>
+            <button
+              type="button"
+              className="adm-warn__close"
+              onClick={() => setWarning(null)}
+              aria-label={t('common.dismiss')}
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         {/* As-of date filter -> ?asOfDate= */}
         <div className="adm-filters">
@@ -164,6 +271,9 @@ export default function PolicyFlagsPage() {
                   <SortableTh col="to" label={t('admin.policy.colTo')} sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
                   <SortableTh col="status" label={t('admin.policy.colStatus')} sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
                   <th scope="col">{t('admin.policy.colSource')}</th>
+                  <th scope="col">
+                    <span className="sr-only">{t('admin.policy.colActions')}</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -201,6 +311,24 @@ export default function PolicyFlagsPage() {
                           </>
                         )}
                       </td>
+                      <td data-label={t('admin.policy.colActions')}>
+                        <button
+                          type="button"
+                          className="adm-rowbtn"
+                          onClick={() => setEditing(f)}
+                          disabled={busyId === f.id}
+                        >
+                          {t('admin.policy.edit')}
+                        </button>
+                        <button
+                          type="button"
+                          className="adm-rowbtn adm-rowbtn--danger"
+                          onClick={() => setConfirmDelete(f)}
+                          disabled={busyId === f.id}
+                        >
+                          {busyId === f.id ? t('admin.policy.working') : t('admin.policy.delete')}
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -210,6 +338,221 @@ export default function PolicyFlagsPage() {
           </div>
         )}
       </section>
+
+      {editing && (
+        <EditFlagDialog
+          flag={editing}
+          busy={busyId === editing.id}
+          onClose={() => setEditing(null)}
+          onSave={save}
+        />
+      )}
+      {confirmDelete && (
+        <AdminDialog title={t('admin.policy.deleteTitle')} onClose={() => setConfirmDelete(null)}>
+          <p className="adm-warn" role="note">
+            <span aria-hidden="true">⚠️ </span>
+            {t('admin.policy.deleteWarning')}
+          </p>
+          <p>{t('admin.policy.deleteConfirm', { title: confirmDelete.title })}</p>
+          <div className="adm-form__actions">
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => setConfirmDelete(null)}
+              disabled={busyId === confirmDelete.id}
+            >
+              {t('admin.policy.cancel')}
+            </button>
+            <button
+              type="button"
+              className="adm-btn adm-btn--danger"
+              onClick={() => void doDelete(confirmDelete)}
+              disabled={busyId === confirmDelete.id}
+            >
+              {busyId === confirmDelete.id ? t('admin.policy.working') : t('admin.policy.delete')}
+            </button>
+          </div>
+        </AdminDialog>
+      )}
     </>
+  );
+}
+
+interface FormState {
+  policyType: number;
+  title: string;
+  description: string;
+  direction: number;
+  effectiveFrom: string; // "YYYY-MM-DD"
+  effectiveTo: string; // "YYYY-MM-DD" | "" (open-ended)
+  source: string;
+  referenceUrl: string;
+}
+
+function EditFlagDialog({
+  flag,
+  busy,
+  onClose,
+  onSave,
+}: {
+  flag: PolicyFlag;
+  busy: boolean;
+  onClose: () => void;
+  onSave: (dto: PolicyFlagUpdateDto) => void;
+}) {
+  const { t } = useTranslation();
+  const [form, setForm] = useState<FormState>({
+    policyType: flag.policyType,
+    title: flag.title,
+    description: flag.description ?? '',
+    direction: flag.direction,
+    effectiveFrom: flag.effectiveFrom.slice(0, 10),
+    effectiveTo: flag.effectiveTo ? flag.effectiveTo.slice(0, 10) : '',
+    source: flag.source ?? '',
+    referenceUrl: flag.referenceUrl ?? '',
+  });
+  const [err, setErr] = useState<string | null>(null);
+  const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.title.trim()) return setErr(t('admin.policy.errTitle'));
+    if (!form.effectiveFrom) return setErr(t('admin.policy.errFrom'));
+    if (!form.source.trim()) return setErr(t('admin.policy.errSource'));
+    if (form.effectiveTo && form.effectiveTo < form.effectiveFrom) return setErr(t('admin.policy.errDateOrder'));
+    setErr(null);
+    onSave({
+      id: flag.id,
+      policyType: form.policyType,
+      title: form.title.trim(),
+      description: form.description.trim() || null,
+      effectiveFrom: form.effectiveFrom,
+      effectiveTo: form.effectiveTo || null,
+      direction: form.direction,
+      source: form.source.trim(),
+      referenceUrl: form.referenceUrl.trim() || null,
+    });
+  };
+
+  return (
+    <AdminDialog title={t('admin.policy.editTitle')} onClose={onClose}>
+      <form className="adm-form" onSubmit={submit}>
+        <label className="adm-field">
+          <span className="wrap-label">{t('admin.policy.colType')}</span>
+          <select
+            className="adm-select"
+            value={form.policyType}
+            onChange={(e) => set('policyType', Number(e.target.value))}
+            disabled={busy}
+          >
+            {POLICY_TYPE_OPTIONS.map((n) => {
+              const label = mapPolicyType(n).labelKey;
+              return (
+                <option key={n} value={n}>
+                  {label ? t(label) : `#${n}`}
+                </option>
+              );
+            })}
+          </select>
+        </label>
+        <label className="adm-field">
+          <span className="wrap-label">{t('admin.policy.colTitle')}</span>
+          <input
+            type="text"
+            className="adm-input"
+            value={form.title}
+            onChange={(e) => set('title', e.target.value)}
+            disabled={busy}
+            autoFocus
+            required
+          />
+        </label>
+        <label className="adm-field">
+          <span className="wrap-label">{t('admin.policy.colDescription')}</span>
+          <textarea
+            className="adm-textarea"
+            value={form.description}
+            onChange={(e) => set('description', e.target.value)}
+            disabled={busy}
+          />
+        </label>
+        <label className="adm-field">
+          <span className="wrap-label">{t('admin.policy.colDirection')}</span>
+          <select
+            className="adm-select"
+            value={form.direction}
+            onChange={(e) => set('direction', Number(e.target.value))}
+            disabled={busy}
+          >
+            {DIRECTION_OPTIONS.map((n) => {
+              const d = mapPolicyDirection(n);
+              return (
+                <option key={n} value={n}>
+                  {d.glyph} {d.labelKey ? t(d.labelKey) : `#${n}`}
+                </option>
+              );
+            })}
+          </select>
+        </label>
+        <label className="adm-field">
+          <span className="wrap-label">{t('admin.policy.colFrom')}</span>
+          <input
+            type="date"
+            className="adm-input"
+            value={form.effectiveFrom}
+            onChange={(e) => set('effectiveFrom', e.target.value)}
+            disabled={busy}
+            required
+          />
+        </label>
+        <label className="adm-field">
+          <span className="wrap-label">{t('admin.policy.colTo')}</span>
+          <input
+            type="date"
+            className="adm-input"
+            value={form.effectiveTo}
+            onChange={(e) => set('effectiveTo', e.target.value)}
+            disabled={busy}
+          />
+          <span className="adm-caption">{t('admin.policy.openEndedHint')}</span>
+        </label>
+        <label className="adm-field">
+          <span className="wrap-label">{t('admin.policy.colSource')} *</span>
+          <input
+            type="text"
+            className="adm-input"
+            value={form.source}
+            onChange={(e) => set('source', e.target.value)}
+            placeholder={t('admin.policy.sourcePlaceholder')}
+            disabled={busy}
+          />
+          <span className="adm-caption">{t('admin.policy.sourceRequired')}</span>
+        </label>
+        <label className="adm-field">
+          <span className="wrap-label">{t('admin.policy.colReference')}</span>
+          <input
+            type="url"
+            className="adm-input"
+            value={form.referenceUrl}
+            onChange={(e) => set('referenceUrl', e.target.value)}
+            placeholder={t('admin.policy.referencePlaceholder')}
+            disabled={busy}
+          />
+        </label>
+        {err && (
+          <p className="adm-error" role="alert">
+            {err}
+          </p>
+        )}
+        <div className="adm-form__actions">
+          <button type="button" className="btn-ghost" onClick={onClose} disabled={busy}>
+            {t('admin.policy.cancel')}
+          </button>
+          <button type="submit" className="adm-btn" disabled={busy}>
+            {busy ? t('admin.policy.working') : t('admin.policy.save')}
+          </button>
+        </div>
+      </form>
+    </AdminDialog>
   );
 }

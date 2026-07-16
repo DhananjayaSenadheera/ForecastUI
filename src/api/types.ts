@@ -406,6 +406,41 @@ export interface PolicyFlag {
 /** Derived client-side lifecycle status (NOT on the wire) — from effective dates. */
 export type PolicyStatus = 'active' | 'scheduled' | 'expired';
 
+// ---------------------------------------------------------------------------
+// Policy-flag MUTATIONS (API-13 — LIVE, backend merged). Admin-only.
+//   PUT    /api/policy-flag/update      body { policyFlagUpdateDto: PolicyFlagUpdateDto }
+//   DELETE /api/policy-flag/delete/{id}
+// Both return 200 PolicyFlagMutationResult. Full-object update (mirrors
+// PolicyFlag_UpdateDto): every field is replaced, not patched. Source is REQUIRED
+// on mutation (validator) — every edit carries a citation because policy flags are
+// as-of-joined into the ML model's training features. Enums stay INTEGERS on the
+// wire (policyType 0..8, direction -1/0/1); dates are date-only "YYYY-MM-DD".
+// The update body wraps the DTO under `policyFlagUpdateDto` (mirrors the crops
+// createDto wrapper) — the .NET command binds [FromBody] with a single property.
+// ---------------------------------------------------------------------------
+export interface PolicyFlagUpdateDto {
+  id: string; // Guid of the row being edited
+  policyType: number; // PolicyType enum (integer)
+  title: string;
+  description?: string | null;
+  effectiveFrom: string; // "YYYY-MM-DD"
+  effectiveTo?: string | null; // "YYYY-MM-DD" | null (open-ended)
+  direction: number; // PolicyDirection enum (integer; Bearish = -1)
+  source?: string | null; // REQUIRED on mutation (validator): ML-training provenance
+  referenceUrl?: string | null;
+}
+
+/** Update/delete response (PolicyFlag_MutationResultDto). trainingDataWarning is
+ *  non-null when the flag's effective window — the incoming OR the previous one —
+ *  starts in the PAST: policy flags are as-of-joined into the model's training data,
+ *  so editing/removing a past-dated flag rewrites history the model already learned
+ *  from. The mutation still SUCCEEDED; the warning is informational (a retrain may be
+ *  needed), NEVER an error. Future-only windows => trainingDataWarning is null. */
+export interface PolicyFlagMutationResult {
+  id: string; // Guid of the affected row
+  trainingDataWarning: string | null;
+}
+
 // ===========================================================================
 // ADMIN CONSOLE — PROVISIONAL wire shapes (ADM-4..7). These endpoints do NOT exist
 // on the .NET API yet (owner scope-extension 2026-07-12: build the UI on fixtures now,

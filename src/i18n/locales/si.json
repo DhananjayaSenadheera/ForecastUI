@@ -139,7 +139,12 @@
       "recent_price_trend": "මෑත මිල ප්‍රවණතාව",
       "festival_demand": "උත්සව ඉල්ලුම",
       "seasonal_supply": "කන්නයට අනුව සැපයුම",
-      "weather_monsoon": "කාලගුණය හා මෝසම"
+      "weather_monsoon": "කාලගුණය හා මෝසම",
+      "market_conditions": "වෙළඳපොළ තත්ත්වයන්",
+      "economic_conditions": "ආර්ථික තත්ත්වයන්"
+    },
+    "reasonCodes": {
+      "unavailable": "පුරෝකථනය ලබාගත නොහැක"
     }
   },
   "share": {

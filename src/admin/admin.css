@@ -267,6 +267,38 @@
   color: var(--warn-fg);
 }
 
+/* Dismissible amber note — API-13 trainingDataWarning (mutation SUCCEEDED; this is
+   informational, NEVER an error). Reuses the .adm-warn amber palette. */
+.adm-warn--dismiss {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+}
+.adm-warn__body {
+  flex: 1;
+}
+.adm-warn__title {
+  font-weight: 600;
+}
+.adm-warn__close {
+  flex: none;
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  margin: calc(var(--sp-2) * -1) calc(var(--sp-2) * -1) 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: var(--fs-body);
+  line-height: 1;
+  cursor: pointer;
+  border-radius: var(--r-sm);
+}
+.adm-warn__close:focus-visible {
+  outline: 2px solid var(--warn-fg);
+  outline-offset: 2px;
+}
+
 /* Toolbar (add button etc.) ------------------------------------------------- */
 .adm-toolbar {
   display: flex;

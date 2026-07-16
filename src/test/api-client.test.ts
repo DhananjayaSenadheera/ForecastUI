@@ -133,4 +133,77 @@ describe('API client (live mode — markets + price history URLs)', () => {
     expect(url).toBe('http://localhost:5282/api/users/delete/u-42');
     expect(init.method).toBe('DELETE');
   });
+
+  // ---- ADM-2 policy-flag mutations (API-13, backend merged) ---------------
+  it('updatePolicyFlag PUTs /api/policy-flag/update with the dto WRAPPED under policyFlagUpdateDto', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes({ id: 'pf-1', trainingDataWarning: null }));
+    vi.stubGlobal('fetch', fetchMock);
+    const dto = {
+      id: 'pf-1',
+      policyType: 1,
+      title: 'Import ban',
+      description: null,
+      effectiveFrom: '2021-05-06',
+      effectiveTo: '2021-11-24',
+      direction: 1,
+      source: 'Government of Sri Lanka',
+      referenceUrl: null,
+    };
+    await (await liveApi()).updatePolicyFlag(dto);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('http://localhost:5282/api/policy-flag/update');
+    expect(init.method).toBe('PUT');
+    // Wrapped body shape is load-bearing (mirrors the crops createDto wrapper).
+    expect(JSON.parse(init.body as string)).toEqual({ policyFlagUpdateDto: dto });
+  });
+
+  it('deletePolicyFlag DELETEs /api/policy-flag/delete/{id}', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes({ id: 'pf-9', trainingDataWarning: null }));
+    vi.stubGlobal('fetch', fetchMock);
+    await (await liveApi()).deletePolicyFlag('pf-9');
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('http://localhost:5282/api/policy-flag/delete/pf-9');
+    expect(init.method).toBe('DELETE');
+  });
+});
+
+// Fixture-mode mutation semantics: the demo working copy mirrors the server's
+// past-window training-data warning so the amber banner is demo-able with no backend.
+describe('API client (fixture mode — policy-flag mutation warnings)', () => {
+  const PAST_FLAG = 'a1f1c001-0000-0000-0000-000000000001'; // 2021 import ban (past)
+  const FUTURE_FLAG = 'a1f1c001-0000-0000-0000-000000000009'; // 2026-09-15 price floor (future)
+
+  it('updatePolicyFlag warns (non-null) when the edited window starts in the past', async () => {
+    const res = await api.updatePolicyFlag({
+      id: PAST_FLAG,
+      policyType: 1,
+      title: 'Chemical fertiliser & agrochemical import ban',
+      effectiveFrom: '2021-05-06',
+      effectiveTo: '2021-11-24',
+      direction: 1,
+      source: 'Government of Sri Lanka',
+    });
+    expect(res.id).toBe(PAST_FLAG);
+    expect(res.trainingDataWarning).not.toBeNull();
+  });
+
+  it('updatePolicyFlag does NOT warn (null) when both old + new windows are in the future', async () => {
+    const res = await api.updatePolicyFlag({
+      id: FUTURE_FLAG,
+      policyType: 4,
+      title: 'Guaranteed paddy price floor — 2026 Maha season',
+      effectiveFrom: '2027-01-01',
+      effectiveTo: '2027-06-30',
+      direction: 1,
+      source: 'Ministry of Agriculture, Sri Lanka',
+    });
+    expect(res.trainingDataWarning).toBeNull();
+  });
+
+  it('deletePolicyFlag warns for a past-dated flag and removes it from the working copy', async () => {
+    const before = (await api.getPolicyFlags()).length;
+    const res = await api.deletePolicyFlag('a1f1c001-0000-0000-0000-000000000002'); // 2022 subsidy (past)
+    expect(res.trainingDataWarning).not.toBeNull();
+    expect((await api.getPolicyFlags()).length).toBe(before - 1);
+  });
 });

@@ -25,6 +25,8 @@ import type {
   MarketOverview,
   NewsEvent,
   PolicyFlag,
+  PolicyFlagMutationResult,
+  PolicyFlagUpdateDto,
   PriceHistoryPoint,
 } from './types';
 
@@ -163,6 +165,29 @@ function fxUsers(): AdminUser[] {
   return fxUsersWorking;
 }
 
+// Fixtures-mode working copy for the ADM-2 policy-flag demo CRUD (API-13 has no
+// fixture server): cloned lazily from the seed so edits/deletes persist within a
+// session with no backend. The exported seed (fx.fxPolicyFlags) is never mutated.
+let fxPolicyWorking: PolicyFlag[] | null = null;
+function fxPolicy(): PolicyFlag[] {
+  if (!fxPolicyWorking) fxPolicyWorking = fx.fxPolicyFlags.map((f) => ({ ...f }));
+  return fxPolicyWorking;
+}
+
+// Demo mirror of PolicyFlagTrainingDataWarning.For (backend): a flag whose window
+// STARTS strictly before today (UTC calendar date) has already fed training, so the
+// mutation warns. Compares the max of the incoming + previous effectiveFrom. Returns
+// the same sentence the server sends so the amber banner is demo-able; null otherwise.
+const FX_TRAINING_WARNING =
+  "This policy flag's effective window falls (partly) in the past. Policy flags are as-of-joined " +
+  "into the forecasting model's training data, so editing or removing a past-dated flag changes " +
+  'history the model has already learned from — a retrain may be required.';
+function fxTrainingWarning(...effectiveFroms: (string | null | undefined)[]): string | null {
+  const today = new Date().toISOString().slice(0, 10);
+  const touchesPast = effectiveFroms.some((d) => !!d && d.slice(0, 10) < today);
+  return touchesPast ? FX_TRAINING_WARNING : null;
+}
+
 // =============================================================================
 // Public API surface. Each method has a fixture branch (VITE_API_MODE=fixtures).
 // =============================================================================
@@ -241,9 +266,65 @@ export const api = {
   // CONTRACT QUIRK: an EMPTY result comes back as HTTP 400 ("No policy flags
   // found."), not 200 []. Callers treat a 400 on this route as the empty state.
   async getPolicyFlags(asOfDate?: string): Promise<PolicyFlag[]> {
-    if (USE_FIXTURES) return fx.fxPolicyFlagsFor(asOfDate);
+    if (USE_FIXTURES) {
+      // Read the working copy (not the static seed) so demo edits/deletes survive
+      // the post-mutation refetch. as-of filtering mirrors the backend GetActiveAsOf.
+      const all = fxPolicy();
+      if (!asOfDate) return all.map((f) => ({ ...f }));
+      const d = asOfDate.slice(0, 10);
+      return all
+        .filter((f) => {
+          const from = f.effectiveFrom.slice(0, 10);
+          const to = f.effectiveTo ? f.effectiveTo.slice(0, 10) : null;
+          return from <= d && (to === null || d <= to);
+        })
+        .map((f) => ({ ...f }));
+    }
     const q = asOfDate ? `?asOfDate=${asOfDate}` : '';
     return request<PolicyFlag[]>(`/api/policy-flag/get/all${q}`);
+  },
+
+  // PUT /api/policy-flag/update [Admin-only, API-13]. Full-object update: the body
+  // WRAPS the dto under `policyFlagUpdateDto` (mirrors the crops createDto wrapper).
+  // -> 200 { id, trainingDataWarning }. Validation/guard failures arrive as the house
+  // error shape (HTTP 400) and are surfaced verbatim by the page. In FIXTURES mode the
+  // working copy is mutated in place and a demo warning is derived from the (old + new)
+  // effectiveFrom so the amber banner is demo-able with no backend.
+  async updatePolicyFlag(dto: PolicyFlagUpdateDto): Promise<PolicyFlagMutationResult> {
+    if (USE_FIXTURES) {
+      const list = fxPolicy();
+      const existing = list.find((f) => f.id === dto.id);
+      if (!existing) throw new ApiError('Policy flag does not exist.', 400);
+      const prevFrom = existing.effectiveFrom;
+      existing.policyType = dto.policyType;
+      existing.title = dto.title;
+      existing.description = dto.description ?? null;
+      existing.effectiveFrom = dto.effectiveFrom;
+      existing.effectiveTo = dto.effectiveTo ?? null;
+      existing.direction = dto.direction;
+      existing.source = dto.source ?? null;
+      existing.referenceUrl = dto.referenceUrl ?? null;
+      return { id: dto.id, trainingDataWarning: fxTrainingWarning(dto.effectiveFrom, prevFrom) };
+    }
+    return request<PolicyFlagMutationResult>('/api/policy-flag/update', {
+      method: 'PUT',
+      body: JSON.stringify({ policyFlagUpdateDto: dto }),
+    });
+  },
+
+  // DELETE /api/policy-flag/delete/{id} [Admin-only, API-13] -> 200 { id,
+  // trainingDataWarning } (same past-window warning semantics as update). Fixtures:
+  // remove from the working copy; warn when the removed flag's window started in the past.
+  async deletePolicyFlag(id: string): Promise<PolicyFlagMutationResult> {
+    if (USE_FIXTURES) {
+      const list = fxPolicy();
+      const existing = list.find((f) => f.id === id);
+      if (!existing) throw new ApiError('Policy flag does not exist.', 400);
+      const warning = fxTrainingWarning(existing.effectiveFrom);
+      fxPolicyWorking = list.filter((f) => f.id !== id);
+      return { id, trainingDataWarning: warning };
+    }
+    return request<PolicyFlagMutationResult>(`/api/policy-flag/delete/${id}`, { method: 'DELETE' });
   },
 
   // Markets registry (ADM-3, API-1 — LIVE, backend PR #24). GET /api/markets/get/all
