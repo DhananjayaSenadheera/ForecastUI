@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import i18n from '../i18n';
 import { AuthProvider } from '../auth/AuthContext';
@@ -111,6 +111,33 @@ describe('Admin console pages', () => {
       // the row is gone (page 1 refills from page 2, so the count stays at 10)
       await waitFor(() => expect(screen.queryByText('claudetest')).toBeNull());
       expect(screen.getByText(/removed|deleted/i)).toBeInTheDocument();
+    });
+
+    it('surfaces the last-admin server guard message on a rejected role change', async () => {
+      const msg = 'You cannot demote the last remaining admin.';
+      vi.spyOn(api, 'updateUserRole').mockRejectedValueOnce(new ApiError(msg, 400));
+      renderPage(<UsersPage />);
+      // any page-1 row — the FE surfaces whatever 400 the server guard returns
+      const row = (await screen.findByText('dilani_seneviratne', { exact: true })).closest('tr')!;
+      fireEvent.click(within(row).getByText('Edit role'));
+      const dialog = screen.getByRole('dialog');
+      fireEvent.change(dialog.querySelector('select') as HTMLSelectElement, {
+        target: { value: 'Farmer' },
+      });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+      // server guard text is shown verbatim (honest constraint surfacing)
+      expect(await screen.findByText(msg)).toBeInTheDocument();
+    });
+
+    it('surfaces the self-delete server guard message on a rejected delete', async () => {
+      const msg = 'You cannot delete your own account.';
+      vi.spyOn(api, 'deleteUser').mockRejectedValueOnce(new ApiError(msg, 400));
+      renderPage(<UsersPage />);
+      const row = (await screen.findByText('nimal_perera', { exact: true })).closest('tr')!;
+      fireEvent.click(row.querySelector('.adm-rowbtn--danger') as HTMLButtonElement);
+      const dialog = screen.getByRole('dialog');
+      fireEvent.click(dialog.querySelector('.adm-btn--danger') as HTMLButtonElement);
+      expect(await screen.findByText(msg)).toBeInTheDocument();
     });
   });
 

@@ -417,7 +417,7 @@
     },
     "users": {
       "title": "Users",
-      "subtitle": "Accounts and roles. Changes here are demo-only for now.",
+      "subtitle": "Accounts and roles. Farmers self-register; assign roles and manage accounts here.",
       "colUsername": "Username",
       "colEmail": "Email",
       "colRole": "Role",
@@ -439,7 +439,11 @@
       "savedFlash": "Role updated (demo).",
       "deletedFlash": "Deleted “{{name}}” (demo).",
       "emptyTitle": "No users",
-      "emptyBody": "There are no user accounts to show."
+      "emptyBody": "There are no user accounts to show.",
+      "selfRegisterNote": "Farmers create their own accounts by registering. There is no add-user button here on purpose — use this page to change roles or remove accounts.",
+      "savedFlashLive": "Role updated.",
+      "deletedFlashLive": "Deleted the account “{{name}}”.",
+      "working": "Working…"
     },
     "festivals": {
       "title": "Festival calendar",
