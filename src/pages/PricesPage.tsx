@@ -7,28 +7,30 @@
 //                    shared scale, plus a sortable market×day table.
 // Both chart surfaces share the FE-20 hover/tap/keyboard tooltip (lib/chartTooltip).
 //
-// FIXTURE-ONLY TODAY (API gaps #1/#2 — markets + price-history are not on the live
-// .NET route yet). In LIVE mode (or on a 501) the page shows the HONEST "coming
-// soon" state — NOT an error — so navigation stays stable across releases.
+// LIVE (API-1/2, backend PR #24): markets come from GET /api/markets/get/all
+// ?hasPrices=true (the price-carrying subset) and per-market series from GET
+// /api/prices/crop/{cropId}/history. Both endpoints exist now, so the page always
+// fetches (fixtures OR live) and ships the standard loading / success / empty /
+// error states — there is no "coming soon" placeholder any more.
 //
 // Honest display: an observed history is a daily low–high RANGE, never a forecast
-// and never a fake single number. Market colours are the Okabe–Ito set, assigned
-// by STABLE market id order (never by price rank) so a market keeps its colour
-// across the key, the overlay and the table. Every chart ships a table alternative
-// (WCAG). Geometry lives in lib/prices — tested.
+// and never a fake single number. Market colours are the Okabe–Ito quartet, assigned
+// by SELECTION ORDER over the ≤4 compared markets (never by price rank) so every
+// compared line is a DISTINCT colour — a full-list stable mapping would collide
+// once there are 10 live markets but only 4 colours. Every chart ships a table
+// alternative (WCAG). Geometry lives in lib/prices — tested.
 // =============================================================================
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { api, ApiError, apiMode } from '../api/client';
+import { api } from '../api/client';
 import type { Crop, Market, PriceHistoryPoint } from '../api/types';
 import { cropDisplayName } from '../lib/crops';
 import { formatDate, formatPrice } from '../lib/format';
 import {
-  assignMarketColors,
   buildMarketOverlayGeometry,
   buildPriceLineGeometry,
   isShortHistory,
+  marketColorVar,
   type MarketOverlayInput,
 } from '../lib/prices';
 import { ChartTooltip, useChartTooltip, type TooltipPoint } from '../lib/chartTooltip';
@@ -54,10 +56,8 @@ function useDayLabel(lang: string): (d: Date) => string {
 export default function PricesPage() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
-  const navigate = useNavigate();
 
-  const [comingSoon, setComingSoon] = useState(apiMode === 'live');
-  const [loading, setLoading] = useState(apiMode !== 'live');
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
   const [crops, setCrops] = useState<Crop[]>([]);
@@ -72,11 +72,6 @@ export default function PricesPage() {
 
   // ---- crops + markets (once) ----------------------------------------------
   const loadBase = useCallback(async () => {
-    if (apiMode === 'live') {
-      setComingSoon(true);
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     setError(false);
     try {
@@ -91,9 +86,8 @@ export default function PricesPage() {
         const ordered = [...ms].sort((a, b) => Number(b.isEconomicCenter) - Number(a.isEconomicCenter));
         return ordered.slice(0, OVERLAY_MAX).map((m) => m.id);
       });
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 501) setComingSoon(true);
-      else setError(true);
+    } catch {
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -113,24 +107,32 @@ export default function PricesPage() {
         next[m.id] = series[i];
       });
       setByMarket(next);
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 501) setComingSoon(true);
-      else setError(true);
+    } catch {
+      setError(true);
     }
   }, []);
 
   useEffect(() => {
-    if (comingSoon || !cropId || markets.length === 0) return;
+    if (!cropId || markets.length === 0) return;
     void loadHistories(cropId, markets);
-  }, [comingSoon, cropId, markets, loadHistories]);
+  }, [cropId, markets, loadHistories]);
 
   const selectedCrop = useMemo(() => crops.find((c) => c.id === cropId) ?? null, [crops, cropId]);
   const cropLabel = selectedCrop ? cropDisplayName(selectedCrop, lang) : '';
   const selectedMarket = useMemo(() => markets.find((m) => m.id === marketId) ?? null, [markets, marketId]);
   const detailHistory = (marketId && byMarket[marketId]) || [];
 
-  // Stable Okabe–Ito colour per market id (from the FULL list — never shifts).
-  const marketColors = useMemo(() => assignMarketColors(markets.map((m) => m.id)), [markets]);
+  // Okabe–Ito colour per SELECTED overlay market, by selection order (same idiom as
+  // CompareCropsPage). With 10 live markets and only 4 colours a full-list stable
+  // mapping would collide (market ids 4 apart share a colour), rendering two compared
+  // lines identically; keying off the ≤4 selected ids guarantees 4 distinct colours.
+  // Swatches (shown only on selected chips) and the overlay lines stay in sync
+  // because both read this one map.
+  const marketColors = useMemo(() => {
+    const m = new Map<string, string>();
+    overlayIds.forEach((id, i) => m.set(id, marketColorVar(i)));
+    return m;
+  }, [overlayIds]);
 
   const toggleOverlayMarket = useCallback(
     (id: string) => {
@@ -149,26 +151,6 @@ export default function PricesPage() {
     },
     [],
   );
-
-  // ---- coming soon (live / 501) — honest, not an error ----------------------
-  if (comingSoon) {
-    return (
-      <>
-        <div className="topbar">
-          <h1 className="topbar__title">{t('pages.prices.title')}</h1>
-        </div>
-        <section className="panel" style={{ maxWidth: 560 }}>
-          <h2 style={{ fontSize: 'var(--fs-h2)', marginBottom: 8 }}>
-            🕓 {t('pages.prices.soonTitle')}
-          </h2>
-          <p style={{ color: 'var(--text-2)', marginBottom: 20 }}>{t('pages.prices.soonBody')}</p>
-          <button type="button" className="btn-ghost" style={{ width: 'auto' }} onClick={() => navigate('/overview')}>
-            ← {t('common.backHome')}
-          </button>
-        </section>
-      </>
-    );
-  }
 
   const overlayInputs: MarketOverlayInput[] = overlayIds
     .map((id): MarketOverlayInput | null => {
