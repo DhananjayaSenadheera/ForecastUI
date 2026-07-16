@@ -139,7 +139,12 @@
       "recent_price_trend": "சமீபத்திய விலைப் போக்கு",
       "festival_demand": "பண்டிகை தேவை",
       "seasonal_supply": "பருவகால வழங்கல்",
-      "weather_monsoon": "வானிலை மற்றும் பருவமழை"
+      "weather_monsoon": "வானிலை மற்றும் பருவமழை",
+      "market_conditions": "சந்தை நிலைமைகள்",
+      "economic_conditions": "பொருளாதார நிலைமைகள்"
+    },
+    "reasonCodes": {
+      "unavailable": "முன்னறிவிப்பு கிடைக்கவில்லை"
     }
   },
   "share": {
