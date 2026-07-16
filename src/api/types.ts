@@ -458,7 +458,8 @@ export interface PolicyFlagMutationResult {
 //   GET /api/macro-series?key=&from=&to=         -> MacroSeriesPoint[]      (client.getIndicatorMacro)
 //   GET /api/indicators/catalog                  -> SeriesCatalogEntry[]    (client.getIndicatorCatalog)
 // Params are literal: daily uses `code`, macro uses `key`. Empty -> 200 [] (never 404).
-// Festivals + news (ADM-5/7) remain PROVISIONAL (no live route yet).
+// Festivals (ADM-5) is now LIVE (API-10 — see FestivalEntry + mutation DTOs below);
+// news (ADM-7) remains PROVISIONAL (no live route yet).
 // ===========================================================================
 
 /** ADM-4 users. PROPOSAL. NOTE: User.Role is a STRING column on the backend (not an
@@ -472,18 +473,55 @@ export interface AdminUser {
   updatedAt: string; // ISO datetime
 }
 
-/** ADM-5 festival calendar. PROPOSAL (mirrors FestivalCalendarEntry, camelCase). One
- *  row PER occurrence-year (movable festivals repeat each year). This table feeds the
- *  forecasting model, so edits carry a warning + Source is required on save. */
+// ---------------------------------------------------------------------------
+// ADM-5 festival calendar — LIVE (API-10, backend merged). Audited read-only against
+// FestivalCalendarController + Application/Requests/FestivalCalendar (DTOs, validators)
+// on 2026-07-16. All camelCase, consumed verbatim:
+//   GET    /api/festival-calendar/get/all           -> FestivalEntry[]  (200 [] on empty
+//                                                       — NO policy-flag 400-on-empty quirk)
+//   POST   /api/festival-calendar/create  [Admin]    body { festivalCalendarCreateDto } -> 200 true
+//   PUT    /api/festival-calendar/update  [Admin]    body { festivalCalendarUpdateDto } -> 200 FestivalMutationResult
+//   DELETE /api/festival-calendar/delete/{id} [Admin]                                    -> 200 FestivalMutationResult
+// Validators (mirror client-side): festivalKey required ^[A-Z0-9_]+$ <=50 (OPEN set); date
+// required (date-only); leadUpDays 0..90 — 0 is a FIRST-CLASS value (paired-day continuation
+// convention); source REQUIRED on create AND update; isProvisional passthrough.
+// WIRE NOTE: `date` arrives as "YYYY-MM-DDT00:00:00" (like PolicyFlag.effectiveFrom) — slice to
+// 10 before formatDate()/date-input prefill (formatDate re-appends T00:00:00). One row PER
+// occurrence-year (movable festivals repeat each year). This table feeds the forecasting model,
+// so mutations carry a trainingDataWarning + Source is required on save.
+// ---------------------------------------------------------------------------
 export interface FestivalEntry {
   id: string; // Guid
   festivalKey: string; // e.g. 'AVURUDU' | 'THAI_PONGAL' | 'CHRISTMAS' | 'VESAK' | 'DEEPAVALI'
-  date: string; // "YYYY-MM-DD" of the occurrence
-  leadUpDays: number; // demand build-up window (default 14)
+  date: string; // occurrence date — live sends "YYYY-MM-DDT00:00:00"; slice(0,10) for display
+  leadUpDays: number; // demand build-up window (default 14); 0 is a valid paired-day value
   isProvisional: boolean; // date not yet officially confirmed
   source: string | null;
   createdAtUtc: string; // ISO datetime
 }
+
+/** POST /api/festival-calendar/create body wraps this under `festivalCalendarCreateDto` (mirrors
+ *  the crops createDto / policyFlagUpdateDto wrappers). source REQUIRED (validator). */
+export interface FestivalCreateDto {
+  festivalKey: string; // uppercase ^[A-Z0-9_]+$ (open set)
+  date: string; // "YYYY-MM-DD" (date-only)
+  leadUpDays: number; // 0..90; 0 allowed (paired-day convention)
+  isProvisional: boolean;
+  source: string; // required on mutation
+}
+
+/** PUT /api/festival-calendar/update body wraps this under `festivalCalendarUpdateDto`.
+ *  Full-object update = create fields + the id of the row being edited. */
+export interface FestivalUpdateDto extends FestivalCreateDto {
+  id: string; // Guid of the row being edited
+}
+
+/** Update/delete response (FestivalCalendar_MutationResultDto). IDENTICAL shape to
+ *  PolicyFlagMutationResult — festival dates are as-of-joined into the model's training data
+ *  (lead-up demand windows), so mutating a PAST-dated festival returns a non-null
+ *  trainingDataWarning. The mutation still SUCCEEDED; the warning is informational, NEVER an
+ *  error. Future-dated => null. Reuses PolicyFlagMutationResult's shape (shared contract). */
+export type FestivalMutationResult = PolicyFlagMutationResult;
 
 /** ADM-6 daily indicator point (e.g. USD_LKR). PROPOSAL. */
 export interface DailyIndicatorPoint {

@@ -231,7 +231,7 @@ describe('Admin console pages', () => {
     });
   });
 
-  // ---- ADM-5 festivals ----------------------------------------------------
+  // ---- ADM-5 festivals (API-10 — LIVE) ------------------------------------
   describe('FestivalsPage (ADM-5)', () => {
     it('groups festivals by year and shows the model warning', async () => {
       renderPage(<FestivalsPage />);
@@ -242,6 +242,59 @@ describe('Admin console pages', () => {
       ).toBeGreaterThan(0);
       // a provisional 2026 row carries the Provisional badge
       expect(screen.getAllByText('Provisional').length).toBeGreaterThan(0);
+    });
+
+    it('shows a dismissible amber banner (not an error) when a mutation returns trainingDataWarning', async () => {
+      vi.spyOn(api, 'updateFestival').mockResolvedValue({
+        id: 'x',
+        trainingDataWarning: 'past date touched',
+      });
+      renderPage(<FestivalsPage />);
+      await screen.findByText('2026');
+      fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0]);
+      const dialog = screen.getByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+      // banner appears as a status note (mutation succeeded) — never role=alert
+      const banner = (await screen.findByText(/This touched training data/)).closest('.adm-warn')!;
+      expect(banner).toBeInTheDocument();
+      expect(banner.getAttribute('role')).toBe('status');
+      expect(screen.getByText('Festival updated.')).toBeInTheDocument();
+      // dismissible
+      fireEvent.click(screen.getByLabelText('Dismiss'));
+      await waitFor(() => expect(screen.queryByText(/This touched training data/)).toBeNull());
+    });
+
+    it('creates a festival with leadUpDays=0 (paired-day value is not coerced to the default)', async () => {
+      const spy = vi.spyOn(api, 'createFestival').mockResolvedValue(true);
+      renderPage(<FestivalsPage />);
+      await screen.findByText('2026');
+      fireEvent.click(screen.getByText(/Add festival/));
+      const dialog = screen.getByRole('dialog');
+      fireEvent.change(dialog.querySelector('input[type="date"]') as HTMLInputElement, {
+        target: { value: '2027-04-14' },
+      });
+      fireEvent.change(dialog.querySelector('input[type="number"]') as HTMLInputElement, {
+        target: { value: '0' },
+      });
+      fireEvent.change(dialog.querySelector('input[type="text"]') as HTMLInputElement, {
+        target: { value: 'Public holidays gazette 2027' },
+      });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+      await waitFor(() => expect(spy).toHaveBeenCalled());
+      expect(spy.mock.calls[0][0].leadUpDays).toBe(0);
+      expect(spy.mock.calls[0][0].source).toBe('Public holidays gazette 2027');
+      expect(await screen.findByText('Festival added.')).toBeInTheDocument();
+    });
+
+    it('surfaces a server guard message verbatim when a delete is rejected', async () => {
+      const msg = 'Festival does not exist.';
+      vi.spyOn(api, 'deleteFestival').mockRejectedValueOnce(new ApiError(msg, 400));
+      renderPage(<FestivalsPage />);
+      await screen.findByText('2026');
+      fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0]);
+      const dialog = screen.getByRole('dialog');
+      fireEvent.click(dialog.querySelector('.adm-btn--danger') as HTMLButtonElement);
+      expect(await screen.findByText(msg)).toBeInTheDocument();
     });
   });
 
