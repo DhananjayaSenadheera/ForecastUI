@@ -42,6 +42,43 @@ export function DemoNote({ hasLiveEndpoint = true }: { hasLiveEndpoint?: boolean
   );
 }
 
+/** Dismissible AMBER training-data warning banner (ADM-2/ADM-5). Rendered when a
+ *  SUCCESSFUL mutation returns a non-null trainingDataWarning — the affected row is
+ *  as-of-joined into the model's training data, so a past-dated edit/delete may need a
+ *  retrain. It is honest info, NEVER an error: role="status" (not alert), and the amber
+ *  `.adm-warn--dismiss` styling is shared, not red. Title + body are page-supplied so
+ *  PolicyFlags and Festivals reuse identical markup with their own wording. */
+export function TrainingWarningBanner({
+  title,
+  body,
+  onDismiss,
+}: {
+  title: string;
+  body: string;
+  onDismiss: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="adm-warn adm-warn--dismiss" role="status" aria-live="polite">
+      <span className="adm-warn__body">
+        <span className="adm-warn__title">
+          <span aria-hidden="true">⚠️ </span>
+          {title}
+        </span>{' '}
+        {body}
+      </span>
+      <button
+        type="button"
+        className="adm-warn__close"
+        onClick={onDismiss}
+        aria-label={t('common.dismiss')}
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
 /** Loading skeleton — N shimmer rows. */
 export function AdminLoading({ rows = 6 }: { rows?: number }) {
   const { t } = useTranslation();

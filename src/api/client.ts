@@ -18,7 +18,10 @@ import type {
   CropCreateCommand,
   CropTimeline,
   DailyIndicatorPoint,
+  FestivalCreateDto,
   FestivalEntry,
+  FestivalMutationResult,
+  FestivalUpdateDto,
   HarvestForecast,
   MacroSeriesPoint,
   Market,
@@ -28,6 +31,7 @@ import type {
   PolicyFlagMutationResult,
   PolicyFlagUpdateDto,
   PriceHistoryPoint,
+  SeriesCatalogEntry,
 } from './types';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5282';
@@ -186,6 +190,29 @@ function fxTrainingWarning(...effectiveFroms: (string | null | undefined)[]): st
   const today = new Date().toISOString().slice(0, 10);
   const touchesPast = effectiveFroms.some((d) => !!d && d.slice(0, 10) < today);
   return touchesPast ? FX_TRAINING_WARNING : null;
+}
+
+// Fixtures-mode working copy for the ADM-5 festival-calendar demo CRUD (API-10, no fixture
+// server): cloned lazily from the seed so demo add/edit/delete persist through the
+// post-mutation refetch. The exported seed (fx.fxFestivals) is never mutated.
+let fxFestivalsWorking: FestivalEntry[] | null = null;
+function fxFestivals(): FestivalEntry[] {
+  if (!fxFestivalsWorking) fxFestivalsWorking = fx.fxFestivals.map((f) => ({ ...f }));
+  return fxFestivalsWorking;
+}
+
+// Demo mirror of FestivalCalendarTrainingDataWarning.For (backend): a festival whose Date
+// (incoming OR stored) is strictly before today (UTC calendar date) has already fed the
+// model's lead-up-window training features, so the mutation warns. Returns the same sentence
+// the server sends so the amber banner is demo-able; null for purely future-dated festivals.
+const FX_FESTIVAL_WARNING =
+  "This festival's date falls in the past. Festival dates are as-of-joined into the " +
+  "forecasting model's training data (lead-up demand windows), so editing or removing a " +
+  'past-dated festival changes history the model has already learned from — a retrain may be required.';
+function fxFestivalWarning(...dates: (string | null | undefined)[]): string | null {
+  const today = new Date().toISOString().slice(0, 10);
+  const touchesPast = dates.some((d) => !!d && d.slice(0, 10) < today);
+  return touchesPast ? FX_FESTIVAL_WARNING : null;
 }
 
 // =============================================================================
@@ -386,25 +413,115 @@ export const api = {
     return request<boolean>(`/api/users/delete/${userId}`, { method: 'DELETE' });
   },
 
-  // ---- ADMIN CONSOLE — PROVISIONAL (no live endpoint yet; scope-extension 2026-07-12)
-  // Read-only fixture reads. Live routes are FE proposals to be built after the backend
-  // hold lifts (~2026-07-16); until then live mode throws 501 and pages surface a
-  // retryable state. Demo CRUD in these pages mutates COMPONENT state, not the server.
-  async getFestivals(): Promise<FestivalEntry[]> {
-    if (USE_FIXTURES) return fx.fxFestivals;
-    throw new ApiError('festivals endpoint not built yet (provisional)', 501);
+  // ---- ADMIN CONSOLE — INDICATORS (ADM-6 / API-11 — LIVE, backend merged) --
+  // Three read-only routes over macro reference data, audited against
+  // IndicatorsController on 2026-07-16. All camelCase, consumed verbatim. Empty is a
+  // 200 [] (NOT a 404, NOT the policy-flag 400-on-empty quirk) -> pages render an
+  // honest empty state. Param names are LITERAL: daily uses `code`, macro uses `key`.
+  //
+  // GET /api/indicators/catalog -> SeriesCatalogEntry[] (kind: 'indicator'|'macro').
+  // The Indicators page discovers series from here instead of hardcoding keys.
+  async getIndicatorCatalog(): Promise<SeriesCatalogEntry[]> {
+    if (USE_FIXTURES) return fx.fxIndicatorCatalog();
+    return request<SeriesCatalogEntry[]>('/api/indicators/catalog');
   },
 
+  // GET /api/indicators?code={code} -> DailyIndicatorPoint[] (daily EconomicIndicators,
+  // e.g. USD_LKR). from/to optional (server default: last 365 days). We rely on the
+  // default window today; the code is the required selector.
   async getIndicatorDaily(code: string): Promise<DailyIndicatorPoint[]> {
     if (USE_FIXTURES) return fx.fxIndicatorDaily(code);
-    throw new ApiError('indicators endpoint not built yet (provisional)', 501);
+    return request<DailyIndicatorPoint[]>(`/api/indicators?code=${encodeURIComponent(code)}`);
   },
 
+  // GET /api/macro-series?key={seriesKey} -> MacroSeriesPoint[] (vintage-aware
+  // MacroSeriesPoints, e.g. CCPI). BOTH referenceDate + publishedAt arrive verbatim;
+  // multiple vintages of one referenceDate may appear (the page collapses to the latest
+  // publishedAt for display while surfacing that a revision exists). Default window is
+  // the server's last-365-days on referenceDate.
   async getIndicatorMacro(seriesKey: string): Promise<MacroSeriesPoint[]> {
     if (USE_FIXTURES) return fx.fxIndicatorMacro(seriesKey);
-    throw new ApiError('macro indicators endpoint not built yet (provisional)', 501);
+    return request<MacroSeriesPoint[]>(`/api/macro-series?key=${encodeURIComponent(seriesKey)}`);
   },
 
+  // ---- ADMIN CONSOLE — FESTIVAL CALENDAR (ADM-5 / API-10 — LIVE, backend merged) ----
+  // Audited read-only against FestivalCalendarController on 2026-07-16. All camelCase,
+  // consumed verbatim. Empty -> 200 [] (NOT the policy-flag 400-on-empty quirk). Mutation
+  // bodies WRAP the dto (mirrors the crops createDto / policyFlagUpdateDto wrappers). Update
+  // + delete return { id, trainingDataWarning } (non-null when the festival Date — incoming or
+  // stored — is in the past; the mutation still SUCCEEDED, the warning is informational).
+  //
+  // GET /api/festival-calendar/get/all [Authorize] -> FestivalEntry[] ordered by date.
+  async getFestivals(): Promise<FestivalEntry[]> {
+    // Read the working copy (not the static seed) so demo add/edit/delete survive the
+    // post-mutation refetch. Live mode never touches this.
+    if (USE_FIXTURES) return fxFestivals().map((f) => ({ ...f }));
+    return request<FestivalEntry[]>('/api/festival-calendar/get/all');
+  },
+
+  // POST /api/festival-calendar/create [Admin] body { festivalCalendarCreateDto } -> 200 true.
+  // Fixtures: append to the working copy (synthesise id + createdAtUtc) so the demo row
+  // survives the refetch; leadUpDays is stored VERBATIM (0 stays 0 — never coerced).
+  async createFestival(dto: FestivalCreateDto): Promise<boolean> {
+    if (USE_FIXTURES) {
+      fxFestivals().push({
+        id: `f-new-${Date.now()}`,
+        festivalKey: dto.festivalKey,
+        date: dto.date,
+        leadUpDays: dto.leadUpDays,
+        isProvisional: dto.isProvisional,
+        source: dto.source,
+        createdAtUtc: new Date().toISOString(),
+      });
+      return true;
+    }
+    return request<boolean>('/api/festival-calendar/create', {
+      method: 'POST',
+      body: JSON.stringify({ festivalCalendarCreateDto: dto }),
+    });
+  },
+
+  // PUT /api/festival-calendar/update [Admin] body { festivalCalendarUpdateDto } -> 200
+  // { id, trainingDataWarning }. Full-object update. Fixtures: mutate the working copy in
+  // place and derive the demo warning from the (old + new) Date so the amber banner is demo-able.
+  async updateFestival(dto: FestivalUpdateDto): Promise<FestivalMutationResult> {
+    if (USE_FIXTURES) {
+      const list = fxFestivals();
+      const existing = list.find((f) => f.id === dto.id);
+      if (!existing) throw new ApiError('Festival does not exist.', 400);
+      const prevDate = existing.date;
+      existing.festivalKey = dto.festivalKey;
+      existing.date = dto.date;
+      existing.leadUpDays = dto.leadUpDays;
+      existing.isProvisional = dto.isProvisional;
+      existing.source = dto.source;
+      return { id: dto.id, trainingDataWarning: fxFestivalWarning(dto.date, prevDate) };
+    }
+    return request<FestivalMutationResult>('/api/festival-calendar/update', {
+      method: 'PUT',
+      body: JSON.stringify({ festivalCalendarUpdateDto: dto }),
+    });
+  },
+
+  // DELETE /api/festival-calendar/delete/{id} [Admin] -> 200 { id, trainingDataWarning }
+  // (same past-date warning semantics as update). Fixtures: warn when the removed festival's
+  // Date is in the past, then drop it from the working copy.
+  async deleteFestival(id: string): Promise<FestivalMutationResult> {
+    if (USE_FIXTURES) {
+      const list = fxFestivals();
+      const existing = list.find((f) => f.id === id);
+      if (!existing) throw new ApiError('Festival does not exist.', 400);
+      const warning = fxFestivalWarning(existing.date);
+      fxFestivalsWorking = list.filter((f) => f.id !== id);
+      return { id, trainingDataWarning: warning };
+    }
+    return request<FestivalMutationResult>(`/api/festival-calendar/delete/${id}`, { method: 'DELETE' });
+  },
+
+  // ---- ADMIN CONSOLE — PROVISIONAL (no live endpoint yet; scope-extension 2026-07-12)
+  // Read-only fixture reads. Live routes are FE proposals to be built after the backend
+  // hold lifts; until then live mode throws 501 and pages surface a retryable state. Demo
+  // CRUD in these pages mutates COMPONENT state, not the server.
   async getNewsEvents(): Promise<NewsEvent[]> {
     if (USE_FIXTURES) return fx.fxNewsEvents;
     throw new ApiError('news-events endpoint not built yet (provisional)', 501);

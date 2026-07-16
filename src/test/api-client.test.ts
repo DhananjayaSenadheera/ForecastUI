@@ -39,6 +39,25 @@ describe('API client (fixture mode)', () => {
     expect(history[0]).toHaveProperty('maxPrice');
   });
 
+  it('serves the indicator catalog + macro series fixtures (API-11)', async () => {
+    const catalog = await api.getIndicatorCatalog();
+    // catalog lists both CCPI macro series the page pins, tagged kind 'macro'
+    const macro = catalog.filter((c) => c.kind === 'macro').map((c) => c.key);
+    expect(macro).toContain('CCPI_BASE2021');
+    expect(macro).toContain('CCPI_HEADLINE_YOY_BASE2021');
+    // the YoY series is real data (has points) and carries a multi-vintage row:
+    // two entries share the latest referenceDate (provisional then revised).
+    const yoy = await api.getIndicatorMacro('CCPI_HEADLINE_YOY_BASE2021');
+    expect(yoy.length).toBeGreaterThan(0);
+    const byRef = new Map<string, number>();
+    for (const p of yoy) byRef.set(p.referenceDate, (byRef.get(p.referenceDate) ?? 0) + 1);
+    expect([...byRef.values()].some((n) => n > 1)).toBe(true);
+    // every macro point carries BOTH dates verbatim (never collapsed)
+    expect(yoy.every((p) => !!p.referenceDate && !!p.publishedAt)).toBe(true);
+    // unknown series -> empty (200 [] semantics), never a throw
+    expect(await api.getIndicatorMacro('NOPE')).toEqual([]);
+  });
+
   it('serves the market overview fixture (API-7) with movers + latest prices', async () => {
     const ov = await api.getMarketOverview(30);
     expect(ov.windowDays).toBe(30);
@@ -134,6 +153,30 @@ describe('API client (live mode — markets + price history URLs)', () => {
     expect(init.method).toBe('DELETE');
   });
 
+  // ---- ADM-6 indicators (API-11, backend merged) --------------------------
+  it('getIndicatorCatalog hits /api/indicators/catalog', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes([]));
+    vi.stubGlobal('fetch', fetchMock);
+    await (await liveApi()).getIndicatorCatalog();
+    expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:5282/api/indicators/catalog');
+  });
+
+  it('getIndicatorMacro hits /api/macro-series?key={seriesKey} (macro uses `key`)', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes([]));
+    vi.stubGlobal('fetch', fetchMock);
+    await (await liveApi()).getIndicatorMacro('CCPI_HEADLINE_YOY_BASE2021');
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      'http://localhost:5282/api/macro-series?key=CCPI_HEADLINE_YOY_BASE2021',
+    );
+  });
+
+  it('getIndicatorDaily hits /api/indicators?code={code} (daily uses `code`)', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes([]));
+    vi.stubGlobal('fetch', fetchMock);
+    await (await liveApi()).getIndicatorDaily('USD_LKR');
+    expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:5282/api/indicators?code=USD_LKR');
+  });
+
   // ---- ADM-2 policy-flag mutations (API-13, backend merged) ---------------
   it('updatePolicyFlag PUTs /api/policy-flag/update with the dto WRAPPED under policyFlagUpdateDto', async () => {
     const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes({ id: 'pf-1', trainingDataWarning: null }));
@@ -163,6 +206,58 @@ describe('API client (live mode — markets + price history URLs)', () => {
     await (await liveApi()).deletePolicyFlag('pf-9');
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('http://localhost:5282/api/policy-flag/delete/pf-9');
+    expect(init.method).toBe('DELETE');
+  });
+
+  // ---- ADM-5 festival calendar (API-10, backend merged) -------------------
+  it('getFestivals hits /api/festival-calendar/get/all', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes([]));
+    vi.stubGlobal('fetch', fetchMock);
+    await (await liveApi()).getFestivals();
+    expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:5282/api/festival-calendar/get/all');
+  });
+
+  it('createFestival POSTs /api/festival-calendar/create with the dto WRAPPED under festivalCalendarCreateDto', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes(true));
+    vi.stubGlobal('fetch', fetchMock);
+    const dto = {
+      festivalKey: 'AVURUDU',
+      date: '2027-04-14',
+      leadUpDays: 0, // paired-day value must survive the wire verbatim (never coerced)
+      isProvisional: true,
+      source: 'Public holidays gazette 2027',
+    };
+    await (await liveApi()).createFestival(dto);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('http://localhost:5282/api/festival-calendar/create');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual({ festivalCalendarCreateDto: dto });
+  });
+
+  it('updateFestival PUTs /api/festival-calendar/update with the dto WRAPPED under festivalCalendarUpdateDto', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes({ id: 'f-1', trainingDataWarning: null }));
+    vi.stubGlobal('fetch', fetchMock);
+    const dto = {
+      id: 'f-1',
+      festivalKey: 'THAI_PONGAL',
+      date: '2027-01-14',
+      leadUpDays: 10,
+      isProvisional: false,
+      source: 'Public holidays gazette 2027',
+    };
+    await (await liveApi()).updateFestival(dto);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('http://localhost:5282/api/festival-calendar/update');
+    expect(init.method).toBe('PUT');
+    expect(JSON.parse(init.body as string)).toEqual({ festivalCalendarUpdateDto: dto });
+  });
+
+  it('deleteFestival DELETEs /api/festival-calendar/delete/{id}', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes({ id: 'f-9', trainingDataWarning: null }));
+    vi.stubGlobal('fetch', fetchMock);
+    await (await liveApi()).deleteFestival('f-9');
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('http://localhost:5282/api/festival-calendar/delete/f-9');
     expect(init.method).toBe('DELETE');
   });
 });
@@ -205,5 +300,60 @@ describe('API client (fixture mode — policy-flag mutation warnings)', () => {
     const res = await api.deletePolicyFlag('a1f1c001-0000-0000-0000-000000000002'); // 2022 subsidy (past)
     expect(res.trainingDataWarning).not.toBeNull();
     expect((await api.getPolicyFlags()).length).toBe(before - 1);
+  });
+});
+
+// Fixture-mode festival mutations (API-10): the demo working copy mirrors the server's
+// past-date training-data warning + keeps leadUpDays=0 verbatim so the page is demo-able.
+describe('API client (fixture mode — festival-calendar mutations)', () => {
+  const PAST_FESTIVAL = 'f0000007-0000-0000-0000-000000000007'; // AVURUDU 2026-04-14 (past, today = 2026-07-16)
+  const FUTURE_FESTIVAL = 'f0000010-0000-0000-0000-000000000010'; // CHRISTMAS 2026-12-25 (future)
+
+  it('createFestival accepts leadUpDays=0 and stores it verbatim (paired-day value not coerced)', async () => {
+    const before = (await api.getFestivals()).length;
+    const ok = await api.createFestival({
+      festivalKey: 'AVURUDU',
+      date: '2027-04-14',
+      leadUpDays: 0,
+      isProvisional: false,
+      source: 'Public holidays gazette 2027',
+    });
+    expect(ok).toBe(true);
+    const after = await api.getFestivals();
+    expect(after.length).toBe(before + 1);
+    const added = after.find((f) => f.date === '2027-04-14' && f.festivalKey === 'AVURUDU');
+    expect(added?.leadUpDays).toBe(0);
+  });
+
+  it('updateFestival warns (non-null) when the festival date is in the past', async () => {
+    const res = await api.updateFestival({
+      id: PAST_FESTIVAL,
+      festivalKey: 'AVURUDU',
+      date: '2026-04-14',
+      leadUpDays: 21,
+      isProvisional: false,
+      source: 'Public holidays gazette 2026',
+    });
+    expect(res.id).toBe(PAST_FESTIVAL);
+    expect(res.trainingDataWarning).not.toBeNull();
+  });
+
+  it('updateFestival does NOT warn (null) when both old + new dates are in the future', async () => {
+    const res = await api.updateFestival({
+      id: FUTURE_FESTIVAL,
+      festivalKey: 'CHRISTMAS',
+      date: '2027-12-25',
+      leadUpDays: 21,
+      isProvisional: false,
+      source: 'Fixed date',
+    });
+    expect(res.trainingDataWarning).toBeNull();
+  });
+
+  it('deleteFestival warns for a past-dated festival and removes it from the working copy', async () => {
+    const before = (await api.getFestivals()).length;
+    const res = await api.deleteFestival('f0000001-0000-0000-0000-000000000001'); // THAI_PONGAL 2025-01-14 (past)
+    expect(res.trainingDataWarning).not.toBeNull();
+    expect((await api.getFestivals()).length).toBe(before - 1);
   });
 });

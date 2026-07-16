@@ -29,6 +29,7 @@ import {
   type NewsEvent,
   type PolicyFlag,
   type PriceHistoryPoint,
+  type SeriesCatalogEntry,
 } from './types';
 
 // NOTE (localized crop names): nameSi/nameTa below are DRAFT translations for
@@ -869,11 +870,47 @@ export const fxCcpi: MacroSeriesPoint[] = CCPI_MONTH_ENDS.map((refEnd, i) => ({
   source: 'DCS / CBSL (demo)',
 }));
 
+// Ready-made headline YoY inflation (%) — the series the gauge now reads directly
+// (no client-side MoM derivation). Plausible 2025-26 trajectory drifting up out of the
+// "mild" band into "elevated". The LATEST month carries TWO vintages of the SAME
+// referenceDate — a provisional 8.1% then a revised 8.3% — so the page's multi-vintage
+// handling (latest publishedAt wins, superseded row surfaced) is demo-able with no backend.
+const CCPI_YOY_VALUES = [2.1, 2.4, 2.8, 3.3, 3.9, 4.5, 5.2, 5.8, 6.4, 7.1, 7.8, 8.3] as const;
+export const fxCcpiYoy: MacroSeriesPoint[] = CCPI_MONTH_ENDS.flatMap((refEnd, i) => {
+  const publishedAt = addDays(refEnd, 21) ?? refEnd;
+  const base: MacroSeriesPoint = {
+    seriesKey: 'CCPI_HEADLINE_YOY_BASE2021',
+    referenceDate: refEnd,
+    publishedAt,
+    value: CCPI_YOY_VALUES[i],
+    source: 'DCS / CBSL (demo)',
+  };
+  if (i < CCPI_MONTH_ENDS.length - 1) return [base];
+  // Latest month: earlier provisional vintage + a later revised vintage (revision wins).
+  const provisional: MacroSeriesPoint = {
+    ...base,
+    publishedAt: addDays(refEnd, 14) ?? refEnd,
+    value: 8.1,
+  };
+  return [provisional, base];
+});
+
+export const fxIndicatorCatalogRows: SeriesCatalogEntry[] = [
+  { key: 'USD_LKR', kind: 'indicator', latestDate: PRICE_ANCHOR, count: fxUsdLkr.length },
+  { key: 'CCPI_BASE2021', kind: 'macro', latestDate: '2026-06-30', count: fxCcpi.length },
+  { key: 'CCPI_HEADLINE_YOY_BASE2021', kind: 'macro', latestDate: '2026-06-30', count: fxCcpiYoy.length },
+];
+
+export function fxIndicatorCatalog(): SeriesCatalogEntry[] {
+  return fxIndicatorCatalogRows.map((r) => ({ ...r }));
+}
 export function fxIndicatorDaily(code: string): DailyIndicatorPoint[] {
   return code === 'USD_LKR' ? fxUsdLkr : [];
 }
 export function fxIndicatorMacro(seriesKey: string): MacroSeriesPoint[] {
-  return seriesKey === 'CCPI_BASE2021' ? fxCcpi : [];
+  if (seriesKey === 'CCPI_BASE2021') return fxCcpi;
+  if (seriesKey === 'CCPI_HEADLINE_YOY_BASE2021') return fxCcpiYoy;
+  return [];
 }
 
 // ---------------------------------------------------------------------------

@@ -231,7 +231,7 @@ describe('Admin console pages', () => {
     });
   });
 
-  // ---- ADM-5 festivals ----------------------------------------------------
+  // ---- ADM-5 festivals (API-10 — LIVE) ------------------------------------
   describe('FestivalsPage (ADM-5)', () => {
     it('groups festivals by year and shows the model warning', async () => {
       renderPage(<FestivalsPage />);
@@ -243,9 +243,62 @@ describe('Admin console pages', () => {
       // a provisional 2026 row carries the Provisional badge
       expect(screen.getAllByText('Provisional').length).toBeGreaterThan(0);
     });
+
+    it('shows a dismissible amber banner (not an error) when a mutation returns trainingDataWarning', async () => {
+      vi.spyOn(api, 'updateFestival').mockResolvedValue({
+        id: 'x',
+        trainingDataWarning: 'past date touched',
+      });
+      renderPage(<FestivalsPage />);
+      await screen.findByText('2026');
+      fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0]);
+      const dialog = screen.getByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+      // banner appears as a status note (mutation succeeded) — never role=alert
+      const banner = (await screen.findByText(/This touched training data/)).closest('.adm-warn')!;
+      expect(banner).toBeInTheDocument();
+      expect(banner.getAttribute('role')).toBe('status');
+      expect(screen.getByText('Festival updated.')).toBeInTheDocument();
+      // dismissible
+      fireEvent.click(screen.getByLabelText('Dismiss'));
+      await waitFor(() => expect(screen.queryByText(/This touched training data/)).toBeNull());
+    });
+
+    it('creates a festival with leadUpDays=0 (paired-day value is not coerced to the default)', async () => {
+      const spy = vi.spyOn(api, 'createFestival').mockResolvedValue(true);
+      renderPage(<FestivalsPage />);
+      await screen.findByText('2026');
+      fireEvent.click(screen.getByText(/Add festival/));
+      const dialog = screen.getByRole('dialog');
+      fireEvent.change(dialog.querySelector('input[type="date"]') as HTMLInputElement, {
+        target: { value: '2027-04-14' },
+      });
+      fireEvent.change(dialog.querySelector('input[type="number"]') as HTMLInputElement, {
+        target: { value: '0' },
+      });
+      fireEvent.change(dialog.querySelector('input[type="text"]') as HTMLInputElement, {
+        target: { value: 'Public holidays gazette 2027' },
+      });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+      await waitFor(() => expect(spy).toHaveBeenCalled());
+      expect(spy.mock.calls[0][0].leadUpDays).toBe(0);
+      expect(spy.mock.calls[0][0].source).toBe('Public holidays gazette 2027');
+      expect(await screen.findByText('Festival added.')).toBeInTheDocument();
+    });
+
+    it('surfaces a server guard message verbatim when a delete is rejected', async () => {
+      const msg = 'Festival does not exist.';
+      vi.spyOn(api, 'deleteFestival').mockRejectedValueOnce(new ApiError(msg, 400));
+      renderPage(<FestivalsPage />);
+      await screen.findByText('2026');
+      fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0]);
+      const dialog = screen.getByRole('dialog');
+      fireEvent.click(dialog.querySelector('.adm-btn--danger') as HTMLButtonElement);
+      expect(await screen.findByText(msg)).toBeInTheDocument();
+    });
   });
 
-  // ---- ADM-6 indicators ---------------------------------------------------
+  // ---- ADM-6 indicators (API-11 — LIVE) -----------------------------------
   describe('IndicatorsPage (ADM-6)', () => {
     it('shows the CCPI line chart + inflation-pace gauge side by side, no USD/LKR, no table', async () => {
       renderPage(<IndicatorsPage />);
@@ -263,6 +316,46 @@ describe('Admin console pages', () => {
       // no data table (owner redline) — charts + plain-language explainer instead
       expect(document.querySelector('.adm-table')).toBeNull();
       expect(screen.getByText(/background inflation/)).toBeInTheDocument();
+    });
+
+    it('gauge reads the ready-made YoY series directly (latest 8.3%, elevated) — not derived MoM', async () => {
+      renderPage(<IndicatorsPage />);
+      // fixture YoY latest is 8.3% (in the 6–11 "elevated" band) — a MoM-of-index
+      // gauge would show a small ~0.x% value, so this pins the series switch.
+      await screen.findByLabelText(/8\.3% per year/);
+      expect(document.querySelector('.adm-gauge__value')?.textContent).toBe('8.3%');
+      // zone label reads "per year · elevated" (not "per month")
+      expect(document.querySelector('.adm-gauge__zonelabel')?.textContent).toContain('per year');
+      expect(document.querySelector('.adm-gauge__zonelabel')?.textContent).toContain('elevated');
+    });
+
+    it('surfaces a revision note when a referenceDate has multiple vintages (does not silently drop them)', async () => {
+      renderPage(<IndicatorsPage />);
+      // The YoY fixture ships two vintages of the latest month (provisional 8.1 -> revised 8.3).
+      await screen.findByText(/were later revised/);
+    });
+
+    it('the dual-date (vintage) explainer is dismissible', async () => {
+      renderPage(<IndicatorsPage />);
+      const note = await screen.findByText(/Each point shows two dates/);
+      const dismiss = within(note.closest('p') as HTMLElement).getByRole('button');
+      fireEvent.click(dismiss);
+      await waitFor(() => expect(screen.queryByText(/Each point shows two dates/)).toBeNull());
+    });
+
+    it('renders an honest empty state (not an error) when the catalog lists no macro series', async () => {
+      vi.spyOn(api, 'getIndicatorCatalog').mockResolvedValueOnce([]);
+      renderPage(<IndicatorsPage />);
+      await screen.findByText('No data for this series yet.');
+      expect(document.querySelector('.adm-line')).toBeNull();
+      expect(document.querySelector('.adm-gauge__needle')).toBeNull();
+      expect(screen.queryByText('Could not load')).toBeNull();
+    });
+
+    it('shows the error state with retry when the catalog fetch fails', async () => {
+      vi.spyOn(api, 'getIndicatorCatalog').mockRejectedValueOnce(new ApiError('boom', 500));
+      renderPage(<IndicatorsPage />);
+      await screen.findByText('Could not load');
     });
   });
 

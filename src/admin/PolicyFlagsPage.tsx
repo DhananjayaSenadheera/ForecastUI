@@ -34,6 +34,7 @@ import {
   DemoNote,
   EnumBadge,
   SortableTh,
+  TrainingWarningBanner,
   usePagination,
 } from './adminShared';
 
@@ -211,23 +212,11 @@ export default function PolicyFlagsPage() {
           </p>
         )}
         {warning && (
-          <div className="adm-warn adm-warn--dismiss" role="status" aria-live="polite">
-            <span className="adm-warn__body">
-              <span className="adm-warn__title">
-                <span aria-hidden="true">⚠️ </span>
-                {t('admin.policy.trainingWarningTitle')}
-              </span>{' '}
-              {t('admin.policy.trainingWarning')}
-            </span>
-            <button
-              type="button"
-              className="adm-warn__close"
-              onClick={() => setWarning(null)}
-              aria-label={t('common.dismiss')}
-            >
-              ✕
-            </button>
-          </div>
+          <TrainingWarningBanner
+            title={t('admin.policy.trainingWarningTitle')}
+            body={t('admin.policy.trainingWarning')}
+            onDismiss={() => setWarning(null)}
+          />
         )}
 
         {/* As-of date filter -> ?asOfDate= */}
