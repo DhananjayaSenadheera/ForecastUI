@@ -28,6 +28,7 @@ import type {
   PolicyFlagMutationResult,
   PolicyFlagUpdateDto,
   PriceHistoryPoint,
+  SeriesCatalogEntry,
 } from './types';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5282';
@@ -386,6 +387,37 @@ export const api = {
     return request<boolean>(`/api/users/delete/${userId}`, { method: 'DELETE' });
   },
 
+  // ---- ADMIN CONSOLE — INDICATORS (ADM-6 / API-11 — LIVE, backend merged) --
+  // Three read-only routes over macro reference data, audited against
+  // IndicatorsController on 2026-07-16. All camelCase, consumed verbatim. Empty is a
+  // 200 [] (NOT a 404, NOT the policy-flag 400-on-empty quirk) -> pages render an
+  // honest empty state. Param names are LITERAL: daily uses `code`, macro uses `key`.
+  //
+  // GET /api/indicators/catalog -> SeriesCatalogEntry[] (kind: 'indicator'|'macro').
+  // The Indicators page discovers series from here instead of hardcoding keys.
+  async getIndicatorCatalog(): Promise<SeriesCatalogEntry[]> {
+    if (USE_FIXTURES) return fx.fxIndicatorCatalog();
+    return request<SeriesCatalogEntry[]>('/api/indicators/catalog');
+  },
+
+  // GET /api/indicators?code={code} -> DailyIndicatorPoint[] (daily EconomicIndicators,
+  // e.g. USD_LKR). from/to optional (server default: last 365 days). We rely on the
+  // default window today; the code is the required selector.
+  async getIndicatorDaily(code: string): Promise<DailyIndicatorPoint[]> {
+    if (USE_FIXTURES) return fx.fxIndicatorDaily(code);
+    return request<DailyIndicatorPoint[]>(`/api/indicators?code=${encodeURIComponent(code)}`);
+  },
+
+  // GET /api/macro-series?key={seriesKey} -> MacroSeriesPoint[] (vintage-aware
+  // MacroSeriesPoints, e.g. CCPI). BOTH referenceDate + publishedAt arrive verbatim;
+  // multiple vintages of one referenceDate may appear (the page collapses to the latest
+  // publishedAt for display while surfacing that a revision exists). Default window is
+  // the server's last-365-days on referenceDate.
+  async getIndicatorMacro(seriesKey: string): Promise<MacroSeriesPoint[]> {
+    if (USE_FIXTURES) return fx.fxIndicatorMacro(seriesKey);
+    return request<MacroSeriesPoint[]>(`/api/macro-series?key=${encodeURIComponent(seriesKey)}`);
+  },
+
   // ---- ADMIN CONSOLE — PROVISIONAL (no live endpoint yet; scope-extension 2026-07-12)
   // Read-only fixture reads. Live routes are FE proposals to be built after the backend
   // hold lifts (~2026-07-16); until then live mode throws 501 and pages surface a
@@ -393,16 +425,6 @@ export const api = {
   async getFestivals(): Promise<FestivalEntry[]> {
     if (USE_FIXTURES) return fx.fxFestivals;
     throw new ApiError('festivals endpoint not built yet (provisional)', 501);
-  },
-
-  async getIndicatorDaily(code: string): Promise<DailyIndicatorPoint[]> {
-    if (USE_FIXTURES) return fx.fxIndicatorDaily(code);
-    throw new ApiError('indicators endpoint not built yet (provisional)', 501);
-  },
-
-  async getIndicatorMacro(seriesKey: string): Promise<MacroSeriesPoint[]> {
-    if (USE_FIXTURES) return fx.fxIndicatorMacro(seriesKey);
-    throw new ApiError('macro indicators endpoint not built yet (provisional)', 501);
   },
 
   async getNewsEvents(): Promise<NewsEvent[]> {

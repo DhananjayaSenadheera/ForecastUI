@@ -449,6 +449,16 @@ export interface PolicyFlagMutationResult {
 // Every admin page that consumes these renders an honest "demo data" note in fixtures
 // mode. Enums (eventType/direction) DELIBERATELY reuse PolicyType/PolicyDirection so the
 // same tested mappers apply.
+//
+// STATUS UPDATE (ADM-6 indicators — LIVE, API-11 merged, audited read-only against
+// IndicatorsController + Application/Requests/Indicators DTOs on 2026-07-16). The three
+// read routes below now exist and are consumed verbatim (the DailyIndicatorPoint /
+// MacroSeriesPoint / SeriesCatalogEntry shapes match the .NET DTOs 1:1, camelCase):
+//   GET /api/indicators?code=&from=&to=          -> DailyIndicatorPoint[]  (client.getIndicatorDaily)
+//   GET /api/macro-series?key=&from=&to=         -> MacroSeriesPoint[]      (client.getIndicatorMacro)
+//   GET /api/indicators/catalog                  -> SeriesCatalogEntry[]    (client.getIndicatorCatalog)
+// Params are literal: daily uses `code`, macro uses `key`. Empty -> 200 [] (never 404).
+// Festivals + news (ADM-5/7) remain PROVISIONAL (no live route yet).
 // ===========================================================================
 
 /** ADM-4 users. PROPOSAL. NOTE: User.Role is a STRING column on the backend (not an
@@ -483,17 +493,39 @@ export interface DailyIndicatorPoint {
   source: string | null;
 }
 
-/** ADM-6 vintage-aware macro point (e.g. CCPI). PROPOSAL. BOTH dates are load-bearing
- *  and MUST always be shown together — never collapse them:
+/** ADM-6 vintage-aware macro point (e.g. CCPI). LIVE (API-11, matches
+ *  MacroSeriesPoint_GetDto). BOTH dates are load-bearing and MUST always be shown
+ *  together — never collapse them:
  *   referenceDate = the period the figure describes (e.g. month end);
- *   publishedAt   = when the figure became knowable (release date, weeks later). */
+ *   publishedAt   = when the figure became knowable (release date, weeks later).
+ *  MULTIPLE vintages of the SAME referenceDate can appear (a later publishedAt revises
+ *  an earlier estimate). For a single-value display the latest publishedAt wins, but the
+ *  UI must NOT silently discard the superseded rows — it surfaces that a revision exists. */
 export interface MacroSeriesPoint {
-  seriesKey: string; // e.g. 'CCPI_BASE2021'
+  seriesKey: string; // e.g. 'CCPI_BASE2021' | 'CCPI_HEADLINE_YOY_BASE2021'
   referenceDate: string; // "YYYY-MM-DD" — period described
   publishedAt: string; // "YYYY-MM-DD" — when knowable
   value: number;
   source: string | null;
 }
+
+/** ADM-6 series-catalog entry — GET /api/indicators/catalog (SeriesCatalog_GetDto).
+ *  One unified directory across BOTH data sources with a `kind` discriminator telling the
+ *  picker which route/method to call: 'indicator' -> getIndicatorDaily (GET /api/indicators
+ *  ?code=key); 'macro' -> getIndicatorMacro (GET /api/macro-series?key=key). Rows are
+ *  server-ordered indicator-before-macro, then by key. Empty DB -> 200 []. */
+export interface SeriesCatalogEntry {
+  key: string; // IndicatorCode (daily) or SeriesCode (macro)
+  kind: 'indicator' | 'macro';
+  latestDate: string; // "YYYY-MM-DD" — max Date / max ReferenceDate in the series
+  count: number; // number of rows in the series
+}
+
+/** Known macro series keys the Indicators page reads (both live in the catalog). The
+ *  page discovers series via the catalog but pins these two for its two visualisations:
+ *  the INDEX level (line chart) and the ready-made headline YoY inflation (gauge). */
+export const CCPI_INDEX_KEY = 'CCPI_BASE2021';
+export const CCPI_YOY_KEY = 'CCPI_HEADLINE_YOY_BASE2021';
 
 /** ADM-7 structured news event. PROPOSAL. Owner decision: capture STRUCTURED events
  *  (facts + publish date), NOT manual point weights — the model learns weights later.

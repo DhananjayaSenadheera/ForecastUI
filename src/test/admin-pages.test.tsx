@@ -245,7 +245,7 @@ describe('Admin console pages', () => {
     });
   });
 
-  // ---- ADM-6 indicators ---------------------------------------------------
+  // ---- ADM-6 indicators (API-11 — LIVE) -----------------------------------
   describe('IndicatorsPage (ADM-6)', () => {
     it('shows the CCPI line chart + inflation-pace gauge side by side, no USD/LKR, no table', async () => {
       renderPage(<IndicatorsPage />);
@@ -263,6 +263,46 @@ describe('Admin console pages', () => {
       // no data table (owner redline) — charts + plain-language explainer instead
       expect(document.querySelector('.adm-table')).toBeNull();
       expect(screen.getByText(/background inflation/)).toBeInTheDocument();
+    });
+
+    it('gauge reads the ready-made YoY series directly (latest 8.3%, elevated) — not derived MoM', async () => {
+      renderPage(<IndicatorsPage />);
+      // fixture YoY latest is 8.3% (in the 6–11 "elevated" band) — a MoM-of-index
+      // gauge would show a small ~0.x% value, so this pins the series switch.
+      await screen.findByLabelText(/8\.3% per year/);
+      expect(document.querySelector('.adm-gauge__value')?.textContent).toBe('8.3%');
+      // zone label reads "per year · elevated" (not "per month")
+      expect(document.querySelector('.adm-gauge__zonelabel')?.textContent).toContain('per year');
+      expect(document.querySelector('.adm-gauge__zonelabel')?.textContent).toContain('elevated');
+    });
+
+    it('surfaces a revision note when a referenceDate has multiple vintages (does not silently drop them)', async () => {
+      renderPage(<IndicatorsPage />);
+      // The YoY fixture ships two vintages of the latest month (provisional 8.1 -> revised 8.3).
+      await screen.findByText(/were later revised/);
+    });
+
+    it('the dual-date (vintage) explainer is dismissible', async () => {
+      renderPage(<IndicatorsPage />);
+      const note = await screen.findByText(/Each point shows two dates/);
+      const dismiss = within(note.closest('p') as HTMLElement).getByRole('button');
+      fireEvent.click(dismiss);
+      await waitFor(() => expect(screen.queryByText(/Each point shows two dates/)).toBeNull());
+    });
+
+    it('renders an honest empty state (not an error) when the catalog lists no macro series', async () => {
+      vi.spyOn(api, 'getIndicatorCatalog').mockResolvedValueOnce([]);
+      renderPage(<IndicatorsPage />);
+      await screen.findByText('No data for this series yet.');
+      expect(document.querySelector('.adm-line')).toBeNull();
+      expect(document.querySelector('.adm-gauge__needle')).toBeNull();
+      expect(screen.queryByText('Could not load')).toBeNull();
+    });
+
+    it('shows the error state with retry when the catalog fetch fails', async () => {
+      vi.spyOn(api, 'getIndicatorCatalog').mockRejectedValueOnce(new ApiError('boom', 500));
+      renderPage(<IndicatorsPage />);
+      await screen.findByText('Could not load');
     });
   });
 

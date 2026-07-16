@@ -39,6 +39,25 @@ describe('API client (fixture mode)', () => {
     expect(history[0]).toHaveProperty('maxPrice');
   });
 
+  it('serves the indicator catalog + macro series fixtures (API-11)', async () => {
+    const catalog = await api.getIndicatorCatalog();
+    // catalog lists both CCPI macro series the page pins, tagged kind 'macro'
+    const macro = catalog.filter((c) => c.kind === 'macro').map((c) => c.key);
+    expect(macro).toContain('CCPI_BASE2021');
+    expect(macro).toContain('CCPI_HEADLINE_YOY_BASE2021');
+    // the YoY series is real data (has points) and carries a multi-vintage row:
+    // two entries share the latest referenceDate (provisional then revised).
+    const yoy = await api.getIndicatorMacro('CCPI_HEADLINE_YOY_BASE2021');
+    expect(yoy.length).toBeGreaterThan(0);
+    const byRef = new Map<string, number>();
+    for (const p of yoy) byRef.set(p.referenceDate, (byRef.get(p.referenceDate) ?? 0) + 1);
+    expect([...byRef.values()].some((n) => n > 1)).toBe(true);
+    // every macro point carries BOTH dates verbatim (never collapsed)
+    expect(yoy.every((p) => !!p.referenceDate && !!p.publishedAt)).toBe(true);
+    // unknown series -> empty (200 [] semantics), never a throw
+    expect(await api.getIndicatorMacro('NOPE')).toEqual([]);
+  });
+
   it('serves the market overview fixture (API-7) with movers + latest prices', async () => {
     const ov = await api.getMarketOverview(30);
     expect(ov.windowDays).toBe(30);
@@ -132,6 +151,30 @@ describe('API client (live mode — markets + price history URLs)', () => {
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('http://localhost:5282/api/users/delete/u-42');
     expect(init.method).toBe('DELETE');
+  });
+
+  // ---- ADM-6 indicators (API-11, backend merged) --------------------------
+  it('getIndicatorCatalog hits /api/indicators/catalog', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes([]));
+    vi.stubGlobal('fetch', fetchMock);
+    await (await liveApi()).getIndicatorCatalog();
+    expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:5282/api/indicators/catalog');
+  });
+
+  it('getIndicatorMacro hits /api/macro-series?key={seriesKey} (macro uses `key`)', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes([]));
+    vi.stubGlobal('fetch', fetchMock);
+    await (await liveApi()).getIndicatorMacro('CCPI_HEADLINE_YOY_BASE2021');
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      'http://localhost:5282/api/macro-series?key=CCPI_HEADLINE_YOY_BASE2021',
+    );
+  });
+
+  it('getIndicatorDaily hits /api/indicators?code={code} (daily uses `code`)', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes([]));
+    vi.stubGlobal('fetch', fetchMock);
+    await (await liveApi()).getIndicatorDaily('USD_LKR');
+    expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:5282/api/indicators?code=USD_LKR');
   });
 
   // ---- ADM-2 policy-flag mutations (API-13, backend merged) ---------------
