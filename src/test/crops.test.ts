@@ -65,6 +65,25 @@ describe('groupCropsByCategory (graceful degradation)', () => {
   it('returns no groups for an empty list', () => {
     expect(groupCropsByCategory([])).toEqual([]);
   });
+  it('merges VEG / VEG-UP / VEG-LOW into ONE Vegetables group (live 4-category data)', () => {
+    // API-3 sends sub-category codes verbatim; rollup is client-side. Without
+    // the display-bucket merge the picker renders three headings all reading
+    // "Vegetables" (seen live 2026-07-16).
+    const upCountry = crop({ id: '4', name: 'Beans', category: { code: 'VEG-UP', name: 'Up-country Vegetable' }, cropCode: 'VEG000003' });
+    const lowCountry = crop({ id: '5', name: 'Brinjal', category: { code: 'VEG-LOW', name: 'Low-country Vegetable' }, cropCode: 'VEG000012' });
+    const groups = groupCropsByCategory([tomato, upCountry, banana, lowCountry]);
+    expect(groups).toHaveLength(2);
+    expect(categoryLabelKey(groups[0].code)).toBe('crop.catVegetables');
+    expect(groups[0].crops.map((c) => c.id)).toEqual(['1', '4', '5']);
+    expect(groups[1].code).toBe('FRT');
+  });
+  it('keeps unknown category codes as their own group (API name still shown)', () => {
+    const exotic = crop({ id: '6', name: 'Mushroom', category: { code: 'FUN', name: 'Fungi' }, cropCode: 'FUN000001' });
+    const groups = groupCropsByCategory([tomato, exotic]);
+    expect(groups).toHaveLength(2);
+    expect(groups[1].code).toBe('FUN');
+    expect(groups[1].name).toBe('Fungi');
+  });
 });
 
 describe('categoryLabelKey', () => {

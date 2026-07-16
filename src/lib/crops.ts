@@ -45,9 +45,15 @@ export interface CropGroup {
 }
 
 /**
- * Group crops by category, preserving first-seen category order. If NO crop
+ * Group crops by DISPLAY category, preserving first-seen order. If NO crop
  * carries a category (live API gap #3), returns a single null-coded group so the
  * UI shows one flat "All crops" list instead of breaking.
+ *
+ * Sub-category rollup is client-side by contract (API-3 sends VEG / VEG-UP /
+ * VEG-LOW verbatim): all codes that categoryLabelKey maps to the same label
+ * share ONE group — otherwise the live 4-category data renders three separate
+ * headings all reading "Vegetables". Unknown codes keep per-code groups so
+ * their API-provided name still shows.
  */
 export function groupCropsByCategory(crops: Crop[]): CropGroup[] {
   const anyCategory = crops.some((c) => c.category?.code);
@@ -57,14 +63,16 @@ export function groupCropsByCategory(crops: Crop[]): CropGroup[] {
   const groups = new Map<string, CropGroup>();
   const order: string[] = [];
   for (const c of crops) {
-    const code = c.category?.code ?? '_other';
-    if (!groups.has(code)) {
-      groups.set(code, { code: c.category?.code ?? null, name: c.category?.name ?? null, crops: [] });
-      order.push(code);
+    const code = c.category?.code ?? null;
+    const labelKey = categoryLabelKey(code);
+    const bucket = labelKey !== 'crop.catAll' ? labelKey : (code ?? '_other');
+    if (!groups.has(bucket)) {
+      groups.set(bucket, { code, name: c.category?.name ?? null, crops: [] });
+      order.push(bucket);
     }
-    groups.get(code)!.crops.push(c);
+    groups.get(bucket)!.crops.push(c);
   }
-  return order.map((code) => groups.get(code)!);
+  return order.map((bucket) => groups.get(bucket)!);
 }
 
 /**
