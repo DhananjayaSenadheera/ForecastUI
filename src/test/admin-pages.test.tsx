@@ -379,5 +379,49 @@ describe('Admin console pages', () => {
       );
       expect(screen.getByText('Test market event')).toBeInTheDocument();
     });
+
+    it('edit dialog shows publishedAt READ-ONLY (no date input) and updates without it', async () => {
+      const spy = vi.spyOn(api, 'updateNewsEvent').mockResolvedValue('id');
+      renderPage(<NewsPage />);
+      await screen.findByText('Diesel price raised by Rs. 25/litre');
+      fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0]);
+      const dialog = screen.getByRole('dialog');
+      // publishedAt is immutable -> the edit dialog has NO date input, only the read-only note
+      expect(dialog.querySelector('input[type="date"]')).toBeNull();
+      expect(within(dialog).getByText(/knowledge date and can't be changed/)).toBeInTheDocument();
+      fireEvent.change(dialog.querySelector('input[type="text"]') as HTMLInputElement, {
+        target: { value: 'Edited title' },
+      });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+      await waitFor(() => expect(spy).toHaveBeenCalled());
+      const dto = spy.mock.calls[0][0];
+      expect(dto.title).toBe('Edited title');
+      expect('publishedAt' in dto).toBe(false); // never sent — vintage date is immutable
+      expect(await screen.findByText('News event updated.')).toBeInTheDocument();
+    });
+
+    it('deletes an event via the named confirm dialog', async () => {
+      const spy = vi.spyOn(api, 'deleteNewsEvent').mockResolvedValue('id');
+      renderPage(<NewsPage />);
+      await screen.findByText('Diesel price raised by Rs. 25/litre');
+      fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0]);
+      const dialog = screen.getByRole('dialog');
+      // named confirm quotes the specific event title
+      expect(within(dialog).getByText(/Delete "/)).toBeInTheDocument();
+      fireEvent.click(dialog.querySelector('.adm-btn--danger') as HTMLButtonElement);
+      await waitFor(() => expect(spy).toHaveBeenCalled());
+      expect(await screen.findByText(/deleted/)).toBeInTheDocument();
+    });
+
+    it('surfaces a server guard message verbatim when a delete is rejected', async () => {
+      const msg = 'News event does not exist.';
+      vi.spyOn(api, 'deleteNewsEvent').mockRejectedValueOnce(new ApiError(msg, 400));
+      renderPage(<NewsPage />);
+      await screen.findByText('Diesel price raised by Rs. 25/litre');
+      fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0]);
+      const dialog = screen.getByRole('dialog');
+      fireEvent.click(dialog.querySelector('.adm-btn--danger') as HTMLButtonElement);
+      expect(await screen.findByText(msg)).toBeInTheDocument();
+    });
   });
 });

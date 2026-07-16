@@ -578,6 +578,25 @@
   margin-top: var(--sp-2);
   font-size: var(--fs-sm);
 }
+.adm-newsitem__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+.adm-newsitem__actions {
+  margin-left: auto;
+  display: flex;
+  gap: var(--sp-2);
+}
+/* Read-only field value (e.g. the immutable publish date in the news edit dialog). */
+.adm-readonly {
+  margin: 0;
+  padding: var(--sp-2) 0;
+  color: var(--text-2);
+  font-weight: 600;
+}
 
 /* Indicator chart. max-width keeps the SVG from scaling up to a giant on wide
    desktop panels (owner redline 2026-07-12) — same footprint as the farmer
