@@ -260,6 +260,65 @@ describe('API client (live mode — markets + price history URLs)', () => {
     expect(url).toBe('http://localhost:5282/api/festival-calendar/delete/f-9');
     expect(init.method).toBe('DELETE');
   });
+
+  // ---- ADM-7 news events (API-12, backend merged) -------------------------
+  it('getNewsEvents hits /api/news-events/get/all', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes([]));
+    vi.stubGlobal('fetch', fetchMock);
+    await (await liveApi()).getNewsEvents();
+    expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:5282/api/news-events/get/all');
+  });
+
+  it('createNewsEvent POSTs /api/news-events/create with the dto WRAPPED under newsEventCreateDto', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes(true));
+    vi.stubGlobal('fetch', fetchMock);
+    const dto = {
+      eventType: 6,
+      direction: 1,
+      title: 'Diesel price raised',
+      description: 'Transport costs up.',
+      publishedAt: '2026-07-11',
+      sourceUrl: 'https://ceypetco.gov.lk/',
+      affectedCropIds: ['crop-1'],
+    };
+    await (await liveApi()).createNewsEvent(dto);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('http://localhost:5282/api/news-events/create');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual({ newsEventCreateDto: dto });
+  });
+
+  it('updateNewsEvent PUTs /api/news-events/update with the dto WRAPPED under newsEventUpdateDto and NO publishedAt', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes('e-1'));
+    vi.stubGlobal('fetch', fetchMock);
+    const dto = {
+      id: 'e-1',
+      eventType: 2,
+      direction: -1,
+      title: 'Budget review',
+      description: null,
+      sourceUrl: null,
+      affectedCropIds: [],
+      affectedMarketIds: ['mkt-1'],
+    };
+    await (await liveApi()).updateNewsEvent(dto);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('http://localhost:5282/api/news-events/update');
+    expect(init.method).toBe('PUT');
+    const body = JSON.parse(init.body as string);
+    // envelope shape pinned; publishedAt is immutable -> the wire dto must NOT carry it
+    expect(body).toEqual({ newsEventUpdateDto: dto });
+    expect('publishedAt' in body.newsEventUpdateDto).toBe(false);
+  });
+
+  it('deleteNewsEvent DELETEs /api/news-events/delete/{id}', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes('e-9'));
+    vi.stubGlobal('fetch', fetchMock);
+    await (await liveApi()).deleteNewsEvent('e-9');
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('http://localhost:5282/api/news-events/delete/e-9');
+    expect(init.method).toBe('DELETE');
+  });
 });
 
 // Fixture-mode mutation semantics: the demo working copy mirrors the server's
@@ -355,5 +414,51 @@ describe('API client (fixture mode — festival-calendar mutations)', () => {
     const res = await api.deleteFestival('f0000001-0000-0000-0000-000000000001'); // THAI_PONGAL 2025-01-14 (past)
     expect(res.trainingDataWarning).not.toBeNull();
     expect((await api.getFestivals()).length).toBe(before - 1);
+  });
+});
+
+// Fixture-mode news mutations (API-12): capture-only, so NO trainingDataWarning — create returns
+// a bare boolean, update/delete return the bare id. The demo working copy persists add/edit/delete
+// through the refetch and preserves the immutable publishedAt on edit.
+describe('API client (fixture mode — news-event mutations)', () => {
+  const EVENT_ID = 'e0000003-0000-0000-0000-000000000003'; // Budget review, publishedAt 2026-05-28
+
+  it('createNewsEvent appends to the working copy and returns true (bare boolean)', async () => {
+    const before = (await api.getNewsEvents()).length;
+    const ok = await api.createNewsEvent({
+      eventType: 8,
+      direction: 0,
+      title: 'Fixture-added event',
+      publishedAt: '2026-07-14',
+    });
+    expect(ok).toBe(true);
+    const after = await api.getNewsEvents();
+    expect(after.length).toBe(before + 1);
+    const added = after.find((e) => e.title === 'Fixture-added event');
+    expect(added?.affectedMarketIds).toEqual([]); // no picker -> defaults to []
+  });
+
+  it('updateNewsEvent returns the bare id and preserves the immutable publishedAt', async () => {
+    const prev = (await api.getNewsEvents()).find((e) => e.id === EVENT_ID)!;
+    const res = await api.updateNewsEvent({
+      id: EVENT_ID,
+      eventType: prev.eventType,
+      direction: -1,
+      title: 'Budget review — edited',
+      affectedCropIds: [],
+      affectedMarketIds: prev.affectedMarketIds,
+    });
+    expect(res).toBe(EVENT_ID); // bare Guid, NOT a { id, trainingDataWarning } object
+    const after = (await api.getNewsEvents()).find((e) => e.id === EVENT_ID)!;
+    expect(after.title).toBe('Budget review — edited');
+    expect(after.direction).toBe(-1);
+    expect(after.publishedAt).toBe(prev.publishedAt); // vintage date untouched
+  });
+
+  it('deleteNewsEvent returns the bare id and removes it from the working copy', async () => {
+    const before = (await api.getNewsEvents()).length;
+    const res = await api.deleteNewsEvent('e0000005-0000-0000-0000-000000000005');
+    expect(res).toBe('e0000005-0000-0000-0000-000000000005');
+    expect((await api.getNewsEvents()).length).toBe(before - 1);
   });
 });

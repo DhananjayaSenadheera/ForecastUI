@@ -458,8 +458,8 @@ export interface PolicyFlagMutationResult {
 //   GET /api/macro-series?key=&from=&to=         -> MacroSeriesPoint[]      (client.getIndicatorMacro)
 //   GET /api/indicators/catalog                  -> SeriesCatalogEntry[]    (client.getIndicatorCatalog)
 // Params are literal: daily uses `code`, macro uses `key`. Empty -> 200 [] (never 404).
-// Festivals (ADM-5) is now LIVE (API-10 — see FestivalEntry + mutation DTOs below);
-// news (ADM-7) remains PROVISIONAL (no live route yet).
+// Festivals (ADM-5, API-10) and News (ADM-7, API-12) are now LIVE — see FestivalEntry and
+// NewsEvent + their mutation DTOs below. The entire admin console is live-wired.
 // ===========================================================================
 
 /** ADM-4 users. PROPOSAL. NOTE: User.Role is a STRING column on the backend (not an
@@ -565,17 +565,67 @@ export interface SeriesCatalogEntry {
 export const CCPI_INDEX_KEY = 'CCPI_BASE2021';
 export const CCPI_YOY_KEY = 'CCPI_HEADLINE_YOY_BASE2021';
 
-/** ADM-7 structured news event. PROPOSAL. Owner decision: capture STRUCTURED events
- *  (facts + publish date), NOT manual point weights — the model learns weights later.
- *  eventType reuses PolicyType labels; direction reuses PolicyDirection (Bearish = -1). */
+// ---------------------------------------------------------------------------
+// ADM-7 structured news event — LIVE (API-12, backend merged). Audited read-only against
+// NewsEventController + Application/Requests/NewsEvents (DTOs, validators) on 2026-07-16.
+// All camelCase, enums as INTEGERS on the wire (no JsonStringEnumConverter). Owner decision:
+// capture STRUCTURED events (facts + publish date), NOT manual point weights — the model
+// learns weights later. eventType (NewsEventType 0..8) mirrors PolicyType member-for-member
+// so the page reuses the PolicyType label mapper; direction reuses PolicyDirection (Bearish = -1).
+//   GET    /api/news-events/get/all           [Authorize] -> NewsEvent[]  (newest publishedAt
+//                                                             first; 200 [] on empty)
+//   POST   /api/news-events/create   [Admin]  body { newsEventCreateDto } -> 200 true (boolean)
+//   PUT    /api/news-events/update   [Admin]  body { newsEventUpdateDto } -> 200 Guid (string)
+//   DELETE /api/news-events/delete/{id} [Admin]                            -> 200 Guid (string)
+// CAPTURE-ONLY divergence from API-10/13: news events are NOT yet ML feature inputs, so there is
+// deliberately NO trainingDataWarning and NO amber banner here. Mutation returns are BARE:
+// create -> boolean, update/delete -> the affected Guid (NOT the {id, trainingDataWarning}
+// MutationResult shape of PolicyFlags/Festivals). Validators (mirror client-side): title required
+// <=300; description <=4000; eventType/direction defined-enum; publishedAt REQUIRED on create;
+// sourceUrl optional but absolute http(s) if present; crop/market link ids must exist.
+// WIRE NOTE: `publishedAt` (DateTime) may arrive as "YYYY-MM-DDT00:00:00" (like PolicyFlag/
+// Festival dates) — slice(0,10) before formatDate() (formatDate re-appends T00:00:00).
+// ---------------------------------------------------------------------------
 export interface NewsEvent {
   id: string; // Guid
-  eventType: number; // PolicyType enum (integer)
+  eventType: number; // NewsEventType enum (integer; mirrors PolicyType 0..8)
   direction: number; // PolicyDirection enum (integer; Bearish = -1)
   title: string;
   description: string | null;
-  publishedAt: string; // "YYYY-MM-DD"
+  publishedAt: string; // knowledge/vintage date — live may send "YYYY-MM-DDT00:00:00"; slice(0,10)
   sourceUrl: string | null;
   affectedCropIds: string[]; // optional multi-pick from the crops list
+  affectedMarketIds: string[]; // ADDITIVE (API-12): storage-ahead-of-UI; no market picker yet — preserved verbatim on edit
   createdAtUtc: string; // ISO datetime
+}
+
+/** POST /api/news-events/create body wraps this under `newsEventCreateDto` (mirrors the crops
+ *  createDto / policyFlagUpdateDto wrappers). publishedAt REQUIRED (the immutable vintage date).
+ *  affectedMarketIds is optional passthrough — the FE has no market picker, so it is omitted on
+ *  create today (backend is storage-ahead-of-UI). */
+export interface NewsEventCreateDto {
+  eventType: number; // 0..8 (defined-enum)
+  direction: number; // -1 | 0 | 1
+  title: string;
+  description?: string | null;
+  publishedAt: string; // "YYYY-MM-DD" — required on create, immutable afterwards
+  sourceUrl?: string | null;
+  affectedCropIds?: string[];
+  affectedMarketIds?: string[];
+}
+
+/** PUT /api/news-events/update body wraps this under `newsEventUpdateDto`. Full-object update =
+ *  create fields + the id, MINUS publishedAt: the vintage date is immutable BY CONSTRUCTION (the
+ *  wire contract does not carry it, so it can never be rewritten). The edit UI shows publishedAt
+ *  read-only and never sends it. affectedMarketIds is preserved verbatim from the stored row. */
+export interface NewsEventUpdateDto {
+  id: string; // Guid of the row being edited
+  eventType: number;
+  direction: number;
+  title: string;
+  description?: string | null;
+  // NOTE: no publishedAt — immutable by construction (see NewsEvent block).
+  sourceUrl?: string | null;
+  affectedCropIds?: string[];
+  affectedMarketIds?: string[];
 }

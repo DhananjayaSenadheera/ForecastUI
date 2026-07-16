@@ -27,6 +27,8 @@ import type {
   Market,
   MarketOverview,
   NewsEvent,
+  NewsEventCreateDto,
+  NewsEventUpdateDto,
   PolicyFlag,
   PolicyFlagMutationResult,
   PolicyFlagUpdateDto,
@@ -213,6 +215,15 @@ function fxFestivalWarning(...dates: (string | null | undefined)[]): string | nu
   const today = new Date().toISOString().slice(0, 10);
   const touchesPast = dates.some((d) => !!d && d.slice(0, 10) < today);
   return touchesPast ? FX_FESTIVAL_WARNING : null;
+}
+
+// Fixtures-mode working copy for the ADM-7 news-events demo CRUD (API-12, no fixture server):
+// cloned lazily from the seed so demo add/edit/delete persist through the post-mutation refetch.
+// The exported seed (fx.fxNewsEvents) is never mutated. Live mode never touches this.
+let fxNewsWorking: NewsEvent[] | null = null;
+function fxNews(): NewsEvent[] {
+  if (!fxNewsWorking) fxNewsWorking = fx.fxNewsEvents.map((e) => ({ ...e }));
+  return fxNewsWorking;
 }
 
 // =============================================================================
@@ -518,13 +529,84 @@ export const api = {
     return request<FestivalMutationResult>(`/api/festival-calendar/delete/${id}`, { method: 'DELETE' });
   },
 
-  // ---- ADMIN CONSOLE — PROVISIONAL (no live endpoint yet; scope-extension 2026-07-12)
-  // Read-only fixture reads. Live routes are FE proposals to be built after the backend
-  // hold lifts; until then live mode throws 501 and pages surface a retryable state. Demo
-  // CRUD in these pages mutates COMPONENT state, not the server.
+  // ---- ADMIN CONSOLE — NEWS EVENTS (ADM-7 / API-12 — LIVE, backend merged) ----
+  // Audited read-only against NewsEventController on 2026-07-16. All camelCase, enums as
+  // integers, consumed verbatim. Empty -> 200 [] (NOT the policy-flag 400-on-empty quirk).
+  // Mutation bodies WRAP the dto (mirrors the crops createDto / policyFlagUpdateDto wrappers).
+  //
+  // CAPTURE-ONLY divergence from API-10/13: news events are NOT yet ML feature inputs, so there
+  // is deliberately NO trainingDataWarning. Mutation returns are BARE — create -> boolean,
+  // update/delete -> the affected Guid (string), NOT the { id, trainingDataWarning } shape.
+  //
+  // GET /api/news-events/get/all [Authorize] -> NewsEvent[], newest publishedAt first.
   async getNewsEvents(): Promise<NewsEvent[]> {
-    if (USE_FIXTURES) return fx.fxNewsEvents;
-    throw new ApiError('news-events endpoint not built yet (provisional)', 501);
+    // Read the working copy (not the static seed) so demo add/edit/delete survive the
+    // post-mutation refetch. Live mode never touches this.
+    if (USE_FIXTURES) return fxNews().map((e) => ({ ...e }));
+    return request<NewsEvent[]>('/api/news-events/get/all');
+  },
+
+  // POST /api/news-events/create [Admin] body { newsEventCreateDto } -> 200 true (boolean).
+  // Fixtures: append to the working copy (synthesise id + createdAtUtc; affectedMarketIds
+  // defaults to [] since the FE has no market picker) so the demo row survives the refetch.
+  async createNewsEvent(dto: NewsEventCreateDto): Promise<boolean> {
+    if (USE_FIXTURES) {
+      fxNews().push({
+        id: `e-new-${Date.now()}`,
+        eventType: dto.eventType,
+        direction: dto.direction,
+        title: dto.title,
+        description: dto.description ?? null,
+        publishedAt: dto.publishedAt,
+        sourceUrl: dto.sourceUrl ?? null,
+        affectedCropIds: dto.affectedCropIds ?? [],
+        affectedMarketIds: dto.affectedMarketIds ?? [],
+        createdAtUtc: new Date().toISOString(),
+      });
+      return true;
+    }
+    return request<boolean>('/api/news-events/create', {
+      method: 'POST',
+      body: JSON.stringify({ newsEventCreateDto: dto }),
+    });
+  },
+
+  // PUT /api/news-events/update [Admin] body { newsEventUpdateDto } -> 200 Guid (string).
+  // Full-object update MINUS publishedAt (the vintage date is immutable by construction — the
+  // dto does not carry it). Fixtures: mutate the working copy in place, preserving the stored
+  // publishedAt untouched; return the affected id.
+  async updateNewsEvent(dto: NewsEventUpdateDto): Promise<string> {
+    if (USE_FIXTURES) {
+      const list = fxNews();
+      const existing = list.find((e) => e.id === dto.id);
+      if (!existing) throw new ApiError('News event does not exist.', 400);
+      existing.eventType = dto.eventType;
+      existing.direction = dto.direction;
+      existing.title = dto.title;
+      existing.description = dto.description ?? null;
+      existing.sourceUrl = dto.sourceUrl ?? null;
+      existing.affectedCropIds = dto.affectedCropIds ?? [];
+      existing.affectedMarketIds = dto.affectedMarketIds ?? [];
+      // publishedAt deliberately NOT touched — immutable vintage date.
+      return dto.id;
+    }
+    return request<string>('/api/news-events/update', {
+      method: 'PUT',
+      body: JSON.stringify({ newsEventUpdateDto: dto }),
+    });
+  },
+
+  // DELETE /api/news-events/delete/{id} [Admin] -> 200 Guid (string). Fixtures: drop it from
+  // the working copy and return the id.
+  async deleteNewsEvent(id: string): Promise<string> {
+    if (USE_FIXTURES) {
+      const list = fxNews();
+      const existing = list.find((e) => e.id === id);
+      if (!existing) throw new ApiError('News event does not exist.', 400);
+      fxNewsWorking = list.filter((e) => e.id !== id);
+      return id;
+    }
+    return request<string>(`/api/news-events/delete/${id}`, { method: 'DELETE' });
   },
 };
 

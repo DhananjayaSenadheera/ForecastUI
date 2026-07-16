@@ -571,6 +571,16 @@
       "affectedCrops": "Affected crops (optional)",
       "errTitle": "Please enter a title.",
       "errDate": "Please choose the publish date.",
+      "edit": "Edit",
+      "editTitle": "Edit news event",
+      "delete": "Delete",
+      "deleteTitle": "Delete news event",
+      "deleteConfirm": "Delete \"{{title}}\"?",
+      "working": "Working…",
+      "savedFlash": "News event updated.",
+      "addedFlash": "News event added.",
+      "deletedFlash": "News event \"{{title}}\" deleted.",
+      "publishedReadonly": "The publish date is the event's knowledge date and can't be changed after it's recorded.",
       "emptyTitle": "No events",
       "emptyBody": "No news events recorded yet. Add one to get started."
     }
