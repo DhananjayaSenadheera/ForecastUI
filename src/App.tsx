@@ -21,6 +21,8 @@ const UsersPage = lazy(() => import('./admin/UsersPage'));
 const FestivalsPage = lazy(() => import('./admin/FestivalsPage'));
 const IndicatorsPage = lazy(() => import('./admin/IndicatorsPage'));
 const NewsPage = lazy(() => import('./admin/NewsPage'));
+const LogsPage = lazy(() => import('./admin/logs/LogsPage'));
+// Kept its own lazy chunk — the Logs shell renders it into an <Outlet/> on demand.
 const IngestionRunsPage = lazy(() => import('./admin/IngestionRunsPage'));
 
 /** Subtle hold while an admin chunk loads (matches the auth boot shell). */
@@ -70,7 +72,13 @@ export default function App() {
             <Route path="festivals" element={lazyAdmin(<FestivalsPage />)} />
             <Route path="indicators" element={lazyAdmin(<IndicatorsPage />)} />
             <Route path="news" element={lazyAdmin(<NewsPage />)} />
-            <Route path="ingestion" element={lazyAdmin(<IngestionRunsPage />)} />
+            {/* Logs hub — tabbed shell; child routes are each their own lazy chunk. */}
+            <Route path="logs" element={lazyAdmin(<LogsPage />)}>
+              <Route index element={<Navigate to="/admin/logs/ingestion" replace />} />
+              <Route path="ingestion" element={lazyAdmin(<IngestionRunsPage />)} />
+            </Route>
+            {/* Legacy bookmark: the old standalone /admin/ingestion now lives in Logs. */}
+            <Route path="ingestion" element={<Navigate to="/admin/logs/ingestion" replace />} />
             <Route path="*" element={<Navigate to="/admin/policy-flags" replace />} />
           </Route>
 

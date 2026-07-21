@@ -64,7 +64,8 @@
       "festivals": "Festivals",
       "indicators": "Indicators",
       "news": "News events",
-      "ingestion": "Ingestion runs"
+      "ingestion": "Ingestion runs",
+      "logs": "Logs"
     }
   },
   "audio": {
@@ -584,6 +585,13 @@
       "publishedReadonly": "The publish date is the event's knowledge date and can't be changed after it's recorded.",
       "emptyTitle": "No events",
       "emptyBody": "No news events recorded yet. Add one to get started."
+    },
+    "logs": {
+      "title": "Logs",
+      "subtitle": "Data pipeline and system activity.",
+      "tabs": {
+        "ingestion": "Ingestion runs"
+      }
     },
     "ingestion": {
       "title": "Ingestion runs",

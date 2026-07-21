@@ -1113,3 +1113,43 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Logs hub tab strip (Phase 1) ---------------------------------------------- */
+.logs-tabs {
+  display: flex;
+  gap: var(--sp-1);
+  border-bottom: 1px solid var(--line);
+  margin-bottom: var(--sp-4);
+  /* Mobile: never wrap — the strip scrolls horizontally under the finger. */
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.logs-tabs::-webkit-scrollbar {
+  display: none;
+}
+.logs-tab {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  min-height: var(--touch-min);
+  padding: var(--sp-2) var(--sp-3);
+  color: var(--text-2);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-medium);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px; /* overlap the strip's own bottom border */
+}
+.logs-tab:hover {
+  color: var(--text);
+}
+.logs-tab.is-active {
+  color: var(--brand);
+  font-weight: var(--fw-bold);
+  border-bottom-color: var(--brand);
+}
+.logs-tab:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-sm);
+}
