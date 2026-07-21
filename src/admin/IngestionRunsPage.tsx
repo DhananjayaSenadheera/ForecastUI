@@ -36,7 +36,6 @@ import {
   AdminError,
   AdminLoading,
   AdminPagination,
-  AdminTopbar,
   DemoNote,
   useServerPagination,
 } from './adminShared';
@@ -180,7 +179,9 @@ export default function IngestionRunsPage() {
 
   return (
     <>
-      <AdminTopbar title={t('admin.ingestion.title')} subtitle={t('admin.ingestion.subtitle')} />
+      {/* No page title here: this renders inside the Logs hub, under its H1 + tab strip.
+          The tab label ("Ingestion runs") is the heading; the 💡 explainer note below
+          carries the context the old subtitle used to. */}
 
       {/* Status snapshot — fails independently of the runs table below. */}
       <section className="panel adm" aria-label={t('admin.ingestion.statusTitle')}>

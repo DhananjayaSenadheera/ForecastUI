@@ -11,7 +11,7 @@ import IngestionRunsPage from '../admin/IngestionRunsPage';
 
 function renderPage() {
   return render(
-    <MemoryRouter initialEntries={['/admin/ingestion']}>
+    <MemoryRouter initialEntries={['/admin/logs/ingestion']}>
       <AuthProvider>
         <IngestionRunsPage />
       </AuthProvider>
