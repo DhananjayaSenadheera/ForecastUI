@@ -629,3 +629,110 @@ export interface NewsEventUpdateDto {
   affectedCropIds?: string[];
   affectedMarketIds?: string[];
 }
+
+// =============================================================================
+// ADMIN CONSOLE — INGESTION RUNS (admin ingestion API — contract LIVE-verified
+// against the dev DB). Two read-only routes behind an Admin JWT (401/403 handled by
+// the existing client interceptor): GET /api/admin/ingestion/status (a snapshot) and
+// GET /api/admin/ingestion/runs (server-paged history). All camelCase, consumed
+// verbatim. Timestamps are Z-suffixed UTC. run.verification.checksJson is a JSON
+// STRING — parse defensively (parseVerificationChecks) and NEVER crash on bad JSON.
+// =============================================================================
+
+/** Ingestion-service lifecycle state (top of the status snapshot). */
+export type IngestionState = 'running' | 'stopped' | 'unknown';
+
+/** Per-run status (each row). "skipped" = a scheduled run that found nothing new. */
+export type IngestionRunStatus = 'running' | 'succeeded' | 'failed' | 'skipped';
+
+/** Last-run rollup on the status snapshot ("partial" = some sources failed). */
+export type IngestionLastRunStatus = 'succeeded' | 'partial' | 'failed';
+
+/** Verification verdict (frozen spelling — only the display LABEL is translated). */
+export type VerificationVerdict = 'Pass' | 'Warn' | 'Fail';
+
+/** Per-source health status in the status snapshot. */
+export type IngestionSourceStatus = 'ok' | 'disabled' | 'failed';
+
+/** The 7 valid `source` filter keys. An unknown key -> the API answers 400. */
+export const INGESTION_SOURCES = [
+  'DAMBULLA_DEC',
+  'WEATHER',
+  'ECONOMIC',
+  'NEWS',
+  'HARTI',
+  'CBSL',
+  'CBSL_MACRO',
+] as const;
+export type IngestionSourceKey = (typeof INGESTION_SOURCES)[number];
+
+/** One source's health row on the status snapshot. */
+export interface IngestionSourceHealth {
+  source: string; // one of INGESTION_SOURCES (kept as string — never crash on a new key)
+  status: IngestionSourceStatus;
+  lastSuccessUtc: string | null;
+  lastObservedDate: string | null; // "YYYY-MM-DD" of the newest data row this source has
+  lastMessage: string | null;
+}
+
+/** Verification rollup counts (shared by status.lastVerification + run.verification). */
+export interface IngestionVerificationSummary {
+  overallStatus: VerificationVerdict;
+  ranAtUtc: string;
+  pipelineDate?: string; // present on status.lastVerification; absent on a run's verification
+  nChecksPass: number;
+  nChecksWarn: number;
+  nChecksFail: number;
+}
+
+/** GET /api/admin/ingestion/status — the pipeline snapshot (Admin JWT). */
+export interface IngestionStatus {
+  state: IngestionState;
+  serviceAddress: string; // e.g. "unconfigured" — rendered verbatim from the payload
+  lastRunAtUtc: string | null;
+  lastRunStatus: IngestionLastRunStatus | null;
+  lastVerification: IngestionVerificationSummary | null;
+  sources: IngestionSourceHealth[];
+}
+
+/** A run's verification block. checksJson is a JSON STRING (parse defensively). */
+export interface IngestionRunVerification extends IngestionVerificationSummary {
+  /** JSON STRING encoding VerificationCheck[]. Parse with parseVerificationChecks. */
+  checksJson: string;
+}
+
+/** One ingestion run (a row in the runs list). */
+export interface IngestionRun {
+  id: string;
+  batchId: string;
+  source: string;
+  startedUtc: string;
+  finishedUtc: string | null;
+  status: IngestionRunStatus;
+  coveredFromDate: string | null;
+  coveredToDate: string | null;
+  rowsFetched: number | null;
+  rowsInserted: number | null;
+  rowsSkipped: number | null;
+  distinctCrops: number | null;
+  errorSummary: string | null;
+  verification: IngestionRunVerification | null;
+}
+
+/** GET /api/admin/ingestion/runs — server-paged envelope ({items,page,pageSize,total}). */
+export interface IngestionRunPage {
+  items: IngestionRun[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+/** One parsed element of run.verification.checksJson. `severity` is defensive (any
+ *  string) so a new backend severity never crashes the parse; the UI tones only the
+ *  known PASS/WARN/FAIL values and shows the rest neutrally. */
+export interface VerificationCheck {
+  name: string;
+  severity: string; // "PASS" | "WARN" | "FAIL"
+  message: string;
+  counts?: Record<string, unknown>;
+}
