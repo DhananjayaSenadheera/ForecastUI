@@ -25,4 +25,5 @@ export const ADMIN_NAV_DESTINATIONS: NavDest[] = [
   { to: '/admin/festivals', labelKey: 'nav.admin.festivals', icon: '🗓️' },
   { to: '/admin/indicators', labelKey: 'nav.admin.indicators', icon: '📈' },
   { to: '/admin/news', labelKey: 'nav.admin.news', icon: '📰' },
+  { to: '/admin/ingestion', labelKey: 'nav.admin.ingestion', icon: '📥' },
 ];

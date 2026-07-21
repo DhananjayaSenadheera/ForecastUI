@@ -14,7 +14,9 @@ import {
   PolicyType,
   RecommendationLevel,
   type ConfidenceString,
+  type IngestionRunStatus,
   type PolicyStatus,
+  type VerificationCheck,
 } from '../api/types';
 
 /** Display buckets. Tone drives icon+color pairing (color is never sole signal). */
@@ -107,6 +109,20 @@ export function formatDate(value: string | Date, lang: string): string {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
+  }).format(d);
+}
+
+/** Locale-aware date + TIME for a Z-suffixed ISO datetime (ingestion timestamps).
+ *  Renders in the user's locale/zone; safe on bad input (echoes the raw string). */
+export function formatDateTime(value: string, lang: string): string {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return new Intl.DateTimeFormat(resolveLocale(lang), {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   }).format(d);
 }
 
@@ -230,4 +246,95 @@ export function ymdLocal(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${d.getFullYear()}-${m}-${day}`;
+}
+
+// ===========================================================================
+// ADMIN CONSOLE — INGESTION RUNS mappers (admin ingestion API). Same idiom as the
+// confidence/policy mappers: wire value -> { tone (CSS modifier), i18n labelKey }.
+// Tone drives colour AND a text label is ALWAYS shown alongside — never colour-only.
+// Unknown wire values degrade to a neutral tone rather than crashing the table.
+// ===========================================================================
+
+/** Ingestion run status -> badge tone + label. Tone maps to `.adm-status--<tone>`.
+ *  Also accepts the status snapshot's last-run "partial" rollup (amber) so the run
+ *  rows and the last-run badge share one mapper. Unknown -> neutral (never crashes). */
+export function mapRunStatus(status: IngestionRunStatus | 'partial' | string): {
+  tone: 'succeeded' | 'running' | 'failed' | 'skipped' | 'partial' | 'unknown';
+  labelKey: string;
+} {
+  switch (status) {
+    case 'succeeded':
+      return { tone: 'succeeded', labelKey: 'admin.ingestion.runStatus.succeeded' };
+    case 'running':
+      return { tone: 'running', labelKey: 'admin.ingestion.runStatus.running' };
+    case 'failed':
+      return { tone: 'failed', labelKey: 'admin.ingestion.runStatus.failed' };
+    case 'skipped':
+      return { tone: 'skipped', labelKey: 'admin.ingestion.runStatus.skipped' };
+    case 'partial':
+      return { tone: 'partial', labelKey: 'admin.ingestion.runStatus.partial' };
+    default:
+      return { tone: 'unknown', labelKey: 'admin.ingestion.runStatus.unknown' };
+  }
+}
+
+/** Verification verdict (frozen Pass/Warn/Fail spelling) -> tone + label. RED is
+ *  reserved app-wide for a hard failure — a Fail verdict earns it here honestly. */
+export function mapVerificationVerdict(v: string): {
+  tone: 'pass' | 'warn' | 'fail' | 'unknown';
+  labelKey: string;
+} {
+  switch (v) {
+    case 'Pass':
+      return { tone: 'pass', labelKey: 'admin.ingestion.verdict.pass' };
+    case 'Warn':
+      return { tone: 'warn', labelKey: 'admin.ingestion.verdict.warn' };
+    case 'Fail':
+      return { tone: 'fail', labelKey: 'admin.ingestion.verdict.fail' };
+    default:
+      return { tone: 'unknown', labelKey: 'admin.ingestion.verdict.unknown' };
+  }
+}
+
+/** Individual check severity (PASS/WARN/FAIL inside checksJson) -> tone + label. */
+export function mapCheckSeverity(sev: string): {
+  tone: 'pass' | 'warn' | 'fail' | 'unknown';
+  labelKey: string;
+} {
+  switch (sev.toUpperCase()) {
+    case 'PASS':
+      return { tone: 'pass', labelKey: 'admin.ingestion.verdict.pass' };
+    case 'WARN':
+      return { tone: 'warn', labelKey: 'admin.ingestion.verdict.warn' };
+    case 'FAIL':
+      return { tone: 'fail', labelKey: 'admin.ingestion.verdict.fail' };
+    default:
+      return { tone: 'unknown', labelKey: 'admin.ingestion.verdict.unknown' };
+  }
+}
+
+/**
+ * Parse a run's `checksJson` STRING into a VerificationCheck[]. Returns null on ANY
+ * failure — invalid JSON, non-array shape, or a non-object element — so the caller
+ * renders a plain "checks unavailable" note instead of crashing. Malformed rows are
+ * coerced to safe defaults (never throws), keeping one bad check from hiding the rest.
+ */
+export function parseVerificationChecks(checksJson: string | null | undefined): VerificationCheck[] | null {
+  if (!checksJson) return null;
+  let raw: unknown;
+  try {
+    raw = JSON.parse(checksJson);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(raw)) return null;
+  return raw.map((c) => {
+    const o = (c ?? {}) as Record<string, unknown>;
+    return {
+      name: typeof o.name === 'string' ? o.name : '',
+      severity: typeof o.severity === 'string' ? o.severity : '',
+      message: typeof o.message === 'string' ? o.message : '',
+      counts: o.counts && typeof o.counts === 'object' ? (o.counts as Record<string, unknown>) : undefined,
+    };
+  });
 }

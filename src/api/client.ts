@@ -23,6 +23,8 @@ import type {
   FestivalMutationResult,
   FestivalUpdateDto,
   HarvestForecast,
+  IngestionRunPage,
+  IngestionStatus,
   MacroSeriesPoint,
   Market,
   MarketOverview,
@@ -607,6 +609,29 @@ export const api = {
       return id;
     }
     return request<string>(`/api/news-events/delete/${id}`, { method: 'DELETE' });
+  },
+
+  // ---- ADMIN CONSOLE — INGESTION RUNS (admin ingestion API — LIVE-verified) ----
+  // Two read-only routes behind an Admin JWT; a 401/403 flows through the existing
+  // global interceptor (silent renew then /login), so there is ZERO new auth code here.
+  //
+  // GET /api/admin/ingestion/status -> IngestionStatus: a pipeline snapshot (service
+  // state, last run + verification rollup, per-source health). Consumed verbatim.
+  async getIngestionStatus(): Promise<IngestionStatus> {
+    if (USE_FIXTURES) return fx.fxIngestionStatus();
+    return request<IngestionStatus>('/api/admin/ingestion/status');
+  },
+
+  // GET /api/admin/ingestion/runs?page=&pageSize=&source= -> IngestionRunPage. The
+  // API is SERVER-PAGED ({items,page,pageSize,total}) — the page passes page/pageSize
+  // straight through and NEVER client-slices. `source` is optional; an INVALID source
+  // key answers 400 (surfaced as the error state). run.verification.checksJson is a
+  // JSON STRING parsed defensively in the page (parseVerificationChecks).
+  async getIngestionRuns(page = 1, pageSize = 20, source?: string): Promise<IngestionRunPage> {
+    if (USE_FIXTURES) return fx.fxIngestionRuns(page, pageSize, source);
+    const q = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (source) q.set('source', source);
+    return request<IngestionRunPage>(`/api/admin/ingestion/runs?${q.toString()}`);
   },
 };
 

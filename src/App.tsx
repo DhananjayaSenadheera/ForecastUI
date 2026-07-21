@@ -21,6 +21,7 @@ const UsersPage = lazy(() => import('./admin/UsersPage'));
 const FestivalsPage = lazy(() => import('./admin/FestivalsPage'));
 const IndicatorsPage = lazy(() => import('./admin/IndicatorsPage'));
 const NewsPage = lazy(() => import('./admin/NewsPage'));
+const IngestionRunsPage = lazy(() => import('./admin/IngestionRunsPage'));
 
 /** Subtle hold while an admin chunk loads (matches the auth boot shell). */
 function AdminFallback() {
@@ -69,6 +70,7 @@ export default function App() {
             <Route path="festivals" element={lazyAdmin(<FestivalsPage />)} />
             <Route path="indicators" element={lazyAdmin(<IndicatorsPage />)} />
             <Route path="news" element={lazyAdmin(<NewsPage />)} />
+            <Route path="ingestion" element={lazyAdmin(<IngestionRunsPage />)} />
             <Route path="*" element={<Navigate to="/admin/policy-flags" replace />} />
           </Route>
 

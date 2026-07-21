@@ -13,6 +13,7 @@ import './admin.css';
 export {
   default as AdminPagination,
   usePagination,
+  useServerPagination,
   PAGE_SIZES,
 } from '../components/TablePagination';
 

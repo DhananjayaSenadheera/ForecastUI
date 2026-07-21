@@ -63,7 +63,8 @@
       "users": "Users",
       "festivals": "Festivals",
       "indicators": "Indicators",
-      "news": "News events"
+      "news": "News events",
+      "ingestion": "Ingestion runs"
     }
   },
   "audio": {
@@ -583,6 +584,75 @@
       "publishedReadonly": "The publish date is the event's knowledge date and can't be changed after it's recorded.",
       "emptyTitle": "No events",
       "emptyBody": "No news events recorded yet. Add one to get started."
+    },
+    "ingestion": {
+      "title": "Ingestion runs",
+      "subtitle": "Data pipeline runs and freshness checks.",
+      "explainer": "This is where market prices, weather and economic data enter the system. Each run fetches from one source; verification checks whether the new data looks sane before the model uses it.",
+      "statusTitle": "Pipeline status",
+      "state": {
+        "running": "Running",
+        "stopped": "Stopped",
+        "unknown": "Unknown"
+      },
+      "stateLive": "Ingestion service is {{state}}.",
+      "serviceAddress": "Service address",
+      "lastRun": "Last run",
+      "lastRunNever": "No runs recorded yet.",
+      "runStatus": {
+        "succeeded": "Succeeded",
+        "partial": "Partial",
+        "failed": "Failed",
+        "running": "Running",
+        "skipped": "Skipped",
+        "unknown": "Unknown"
+      },
+      "verificationTitle": "Last verification",
+      "checksPass": "{{count}} passed",
+      "checksWarn": "{{count}} warnings",
+      "checksFail": "{{count}} failed",
+      "verifiedAt": "Checked {{time}}",
+      "verifiedFor": "Data for {{date}}",
+      "noVerification": "No verification recorded yet.",
+      "sourcesTitle": "Sources",
+      "sourceStatus": {
+        "ok": "OK",
+        "disabled": "Disabled",
+        "failed": "Failed"
+      },
+      "lastObserved": "Latest data: {{date}}",
+      "lastSuccess": "Last success: {{time}}",
+      "neverSucceeded": "No successful run yet.",
+      "runsTitle": "Recent runs",
+      "refresh": "Refresh",
+      "refreshing": "Refreshing…",
+      "filterSource": "Source",
+      "filterAll": "All sources",
+      "colDateTime": "Date / time",
+      "colSource": "Source",
+      "colStatus": "Status",
+      "colRows": "Rows in / skipped",
+      "colCrops": "Crops",
+      "colCovered": "Dates covered",
+      "colVerdict": "Verdict",
+      "rowsInSkip": "{{inserted}} in / {{skipped}} skipped",
+      "coveredRange": "{{from}} → {{to}}",
+      "verdict": {
+        "pass": "Pass",
+        "warn": "Warn",
+        "fail": "Fail",
+        "none": "Not run",
+        "unknown": "Unknown"
+      },
+      "expand": "Show checks",
+      "collapse": "Hide checks",
+      "checksHeading": "Verification checks",
+      "checksUnavailable": "Verification details are unavailable for this run.",
+      "noChecks": "No individual checks were recorded.",
+      "errorHeading": "Error",
+      "emptyTitle": "No runs",
+      "emptyBody": "No ingestion runs match this view yet.",
+      "notApplicable": "—"
     }
   },
   "pagination": {

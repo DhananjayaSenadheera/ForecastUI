@@ -32,6 +32,28 @@ export function usePagination<T>(rows: T[], defaultPerPage: number = PAGE_SIZES[
   return { pageRows, page, totalPages, perPage, total: rows.length, setPage, setPerPage };
 }
 
+/**
+ * Server-paged sibling of usePagination. The SERVER slices the rows; we only track
+ * the page/perPage cursor and derive totalPages from the server-reported `total`. The
+ * page NEVER client-slices — it re-fetches on page/perPage change. Changing the page
+ * size returns to page 1 (a size change invalidates the old page cursor). Feed the
+ * returned shape straight into <TablePagination/>. `total` self-updates each fetch.
+ */
+export function useServerPagination(total: number, defaultPerPage: number = PAGE_SIZES[1]) {
+  const [rawPage, setPage] = useState(1);
+  const [perPage, setPerPageState] = useState<number>(defaultPerPage);
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  // Self-clamp when `total` shrinks (e.g. a Refresh returns fewer rows) so a stale
+  // page-3 cursor over a now-1-page set resolves to page 1, never an empty "3 of 1".
+  // Mirrors the client usePagination clamp; callers read the clamped `page`.
+  const page = Math.min(rawPage, totalPages);
+  const setPerPage = (n: number) => {
+    setPerPageState(n);
+    setPage(1);
+  };
+  return { page, perPage, totalPages, total, setPage, setPerPage };
+}
+
 export default function TablePagination({
   page,
   totalPages,

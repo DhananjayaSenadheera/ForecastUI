@@ -21,6 +21,9 @@ import {
   type DailyIndicatorPoint,
   type FestivalEntry,
   type HarvestForecast,
+  type IngestionRun,
+  type IngestionRunPage,
+  type IngestionStatus,
   type MacroSeriesPoint,
   type Market,
   type MarketLatestPrice,
@@ -928,3 +931,180 @@ export const fxNewsEvents: NewsEvent[] = [
   { id: 'e0000006-0000-0000-0000-000000000006', eventType: PolicyType.Other, direction: PolicyDirection.Bullish, title: 'Heavy monsoon rains in Nuwara Eliya district', description: 'Prolonged rain damaged up-country vegetable crops; short-term supply tightening expected.', publishedAt: '2026-04-05', sourceUrl: null, affectedCropIds: ['c0000006-0000-0000-0000-000000000006', 'c0000007-0000-0000-0000-000000000007'], affectedMarketIds: [], createdAtUtc: '2026-04-05T00:00:00Z' },
   { id: 'e0000007-0000-0000-0000-000000000007', eventType: PolicyType.PriceCeiling, direction: PolicyDirection.Bearish, title: 'Retail price cap reintroduced on selected vegetables', description: 'CAA set maximum retail prices on a few staple vegetables during a festival demand spike.', publishedAt: '2026-03-30', sourceUrl: null, affectedCropIds: ['c0000003-0000-0000-0000-000000000003'], affectedMarketIds: [], createdAtUtc: '2026-03-30T00:00:00Z' },
 ];
+
+// ---------------------------------------------------------------------------
+// ADMIN INGESTION RUNS fixtures (admin ingestion API). ONE batch of 7 source runs —
+// including a FAILED HARTI row (503) + a WARN verification on the DEC run with
+// real-looking checksJson that matches the locked contract shape. fxIngestionRuns()
+// simulates the server's paging + source filter so the page can be built/demoed with
+// no backend. NOT real HARTI data — illustrative, env-fenced (see file header).
+// ---------------------------------------------------------------------------
+const FX_BATCH = 'b1000000-0000-0000-0000-000000000001';
+
+// checksJson is a JSON STRING on the wire — stringify a realistic VerificationCheck[].
+const FX_DEC_CHECKS = JSON.stringify([
+  { name: 'dec_row_count', severity: 'PASS', message: '320 rows fetched for 2026-07-14 to 2026-07-20', counts: { rows: 320 } },
+  { name: 'dec_distinct_crops', severity: 'PASS', message: '12 distinct crops observed (>= 8 expected)', counts: { crops: 12 } },
+  { name: 'dec_insert_ratio', severity: 'PASS', message: '44 inserted / 276 already known — within the normal de-dup range', counts: { inserted: 44, skipped: 276 } },
+  { name: 'dec_price_sanity', severity: 'WARN', message: '2 prices sit above the 99th-percentile guard — kept, but flagged for review', counts: { flagged: 2 } },
+  { name: 'dec_freshness', severity: 'PASS', message: 'latest observed date 2026-07-20 is within the 2-day tolerance', counts: { lagDays: 1 } },
+]);
+
+export const fxIngestionRunsAll: IngestionRun[] = [
+  {
+    id: 'd1000000-0000-0000-0000-000000000001',
+    batchId: FX_BATCH,
+    source: 'DAMBULLA_DEC',
+    startedUtc: '2026-07-21T19:05:12Z',
+    finishedUtc: '2026-07-21T19:07:48Z',
+    status: 'succeeded',
+    coveredFromDate: '2026-07-14',
+    coveredToDate: '2026-07-20',
+    rowsFetched: 320,
+    rowsInserted: 44,
+    rowsSkipped: 276,
+    distinctCrops: 12,
+    errorSummary: null,
+    verification: {
+      overallStatus: 'Warn',
+      ranAtUtc: '2026-07-21T19:11:02Z',
+      nChecksPass: 4,
+      nChecksWarn: 1,
+      nChecksFail: 0,
+      checksJson: FX_DEC_CHECKS,
+    },
+  },
+  {
+    id: 'd1000000-0000-0000-0000-000000000002',
+    batchId: FX_BATCH,
+    source: 'WEATHER',
+    startedUtc: '2026-07-21T19:04:40Z',
+    finishedUtc: '2026-07-21T19:05:05Z',
+    status: 'succeeded',
+    coveredFromDate: '2026-07-20',
+    coveredToDate: '2026-07-21',
+    rowsFetched: 168,
+    rowsInserted: 168,
+    rowsSkipped: 0,
+    distinctCrops: null,
+    errorSummary: null,
+    verification: null,
+  },
+  {
+    id: 'd1000000-0000-0000-0000-000000000003',
+    batchId: FX_BATCH,
+    source: 'ECONOMIC',
+    startedUtc: '2026-07-21T19:04:20Z',
+    finishedUtc: '2026-07-21T19:04:33Z',
+    status: 'succeeded',
+    coveredFromDate: '2026-07-18',
+    coveredToDate: '2026-07-21',
+    rowsFetched: 4,
+    rowsInserted: 3,
+    rowsSkipped: 1,
+    distinctCrops: null,
+    errorSummary: null,
+    verification: null,
+  },
+  {
+    id: 'd1000000-0000-0000-0000-000000000004',
+    batchId: FX_BATCH,
+    source: 'NEWS',
+    startedUtc: '2026-07-21T19:04:05Z',
+    finishedUtc: '2026-07-21T19:04:09Z',
+    status: 'skipped',
+    coveredFromDate: null,
+    coveredToDate: null,
+    rowsFetched: 0,
+    rowsInserted: 0,
+    rowsSkipped: 0,
+    distinctCrops: null,
+    errorSummary: null,
+    verification: null,
+  },
+  {
+    id: 'd1000000-0000-0000-0000-000000000005',
+    batchId: FX_BATCH,
+    source: 'HARTI',
+    startedUtc: '2026-07-21T19:03:30Z',
+    finishedUtc: '2026-07-21T19:04:02Z',
+    status: 'failed',
+    coveredFromDate: null,
+    coveredToDate: null,
+    rowsFetched: null,
+    rowsInserted: null,
+    rowsSkipped: null,
+    distinctCrops: null,
+    errorSummary: 'Upstream HARTI weekly bulletin portal returned HTTP 503 after 3 retries — no rows ingested this run.',
+    verification: null,
+  },
+  {
+    id: 'd1000000-0000-0000-0000-000000000006',
+    batchId: FX_BATCH,
+    source: 'CBSL',
+    startedUtc: '2026-07-21T19:03:10Z',
+    finishedUtc: '2026-07-21T19:03:22Z',
+    status: 'succeeded',
+    coveredFromDate: '2026-07-18',
+    coveredToDate: '2026-07-21',
+    rowsFetched: 4,
+    rowsInserted: 4,
+    rowsSkipped: 0,
+    distinctCrops: null,
+    errorSummary: null,
+    verification: null,
+  },
+  {
+    id: 'd1000000-0000-0000-0000-000000000007',
+    batchId: FX_BATCH,
+    source: 'CBSL_MACRO',
+    startedUtc: '2026-07-21T19:03:00Z',
+    finishedUtc: '2026-07-21T19:03:04Z',
+    status: 'skipped',
+    coveredFromDate: null,
+    coveredToDate: null,
+    rowsFetched: 0,
+    rowsInserted: 0,
+    rowsSkipped: 0,
+    distinctCrops: null,
+    errorSummary: null,
+    verification: null,
+  },
+];
+
+/** Simulate the SERVER's paging + optional source filter (never client-sliced by the
+ *  page — the page always trusts {items,page,pageSize,total}). */
+export function fxIngestionRuns(page = 1, pageSize = 20, source?: string): IngestionRunPage {
+  const filtered = source ? fxIngestionRunsAll.filter((r) => r.source === source) : fxIngestionRunsAll;
+  const total = filtered.length;
+  const start = Math.max(0, (page - 1) * pageSize);
+  return { items: filtered.slice(start, start + pageSize), page, pageSize, total };
+}
+
+export const fxIngestionStatusObj: IngestionStatus = {
+  state: 'stopped',
+  serviceAddress: 'unconfigured',
+  lastRunAtUtc: '2026-07-21T19:07:48Z',
+  lastRunStatus: 'partial', // partial — HARTI failed while the other sources succeeded
+  lastVerification: {
+    overallStatus: 'Warn',
+    ranAtUtc: '2026-07-21T19:11:02Z',
+    pipelineDate: '2026-07-20',
+    nChecksPass: 12,
+    nChecksWarn: 1,
+    nChecksFail: 0,
+  },
+  sources: [
+    { source: 'DAMBULLA_DEC', status: 'ok', lastSuccessUtc: '2026-07-21T19:07:48Z', lastObservedDate: '2026-07-20', lastMessage: '44 new price rows inserted' },
+    { source: 'WEATHER', status: 'ok', lastSuccessUtc: '2026-07-21T19:05:05Z', lastObservedDate: '2026-07-21', lastMessage: null },
+    { source: 'ECONOMIC', status: 'ok', lastSuccessUtc: '2026-07-21T19:04:33Z', lastObservedDate: '2026-07-21', lastMessage: null },
+    { source: 'NEWS', status: 'ok', lastSuccessUtc: '2026-07-20T19:04:00Z', lastObservedDate: '2026-07-19', lastMessage: 'No new items this run' },
+    { source: 'HARTI', status: 'failed', lastSuccessUtc: '2026-07-18T19:04:11Z', lastObservedDate: '2026-07-17', lastMessage: 'Upstream portal returned HTTP 503 after 3 retries' },
+    { source: 'CBSL', status: 'ok', lastSuccessUtc: '2026-07-21T19:03:22Z', lastObservedDate: '2026-07-21', lastMessage: null },
+    { source: 'CBSL_MACRO', status: 'disabled', lastSuccessUtc: null, lastObservedDate: null, lastMessage: 'Monthly series — scheduled at month end' },
+  ],
+};
+
+export function fxIngestionStatus(): IngestionStatus {
+  return fxIngestionStatusObj;
+}
