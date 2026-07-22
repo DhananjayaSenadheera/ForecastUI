@@ -296,6 +296,64 @@ export function mapVerificationVerdict(v: string): {
   }
 }
 
+// ===========================================================================
+// ADMIN CONSOLE — LOGS HUB Phase 2 mappers (Model training + User activity).
+// Same idiom: wire value -> { tone (CSS modifier), i18n labelKey }, text label
+// ALWAYS shown alongside the colour. Unknown wire values degrade, never crash.
+// ===========================================================================
+
+/** Model-training MAE -> a 2-decimal locale-aware string (null when the metric is
+ *  absent). MAE is a raw model metric, NOT currency — no Rs. prefix, no rounding to
+ *  whole units. Lower is better, but that context is copy, never a colour here. */
+export function formatMae(value: number | null | undefined, lang: string): string | null {
+  if (value == null || Number.isNaN(value)) return null;
+  return new Intl.NumberFormat(resolveLocale(lang), {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+/** Promotion-gate outcome (decisionPromoted) -> tone + label. This is the GATE's
+ *  verdict at train time — independent of whether the row is currently LIVE. */
+export function mapGateOutcome(decisionPromoted: boolean): {
+  tone: 'promoted' | 'declined';
+  labelKey: string;
+} {
+  return decisionPromoted
+    ? { tone: 'promoted', labelKey: 'admin.logs.training.gate.promoted' }
+    : { tone: 'declined', labelKey: 'admin.logs.training.gate.declined' };
+}
+
+const USER_ACTIVITY_KEYS: Record<string, string> = {
+  loginSucceeded: 'admin.logs.userActivity.event.loginSucceeded',
+  loginFailed: 'admin.logs.userActivity.event.loginFailed',
+  userRegistered: 'admin.logs.userActivity.event.userRegistered',
+  roleChanged: 'admin.logs.userActivity.event.roleChanged',
+  userDeleted: 'admin.logs.userActivity.event.userDeleted',
+};
+
+/** User-activity event type -> label + badge tone. loginFailed is amber (a failed,
+ *  unverified attempt); userRegistered is green (a new account); the rest are neutral.
+ *  Unknown wire strings degrade to a muted raw fallback (labelKey null). RED is never
+ *  used here — it stays reserved app-wide for the "Not recommended" verdict. */
+export function mapUserActivityEvent(type: string): {
+  labelKey: string | null;
+  fallback: string;
+  tone: 'good' | 'warn' | 'neutral';
+} {
+  const labelKey = USER_ACTIVITY_KEYS[type] ?? null;
+  const tone = type === 'loginFailed' ? 'warn' : type === 'userRegistered' ? 'good' : 'neutral';
+  return { labelKey, fallback: type, tone };
+}
+
+/** Truncate a GUID for display (first `head` chars + ellipsis); full value belongs in
+ *  a title attribute. Short/empty ids pass through unchanged. null -> '' (caller shows
+ *  a muted "system" placeholder). */
+export function truncateId(id: string | null | undefined, head = 8): string {
+  if (!id) return '';
+  return id.length > head ? `${id.slice(0, head)}…` : id;
+}
+
 /** Individual check severity (PASS/WARN/FAIL inside checksJson) -> tone + label. */
 export function mapCheckSeverity(sev: string): {
   tone: 'pass' | 'warn' | 'fail' | 'unknown';

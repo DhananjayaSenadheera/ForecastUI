@@ -36,6 +36,8 @@ import type {
   PolicyFlagUpdateDto,
   PriceHistoryPoint,
   SeriesCatalogEntry,
+  TrainingRunPage,
+  UserActivityPage,
 } from './types';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5282';
@@ -632,6 +634,29 @@ export const api = {
     const q = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     if (source) q.set('source', source);
     return request<IngestionRunPage>(`/api/admin/ingestion/runs?${q.toString()}`);
+  },
+
+  // ---- ADMIN CONSOLE — LOGS HUB Phase 2 (training + user activity — LIVE) ----
+  // Both routes behind an Admin JWT (401/403 through the existing interceptor); both
+  // return the server-paged {items,page,pageSize,total} envelope, consumed verbatim.
+  //
+  // GET /api/admin/logs/training?page=&pageSize= -> TrainingRunPage (ordered
+  // TrainedAtUtc DESC). No filter param — always the full history, server-paged.
+  async getTrainingRuns(page = 1, pageSize = 25): Promise<TrainingRunPage> {
+    if (USE_FIXTURES) return fx.fxTrainingRuns(page, pageSize);
+    const q = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    return request<TrainingRunPage>(`/api/admin/logs/training?${q.toString()}`);
+  },
+
+  // GET /api/admin/logs/user-activity?page=&pageSize=&type= -> UserActivityPage
+  // (ordered OccurredUtc DESC). `type` is OPTIONAL and must be one of the five frozen
+  // wire strings (USER_ACTIVITY_EVENT_TYPES) — the server 400s any other value, so the
+  // client only ever OMITS it (all) or sends an exact enum string, never free text.
+  async getUserActivity(page = 1, pageSize = 25, type?: string): Promise<UserActivityPage> {
+    if (USE_FIXTURES) return fx.fxUserActivity(page, pageSize, type);
+    const q = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (type) q.set('type', type);
+    return request<UserActivityPage>(`/api/admin/logs/user-activity?${q.toString()}`);
   },
 };
 

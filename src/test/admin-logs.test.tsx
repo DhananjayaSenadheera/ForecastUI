@@ -26,6 +26,8 @@ function renderLogsRoutes(start: string) {
           <Route path="logs" element={<LogsPage />}>
             <Route index element={<Navigate to="/admin/logs/ingestion" replace />} />
             <Route path="ingestion" element={<div>INGESTION TAB CONTENT</div>} />
+            <Route path="training" element={<div>TRAINING TAB CONTENT</div>} />
+            <Route path="user-activity" element={<div>USER ACTIVITY TAB CONTENT</div>} />
           </Route>
           <Route path="ingestion" element={<Navigate to="/admin/logs/ingestion" replace />} />
         </Route>
@@ -102,12 +104,31 @@ describe('Logs hub routing (Phase 1)', () => {
     await i18n.changeLanguage('en');
   });
 
-  it('renders the Logs shell (H1 + tab strip) and its single ingestion tab', () => {
+  it('renders the Logs shell (H1 + tab strip) with all three tabs, ingestion selected', () => {
     renderLogsRoutes('/admin/logs/ingestion');
     expect(screen.getByRole('heading', { level: 1, name: 'Logs' })).toBeInTheDocument();
     const tablist = screen.getByRole('tablist', { name: 'Logs' });
+    expect(within(tablist).getAllByRole('tab')).toHaveLength(3);
     expect(within(tablist).getByRole('tab', { name: 'Ingestion runs', selected: true })).toBeInTheDocument();
+    expect(within(tablist).getByRole('tab', { name: 'Model training', selected: false })).toBeInTheDocument();
+    expect(within(tablist).getByRole('tab', { name: 'User activity', selected: false })).toBeInTheDocument();
     expect(screen.getByText('INGESTION TAB CONTENT')).toBeInTheDocument();
+  });
+
+  it('marks the Model training tab selected on its route (aria-selected tracks the route)', () => {
+    renderLogsRoutes('/admin/logs/training');
+    const tablist = screen.getByRole('tablist', { name: 'Logs' });
+    expect(within(tablist).getByRole('tab', { name: 'Model training', selected: true })).toBeInTheDocument();
+    expect(within(tablist).getByRole('tab', { name: 'Ingestion runs', selected: false })).toBeInTheDocument();
+    expect(screen.getByText('TRAINING TAB CONTENT')).toBeInTheDocument();
+  });
+
+  it('marks the User activity tab selected on its route (aria-selected tracks the route)', () => {
+    renderLogsRoutes('/admin/logs/user-activity');
+    const tablist = screen.getByRole('tablist', { name: 'Logs' });
+    expect(within(tablist).getByRole('tab', { name: 'User activity', selected: true })).toBeInTheDocument();
+    expect(within(tablist).getByRole('tab', { name: 'Ingestion runs', selected: false })).toBeInTheDocument();
+    expect(screen.getByText('USER ACTIVITY TAB CONTENT')).toBeInTheDocument();
   });
 
   it('links the tab to the content region (tabpanel labelled by the selected tab)', () => {
@@ -177,6 +198,8 @@ describe('Logs hub auth gate (Phase 1)', () => {
               <Route path="logs" element={<LogsPage />}>
                 <Route index element={<Navigate to="/admin/logs/ingestion" replace />} />
                 <Route path="ingestion" element={<div>INGESTION TAB CONTENT</div>} />
+                <Route path="training" element={<div>TRAINING TAB CONTENT</div>} />
+                <Route path="user-activity" element={<div>USER ACTIVITY TAB CONTENT</div>} />
               </Route>
               <Route path="ingestion" element={<Navigate to="/admin/logs/ingestion" replace />} />
             </Route>
@@ -186,21 +209,29 @@ describe('Logs hub auth gate (Phase 1)', () => {
     );
   }
 
-  async function expectFarmerBlocked(start: string) {
+  async function expectFarmerBlocked(start: string, tabContent: string) {
     renderGated(start);
     fireEvent.click(await screen.findByText('login-farmer'));
     await waitFor(() =>
       expect(screen.getByText("You don't have access to this area")).toBeInTheDocument(),
     );
-    expect(screen.queryByText('INGESTION TAB CONTENT')).toBeNull();
+    expect(screen.queryByText(tabContent)).toBeNull();
   }
 
   it('blocks a logged-in FARMER from /admin/logs/ingestion (no tab content rendered)', async () => {
-    await expectFarmerBlocked('/admin/logs/ingestion');
+    await expectFarmerBlocked('/admin/logs/ingestion', 'INGESTION TAB CONTENT');
   });
 
   it('blocks a logged-in FARMER on the legacy /admin/ingestion alias too', async () => {
-    await expectFarmerBlocked('/admin/ingestion');
+    await expectFarmerBlocked('/admin/ingestion', 'INGESTION TAB CONTENT');
+  });
+
+  it('blocks a logged-in FARMER from /admin/logs/training (no tab content rendered)', async () => {
+    await expectFarmerBlocked('/admin/logs/training', 'TRAINING TAB CONTENT');
+  });
+
+  it('blocks a logged-in FARMER from /admin/logs/user-activity (no tab content rendered)', async () => {
+    await expectFarmerBlocked('/admin/logs/user-activity', 'USER ACTIVITY TAB CONTENT');
   });
 });
 
