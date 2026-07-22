@@ -423,6 +423,37 @@ describe('Admin console pages', () => {
       fireEvent.click(dialog.querySelector('.adm-btn--danger') as HTMLButtonElement);
       expect(await screen.findByText(msg)).toBeInTheDocument();
     });
+
+    // ---- Ingested-articles feed (read-only, Python capture pipeline) ----------
+    it('renders the ingested articles as external links with HTML entities decoded', async () => {
+      renderPage(<NewsPage />);
+      // &#8217; in the fixture title must render as the real apostrophe (’), never the raw entity.
+      const link = await screen.findByRole('link', { name: /Sri Lanka’s exports cross/ });
+      expect(link).toHaveAttribute('href', 'https://example.lk/news/exports-milestone');
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link.getAttribute('rel')).toContain('noopener');
+      expect(document.body.textContent).not.toContain('&#8217;');
+      // Null publishedDateUtc row still renders (falls back to retrievedAtUtc for the date).
+      expect(screen.getByText(/Monsoon rains ease/)).toBeInTheDocument();
+      // Source badge shown on the feed rows.
+      expect(screen.getAllByText('lbo').length).toBeGreaterThan(0);
+    });
+
+    it('a feed failure shows its own error state and never takes down the curated list', async () => {
+      vi.spyOn(api, 'getNewsArticles').mockRejectedValueOnce(new ApiError('boom', 500));
+      renderPage(<NewsPage />);
+      // Curated events unaffected...
+      await screen.findByText('Diesel price raised by Rs. 25/litre');
+      // ...while the articles section shows the retryable error state.
+      expect(await screen.findByText('Could not load')).toBeInTheDocument();
+    });
+
+    it('an empty feed is a normal state (ingestion not yet run), not an error', async () => {
+      vi.spyOn(api, 'getNewsArticles').mockResolvedValueOnce([]);
+      renderPage(<NewsPage />);
+      expect(await screen.findByText('No articles')).toBeInTheDocument();
+      expect(screen.queryByText('Could not load')).toBeNull();
+    });
   });
 
   // ---- Page explainer ⓘ (owner request 2026-07-22: the 💡 banners follow the Logs

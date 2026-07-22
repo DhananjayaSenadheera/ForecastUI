@@ -29,6 +29,7 @@ import type {
   MacroSeriesPoint,
   Market,
   MarketOverview,
+  NewsArticle,
   NewsEvent,
   NewsEventCreateDto,
   NewsEventUpdateDto,
@@ -620,6 +621,15 @@ export const api = {
       return id;
     }
     return request<string>(`/api/news-events/delete/${id}`, { method: 'DELETE' });
+  },
+
+  // GET /api/news-articles/get/latest?take=50 [Authorize] -> NewsArticle[], newest first.
+  // Read-only feed of what the news INGESTION pipeline captured (Python-owned table) —
+  // distinct from the curated news-events CRUD above. Server clamps take (default 50,
+  // max 200) and returns 200 [] when ingestion has never run.
+  async getNewsArticles(take = 50): Promise<NewsArticle[]> {
+    if (USE_FIXTURES) return fx.fxNewsArticles.slice(0, take);
+    return request<NewsArticle[]>(`/api/news-articles/get/latest?take=${take}`);
   },
 
   // ---- ADMIN CONSOLE — INGESTION RUNS (admin ingestion API — LIVE-verified) ----

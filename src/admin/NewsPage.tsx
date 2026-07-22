@@ -17,7 +17,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, ApiError } from '../api/client';
-import type { Crop, NewsEvent } from '../api/types';
+import type { Crop, NewsArticle, NewsEvent } from '../api/types';
 import { PolicyDirection, PolicyType } from '../api/types';
 import { cropDisplayName } from '../lib/crops';
 import { formatDate, mapPolicyDirection, mapPolicyType } from '../lib/format';
@@ -46,6 +46,14 @@ interface FormState {
   affectedCropIds: string[];
 }
 
+// Feed titles/summaries arrive with HTML entities (&#8217; etc. — stored verbatim by the
+// Python capture pipeline). Decode via DOMParser textContent — yields plain text only, so
+// nothing from the feed can ever reach the DOM as markup.
+const decodeEntities = (s: string): string => {
+  const doc = new DOMParser().parseFromString(s, 'text/html');
+  return doc.documentElement.textContent ?? s;
+};
+
 const emptyForm = (): FormState => ({
   eventType: PolicyType.Other,
   direction: PolicyDirection.Neutral,
@@ -68,6 +76,25 @@ export default function NewsPage() {
   const [confirmDelete, setConfirmDelete] = useState<NewsEvent | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [flash, setFlash] = useState<Flash | null>(null);
+
+  // Ingested-articles feed (read-only, Python capture pipeline). Loads and FAILS independently
+  // of the curated-events CRUD above — a feed hiccup must never take down the capture list.
+  const [articles, setArticles] = useState<NewsArticle[] | null>(null);
+  const [articlesError, setArticlesError] = useState(false);
+
+  const loadArticles = useCallback(async () => {
+    setArticles(null);
+    setArticlesError(false);
+    try {
+      setArticles(await api.getNewsArticles());
+    } catch {
+      setArticlesError(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadArticles();
+  }, [loadArticles]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -242,6 +269,43 @@ export default function NewsPage() {
                 </li>
               );
             })}
+          </ol>
+        )}
+      </section>
+
+      {/* Ingested articles — what the news pipeline captured automatically (read-only feed over
+          the Python-owned NewsArticles table; raw material for the ML sentiment signal). Kept
+          VISUALLY and functionally separate from the curated events above: recording an event
+          stays a deliberate human decision, never an import of a headline. */}
+      <section className="panel adm" aria-label={t('admin.news.ingestedTitle')}>
+        <h2 className="adm-title">{t('admin.news.ingestedTitle')}</h2>
+        <p className="adm-caption">{t('admin.news.ingestedExplainer')}</p>
+        {articlesError ? (
+          <AdminError onRetry={() => void loadArticles()} />
+        ) : articles === null ? (
+          <AdminLoading rows={4} />
+        ) : articles.length === 0 ? (
+          <AdminEmpty title={t('admin.news.ingestedEmptyTitle')} body={t('admin.news.ingestedEmptyBody')} />
+        ) : (
+          <ol className="adm-newslist">
+            {articles.map((a) => (
+              <li key={a.url} className="adm-newsitem">
+                <div className="adm-newsitem__head">
+                  <span className="adm-badge">{a.source}</span>
+                  {/* publishedDateUtc may be null (feed omitted it) — fall back to fetch time. */}
+                  <span className="adm-newsitem__date">
+                    {formatDate((a.publishedDateUtc ?? a.retrievedAtUtc).slice(0, 10), lang)}
+                  </span>
+                </div>
+                <p className="adm-title">
+                  <a className="adm-reflink" href={a.url} target="_blank" rel="noreferrer noopener">
+                    {decodeEntities(a.title)}
+                    <span aria-hidden="true"> ↗</span>
+                  </a>
+                </p>
+                {a.summary && <p className="adm-desc">{decodeEntities(a.summary)}</p>}
+              </li>
+            ))}
           </ol>
         )}
       </section>

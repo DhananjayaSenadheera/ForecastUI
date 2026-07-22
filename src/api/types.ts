@@ -657,6 +657,25 @@ export interface NewsEventUpdateDto {
   affectedMarketIds?: string[];
 }
 
+/** One article the news INGESTION pipeline captured (the Python-owned NewsArticles table — the
+ *  raw material behind the ML sentiment features). Read-only display feed on the admin News
+ *  page; DISTINCT from the curated NewsEvent CRUD above — the two "news" stores never mix.
+ *  GET /api/news-articles/get/latest?take=50 [Authorize] -> NewsArticle[], newest first (server
+ *  clamps take: default 50, max 200; 200 [] when ingestion has never run).
+ *  url is the row identity (the capture table's PK / dedupe key). Timestamps are naive UTC
+ *  ("YYYY-MM-DDTHH:mm:ss", NO Z suffix — the Python loader's convention); publishedDateUtc is
+ *  null when the source feed omitted a publish date — fall back to retrievedAtUtc for display.
+ *  title/summary may contain HTML entities (&#8217; etc.) — decode before rendering. */
+export interface NewsArticle {
+  url: string;
+  source: string; // short feed key, e.g. "lbo"
+  title: string;
+  summary: string;
+  publishedDateUtc: string | null;
+  retrievedAtUtc: string;
+  language: string; // e.g. "en"
+}
+
 // =============================================================================
 // ADMIN CONSOLE — INGESTION RUNS (admin ingestion API — contract LIVE-verified
 // against the dev DB). Two read-only routes behind an Admin JWT (401/403 handled by
