@@ -674,6 +674,12 @@ export interface NewsArticle {
   publishedDateUtc: string | null;
   retrievedAtUtc: string;
   language: string; // e.g. "en"
+  /** Per-article agri topic flags from the Python scorer, as a stable-order CSV
+   *  ("flood,drought"). '' = scored, no topic fired (general news); null = not yet
+   *  scored. The FE derives the category badge + direction from this (src/lib/news.ts). */
+  topics: string | null;
+  /** VADER compound sentiment in [-1, 1]; null = not yet scored. */
+  sentimentScore: number | null;
 }
 
 // =============================================================================

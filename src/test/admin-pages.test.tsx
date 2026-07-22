@@ -359,92 +359,67 @@ describe('Admin console pages', () => {
     });
   });
 
-  // ---- ADM-7 news ---------------------------------------------------------
-  describe('NewsPage (ADM-7)', () => {
-    it('lists events chronologically with a direction glyph and adds one via the form', async () => {
+  // ---- ADM-7v2 news table (ingestion-fed, read-only; CRUD removed 2026-07-22) ----
+  describe('NewsPage (ADM-7v2 — ingested table)', () => {
+    it('defaults to Agriculture only: agri rows show, general and unscored rows are hidden', async () => {
       renderPage(<NewsPage />);
-      await screen.findByText('Diesel price raised by Rs. 25/litre');
-      const before = document.querySelectorAll('.adm-newsitem').length;
-      fireEvent.click(screen.getByText(/Add event/));
-      const dialog = screen.getByRole('dialog');
-      fireEvent.change(dialog.querySelector('input[type="text"]') as HTMLInputElement, {
-        target: { value: 'Test market event' },
-      });
-      fireEvent.change(dialog.querySelector('input[type="date"]') as HTMLInputElement, {
-        target: { value: '2026-07-11' },
-      });
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-      await waitFor(() =>
-        expect(document.querySelectorAll('.adm-newsitem').length).toBe(before + 1),
-      );
-      expect(screen.getByText('Test market event')).toBeInTheDocument();
+      // Agri fixture rows (flood + fertiliser) render as external links.
+      const link = await screen.findByRole('link', { name: /Floods damage vegetable fields/ });
+      expect(link).toHaveAttribute('href', 'https://example.lk/news/flood-damage');
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link.getAttribute('rel')).toContain('noopener');
+      expect(screen.getByText(/fertiliser shipment cleared/i)).toBeInTheDocument();
+      // General (exports) + unscored (monsoon) rows are filtered out by default.
+      expect(screen.queryByText(/exports cross/)).toBeNull();
+      expect(screen.queryByText(/Monsoon rains ease/)).toBeNull();
     });
 
-    it('edit dialog shows publishedAt READ-ONLY (no date input) and updates without it', async () => {
-      const spy = vi.spyOn(api, 'updateNewsEvent').mockResolvedValue('id');
+    it('derives the expected-effect badge: flood → Bullish, positive fertiliser news → Bearish', async () => {
       renderPage(<NewsPage />);
-      await screen.findByText('Diesel price raised by Rs. 25/litre');
-      fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0]);
-      const dialog = screen.getByRole('dialog');
-      // publishedAt is immutable -> the edit dialog has NO date input, only the read-only note
-      expect(dialog.querySelector('input[type="date"]')).toBeNull();
-      expect(within(dialog).getByText(/knowledge date and can't be changed/)).toBeInTheDocument();
-      fireEvent.change(dialog.querySelector('input[type="text"]') as HTMLInputElement, {
-        target: { value: 'Edited title' },
-      });
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
-      await waitFor(() => expect(spy).toHaveBeenCalled());
-      const dto = spy.mock.calls[0][0];
-      expect(dto.title).toBe('Edited title');
-      expect('publishedAt' in dto).toBe(false); // never sent — vintage date is immutable
-      expect(await screen.findByText('News event updated.')).toBeInTheDocument();
+      await screen.findByRole('link', { name: /Floods damage vegetable fields/ });
+      // Same glyph+word treatment as Policy flags — never colour-only.
+      expect(screen.getByText('Bullish')).toBeInTheDocument();
+      expect(screen.getByText('Bearish')).toBeInTheDocument();
+      expect(document.body.textContent).toContain('▲');
+      expect(document.body.textContent).toContain('▼');
+      // Farmer impact line for the flood row.
+      expect(screen.getByText(/less supply usually pushes prices up/)).toBeInTheDocument();
     });
 
-    it('deletes an event via the named confirm dialog', async () => {
-      const spy = vi.spyOn(api, 'deleteNewsEvent').mockResolvedValue('id');
+    it('"All news" reveals general and unscored rows; entities decode; unscored shows an honest —', async () => {
       renderPage(<NewsPage />);
-      await screen.findByText('Diesel price raised by Rs. 25/litre');
-      fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0]);
-      const dialog = screen.getByRole('dialog');
-      // named confirm quotes the specific event title
-      expect(within(dialog).getByText(/Delete "/)).toBeInTheDocument();
-      fireEvent.click(dialog.querySelector('.adm-btn--danger') as HTMLButtonElement);
-      await waitFor(() => expect(spy).toHaveBeenCalled());
-      expect(await screen.findByText(/deleted/)).toBeInTheDocument();
-    });
-
-    it('surfaces a server guard message verbatim when a delete is rejected', async () => {
-      const msg = 'News event does not exist.';
-      vi.spyOn(api, 'deleteNewsEvent').mockRejectedValueOnce(new ApiError(msg, 400));
-      renderPage(<NewsPage />);
-      await screen.findByText('Diesel price raised by Rs. 25/litre');
-      fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0]);
-      const dialog = screen.getByRole('dialog');
-      fireEvent.click(dialog.querySelector('.adm-btn--danger') as HTMLButtonElement);
-      expect(await screen.findByText(msg)).toBeInTheDocument();
-    });
-
-    // ---- Ingested-articles feed (read-only, Python capture pipeline) ----------
-    it('renders the ingested articles as external links with HTML entities decoded', async () => {
-      renderPage(<NewsPage />);
+      await screen.findByRole('link', { name: /Floods damage vegetable fields/ });
+      fireEvent.change(screen.getByLabelText('Category'), { target: { value: 'all' } });
       // &#8217; in the fixture title must render as the real apostrophe (’), never the raw entity.
       const link = await screen.findByRole('link', { name: /Sri Lanka’s exports cross/ });
       expect(link).toHaveAttribute('href', 'https://example.lk/news/exports-milestone');
-      expect(link).toHaveAttribute('target', '_blank');
-      expect(link.getAttribute('rel')).toContain('noopener');
       expect(document.body.textContent).not.toContain('&#8217;');
-      // Null publishedDateUtc row still renders (falls back to retrievedAtUtc for the date).
+      // Null publishedDateUtc row renders (falls back to retrievedAtUtc), unscored → "—" + note.
       expect(screen.getByText(/Monsoon rains ease/)).toBeInTheDocument();
-      // Source badge shown on the feed rows.
-      expect(screen.getAllByText('lbo').length).toBeGreaterThan(0);
+      expect(screen.getByText(/Not classified yet/)).toBeInTheDocument();
+      // General row is Neutral, never a guessed direction.
+      expect(screen.getByText('Neutral')).toBeInTheDocument();
     });
 
-    it('a feed failure shows its own error state and never takes down the curated list', async () => {
+    it('a topic filter with no matching articles shows the filtered empty state', async () => {
+      renderPage(<NewsPage />);
+      await screen.findByRole('link', { name: /Floods damage vegetable fields/ });
+      fireEvent.change(screen.getByLabelText('Category'), { target: { value: 'drought' } });
+      expect(await screen.findByText(/No articles match this category/)).toBeInTheDocument();
+    });
+
+    it('has NO manual capture UI: no Add event button, no dialogs', async () => {
+      renderPage(<NewsPage />);
+      await screen.findByRole('link', { name: /Floods damage vegetable fields/ });
+      expect(screen.queryByText(/Add event/)).toBeNull();
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
+    });
+
+    it('a feed failure shows the retryable error state', async () => {
       vi.spyOn(api, 'getNewsArticles').mockRejectedValueOnce(new ApiError('boom', 500));
       renderPage(<NewsPage />);
-      // Curated events unaffected...
-      await screen.findByText('Diesel price raised by Rs. 25/litre');
-      // ...while the articles section shows the retryable error state.
       expect(await screen.findByText('Could not load')).toBeInTheDocument();
     });
 
@@ -479,11 +454,11 @@ describe('Admin console pages', () => {
 
     it('News: the ⓘ tap-toggles the explainer as an inline note, with no dangling aria-controls', async () => {
       renderPage(<NewsPage />);
-      await screen.findByText('Diesel price raised by Rs. 25/litre');
+      await screen.findByRole('link', { name: /Floods damage vegetable fields/ });
       const explainer = i18n.t('admin.news.explainer');
       // Banner gone; collapsed note not in the DOM, so no aria-controls idref yet.
       const preNotes = Array.from(document.querySelectorAll('.adm-note'));
-      expect(preNotes.some((n) => n.textContent?.includes('Record the facts'))).toBe(false);
+      expect(preNotes.some((n) => n.textContent?.includes('classified automatically'))).toBe(false);
       const btn = screen.getByRole('button', { name: 'What is this?' });
       expect(btn).toHaveAttribute('aria-expanded', 'false');
       expect(btn).not.toHaveAttribute('aria-controls');

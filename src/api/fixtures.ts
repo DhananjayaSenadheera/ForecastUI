@@ -976,9 +976,14 @@ export const fxNewsEvents: NewsEvent[] = [
 // the decode + fallback paths render in demo mode. Newest first, like the server.
 // ---------------------------------------------------------------------------
 export const fxNewsArticles: NewsArticle[] = [
-  { url: 'https://example.lk/news/exports-milestone', source: 'lbo', title: 'Sri Lanka&#8217;s exports cross US$ 9 bn in first half', summary: 'Export earnings kept a steady climb through June, led by apparel and agri produce.', publishedDateUtc: '2026-07-22T11:05:06', retrievedAtUtc: '2026-07-22T11:47:37', language: 'en' },
-  { url: 'https://example.lk/news/fertiliser-shipment', source: 'lbo', title: 'New fertiliser shipment cleared for Yala season', summary: 'A bulk urea consignment cleared customs and will reach distribution centres this week.', publishedDateUtc: '2026-07-21T07:30:00', retrievedAtUtc: '2026-07-21T08:41:42', language: 'en' },
-  { url: 'https://example.lk/news/monsoon-update', source: 'lbo', title: 'Monsoon rains ease across up-country growing areas', summary: 'Met Department reports rainfall easing over Nuwara Eliya and Badulla growing districts.', publishedDateUtc: null, retrievedAtUtc: '2026-07-20T08:41:42', language: 'en' },
+  // Supply-shock topic (flood) -> bullish regardless of tone.
+  { url: 'https://example.lk/news/flood-damage', source: 'lbo', title: 'Floods damage vegetable fields in Ratnapura', summary: 'Heavy rain flooded low-lying vegetable plots; transport to economic centres disrupted.', publishedDateUtc: '2026-07-22T12:10:00', retrievedAtUtc: '2026-07-22T12:41:00', language: 'en', topics: 'flood', sentimentScore: -0.6 },
+  // General news (scored, no topic) + HTML entity in the title -> neutral.
+  { url: 'https://example.lk/news/exports-milestone', source: 'lbo', title: 'Sri Lanka&#8217;s exports cross US$ 9 bn in first half', summary: 'Export earnings kept a steady climb through June, led by apparel and agri produce.', publishedDateUtc: '2026-07-22T11:05:06', retrievedAtUtc: '2026-07-22T11:47:37', language: 'en', topics: '', sentimentScore: 0.4 },
+  // Input topic (fertiliser) + positive tone -> bearish (supply easing).
+  { url: 'https://example.lk/news/fertiliser-shipment', source: 'lbo', title: 'New fertiliser shipment cleared for Yala season', summary: 'A bulk urea consignment cleared customs and will reach distribution centres this week.', publishedDateUtc: '2026-07-21T07:30:00', retrievedAtUtc: '2026-07-21T08:41:42', language: 'en', topics: 'fertiliser', sentimentScore: 0.5 },
+  // Null publish date (feed omitted it) + not yet scored -> date falls back, direction "—".
+  { url: 'https://example.lk/news/monsoon-update', source: 'lbo', title: 'Monsoon rains ease across up-country growing areas', summary: 'Met Department reports rainfall easing over Nuwara Eliya and Badulla growing districts.', publishedDateUtc: null, retrievedAtUtc: '2026-07-20T08:41:42', language: 'en', topics: null, sentimentScore: null },
 ];
 
 // ---------------------------------------------------------------------------
