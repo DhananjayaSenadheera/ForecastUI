@@ -603,12 +603,12 @@
         "colTrained": "Trained",
         "colBestMl": "Best model",
         "colBaseline": "Baseline",
-        "colGate": "Gate outcome",
+        "colGate": "Quality check",
         "colLive": "Live",
         "mae": "MAE {{mae}}",
         "gate": {
-          "promoted": "Promoted by gate",
-          "declined": "Declined by gate"
+          "promoted": "Passed quality check",
+          "declined": "Failed quality check"
         },
         "live": "Live",
         "overrideNote": "This model is serving now even though the gate declined it — a manual override. The decision below explains why.",

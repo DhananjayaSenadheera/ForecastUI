@@ -6,7 +6,7 @@
 // HONEST PROMOTION GATE (the whole point of this tab): `promoted` (currently LIVE —
 // exactly one row) and `decisionPromoted` (the gate's verdict at train time) are shown
 // as INDEPENDENT signals, never collapsed. When promoted=true && decisionPromoted=false
-// (a MANUAL OVERRIDE) the row honestly shows BOTH a "Live" badge AND "Declined by gate",
+// (a MANUAL OVERRIDE) the row honestly shows BOTH a "Live" badge AND "Failed quality check",
 // with the promotionDecision text available as a tooltip + an expandable drill-down.
 // Verdicts are never colour-only (the text label always accompanies the tone). MAE is a
 // raw metric shown to 2dp and is NEVER colour-coded (lower-is-better is context, not a
