@@ -358,6 +358,7 @@
   "admin": {
     "demoNote": "Demo data — connects to the live API after backend work lands.",
     "demoNoteNoApi": "Demo data — this screen connects to the live API after backend work lands (around mid-July 2026).",
+    "hintLabel": "What is this?",
     "sortBy": "Sort by {{col}}",
     "noAccess": {
       "title": "You don't have access to this area",

@@ -2,7 +2,7 @@
 // so this ships in the admin async chunk — never the farmer first-load bundle.
 // Keeps every admin page's four async states + the "demo data" honesty note + the
 // sortable header idiom consistent (mirrors the farmer pages' BestCrops/Prices).
-import { type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiMode } from '../api/client';
 import './admin.css';
@@ -17,15 +17,61 @@ export {
   PAGE_SIZES,
 } from '../components/TablePagination';
 
-/** Page header: title + optional subtitle (mirrors the farmer `.topbar`). */
-export function AdminTopbar({ title, subtitle }: { title: string; subtitle?: string }) {
+/** Page header: title + optional subtitle (mirrors the farmer `.topbar`). An optional
+ *  `hint` renders an AdminHint ⓘ beside the title (owner request 2026-07-22 — page
+ *  explainers live on a tooltip, not a 💡 banner). */
+export function AdminTopbar({ title, subtitle, hint, hintId }: { title: string; subtitle?: string; hint?: string; hintId?: string }) {
   return (
     <div className="topbar adm-topbar">
       <div>
-        <h1 className="topbar__title">{title}</h1>
+        <div className="adm-title-row">
+          <h1 className="topbar__title">{title}</h1>
+          {hint && hintId && <AdminHint hint={hint} id={hintId} />}
+        </div>
         {subtitle && <p className="adm-sub">{subtitle}</p>}
       </div>
     </div>
+  );
+}
+
+/** ⓘ explainer affordance — the standalone-page counterpart of the Logs tab tooltips
+ *  (owner request 2026-07-22; the 💡 banner treatment is retired). Desktop: the same
+ *  i18n text shows as a hover/keyboard-focus tooltip attached via aria-describedby —
+ *  the tooltip lives OUTSIDE the button label so it never joins the accessible name.
+ *  Touch has no hover, so tapping the ⓘ toggles the text as an inline note (this also
+ *  lets any user pin the explainer open). The note only carries aria-controls while it
+ *  exists — a collapsed note is not in the DOM, and a dangling idref is an ARIA
+ *  violation. Callers place AdminHint INSIDE an `.adm-title-row` flex row, NEVER inside
+ *  the heading element itself (heading content becomes the heading's accessible name);
+ *  the opened note wraps to its own full-width line via flex-basis. */
+export function AdminHint({ hint, id }: { hint: string; id: string }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const tipId = `${id}-tip`;
+  return (
+    <>
+      <span className="adm-hint-wrap">
+        <button
+          type="button"
+          className="adm-hint-btn"
+          aria-label={t('admin.hintLabel')}
+          aria-describedby={tipId}
+          aria-expanded={open}
+          {...(open ? { 'aria-controls': id } : {})}
+          onClick={() => setOpen((o) => !o)}
+        >
+          <span aria-hidden="true">ⓘ</span>
+        </button>
+        <span role="tooltip" id={tipId} className="adm-hint-tip">
+          {hint}
+        </span>
+      </span>
+      {open && (
+        <p className="adm-note adm-hint-note" role="note" id={id}>
+          {hint}
+        </p>
+      )}
+    </>
   );
 }
 

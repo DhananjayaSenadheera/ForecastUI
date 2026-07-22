@@ -33,7 +33,7 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import { CCPI_INDEX_KEY, CCPI_YOY_KEY, type MacroSeriesPoint } from '../api/types';
 import { formatDate } from '../lib/format';
-import { AdminError, AdminLoading, AdminTopbar, DemoNote } from './adminShared';
+import { AdminError, AdminHint, AdminLoading, AdminTopbar, DemoNote } from './adminShared';
 
 const VIEW_W = 640;
 const VIEW_H = 220;
@@ -193,11 +193,12 @@ export default function IndicatorsPage() {
       <section className="panel adm" aria-label={t('admin.indicators.title')}>
         <DemoNote />
 
-        <h3 className="adm-title">{t('admin.indicators.ccpi')}</h3>
-        <p className="adm-note" role="note">
-          <span aria-hidden="true">💡 </span>
-          {t('admin.indicators.explainer')}
-        </p>
+        {/* The CCPI explainer lives on a ⓘ tooltip beside the section heading (owner
+            request 2026-07-22 — same treatment as the Logs tab tooltips, 💡 banner gone). */}
+        <div className="adm-title-row">
+          <h3 className="adm-title">{t('admin.indicators.ccpi')}</h3>
+          <AdminHint hint={t('admin.indicators.explainer')} id="adm-ind-hint" />
+        </div>
         {!vintageDismissed && (
           <p className="adm-note adm-note--dismiss" role="note">
             <span aria-hidden="true">ℹ️ </span>

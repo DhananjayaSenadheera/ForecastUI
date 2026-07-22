@@ -313,9 +313,9 @@ describe('Admin console pages', () => {
       expect(screen.getByText('Last month')).toBeInTheDocument();
       expect(screen.getByText('12-month average')).toBeInTheDocument();
       expect(document.querySelector('.adm-bar')).toBeNull();
-      // no data table (owner redline) — charts + plain-language explainer instead
+      // no data table (owner redline) — charts instead; the plain-language explainer
+      // moved from a 💡 banner to the ⓘ tooltip (locked in its own describe below)
       expect(document.querySelector('.adm-table')).toBeNull();
-      expect(screen.getByText(/background inflation/)).toBeInTheDocument();
     });
 
     it('gauge reads the ready-made YoY series directly (latest 8.3%, elevated) — not derived MoM', async () => {
@@ -422,6 +422,52 @@ describe('Admin console pages', () => {
       const dialog = screen.getByRole('dialog');
       fireEvent.click(dialog.querySelector('.adm-btn--danger') as HTMLButtonElement);
       expect(await screen.findByText(msg)).toBeInTheDocument();
+    });
+  });
+
+  // ---- Page explainer ⓘ (owner request 2026-07-22: the 💡 banners follow the Logs
+  // tabs onto tooltips — AdminHint in adminShared) --------------------------------
+  describe('page explainer ⓘ tooltips (AdminHint)', () => {
+    it('Indicators: the CCPI explainer describes the ⓘ (aria-describedby → role=tooltip) and is no longer a banner', async () => {
+      renderPage(<IndicatorsPage />);
+      await waitFor(() => expect(document.querySelector('.adm-line')).toBeInTheDocument());
+      const explainer = i18n.t('admin.indicators.explainer');
+      // Banner-absence regression lock: no .adm-note carries the explainer text.
+      const notes = Array.from(document.querySelectorAll('.adm-note'));
+      expect(notes.some((n) => n.textContent?.includes('background inflation'))).toBe(false);
+      const btn = screen.getByRole('button', { name: 'What is this?' });
+      const tipId = btn.getAttribute('aria-describedby');
+      expect(tipId).toBeTruthy();
+      const tip = document.getElementById(tipId as string) as HTMLElement;
+      expect(tip).toHaveAttribute('role', 'tooltip');
+      expect(tip).toHaveTextContent(explainer);
+      // The explainer must DESCRIBE the ⓘ, never join its accessible name.
+      expect(btn).toHaveAccessibleName('What is this?');
+      expect(btn).toHaveAccessibleDescription(explainer);
+    });
+
+    it('News: the ⓘ tap-toggles the explainer as an inline note, with no dangling aria-controls', async () => {
+      renderPage(<NewsPage />);
+      await screen.findByText('Diesel price raised by Rs. 25/litre');
+      const explainer = i18n.t('admin.news.explainer');
+      // Banner gone; collapsed note not in the DOM, so no aria-controls idref yet.
+      const preNotes = Array.from(document.querySelectorAll('.adm-note'));
+      expect(preNotes.some((n) => n.textContent?.includes('Record the facts'))).toBe(false);
+      const btn = screen.getByRole('button', { name: 'What is this?' });
+      expect(btn).toHaveAttribute('aria-expanded', 'false');
+      expect(btn).not.toHaveAttribute('aria-controls');
+
+      fireEvent.click(btn);
+      expect(btn).toHaveAttribute('aria-expanded', 'true');
+      const noteId = btn.getAttribute('aria-controls');
+      expect(noteId).toBeTruthy();
+      const note = document.getElementById(noteId as string) as HTMLElement;
+      expect(note).toHaveAttribute('role', 'note');
+      expect(note).toHaveTextContent(explainer);
+
+      fireEvent.click(btn);
+      expect(btn).toHaveAttribute('aria-expanded', 'false');
+      expect(document.getElementById(noteId as string)).toBeNull();
     });
   });
 });
