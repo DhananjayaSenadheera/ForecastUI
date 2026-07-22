@@ -27,6 +27,7 @@ const LogsPage = lazy(() => import('./admin/logs/LogsPage'));
 const IngestionRunsPage = lazy(() => import('./admin/IngestionRunsPage'));
 const TrainingRunsPage = lazy(() => import('./admin/logs/TrainingRunsPage'));
 const UserActivityPage = lazy(() => import('./admin/logs/UserActivityPage'));
+const SystemErrorsPage = lazy(() => import('./admin/logs/SystemErrorsPage'));
 
 /** Subtle hold while an admin chunk loads (matches the auth boot shell). */
 function AdminFallback() {
@@ -81,6 +82,7 @@ export default function App() {
               <Route path="ingestion" element={lazyAdmin(<IngestionRunsPage />)} />
               <Route path="training" element={lazyAdmin(<TrainingRunsPage />)} />
               <Route path="user-activity" element={lazyAdmin(<UserActivityPage />)} />
+              <Route path="errors" element={lazyAdmin(<SystemErrorsPage />)} />
             </Route>
             {/* Legacy bookmark: the old standalone /admin/ingestion now lives in Logs. */}
             <Route path="ingestion" element={<Navigate to="/admin/logs/ingestion" replace />} />

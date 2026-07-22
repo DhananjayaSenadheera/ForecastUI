@@ -592,7 +592,8 @@
       "tabs": {
         "ingestion": "Ingestion runs",
         "training": "Model training",
-        "userActivity": "User activity"
+        "userActivity": "User activity",
+        "errors": "System errors"
       },
       "training": {
         "runsTitle": "Model training runs",
@@ -640,6 +641,26 @@
         "unverifiedAttempt": "(unverified attempt)",
         "emptyTitle": "No activity",
         "emptyBody": "No user activity has been recorded yet.",
+        "notApplicable": "—"
+      },
+      "errors": {
+        "title": "System errors",
+        "explainer": "Each row is one unexpected server error (a 500) that the app did not handle. The trace id matches the reference shown to the person who hit the error, so you can match a report to a row. Ordinary form and validation problems (400s) are not listed here.",
+        "colWhen": "When",
+        "colType": "Type",
+        "colMessage": "Message",
+        "colWhere": "Where",
+        "colTrace": "Trace id",
+        "expand": "Show details",
+        "collapse": "Hide details",
+        "messageHeading": "Message",
+        "traceHeading": "Trace id",
+        "sourceHeading": "Source",
+        "stackHeading": "Stack trace",
+        "noMessage": "No message recorded.",
+        "noStack": "No stack trace",
+        "emptyTitle": "No system errors",
+        "emptyBody": "Nothing has gone wrong on the server — no unexpected errors have been recorded.",
         "notApplicable": "—"
       }
     },

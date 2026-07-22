@@ -11,6 +11,7 @@ const LOGS_TABS: LogsTab[] = [
   { to: '/admin/logs/ingestion', labelKey: 'admin.logs.tabs.ingestion' },
   { to: '/admin/logs/training', labelKey: 'admin.logs.tabs.training' },
   { to: '/admin/logs/user-activity', labelKey: 'admin.logs.tabs.userActivity' },
+  { to: '/admin/logs/errors', labelKey: 'admin.logs.tabs.errors' },
 ];
 
 export default function LogsPage() {

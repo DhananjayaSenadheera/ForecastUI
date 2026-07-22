@@ -795,6 +795,40 @@ export interface UserActivityPage {
   total: number;
 }
 
+// =============================================================================
+// ADMIN CONSOLE — LOGS HUB Phase 3 (System errors). GET /api/admin/logs/errors
+// sits behind an Admin JWT (401/403 flows through the existing client interceptor —
+// ZERO new auth code) and returns the SAME server-paged envelope as the other tabs
+// ({items,page,pageSize,total}), ordered OccurredUtc DESC server-side. No filter —
+// page/pageSize only. All camelCase, timestamps Z-suffixed UTC, consumed verbatim.
+// Contract FROZEN, live on the backend branch.
+// =============================================================================
+
+/** One unexpected server error (an unhandled 500) — GET /api/admin/logs/errors
+ *  (ordered OccurredUtc DESC). Only unhandled exceptions land here; 400-type client
+ *  mistakes are NOT logged. `traceId` matches the id shown to the user who hit the
+ *  error, so an admin can tie a report back to a row. Every field after id/source is
+ *  nullable; `stackTrace` can be up to 8000 chars (shown in a scrollable drill-down). */
+export interface SystemError {
+  id: number;
+  occurredUtc: string; // ISO Z
+  source: string; // e.g. "API" — rendered verbatim
+  exceptionType: string; // e.g. "System.InvalidOperationException"
+  message: string | null;
+  path: string | null; // request path only (no query/host)
+  method: string | null; // HTTP method of the failing request
+  traceId: string | null; // matches the id shown to the user who hit the error
+  stackTrace: string | null; // up to 8000 chars; drill-down only
+}
+
+/** GET /api/admin/logs/errors — server-paged envelope. */
+export interface SystemErrorPage {
+  items: SystemError[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
 /** One parsed element of run.verification.checksJson. `severity` is defensive (any
  *  string) so a new backend severity never crashes the parse; the UI tones only the
  *  known PASS/WARN/FAIL values and shows the rest neutrally. */

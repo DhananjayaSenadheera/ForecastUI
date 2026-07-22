@@ -1228,3 +1228,69 @@
   font-size: var(--fs-xs);
   white-space: nowrap;
 }
+
+/* Logs Phase 3 — System errors cells (reuse .ing-table layout). ------------- */
+/* Fully-qualified exception type: namespace muted so the class name reads first. */
+.err-type__ns {
+  color: var(--text-3);
+}
+.err-type__name {
+  font-weight: var(--fw-medium);
+}
+/* Message truncates to one line in the table (full text in the title + drill-down);
+   the mobile stacked layout below lets it wrap instead. */
+.err-msg {
+  display: block;
+  max-width: 32ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.err-where {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-1);
+}
+.err-where__method {
+  font-weight: var(--fw-medium);
+}
+.err-where__path {
+  font-variant-numeric: var(--fvn-tabular);
+  word-break: break-all;
+}
+/* Full trace id in the drill-down — monospace, selectable, wraps rather than clips. */
+.err-trace-id {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--fs-sm);
+  word-break: break-all;
+}
+/* Stack trace: capped-height scroll box, verbatim monospace, keyboard-scrollable. */
+.err-trace {
+  margin: 0;
+  max-height: 16rem;
+  overflow: auto;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--text-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--fs-xs);
+  line-height: var(--lh-body);
+  white-space: pre;
+}
+.err-trace:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+@media (max-width: 600px) {
+  /* Stacked cards: let the truncated message breathe rather than clipping. */
+  .err-msg {
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
+}
