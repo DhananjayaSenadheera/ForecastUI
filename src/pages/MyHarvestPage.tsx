@@ -6,6 +6,7 @@ import type { Crop, CropTimeline, HarvestForecast } from '../api/types';
 import { cropDisplayName } from '../lib/crops';
 import { clampPlantDateToRange, formatDate, ymdLocal } from '../lib/format';
 import { isLowTrust } from '../lib/forecast';
+import { buildReadinessMap, type ReadinessMap } from '../lib/readiness';
 import { pushRecentCrop, readLastHarvest, readRecentCrops, writeLastHarvest } from '../lib/storage';
 import CropPicker from '../components/CropPicker';
 import ForecastResult from '../components/ForecastResult';
@@ -48,7 +49,26 @@ export default function MyHarvestPage() {
   const [tlLoading, setTlLoading] = useState(false);
   const [tlError, setTlError] = useState(false);
   const [recentIds, setRecentIds] = useState<string[]>(() => readRecentCrops());
+  const [readiness, setReadiness] = useState<ReadinessMap | null>(null);
   const resultRef = useRef<HTMLDivElement>(null);
+
+  // Crop-status colouring (2026-07-22). Strictly fail-soft: readiness is
+  // decoration on the picker — a failure or inactive model leaves the map null
+  // and the cards untinted, never an error state.
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getCropReadiness()
+      .then((r) => {
+        if (!cancelled) setReadiness(buildReadinessMap(r));
+      })
+      .catch(() => {
+        /* readiness unknown -> no tint */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Preselect precedence (runs ONCE after the list loads, so a later manual change
   // is never undone): a /my-harvest?crop=<id> deep-link (FE-7) ALWAYS wins; failing
@@ -175,6 +195,7 @@ export default function MyHarvestPage() {
           selectedId={selected?.id ?? null}
           onSelect={onSelect}
           recentIds={recentIds}
+          readiness={readiness}
         />
       </section>
 

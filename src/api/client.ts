@@ -15,6 +15,7 @@ import type {
   AdminUser,
   BestCrop,
   Crop,
+  CropReadiness,
   CropCreateCommand,
   CropTimeline,
   DailyIndicatorPoint,
@@ -267,6 +268,13 @@ export const api = {
   async getBestCrops(lookbackMonths = 3): Promise<BestCrop[]> {
     if (USE_FIXTURES) return fx.fxBestCrops;
     return request<BestCrop[]>(`/api/forecast/best-crops?lookbackMonths=${lookbackMonths}`);
+  },
+
+  // Crop-status colouring (2026-07-22). Callers treat a failure as "readiness
+  // unknown" (no tint) — this is decoration, never a page-blocking dependency.
+  async getCropReadiness(): Promise<CropReadiness> {
+    if (USE_FIXTURES) return fx.fxCropReadiness;
+    return request<CropReadiness>('/api/forecast/crop-readiness');
   },
 
   // Landing-dashboard snapshot (FE-1). LIVE route being built against the API-7

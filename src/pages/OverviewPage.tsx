@@ -23,6 +23,8 @@ import type { BestCrop, MarketLatestPrice, MarketMover, MarketOverview } from '.
 import { formatDate, formatPrice, mapVerdict } from '../lib/format';
 import { biggestMover, moverGlyph, moverDirectionKey, overviewHasData, partitionMovers } from '../lib/overview';
 import { buildSparkline } from '../lib/prices';
+import { buildReadinessMap, readinessFor, type ReadinessMap } from '../lib/readiness';
+import ReadinessBadge from '../components/ReadinessBadge';
 import TablePagination, { usePagination } from '../components/TablePagination';
 
 const WINDOW_OPTS = [7, 30, 90] as const;
@@ -70,6 +72,24 @@ export default function OverviewPage() {
 
   const onWindow = useCallback((days: number) => {
     setWindowDays((cur) => (cur === days ? cur : days));
+  }, []);
+
+  // Crop-status colouring (2026-07-22): readiness badges on the latest-prices
+  // strip. Fail-soft: readiness unknown -> null map -> no badges, never an error.
+  const [readiness, setReadiness] = useState<ReadinessMap | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getCropReadiness()
+      .then((r) => {
+        if (!cancelled) setReadiness(buildReadinessMap(r));
+      })
+      .catch(() => {
+        /* readiness unknown -> no badges */
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // ---- source 2: best-crops teaser (independent, fail-soft) ----
@@ -150,7 +170,7 @@ export default function OverviewPage() {
           <KpiRow ov={ov!} lang={lang} t={t} />
           <p className="ov-window">{t('pages.overview.windowCaption', { count: ov!.windowDays })}</p>
           <div className="panelgrid panelgrid--main ov-grid">
-            <LatestPricesPanel prices={ov!.latestPrices} lang={lang} t={t} />
+            <LatestPricesPanel prices={ov!.latestPrices} readiness={readiness} lang={lang} t={t} />
             <MoversPanel movers={ov!.movers} lang={lang} t={t} />
           </div>
         </div>
@@ -311,7 +331,7 @@ function MoverList({
 // Sparkline stroke is NEUTRAL teal (not direction-coloured); each carries an aria
 // sentence; the whole panel ships one <details> numeric table alternative (WCAG).
 // ---------------------------------------------------------------------------
-function LatestPricesPanel({ prices, lang, t }: { prices: MarketLatestPrice[]; lang: string; t: TFn }) {
+function LatestPricesPanel({ prices, readiness, lang, t }: { prices: MarketLatestPrice[]; readiness: ReadinessMap | null; lang: string; t: TFn }) {
   const rs = t('common.rs');
   // The contract caps latestPrices at 8 today, so the pager stays hidden — wired
   // anyway (owner: pagination on ALL tables) so a future cap change pages cleanly.
@@ -345,7 +365,10 @@ function LatestPricesPanel({ prices, lang, t }: { prices: MarketLatestPrice[]; l
                 {pager.pageRows.map((p) => (
                   <tr key={`${p.cropId}-${p.marketName}`}>
                     <th scope="row" className="ov-c-crop" data-label={t('pages.overview.colCrop')}>
-                      {p.cropName}
+                      {p.cropName}{' '}
+                      {/* aria-hidden: keeps the row-header name clean (glyph is
+                          visual decoration here; My harvest carries the full status). */}
+                      <ReadinessBadge status={readinessFor(readiness, p.cropId)} compact ariaHidden />
                     </th>
                     <td className="ov-c-market" data-label={t('pages.overview.colMarket')}>{p.marketName}</td>
                     <td className="ov-c-price ov-table__num" data-label={t('pages.overview.colPrice')}>

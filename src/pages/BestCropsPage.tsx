@@ -20,6 +20,8 @@ import { api } from '../api/client';
 import type { BestCrop } from '../api/types';
 import { formatPrice, mapConfidenceCode, mapVerdict } from '../lib/format';
 import { CropArt } from '../components/cropArt';
+import ReadinessBadge from '../components/ReadinessBadge';
+import { buildReadinessMap, readinessFor, type ReadinessMap } from '../lib/readiness';
 import TablePagination, { usePagination } from '../components/TablePagination';
 import {
   ariaSortFor,
@@ -72,6 +74,24 @@ export default function BestCropsPage() {
   useEffect(() => {
     void load(lookback);
   }, [load, lookback]);
+
+  // Crop-status colouring (2026-07-22): a readiness badge beside each crop name,
+  // consistent with the picker/chips language. Fail-soft: null map -> no badges.
+  const [readiness, setReadiness] = useState<ReadinessMap | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getCropReadiness()
+      .then((r) => {
+        if (!cancelled) setReadiness(buildReadinessMap(r));
+      })
+      .catch(() => {
+        /* readiness unknown -> no badges */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Shared axis is built from the FULL list so the scale is stable across sorts.
   const scale = useMemo(() => buildSharedScale(crops), [crops]);
@@ -212,6 +232,10 @@ export default function BestCropsPage() {
                             <span className="bc-crop__text">
                               <span className="bc-crop__name">{name}</span>
                               <span className="bc-crop__code">{c.cropCode}</span>
+                              {/* aria-hidden: inside the row-header th the word would
+                                  join every row's accessible name; the SR-facing
+                                  quality signal on this table is the Confidence column. */}
+                              <ReadinessBadge status={readinessFor(readiness, c.cropId)} ariaHidden />
                             </span>
                           </span>
                         </th>

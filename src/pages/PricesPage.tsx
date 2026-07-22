@@ -25,6 +25,8 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import type { Crop, Market, PriceHistoryPoint } from '../api/types';
 import { cropDisplayName } from '../lib/crops';
+import { buildReadinessMap, readinessFor, type ReadinessMap } from '../lib/readiness';
+import ReadinessBadge from '../components/ReadinessBadge';
 import { formatDate, formatPrice } from '../lib/format';
 import {
   buildMarketOverlayGeometry,
@@ -96,6 +98,24 @@ export default function PricesPage() {
   useEffect(() => {
     void loadBase();
   }, [loadBase]);
+
+  // Crop-status colouring (2026-07-22). A native <select> cannot tint options,
+  // so the SELECTED crop's status renders as a badge under the picker. Fail-soft.
+  const [readiness, setReadiness] = useState<ReadinessMap | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getCropReadiness()
+      .then((r) => {
+        if (!cancelled) setReadiness(buildReadinessMap(r));
+      })
+      .catch(() => {
+        /* readiness unknown -> no badge */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // ---- price history for the selected crop across all markets ---------------
   const loadHistories = useCallback(async (cid: string, ms: Market[]) => {
@@ -199,6 +219,11 @@ export default function PricesPage() {
                     </option>
                   ))}
                 </select>
+                {/* Selected crop's forecast-readiness (a <select> can't tint
+                    options). aria-hidden: inside this label it would join the
+                    select's accessible NAME; visually it still carries
+                    glyph + word. SR users get the full status on My harvest. */}
+                {cropId && <ReadinessBadge status={readinessFor(readiness, cropId)} ariaHidden />}
               </label>
 
               {view === 'one' && (

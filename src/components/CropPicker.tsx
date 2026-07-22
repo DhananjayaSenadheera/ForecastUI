@@ -11,12 +11,14 @@ import { useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Crop } from '../api/types';
 import { CropArt } from './cropArt';
+import ReadinessBadge from './ReadinessBadge';
 import {
   categoryLabelKey,
   cropDisplayName,
   filterCrops,
   groupCropsByCategory,
 } from '../lib/crops';
+import { readinessFor, readinessLabelKey, type ReadinessMap } from '../lib/readiness';
 
 export interface CropPickerProps {
   crops: Crop[];
@@ -27,6 +29,9 @@ export interface CropPickerProps {
   onSelect: (crop: Crop) => void;
   /** Recently-picked crop ids (FE-16). Pinned in a "Recent" group when not searching. */
   recentIds?: string[];
+  /** Crop-status colouring (2026-07-22): per-crop forecast readiness. null/absent
+   *  = readiness unknown (fetch failed or model inactive) -> cards stay untinted. */
+  readiness?: ReadinessMap | null;
 }
 
 const SKELETON_COUNT = 8;
@@ -39,6 +44,7 @@ export default function CropPicker({
   selectedId,
   onSelect,
   recentIds,
+  readiness = null,
 }: CropPickerProps) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
@@ -57,20 +63,30 @@ export default function CropPicker({
   }, [recentIds, crops]);
 
   // A single card renderer shared by the Recent group and the category groups.
-  const renderCard = (crop: Crop) => {
+  // `idPrefix` keeps the readiness-description ids unique when the SAME crop
+  // renders twice (Recent group + its category group).
+  const renderCard = (crop: Crop, idPrefix: string) => {
     const selected = crop.id === selectedId;
+    // Crop-status colouring: tint + glyph/word badge; null status = no claim.
+    // The badge is aria-hidden and the status is the button's DESCRIPTION
+    // (aria-describedby -> sr-only sibling) so it never joins the accessible
+    // NAME — same name-vs-description split as the Logs tab tooltips.
+    const status = readinessFor(readiness, crop.id);
+    const descId = status ? `${idPrefix}-rdy-${crop.id}` : undefined;
     return (
       <li key={crop.id}>
         <button
           type="button"
-          className={`cp-card${selected ? ' is-selected' : ''}`}
+          className={`cp-card${selected ? ' is-selected' : ''}${status ? ` cp-card--${status}` : ''}`}
           aria-pressed={selected}
+          {...(descId ? { 'aria-describedby': descId } : {})}
           onClick={() => onSelect(crop)}
         >
           <span className="cp-card__art">
             <CropArt crop={crop} />
           </span>
           <span className="cp-card__label">{cropDisplayName(crop, lang)}</span>
+          <ReadinessBadge status={status} ariaHidden />
           {selected && (
             <span className="cp-card__check" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -79,6 +95,11 @@ export default function CropPicker({
             </span>
           )}
         </button>
+        {descId && status && (
+          <span id={descId} className="sr-only">
+            {t(readinessLabelKey(status))}
+          </span>
+        )}
       </li>
     );
   };
@@ -160,7 +181,7 @@ export default function CropPicker({
                 <span aria-hidden="true">🕘 </span>
                 {t('crop.recent')}
               </h3>
-              <ul className="cp-grid">{recentCrops.map(renderCard)}</ul>
+              <ul className="cp-grid">{recentCrops.map((c) => renderCard(c, 'recent'))}</ul>
             </section>
           )}
           {groups.map((group) => {
@@ -170,7 +191,7 @@ export default function CropPicker({
             return (
               <section key={group.code ?? 'all'} className="cp-group" aria-label={groupLabel}>
                 {showGroupHeadings && <h3 className="cp-group__title">{groupLabel}</h3>}
-                <ul className="cp-grid">{group.crops.map(renderCard)}</ul>
+                <ul className="cp-grid">{group.crops.map((c) => renderCard(c, group.code ?? 'all'))}</ul>
               </section>
             );
           })}
