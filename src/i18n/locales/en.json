@@ -590,7 +590,57 @@
       "title": "Logs",
       "subtitle": "Data pipeline and system activity.",
       "tabs": {
-        "ingestion": "Ingestion runs"
+        "ingestion": "Ingestion runs",
+        "training": "Model training",
+        "userActivity": "User activity"
+      },
+      "training": {
+        "runsTitle": "Model training runs",
+        "explainer": "Each row is one model-training run. The gate decides whether a newly trained model is good enough to promote; the model actually serving forecasts now is marked Live. Lower MAE is better.",
+        "colVersion": "Version",
+        "colTrained": "Trained",
+        "colBestMl": "Best model",
+        "colBaseline": "Baseline",
+        "colGate": "Gate outcome",
+        "colLive": "Live",
+        "mae": "MAE {{mae}}",
+        "gate": {
+          "promoted": "Promoted by gate",
+          "declined": "Declined by gate"
+        },
+        "live": "Live",
+        "overrideNote": "This model is serving now even though the gate declined it — a manual override. The decision below explains why.",
+        "expand": "Show decision",
+        "collapse": "Hide decision",
+        "decisionHeading": "Promotion decision",
+        "trainRows": "Trained on {{count}} rows",
+        "crops": "{{count}} crops",
+        "emptyTitle": "No training runs",
+        "emptyBody": "No model training runs have been recorded yet.",
+        "notApplicable": "—"
+      },
+      "userActivity": {
+        "title": "User activity",
+        "explainer": "A record of sign-ins and account changes. Failed sign-ins show the username that was tried — an unverified attempt, not a confirmed account.",
+        "filterType": "Event",
+        "filterAll": "All events",
+        "colWhen": "When",
+        "colEvent": "Event",
+        "colActor": "Actor",
+        "colTarget": "Target",
+        "colDetails": "Details",
+        "event": {
+          "loginSucceeded": "Sign-in",
+          "loginFailed": "Failed sign-in",
+          "userRegistered": "Registered",
+          "roleChanged": "Role changed",
+          "userDeleted": "User deleted"
+        },
+        "attemptedUser": "“{{username}}”",
+        "unverifiedAttempt": "(unverified attempt)",
+        "emptyTitle": "No activity",
+        "emptyBody": "No user activity has been recorded yet.",
+        "notApplicable": "—"
       }
     },
     "ingestion": {

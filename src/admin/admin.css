@@ -45,6 +45,12 @@
   color: var(--critical-fg);
   border-color: var(--critical-fg);
 }
+/* Amber caution note (e.g. a manual-override explainer) — honest info, never an error. */
+.adm-note--warn {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  border-color: var(--lowtrust-border);
+}
 /* Dismissible dual-date (vintage) explainer: text + a small close affordance. */
 .adm-note--dismiss {
   display: flex;
@@ -294,6 +300,34 @@
   background: var(--surface-3);
   color: var(--text-3);
   border: 1px solid var(--line);
+}
+/* Logs Phase 2 badge tones (training gate outcome + Live, user-activity events).
+   Green = good/promoted, amber = warn (a failed/unverified attempt), muted = neutral/
+   declined. Live is a distinct branded pill (this is the currently-served model). Text
+   label ALWAYS shown — colour is never the sole signal. Red stays reserved app-wide. */
+.adm-status--good,
+.adm-status--promoted {
+  background: var(--good-bg);
+  color: var(--good-fg);
+}
+.adm-status--warn {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+.adm-status--neutral {
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+}
+.adm-status--declined {
+  background: var(--surface-3);
+  color: var(--text-3);
+  border: 1px solid var(--line);
+}
+.adm-status--live {
+  background: var(--brand-tint-2);
+  color: var(--brand-dark);
+  border: 1px solid var(--brand);
+  font-weight: var(--fw-bold);
 }
 
 .adm-reflink,
@@ -1152,4 +1186,45 @@
   outline: none;
   box-shadow: var(--focus-ring);
   border-radius: var(--r-sm);
+}
+
+/* Logs Phase 2 — Model training cells (reuse .ing-table layout). ------------- */
+.train-metric {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-1) var(--sp-2);
+}
+.train-metric__kind {
+  font-weight: var(--fw-medium);
+}
+.train-metric__mae {
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+  font-variant-numeric: var(--fvn-tabular);
+}
+/* Promotion-decision drill-down text — plain, verbatim, readable prose. */
+.train-decision {
+  margin: 0;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+  color: var(--text-2);
+}
+
+/* Logs Phase 2 — User activity cells (reuse .ing-table layout). -------------- */
+.ua-id {
+  font-variant-numeric: var(--fvn-tabular);
+  cursor: help; /* the full GUID is in the title attribute */
+}
+.ua-attempt {
+  display: inline;
+}
+/* The attempted username is UNVERIFIED — quoted + italic, visually distinct from a
+   real identity, with a muted "unverified attempt" flag beside it. */
+.ua-attempt__user {
+  font-style: italic;
+}
+.ua-attempt__flag {
+  font-size: var(--fs-xs);
+  white-space: nowrap;
 }

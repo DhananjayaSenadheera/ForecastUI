@@ -22,8 +22,11 @@ const FestivalsPage = lazy(() => import('./admin/FestivalsPage'));
 const IndicatorsPage = lazy(() => import('./admin/IndicatorsPage'));
 const NewsPage = lazy(() => import('./admin/NewsPage'));
 const LogsPage = lazy(() => import('./admin/logs/LogsPage'));
-// Kept its own lazy chunk — the Logs shell renders it into an <Outlet/> on demand.
+// Each Logs tab keeps its own lazy chunk — the Logs shell renders one into an
+// <Outlet/> on demand, so visiting a tab loads only that tab's code.
 const IngestionRunsPage = lazy(() => import('./admin/IngestionRunsPage'));
+const TrainingRunsPage = lazy(() => import('./admin/logs/TrainingRunsPage'));
+const UserActivityPage = lazy(() => import('./admin/logs/UserActivityPage'));
 
 /** Subtle hold while an admin chunk loads (matches the auth boot shell). */
 function AdminFallback() {
@@ -76,6 +79,8 @@ export default function App() {
             <Route path="logs" element={lazyAdmin(<LogsPage />)}>
               <Route index element={<Navigate to="/admin/logs/ingestion" replace />} />
               <Route path="ingestion" element={lazyAdmin(<IngestionRunsPage />)} />
+              <Route path="training" element={lazyAdmin(<TrainingRunsPage />)} />
+              <Route path="user-activity" element={lazyAdmin(<UserActivityPage />)} />
             </Route>
             {/* Legacy bookmark: the old standalone /admin/ingestion now lives in Logs. */}
             <Route path="ingestion" element={<Navigate to="/admin/logs/ingestion" replace />} />

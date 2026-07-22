@@ -727,6 +727,74 @@ export interface IngestionRunPage {
   total: number;
 }
 
+// =============================================================================
+// ADMIN CONSOLE — LOGS HUB Phase 2 (Model training + User activity). Both routes
+// sit behind an Admin JWT (401/403 flows through the existing client interceptor —
+// ZERO new auth code) and return the SAME server-paged envelope as ingestion runs
+// ({items,page,pageSize,total}). All camelCase, timestamps Z-suffixed UTC, consumed
+// verbatim. Contracts FROZEN, live on the backend branch.
+// =============================================================================
+
+/** One model-training run — GET /api/admin/logs/training (ordered TrainedAtUtc DESC).
+ *  HONESTY NOTE (load-bearing): `promoted` (currently LIVE — exactly one row true) and
+ *  `decisionPromoted` (the promotion GATE's verdict at train time) are INDEPENDENT.
+ *  promoted=true && decisionPromoted=false is a MANUAL OVERRIDE — both are surfaced,
+ *  never collapsed, and promotionDecision explains why. MAE fields may be null when a
+ *  kind produced no scorable model. */
+export interface TrainingRun {
+  version: string;
+  trainedAtUtc: string; // ISO Z
+  promoted: boolean; // currently the LIVE served model (exactly one row true)
+  decisionPromoted: boolean; // the promotion gate's verdict at train time
+  promotionDecision: string | null; // free-text decision detail (drill-down; verbatim)
+  bestMlKind: string | null;
+  bestMlMae: number | null;
+  bestBaselineKind: string | null;
+  bestBaselineMae: number | null;
+  nTrainRows: number | null;
+  nCrops: number | null;
+}
+
+/** GET /api/admin/logs/training — server-paged envelope. */
+export interface TrainingRunPage {
+  items: TrainingRun[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+/** The five frozen user-activity event-type wire strings. The server 400s any other
+ *  `type` filter value — the client sends OMIT (all) or one of these EXACT strings,
+ *  never free text. */
+export const USER_ACTIVITY_EVENT_TYPES = [
+  'loginSucceeded',
+  'loginFailed',
+  'userRegistered',
+  'roleChanged',
+  'userDeleted',
+] as const;
+export type UserActivityEventType = (typeof USER_ACTIVITY_EVENT_TYPES)[number];
+
+/** One user-activity event — GET /api/admin/logs/user-activity (ordered OccurredUtc
+ *  DESC). actorUserId/targetUserId are GUIDs (rendered truncated, full value in title);
+ *  usernameAttempted is populated on a loginFailed (an UNVERIFIED attempt, shown quoted). */
+export interface UserActivityEvent {
+  occurredUtc: string; // ISO Z
+  eventType: UserActivityEventType;
+  actorUserId: string | null; // Guid
+  targetUserId: string | null; // Guid
+  usernameAttempted: string | null; // present on loginFailed (unverified)
+  details: string | null;
+}
+
+/** GET /api/admin/logs/user-activity — server-paged envelope. */
+export interface UserActivityPage {
+  items: UserActivityEvent[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
 /** One parsed element of run.verification.checksJson. `severity` is defensive (any
  *  string) so a new backend severity never crashes the parse; the UI tones only the
  *  known PASS/WARN/FAIL values and shows the rest neutrally. */

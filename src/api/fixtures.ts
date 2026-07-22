@@ -24,6 +24,10 @@ import {
   type IngestionRun,
   type IngestionRunPage,
   type IngestionStatus,
+  type TrainingRun,
+  type TrainingRunPage,
+  type UserActivityEvent,
+  type UserActivityPage,
   type MacroSeriesPoint,
   type Market,
   type MarketLatestPrice,
@@ -1107,4 +1111,136 @@ export const fxIngestionStatusObj: IngestionStatus = {
 
 export function fxIngestionStatus(): IngestionStatus {
   return fxIngestionStatusObj;
+}
+
+// ---------------------------------------------------------------------------
+// ADMIN LOGS Phase 2 — MODEL TRAINING fixtures (GET /api/admin/logs/training).
+// 17 runs (v17..v1), TrainedAtUtc DESC. v17 is the CURRENT LIVE model AND a MANUAL
+// OVERRIDE (promoted=true, decisionPromoted=false) — the honest edge case the UI must
+// surface: the gate DECLINED it (cross-frame guardrail) but it was promoted anyway,
+// with promotionDecision explaining why. Exactly ONE row has promoted=true. Some past
+// rows were promoted by the gate at the time (decisionPromoted=true) yet are no longer
+// live. NOT real metrics — illustrative, env-fenced (see file header).
+// ---------------------------------------------------------------------------
+export const fxTrainingRunsAll: TrainingRun[] = [
+  {
+    version: 'v17',
+    trainedAtUtc: '2026-07-21T02:14:30Z',
+    promoted: true,
+    decisionPromoted: false,
+    promotionDecision:
+      'Hybrid scored MAE 97.92 on the new evaluation frame. The promotion guardrail ' +
+      'blocked the candidate because the frame changed since the incumbent was scored ' +
+      '(cross-frame comparison). Override applied per the v14 lesson: re-scored the ' +
+      'incumbent on the new frame, confirmed the candidate wins, and promoted manually.',
+    bestMlKind: 'hybrid',
+    bestMlMae: 97.92,
+    bestBaselineKind: 'crop_mean',
+    bestBaselineMae: 118.4,
+    nTrainRows: 84120,
+    nCrops: 96,
+  },
+  {
+    version: 'v16',
+    trainedAtUtc: '2026-07-14T02:12:08Z',
+    promoted: false,
+    decisionPromoted: true,
+    promotionDecision: 'Candidate beat the incumbent by 4.1% MAE on a shared frame — promoted by gate.',
+    bestMlKind: 'residual',
+    bestMlMae: 101.7,
+    bestBaselineKind: 'crop_mean',
+    bestBaselineMae: 119.2,
+    nTrainRows: 82910,
+    nCrops: 96,
+  },
+  {
+    version: 'v15',
+    trainedAtUtc: '2026-07-07T02:11:44Z',
+    promoted: false,
+    decisionPromoted: false,
+    promotionDecision: 'Candidate MAE 106.3 did not beat the incumbent (102.9) — declined by gate.',
+    bestMlKind: 'residual',
+    bestMlMae: 106.3,
+    bestBaselineKind: 'crop_mean',
+    bestBaselineMae: 120.1,
+    nTrainRows: 81640,
+    nCrops: 95,
+  },
+  {
+    version: 'v14',
+    trainedAtUtc: '2026-06-30T02:10:55Z',
+    promoted: false,
+    decisionPromoted: true,
+    promotionDecision: 'Promoted by gate after re-scoring the incumbent on the changed frame.',
+    bestMlKind: 'residual',
+    bestMlMae: 102.9,
+    bestBaselineKind: 'crop_mean',
+    bestBaselineMae: 121.0,
+    nTrainRows: 80510,
+    nCrops: 95,
+  },
+  ...Array.from({ length: 13 }, (_, i): TrainingRun => {
+    const n = 13 - i; // v13 .. v1
+    const week = String(13 - i).padStart(2, '0');
+    const decision = n % 3 === 0; // a few historical gate promotions
+    const mlMae = 108 + i * 1.7;
+    return {
+      version: `v${n}`,
+      trainedAtUtc: `2026-${n >= 10 ? '06' : n >= 5 ? '05' : '04'}-${week}T02:09:00Z`,
+      promoted: false,
+      decisionPromoted: decision,
+      promotionDecision: decision
+        ? 'Promoted by gate — beat the incumbent on a shared frame.'
+        : 'Declined by gate — did not beat the incumbent.',
+      bestMlKind: n % 2 === 0 ? 'residual' : 'model',
+      bestMlMae: Number(mlMae.toFixed(2)),
+      bestBaselineKind: 'crop_mean',
+      bestBaselineMae: Number((122 + i * 0.9).toFixed(2)),
+      nTrainRows: 60000 + n * 1500,
+      nCrops: 90 + (n % 6),
+    };
+  }),
+];
+
+/** Simulate the SERVER's paging (never client-sliced by the page — the page always
+ *  trusts {items,page,pageSize,total}). */
+export function fxTrainingRuns(page = 1, pageSize = 25): TrainingRunPage {
+  const total = fxTrainingRunsAll.length;
+  const start = Math.max(0, (page - 1) * pageSize);
+  return { items: fxTrainingRunsAll.slice(start, start + pageSize), page, pageSize, total };
+}
+
+// ---------------------------------------------------------------------------
+// ADMIN LOGS Phase 2 — USER ACTIVITY fixtures (GET /api/admin/logs/user-activity).
+// Covers all five event types, OccurredUtc DESC, INCLUDING a loginFailed row carrying
+// usernameAttempted (an unverified attempt — no actor) so the "quoted attempt" display
+// is demo-able. GUIDs are realistic so truncation + full-value titles are exercisable.
+// NOT real accounts — illustrative, env-fenced (see file header).
+// ---------------------------------------------------------------------------
+const FX_ADMIN_ID = 'a1111111-1111-4111-8111-111111111111';
+const FX_FARMER_A = 'f2222222-2222-4222-8222-222222222222';
+const FX_FARMER_B = 'f3333333-3333-4333-8333-333333333333';
+
+export const fxUserActivityAll: UserActivityEvent[] = [
+  { occurredUtc: '2026-07-21T08:42:11Z', eventType: 'loginFailed', actorUserId: null, targetUserId: null, usernameAttempted: 'admin', details: 'Invalid username or password.' },
+  { occurredUtc: '2026-07-21T08:41:52Z', eventType: 'loginSucceeded', actorUserId: FX_ADMIN_ID, targetUserId: null, usernameAttempted: null, details: null },
+  { occurredUtc: '2026-07-21T07:30:04Z', eventType: 'roleChanged', actorUserId: FX_ADMIN_ID, targetUserId: FX_FARMER_A, usernameAttempted: null, details: 'Role changed Farmer → Admin.' },
+  { occurredUtc: '2026-07-20T19:05:33Z', eventType: 'userRegistered', actorUserId: FX_FARMER_B, targetUserId: FX_FARMER_B, usernameAttempted: null, details: 'Self-registration (role Farmer).' },
+  { occurredUtc: '2026-07-20T14:19:02Z', eventType: 'loginSucceeded', actorUserId: FX_FARMER_A, targetUserId: null, usernameAttempted: null, details: null },
+  { occurredUtc: '2026-07-20T14:18:47Z', eventType: 'loginFailed', actorUserId: null, targetUserId: null, usernameAttempted: 'kumara.p', details: 'Invalid username or password.' },
+  { occurredUtc: '2026-07-19T21:47:15Z', eventType: 'userDeleted', actorUserId: FX_ADMIN_ID, targetUserId: FX_FARMER_B, usernameAttempted: null, details: 'Removed a duplicate test account.' },
+  { occurredUtc: '2026-07-19T09:12:00Z', eventType: 'loginSucceeded', actorUserId: FX_ADMIN_ID, targetUserId: null, usernameAttempted: null, details: null },
+  { occurredUtc: '2026-07-18T16:03:29Z', eventType: 'loginFailed', actorUserId: null, targetUserId: null, usernameAttempted: 'nimal', details: 'Invalid username or password.' },
+  { occurredUtc: '2026-07-18T08:55:41Z', eventType: 'userRegistered', actorUserId: FX_FARMER_A, targetUserId: FX_FARMER_A, usernameAttempted: null, details: 'Self-registration (role Farmer).' },
+  { occurredUtc: '2026-07-17T11:22:10Z', eventType: 'loginSucceeded', actorUserId: FX_FARMER_A, targetUserId: null, usernameAttempted: null, details: null },
+  { occurredUtc: '2026-07-16T13:40:58Z', eventType: 'roleChanged', actorUserId: FX_ADMIN_ID, targetUserId: FX_FARMER_A, usernameAttempted: null, details: 'Role changed Admin → Farmer.' },
+];
+
+/** Simulate the SERVER's paging + optional `type` filter (never client-sliced by the
+ *  page). The `type` value is one of the five frozen wire strings or omitted. */
+export function fxUserActivity(page = 1, pageSize = 25, type?: string): UserActivityPage {
+  const filtered = type ? fxUserActivityAll.filter((e) => e.eventType === type) : fxUserActivityAll;
+  const total = filtered.length;
+  const start = Math.max(0, (page - 1) * pageSize);
+  return { items: filtered.slice(start, start + pageSize), page, pageSize, total };
 }
