@@ -34,6 +34,7 @@ import {
   type MarketLatestPrice,
   type MarketMover,
   type MarketOverview,
+  type NewsArticle,
   type NewsEvent,
   type PolicyFlag,
   type PriceHistoryPoint,
@@ -966,6 +967,18 @@ export const fxNewsEvents: NewsEvent[] = [
   { id: 'e0000005-0000-0000-0000-000000000005', eventType: PolicyType.ExportBan, direction: PolicyDirection.Bearish, title: 'Temporary green chilli export pause', description: 'Short export pause on green chilli to ease a domestic supply squeeze.', publishedAt: '2026-04-22', sourceUrl: null, affectedCropIds: ['c0000005-0000-0000-0000-000000000005'], affectedMarketIds: [], createdAtUtc: '2026-04-22T00:00:00Z' },
   { id: 'e0000006-0000-0000-0000-000000000006', eventType: PolicyType.Other, direction: PolicyDirection.Bullish, title: 'Heavy monsoon rains in Nuwara Eliya district', description: 'Prolonged rain damaged up-country vegetable crops; short-term supply tightening expected.', publishedAt: '2026-04-05', sourceUrl: null, affectedCropIds: ['c0000006-0000-0000-0000-000000000006', 'c0000007-0000-0000-0000-000000000007'], affectedMarketIds: [], createdAtUtc: '2026-04-05T00:00:00Z' },
   { id: 'e0000007-0000-0000-0000-000000000007', eventType: PolicyType.PriceCeiling, direction: PolicyDirection.Bearish, title: 'Retail price cap reintroduced on selected vegetables', description: 'CAA set maximum retail prices on a few staple vegetables during a festival demand spike.', publishedAt: '2026-03-30', sourceUrl: null, affectedCropIds: ['c0000003-0000-0000-0000-000000000003'], affectedMarketIds: [], createdAtUtc: '2026-03-30T00:00:00Z' },
+];
+
+// ---------------------------------------------------------------------------
+// Ingested news ARTICLES (read-only feed on the admin News page). Mirrors the
+// Python-owned NewsArticles capture table: naive-UTC timestamps (no Z), one row
+// with a null publish date (feed omitted it) and an HTML entity in the title so
+// the decode + fallback paths render in demo mode. Newest first, like the server.
+// ---------------------------------------------------------------------------
+export const fxNewsArticles: NewsArticle[] = [
+  { url: 'https://example.lk/news/exports-milestone', source: 'lbo', title: 'Sri Lanka&#8217;s exports cross US$ 9 bn in first half', summary: 'Export earnings kept a steady climb through June, led by apparel and agri produce.', publishedDateUtc: '2026-07-22T11:05:06', retrievedAtUtc: '2026-07-22T11:47:37', language: 'en' },
+  { url: 'https://example.lk/news/fertiliser-shipment', source: 'lbo', title: 'New fertiliser shipment cleared for Yala season', summary: 'A bulk urea consignment cleared customs and will reach distribution centres this week.', publishedDateUtc: '2026-07-21T07:30:00', retrievedAtUtc: '2026-07-21T08:41:42', language: 'en' },
+  { url: 'https://example.lk/news/monsoon-update', source: 'lbo', title: 'Monsoon rains ease across up-country growing areas', summary: 'Met Department reports rainfall easing over Nuwara Eliya and Badulla growing districts.', publishedDateUtc: null, retrievedAtUtc: '2026-07-20T08:41:42', language: 'en' },
 ];
 
 // ---------------------------------------------------------------------------

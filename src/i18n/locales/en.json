@@ -587,7 +587,11 @@
       "deletedFlash": "News event \"{{title}}\" deleted.",
       "publishedReadonly": "The publish date is the event's knowledge date and can't be changed after it's recorded.",
       "emptyTitle": "No events",
-      "emptyBody": "No news events recorded yet. Add one to get started."
+      "emptyBody": "No news events recorded yet. Add one to get started.",
+      "ingestedTitle": "Ingested articles",
+      "ingestedExplainer": "Headlines the news pipeline collects automatically (they feed the model's news signal). Read-only — recording an event above is still your call.",
+      "ingestedEmptyTitle": "No articles",
+      "ingestedEmptyBody": "The news pipeline hasn't captured any articles yet."
     },
     "logs": {
       "title": "Logs",
