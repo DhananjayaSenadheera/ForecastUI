@@ -180,17 +180,13 @@ export default function IngestionRunsPage() {
   return (
     <>
       {/* No page title here: this renders inside the Logs hub, under its H1 + tab strip.
-          The tab label ("Ingestion runs") is the heading; the 💡 explainer note below
-          carries the context the old subtitle used to. */}
+          The tab label ("Ingestion runs") is the heading; the explainer lives on the tab
+          itself as a hover/focus tooltip (mobile: the hub's ⓘ toggle). */}
 
       {/* Status snapshot — fails independently of the runs table below. */}
       <section className="panel adm" aria-label={t('admin.ingestion.statusTitle')}>
         <DemoNote />
         <h2 className="adm-title">{t('admin.ingestion.statusTitle')}</h2>
-        <p className="adm-note" role="note">
-          <span aria-hidden="true">💡 </span>
-          {t('admin.ingestion.explainer')}
-        </p>
         {statusLoading && !status ? (
           <AdminLoading rows={3} />
         ) : statusError && !status ? (

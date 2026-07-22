@@ -39,8 +39,8 @@ function renderLogsRoutes(start: string) {
 
 describe('LogsTabs — tab-strip a11y (Phase 1)', () => {
   const TABS: LogsTab[] = [
-    { to: '/overview', labelKey: 'nav.overview' }, // "Overview"
-    { to: '/prices', labelKey: 'nav.prices' }, // "Prices"
+    { to: '/overview', labelKey: 'nav.overview', hintKey: 'admin.logs.training.explainer' }, // "Overview"
+    { to: '/prices', labelKey: 'nav.prices', hintKey: 'admin.logs.errors.explainer' }, // "Prices"
   ];
 
   beforeEach(async () => {
@@ -164,6 +164,60 @@ describe('Logs hub routing (Phase 1)', () => {
       expect(screen.getByTestId('pathname')).toHaveTextContent('/admin/logs/ingestion'),
     );
     expect(screen.getByText('INGESTION TAB CONTENT')).toBeInTheDocument();
+  });
+});
+
+describe('Logs tab explainers — tooltip + mobile ⓘ toggle', () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage('en');
+  });
+
+  const EXPLAINERS: Record<string, string> = {
+    'Ingestion runs': 'admin.ingestion.explainer',
+    'Model training': 'admin.logs.training.explainer',
+    'User activity': 'admin.logs.userActivity.explainer',
+    'System errors': 'admin.logs.errors.explainer',
+  };
+
+  it('every tab is described by its explainer tooltip (aria-describedby → role=tooltip)', () => {
+    renderLogsRoutes('/admin/logs/ingestion');
+    for (const [label, key] of Object.entries(EXPLAINERS)) {
+      const tab = screen.getByRole('tab', { name: label });
+      const tipId = tab.getAttribute('aria-describedby');
+      expect(tipId).toBeTruthy();
+      const tip = document.getElementById(tipId as string) as HTMLElement;
+      expect(tip).toHaveAttribute('role', 'tooltip');
+      expect(tip).toHaveTextContent(i18n.t(key));
+      // The explainer must DESCRIBE the tab, never join its accessible name.
+      expect(tab).toHaveAccessibleName(label);
+      expect(tab).toHaveAccessibleDescription(i18n.t(key));
+    }
+  });
+
+  it('the ⓘ toggle reveals the ACTIVE tab\'s explainer and collapses on tab change', async () => {
+    renderLogsRoutes('/admin/logs/training');
+    const toggle = screen.getByRole('button', { name: 'About this tab' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    // No dangling idref while collapsed — the note is not in the DOM.
+    expect(toggle).not.toHaveAttribute('aria-controls');
+    expect(screen.queryByRole('note')).toBeNull();
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    const note = screen.getByRole('note');
+    expect(toggle).toHaveAttribute('aria-controls', note.id);
+    expect(note).toHaveTextContent(i18n.t('admin.logs.training.explainer'));
+
+    // Navigating to another tab must collapse the note (no stale explainer).
+    fireEvent.click(screen.getByRole('tab', { name: 'System errors' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('pathname')).toHaveTextContent('/admin/logs/errors'),
+    );
+    expect(screen.getByRole('button', { name: 'About this tab' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    expect(screen.queryByRole('note')).toBeNull();
   });
 });
 

@@ -1154,12 +1154,104 @@
   gap: var(--sp-1);
   border-bottom: 1px solid var(--line);
   margin-bottom: var(--sp-4);
-  /* Mobile: never wrap — the strip scrolls horizontally under the finger. */
-  overflow-x: auto;
-  scrollbar-width: none;
+  /* Desktop: overflow stays visible so the tab tooltips can escape the strip
+     (overflow-x: auto would clip them); wrapping keeps every tab reachable when
+     the strip outgrows a narrow-desktop window or gains more tabs. Mobile takes
+     the scrolling strip below instead. */
+  overflow: visible;
+  flex-wrap: wrap;
 }
-.logs-tabs::-webkit-scrollbar {
+@media (max-width: 600px) {
+  .logs-tabs {
+    /* Mobile: never wrap — the strip scrolls horizontally under the finger.
+       This clips the tooltips, which are hidden on touch anyway (ⓘ toggle instead). */
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .logs-tabs::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Tab explainer tooltip: shown above the tab on hover/focus-within (desktop pointer
+   devices). Wired to the tab via aria-describedby; pointer-events none so it never
+   steals the hover. Same token idiom as the chart tooltip (.ct-tip). */
+.logs-tab-wrap {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+.logs-tab-tip {
+  position: absolute;
+  /* Below the tab, not above: the strip sits directly under the page header, so an
+     above-placed tip clips at the viewport top on short headers. */
+  top: calc(100% + var(--sp-1));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  width: max-content;
+  max-width: min(320px, 78vw);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface);
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--e-2);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-regular);
+  line-height: 1.45;
+  color: var(--text-1);
+  white-space: normal;
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+.logs-tab-wrap:hover .logs-tab-tip,
+.logs-tab-wrap:focus-within .logs-tab-tip {
+  visibility: visible;
+  opacity: 1;
+}
+/* First tab: centring the tip would push it off the left edge — pin it left. */
+.logs-tab-wrap:first-child .logs-tab-tip {
+  left: 0;
+  transform: none;
+}
+
+/* Mobile/touch fallback: hover doesn't exist there, so a small ⓘ button under the
+   strip taps open the ACTIVE tab's explainer. Hidden wherever a real pointer hovers. */
+.logs-hint-toggle {
   display: none;
+  align-items: center;
+  gap: var(--sp-1);
+  margin: calc(-1 * var(--sp-3)) 0 var(--sp-3);
+  padding: var(--sp-1) var(--sp-2);
+  min-height: var(--touch-min);
+  border: 0;
+  background: none;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+.logs-hint-toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-sm);
+}
+@media (hover: none), (max-width: 600px) {
+  .logs-tab-tip {
+    display: none;
+  }
+  .logs-hint-toggle {
+    display: inline-flex;
+  }
+}
+/* If the ⓘ was opened on mobile and the window then widens, hide the note along with
+   its (now-hidden) toggle — otherwise it lingers with no way to dismiss it. */
+@media (hover: hover) and (min-width: 601px) {
+  .logs-hint-note {
+    display: none;
+  }
 }
 .logs-tab {
   display: inline-flex;

@@ -67,10 +67,6 @@ export default function TrainingRunsPage() {
   return (
     <section className="panel adm" aria-label={t('admin.logs.training.runsTitle')}>
       <DemoNote />
-      <p className="adm-note" role="note">
-        <span aria-hidden="true">💡 </span>
-        {t('admin.logs.training.explainer')}
-      </p>
 
       {error && !runs ? (
         <AdminError onRetry={() => void load()} />

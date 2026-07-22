@@ -70,10 +70,6 @@ export default function UserActivityPage() {
   return (
     <section className="panel adm" aria-label={t('admin.logs.userActivity.title')}>
       <DemoNote />
-      <p className="adm-note" role="note">
-        <span aria-hidden="true">💡 </span>
-        {t('admin.logs.userActivity.explainer')}
-      </p>
 
       <div className="adm-toolbar">
         <label className="adm-field ing-filter">

@@ -12,6 +12,8 @@ import { useTranslation } from 'react-i18next';
 export interface LogsTab {
   to: string;
   labelKey: string;
+  /** i18n key of the tab's one-paragraph explainer, shown as a hover/focus tooltip. */
+  hintKey: string;
 }
 
 // The router renders every tab's content into the SAME panel region (LogsPage's
@@ -23,24 +25,39 @@ export function logsTabId(to: string): string {
   return `logs-tab-${to.split('/').filter(Boolean).pop() ?? 'index'}`;
 }
 
-/** One tab link. Uses useMatch (end: true) so aria-selected/tabindex track the route. */
-const LogsTabLink = forwardRef<HTMLAnchorElement, { tab: LogsTab; label: string }>(
-  function LogsTabLink({ tab, label }, ref) {
+/** Stable DOM id for a tab's tooltip. */
+export function logsTabTipId(to: string): string {
+  return `${logsTabId(to)}-tip`;
+}
+
+/** One tab link. Uses useMatch (end: true) so aria-selected/tabindex track the route.
+ * The tab's explainer renders as a sibling tooltip (CSS shows it on hover/focus-within;
+ * hidden on touch devices, where LogsPage's ⓘ toggle carries the same text instead).
+ * The tooltip lives OUTSIDE the link so it never joins the tab's accessible name —
+ * it is attached as the tab's description via aria-describedby. */
+const LogsTabLink = forwardRef<HTMLAnchorElement, { tab: LogsTab; label: string; hint: string }>(
+  function LogsTabLink({ tab, label, hint }, ref) {
     const selected = useMatch({ path: tab.to, end: true }) !== null;
     return (
-      <NavLink
-        ref={ref}
-        to={tab.to}
-        id={logsTabId(tab.to)}
-        role="tab"
-        aria-selected={selected}
-        aria-controls={LOGS_TABPANEL_ID}
-        // Roving tabindex: only the selected tab is tabbable; arrow keys reach the rest.
-        tabIndex={selected ? 0 : -1}
-        className={({ isActive }) => `logs-tab${isActive ? ' is-active' : ''}`}
-      >
-        {label}
-      </NavLink>
+      <span className="logs-tab-wrap">
+        <NavLink
+          ref={ref}
+          to={tab.to}
+          id={logsTabId(tab.to)}
+          role="tab"
+          aria-selected={selected}
+          aria-controls={LOGS_TABPANEL_ID}
+          aria-describedby={logsTabTipId(tab.to)}
+          // Roving tabindex: only the selected tab is tabbable; arrow keys reach the rest.
+          tabIndex={selected ? 0 : -1}
+          className={({ isActive }) => `logs-tab${isActive ? ' is-active' : ''}`}
+        >
+          {label}
+        </NavLink>
+        <span role="tooltip" id={logsTabTipId(tab.to)} className="logs-tab-tip">
+          {hint}
+        </span>
+      </span>
     );
   },
 );
@@ -90,6 +107,7 @@ export default function LogsTabs({ tabs, ariaLabel }: { tabs: LogsTab[]; ariaLab
           key={tab.to}
           tab={tab}
           label={t(tab.labelKey)}
+          hint={t(tab.hintKey)}
           ref={(el) => {
             refs.current[i] = el;
           }}
