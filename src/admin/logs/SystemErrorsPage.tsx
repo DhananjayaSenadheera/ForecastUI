@@ -64,10 +64,6 @@ export default function SystemErrorsPage() {
   return (
     <section className="panel adm" aria-label={t('admin.logs.errors.title')}>
       <DemoNote />
-      <p className="adm-note" role="note">
-        <span aria-hidden="true">💡 </span>
-        {t('admin.logs.errors.explainer')}
-      </p>
 
       {error && !data ? (
         <AdminError onRetry={() => void load()} />

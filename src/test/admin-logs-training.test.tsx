@@ -58,6 +58,13 @@ describe('Model training tab (Logs P2.6)', () => {
     expect(document.querySelector('.adm-skeleton')).not.toBeNull();
   });
 
+  it('no longer renders the explainer banner on the page (it moved to the tab tooltip)', async () => {
+    vi.spyOn(api, 'getTrainingRuns').mockResolvedValue(fxTrainingRuns(1, 25));
+    renderPage();
+    await screen.findByRole('table', { name: 'Model training runs' });
+    expect(screen.queryByText(i18n.t('admin.logs.training.explainer'))).toBeNull();
+  });
+
   it('success: renders a row per training run', async () => {
     vi.spyOn(api, 'getTrainingRuns').mockResolvedValue(fxTrainingRuns(1, 25));
     renderPage();

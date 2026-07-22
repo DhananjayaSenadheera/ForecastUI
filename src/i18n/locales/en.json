@@ -589,6 +589,7 @@
     "logs": {
       "title": "Logs",
       "subtitle": "Data pipeline and system activity.",
+      "hintToggle": "About this tab",
       "tabs": {
         "ingestion": "Ingestion runs",
         "training": "Model training",
