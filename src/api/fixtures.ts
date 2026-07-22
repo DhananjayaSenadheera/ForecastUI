@@ -37,6 +37,8 @@ import {
   type PolicyFlag,
   type PriceHistoryPoint,
   type SeriesCatalogEntry,
+  type SystemError,
+  type SystemErrorPage,
 } from './types';
 
 // NOTE (localized crop names): nameSi/nameTa below are DRAFT translations for
@@ -1243,4 +1245,62 @@ export function fxUserActivity(page = 1, pageSize = 25, type?: string): UserActi
   const total = filtered.length;
   const start = Math.max(0, (page - 1) * pageSize);
   return { items: filtered.slice(start, start + pageSize), page, pageSize, total };
+}
+
+// ---------------------------------------------------------------------------
+// ADMIN LOGS Phase 3 — SYSTEM ERRORS fixtures (GET /api/admin/logs/errors).
+// A FEW rows, OccurredUtc DESC, exercising both drill-down states: one row carries a
+// long multi-line stackTrace, another has NULL message/stackTrace (the "no stack
+// trace" quiet note). Kept SMALL — this file is statically imported by client.ts.
+// NOT real errors — illustrative, env-fenced (see file header).
+// ---------------------------------------------------------------------------
+export const fxSystemErrorsAll: SystemError[] = [
+  {
+    id: 3,
+    occurredUtc: '2026-07-22T00:56:05Z',
+    source: 'API',
+    exceptionType: 'System.InvalidOperationException',
+    message: 'Sequence contains no elements while resolving the latest forecast frame.',
+    path: '/api/forecast/best-crops',
+    method: 'GET',
+    traceId: '0HNN7HFVC11H0:00000001',
+    stackTrace:
+      'System.InvalidOperationException: Sequence contains no elements\n' +
+      '   at System.Linq.ThrowHelper.ThrowNoElementsException()\n' +
+      '   at AgriForecast.Application.Forecast.BestCropsHandler.Handle(BestCropsQuery q)\n' +
+      '   at AgriForecast.Api.Controllers.ForecastController.BestCrops()',
+  },
+  {
+    id: 2,
+    occurredUtc: '2026-07-21T18:12:40Z',
+    source: 'API',
+    exceptionType: 'System.NullReferenceException',
+    message: null,
+    path: '/api/crops/get/all',
+    method: 'GET',
+    traceId: '0HNN7H9AB2K44:00000007',
+    stackTrace: null,
+  },
+  {
+    id: 1,
+    occurredUtc: '2026-07-20T09:03:17Z',
+    source: 'API',
+    exceptionType: 'System.TimeoutException',
+    message: 'The prediction service did not respond within 30s.',
+    path: '/api/forecast/crop/VEG000012/harvest',
+    method: 'GET',
+    traceId: '0HNN7GQ1P55T2:00000003',
+    stackTrace:
+      'System.TimeoutException: The operation has timed out.\n' +
+      '   at AgriForecast.Infrastructure.Ml.PredictClient.PredictAsync(...)\n' +
+      '   at AgriForecast.Application.Forecast.HarvestForecastHandler.Handle(...)',
+  },
+];
+
+/** Simulate the SERVER's paging (never client-sliced by the page — the page always
+ *  trusts {items,page,pageSize,total}). Order is OccurredUtc DESC (as seeded). */
+export function fxSystemErrors(page = 1, pageSize = 25): SystemErrorPage {
+  const total = fxSystemErrorsAll.length;
+  const start = Math.max(0, (page - 1) * pageSize);
+  return { items: fxSystemErrorsAll.slice(start, start + pageSize), page, pageSize, total };
 }

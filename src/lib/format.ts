@@ -354,6 +354,16 @@ export function truncateId(id: string | null | undefined, head = 8): string {
   return id.length > head ? `${id.slice(0, head)}…` : id;
 }
 
+/** Split a fully-qualified .NET exception type ("System.InvalidOperationException")
+ *  into its de-emphasised namespace prefix ("System.") + the class name the reader
+ *  actually scans ("InvalidOperationException"). A type with no dot (or empty) has no
+ *  namespace — the whole string is the name. The full value belongs in a title attr. */
+export function splitExceptionType(type: string): { namespace: string; name: string } {
+  const i = (type ?? '').lastIndexOf('.');
+  if (i < 0) return { namespace: '', name: type ?? '' };
+  return { namespace: type.slice(0, i + 1), name: type.slice(i + 1) };
+}
+
 /** Individual check severity (PASS/WARN/FAIL inside checksJson) -> tone + label. */
 export function mapCheckSeverity(sev: string): {
   tone: 'pass' | 'warn' | 'fail' | 'unknown';

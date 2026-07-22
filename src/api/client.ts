@@ -36,6 +36,7 @@ import type {
   PolicyFlagUpdateDto,
   PriceHistoryPoint,
   SeriesCatalogEntry,
+  SystemErrorPage,
   TrainingRunPage,
   UserActivityPage,
 } from './types';
@@ -657,6 +658,17 @@ export const api = {
     const q = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     if (type) q.set('type', type);
     return request<UserActivityPage>(`/api/admin/logs/user-activity?${q.toString()}`);
+  },
+
+  // ---- ADMIN CONSOLE — LOGS HUB Phase 3 (system errors — LIVE) -------------
+  // GET /api/admin/logs/errors?page=&pageSize= -> SystemErrorPage (ordered
+  // OccurredUtc DESC). Same Admin-JWT + server-paged {items,page,pageSize,total}
+  // envelope as the sibling tabs; no filter param — always the full history,
+  // server-paged. Each row is one unhandled server exception (a 500).
+  async getSystemErrors(page = 1, pageSize = 25): Promise<SystemErrorPage> {
+    if (USE_FIXTURES) return fx.fxSystemErrors(page, pageSize);
+    const q = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    return request<SystemErrorPage>(`/api/admin/logs/errors?${q.toString()}`);
   },
 };
 

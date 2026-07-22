@@ -28,6 +28,7 @@ function renderLogsRoutes(start: string) {
             <Route path="ingestion" element={<div>INGESTION TAB CONTENT</div>} />
             <Route path="training" element={<div>TRAINING TAB CONTENT</div>} />
             <Route path="user-activity" element={<div>USER ACTIVITY TAB CONTENT</div>} />
+            <Route path="errors" element={<div>SYSTEM ERRORS TAB CONTENT</div>} />
           </Route>
           <Route path="ingestion" element={<Navigate to="/admin/logs/ingestion" replace />} />
         </Route>
@@ -104,14 +105,15 @@ describe('Logs hub routing (Phase 1)', () => {
     await i18n.changeLanguage('en');
   });
 
-  it('renders the Logs shell (H1 + tab strip) with all three tabs, ingestion selected', () => {
+  it('renders the Logs shell (H1 + tab strip) with all four tabs, ingestion selected', () => {
     renderLogsRoutes('/admin/logs/ingestion');
     expect(screen.getByRole('heading', { level: 1, name: 'Logs' })).toBeInTheDocument();
     const tablist = screen.getByRole('tablist', { name: 'Logs' });
-    expect(within(tablist).getAllByRole('tab')).toHaveLength(3);
+    expect(within(tablist).getAllByRole('tab')).toHaveLength(4);
     expect(within(tablist).getByRole('tab', { name: 'Ingestion runs', selected: true })).toBeInTheDocument();
     expect(within(tablist).getByRole('tab', { name: 'Model training', selected: false })).toBeInTheDocument();
     expect(within(tablist).getByRole('tab', { name: 'User activity', selected: false })).toBeInTheDocument();
+    expect(within(tablist).getByRole('tab', { name: 'System errors', selected: false })).toBeInTheDocument();
     expect(screen.getByText('INGESTION TAB CONTENT')).toBeInTheDocument();
   });
 
@@ -129,6 +131,14 @@ describe('Logs hub routing (Phase 1)', () => {
     expect(within(tablist).getByRole('tab', { name: 'User activity', selected: true })).toBeInTheDocument();
     expect(within(tablist).getByRole('tab', { name: 'Ingestion runs', selected: false })).toBeInTheDocument();
     expect(screen.getByText('USER ACTIVITY TAB CONTENT')).toBeInTheDocument();
+  });
+
+  it('marks the System errors tab selected on its route (aria-selected tracks the route)', () => {
+    renderLogsRoutes('/admin/logs/errors');
+    const tablist = screen.getByRole('tablist', { name: 'Logs' });
+    expect(within(tablist).getByRole('tab', { name: 'System errors', selected: true })).toBeInTheDocument();
+    expect(within(tablist).getByRole('tab', { name: 'Ingestion runs', selected: false })).toBeInTheDocument();
+    expect(screen.getByText('SYSTEM ERRORS TAB CONTENT')).toBeInTheDocument();
   });
 
   it('links the tab to the content region (tabpanel labelled by the selected tab)', () => {
@@ -200,6 +210,7 @@ describe('Logs hub auth gate (Phase 1)', () => {
                 <Route path="ingestion" element={<div>INGESTION TAB CONTENT</div>} />
                 <Route path="training" element={<div>TRAINING TAB CONTENT</div>} />
                 <Route path="user-activity" element={<div>USER ACTIVITY TAB CONTENT</div>} />
+                <Route path="errors" element={<div>SYSTEM ERRORS TAB CONTENT</div>} />
               </Route>
               <Route path="ingestion" element={<Navigate to="/admin/logs/ingestion" replace />} />
             </Route>
@@ -232,6 +243,10 @@ describe('Logs hub auth gate (Phase 1)', () => {
 
   it('blocks a logged-in FARMER from /admin/logs/user-activity (no tab content rendered)', async () => {
     await expectFarmerBlocked('/admin/logs/user-activity', 'USER ACTIVITY TAB CONTENT');
+  });
+
+  it('blocks a logged-in FARMER from /admin/logs/errors (no tab content rendered)', async () => {
+    await expectFarmerBlocked('/admin/logs/errors', 'SYSTEM ERRORS TAB CONTENT');
   });
 });
 
