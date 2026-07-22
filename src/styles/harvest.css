@@ -127,6 +127,26 @@
   border-color: var(--brand);
   background: var(--brand-tint);
 }
+/* Crop-status colouring (2026-07-22): pale green/amber card tints, ALWAYS backed
+   by the .rdy-badge glyph+word on the card (never colour alone). Declared BEFORE
+   .is-selected so a selected card keeps the brand treatment — the badge still
+   carries the status there. */
+.cp-card--ready {
+  background: var(--good-bg);
+  border-color: var(--good);
+}
+.cp-card--ready:hover {
+  background: var(--good-bg);
+  border-color: var(--good-fg);
+}
+.cp-card--collecting {
+  background: var(--warn-bg);
+  border-color: var(--warn);
+}
+.cp-card--collecting:hover {
+  background: var(--warn-bg);
+  border-color: var(--warn-fg);
+}
 .cp-card.is-selected {
   border-color: var(--brand);
   border-width: 2px;

@@ -52,6 +52,22 @@
   border-color: var(--brand);
   color: var(--brand-strong);
 }
+/* Crop-status colouring (2026-07-22): pale readiness tints, always backed by the
+   compact .rdy-badge glyph on the chip. Declared BEFORE .is-on so a selected
+   chip keeps the brand treatment (the glyph still carries the status). The wrap
+   span only hosts the chip's sr-only description — display:contents keeps the
+   flex layout exactly as if chips were direct children. */
+.cmp-chip-wrap {
+  display: contents;
+}
+.cmp-chip--ready {
+  background: var(--good-bg);
+  border-color: var(--good);
+}
+.cmp-chip--collecting {
+  background: var(--warn-bg);
+  border-color: var(--warn);
+}
 .cmp-chip.is-on {
   border-color: var(--brand);
   background: var(--brand-tint);

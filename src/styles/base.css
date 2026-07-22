@@ -104,6 +104,40 @@ button {
   min-height: 100vh;
 }
 
+/* =============================================================================
+   Crop forecast-readiness badge (crop-status colouring, 2026-07-22). Shared by
+   the crop picker, Compare chips, Prices, Best crops and Overview — hence in
+   base.css. Green = model-served "good forecast", amber = "collecting data";
+   glyph + word ALWAYS accompany the colour (tokens.css law), red never used.
+   ============================================================================= */
+.rdy-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.rdy-badge--ready {
+  background: var(--good-bg);
+  color: var(--good-fg);
+}
+.rdy-badge--collecting {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+/* Compact: glyph-only visual (label stays for screen readers) on tight chips. */
+.rdy-badge--compact {
+  padding: 0 var(--sp-1);
+  background: none;
+}
+.rdy-badge__glyph {
+  line-height: 1;
+}
+
 /* Reduced-motion: tokens already zero durations; also kill transitions/animations. */
 @media (prefers-reduced-motion: reduce) {
   *,

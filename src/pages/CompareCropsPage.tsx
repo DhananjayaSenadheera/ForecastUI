@@ -24,6 +24,8 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import type { Crop, CropTimeline } from '../api/types';
 import { cropDisplayName, parseCropIdList } from '../lib/crops';
+import { buildReadinessMap, readinessFor, readinessLabelKey, type ReadinessMap } from '../lib/readiness';
+import ReadinessBadge from '../components/ReadinessBadge';
 import { formatDate, formatPrice, ymdLocal } from '../lib/format';
 import { buildCompareGeometry, isShortHistory, type CompareSeriesInput } from '../lib/timeline';
 import { marketColorVar } from '../lib/prices';
@@ -60,6 +62,24 @@ export default function CompareCropsPage() {
   useEffect(() => {
     void loadCrops();
   }, [loadCrops]);
+
+  // Crop-status colouring (2026-07-22) on the selection chips. Fail-soft:
+  // readiness unknown -> null map -> untinted chips, never an error.
+  const [readiness, setReadiness] = useState<ReadinessMap | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getCropReadiness()
+      .then((r) => {
+        if (!cancelled) setReadiness(buildReadinessMap(r));
+      })
+      .catch(() => {
+        /* readiness unknown -> no tint */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // ---- selection (source of truth = the ?crops= deep-link) ----
   const [searchParams, setSearchParams] = useSearchParams();
@@ -228,23 +248,36 @@ export default function CompareCropsPage() {
             {crops.map((c) => {
               const idx = selectedIds.indexOf(c.id);
               const on = idx >= 0;
+              // Crop-status colouring: chip tint + compact aria-hidden glyph;
+              // the status is the chip's DESCRIPTION (aria-describedby ->
+              // sr-only sibling), never part of its accessible NAME.
+              const status = readinessFor(readiness, c.id);
+              const descId = status ? `cmp-rdy-${c.id}` : undefined;
               return (
-                <button
-                  key={c.id}
-                  type="button"
-                  className={`cmp-chip${on ? ' is-on' : ''}`}
-                  aria-pressed={on}
-                  onClick={() => toggleCrop(c.id)}
-                >
-                  {on && (
-                    <span
-                      className="cmp-chip__swatch"
-                      aria-hidden="true"
-                      style={{ background: marketColorVar(idx) }}
-                    />
+                <span key={c.id} className="cmp-chip-wrap">
+                  <button
+                    type="button"
+                    className={`cmp-chip${on ? ' is-on' : ''}${status ? ` cmp-chip--${status}` : ''}`}
+                    aria-pressed={on}
+                    {...(descId ? { 'aria-describedby': descId } : {})}
+                    onClick={() => toggleCrop(c.id)}
+                  >
+                    {on && (
+                      <span
+                        className="cmp-chip__swatch"
+                        aria-hidden="true"
+                        style={{ background: marketColorVar(idx) }}
+                      />
+                    )}
+                    {cropDisplayName(c, lang)}
+                    <ReadinessBadge status={status} compact ariaHidden />
+                  </button>
+                  {descId && status && (
+                    <span id={descId} className="sr-only">
+                      {t(readinessLabelKey(status))}
+                    </span>
                   )}
-                  {cropDisplayName(c, lang)}
-                </button>
+                </span>
               );
             })}
           </div>

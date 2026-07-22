@@ -170,6 +170,33 @@ export interface CropTimeline {
 }
 
 // ---------------------------------------------------------------------------
+// Crop readiness — GET /api/forecast/crop-readiness (CropReadiness_GetDto).
+// Feeds the crop-status colouring (owner request 2026-07-22): green "good
+// forecast" for model-served crops, amber "collecting data" for fallback-served
+// ones. `ready` MIRRORS the promoted model payload's real serving decision and
+// is recomputed by every train run, so a crop that crosses the data gate flips
+// automatically. HONESTY RULES (load-bearing):
+//   - modelActive=false (no promoted model / ML degraded) => the per-crop split
+//     is meaningless; the UI shows NO tint at all rather than painting every
+//     crop amber (that would claim a data problem the payload can't support).
+//   - A crop ABSENT from `crops` while modelActive => brand-new crop with no
+//     payload entry at all — treated exactly like ready=false ("collecting").
+//   - The endpoint failing entirely => fail-soft to no tint (never block the
+//     page; readiness is decoration, not data).
+// ---------------------------------------------------------------------------
+export interface CropReadinessItem {
+  cropId: string; // Guid
+  ready: boolean;
+  nObs: number | null; // labelled-row count; null = unknown (old payloads)
+}
+export interface CropReadiness {
+  modelVersion: string | null;
+  minHistoryObs: number | null;
+  modelActive: boolean;
+  crops: CropReadinessItem[];
+}
+
+// ---------------------------------------------------------------------------
 // Best crops — GET /api/forecast/best-crops?lookbackMonths=3 (BestCrop_GetDto[]).
 // NOTE the enum confidence here (integer), unlike the harvest string.
 //

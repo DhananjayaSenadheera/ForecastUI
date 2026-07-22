@@ -17,6 +17,7 @@ import {
   type BestCrop,
   type ConfidenceString,
   type Crop,
+  type CropReadiness,
   type CropTimeline,
   type DailyIndicatorPoint,
   type FestivalEntry,
@@ -452,6 +453,35 @@ export const fxBestCrops: BestCrop[] = [
   { cropId: 'c0000004-0000-0000-0000-000000000004', cropName: 'Passion Fruit', cropCode: 'FRT000019', averagePrice: 240, trend: PriceTrend.Down, confidence: ForecastConfidenceCode.Low, recommendationLevel: RecommendationLevel.RecommendedWithRisk },
   { cropId: 'c0000007-0000-0000-0000-000000000007', cropName: 'Cabbage', cropCode: 'VEG000022', averagePrice: 95, trend: PriceTrend.Down, confidence: ForecastConfidenceCode.Medium, recommendationLevel: RecommendationLevel.NotRecommended },
 ];
+
+// =============================================================================
+// Crop readiness (crop-status colouring, 2026-07-22). Mix mirrors the live
+// reality (model-served majors, thin-history fallback crops): the long-history
+// DEC vegetables are ready; the HARTI fruits (adopted 2026-03/HARTI onboarding)
+// and two newer vegetables are still collecting. Passion Fruit collecting +
+// Low confidence in fxBestCrops keeps the two signals coherent in demos.
+// =============================================================================
+export const fxCropReadiness: CropReadiness = {
+  modelVersion: 'v17-fixture',
+  minHistoryObs: 365,
+  modelActive: true,
+  crops: [
+    { cropId: 'c0000001-0000-0000-0000-000000000001', ready: true, nObs: 980 }, // Capsicum
+    { cropId: 'c0000002-0000-0000-0000-000000000002', ready: true, nObs: 940 }, // Beans
+    { cropId: 'c0000003-0000-0000-0000-000000000003', ready: true, nObs: 955 }, // Tomato
+    { cropId: 'c0000005-0000-0000-0000-000000000005', ready: true, nObs: 910 }, // Green Chilli
+    { cropId: 'c0000006-0000-0000-0000-000000000006', ready: true, nObs: 890 }, // Carrot
+    { cropId: 'c0000007-0000-0000-0000-000000000007', ready: true, nObs: 870 }, // Cabbage
+    { cropId: 'c0000008-0000-0000-0000-000000000008', ready: true, nObs: 860 }, // Brinjal
+    { cropId: 'c0000009-0000-0000-0000-000000000009', ready: false, nObs: 210 }, // Pumpkin
+    { cropId: 'c0000010-0000-0000-0000-000000000010', ready: false, nObs: 150 }, // Leeks
+    { cropId: 'c0000011-0000-0000-0000-000000000011', ready: true, nObs: 905 }, // Beetroot
+    { cropId: 'c0000004-0000-0000-0000-000000000004', ready: false, nObs: 120 }, // Passion Fruit
+    { cropId: 'c0000012-0000-0000-0000-000000000012', ready: false, nObs: 95 }, // Banana
+    // Papaya deliberately ABSENT: exercises the brand-new-crop path (absence
+    // with an active model renders exactly like ready=false).
+  ],
+};
 
 // ---- FIXTURE-ONLY (no live endpoint — API gaps #1 / #2) ----
 export const fxMarkets: Market[] = [

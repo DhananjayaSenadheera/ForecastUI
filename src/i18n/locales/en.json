@@ -196,7 +196,9 @@
     "catAll": "All crops",
     "catVegetables": "Vegetables",
     "catFruits": "Fruits",
-    "recent": "Recent"
+    "recent": "Recent",
+    "readyBadge": "Good forecast",
+    "collectingBadge": "Collecting data"
   },
   "pages": {
     "overview": {

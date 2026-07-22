@@ -24,6 +24,11 @@
   flex: 1 1 220px;
   min-width: 0;
 }
+/* Crop-status colouring (2026-07-22): the readiness badge under the crop select
+   is a pill, not a full-width strip. */
+.pr-field .rdy-badge {
+  align-self: flex-start;
+}
 .pr-select {
   width: 100%;
   padding: 0 var(--sp-3);
