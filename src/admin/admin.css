@@ -1253,6 +1253,82 @@
     display: none;
   }
 }
+
+/* ---- AdminHint: ⓘ page/section explainer (standalone-page counterpart of the
+   Logs tab tooltips above; shares their look + media behaviour). The row wraps so
+   the tapped-open note drops to its own full-width line under the heading. ---- */
+.adm-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex-wrap: wrap;
+}
+.adm-hint-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.adm-hint-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  border: 0;
+  background: none;
+  color: var(--text-2);
+  font-size: var(--fs-body);
+  line-height: 1;
+  cursor: pointer;
+}
+.adm-hint-btn:hover {
+  color: var(--text-1);
+}
+.adm-hint-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-sm);
+}
+/* Tooltip: same box as .logs-tab-tip, pinned left (the ⓘ sits mid-row, so a
+   centred tip could overflow the panel's right edge). */
+.adm-hint-tip {
+  position: absolute;
+  top: calc(100% + var(--sp-1));
+  left: 0;
+  z-index: 6;
+  width: max-content;
+  max-width: min(320px, 78vw);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface);
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--e-2);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-regular);
+  line-height: 1.45;
+  color: var(--text-1);
+  white-space: normal;
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+.adm-hint-wrap:hover .adm-hint-tip,
+.adm-hint-wrap:focus-within .adm-hint-tip {
+  visibility: visible;
+  opacity: 1;
+}
+/* Touch: no hover, so the tooltip hides and the ⓘ tap-toggles the inline note
+   (same split as the Logs tabs). The note itself stays available at EVERY width —
+   unlike the Logs toggle the ⓘ never disappears, so a pinned-open note always has
+   a visible control to dismiss it. */
+@media (hover: none), (max-width: 600px) {
+  .adm-hint-tip {
+    display: none;
+  }
+}
+.adm-hint-note {
+  flex-basis: 100%;
+}
 .logs-tab {
   display: inline-flex;
   align-items: center;

@@ -163,13 +163,16 @@ export default function NewsPage() {
 
   return (
     <>
-      <AdminTopbar title={t('admin.news.title')} subtitle={t('admin.news.subtitle')} />
+      {/* The page explainer lives on a ⓘ tooltip beside the title (owner request
+          2026-07-22 — same treatment as the Logs tab tooltips, 💡 banner gone). */}
+      <AdminTopbar
+        title={t('admin.news.title')}
+        subtitle={t('admin.news.subtitle')}
+        hint={t('admin.news.explainer')}
+        hintId="adm-news-hint"
+      />
       <section className="panel adm" aria-label={t('admin.news.title')}>
         <DemoNote />
-        <p className="adm-note" role="note">
-          <span aria-hidden="true">💡 </span>
-          {t('admin.news.explainer')}
-        </p>
 
         {flash && (
           <p className={`adm-note${flash.kind === 'error' ? ' adm-note--error' : ''}`} role="status">
