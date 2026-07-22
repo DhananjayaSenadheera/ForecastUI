@@ -100,7 +100,11 @@
 }
 .bc-table thead th {
   text-align: left;
-  vertical-align: bottom;
+  /* middle-align so plain-text headers (Our take / Price trend) sit on the same
+     line as the sortable button-in-th headers, whose 48px touch-target button
+     centres its label — bottom-align dropped the plain labels visibly lower
+     (same fix as the admin tables, owner redline 2026-07-13). */
+  vertical-align: middle;
   padding: var(--sp-2) var(--sp-3);
   border-bottom: 2px solid var(--line-strong);
   font-size: var(--fs-xs);
@@ -114,6 +118,7 @@
 .bc-sort {
   display: inline-flex;
   align-items: center;
+  vertical-align: middle;
   gap: var(--sp-1);
   min-height: var(--touch-min);
   padding: 0 var(--sp-1);
