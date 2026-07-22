@@ -92,18 +92,18 @@ describe('Model training tab (Logs P2.6)', () => {
   });
 
   // ---- the honest override edge case --------------------------------------
-  it('shows Live AND "Declined by gate" together on a manual-override row', async () => {
+  it('shows Live AND "Failed quality check" together on a manual-override row', async () => {
     vi.spyOn(api, 'getTrainingRuns').mockResolvedValue(page([OVERRIDE_ROW]));
     renderPage();
     const row = await findRow('v17');
     // both signals are surfaced honestly — never collapsed into one
     expect(within(row).getByText('Live')).toBeInTheDocument();
-    expect(within(row).getByText('Declined by gate')).toBeInTheDocument();
+    expect(within(row).getByText('Failed quality check')).toBeInTheDocument();
     // the promotionDecision is available as a tooltip on the Live badge
     expect(within(row).getByText('Live')).toHaveAttribute('title', OVERRIDE_ROW.promotionDecision!);
   });
 
-  it('shows Live AND "Promoted by gate" together on a healthy live row (no override)', async () => {
+  it('shows Live AND "Passed quality check" together on a healthy live row (no override)', async () => {
     const healthyLive: TrainingRun = {
       ...OVERRIDE_ROW,
       version: 'v18',
@@ -114,11 +114,11 @@ describe('Model training tab (Logs P2.6)', () => {
     renderPage();
     const row = await findRow('v18');
     expect(within(row).getByText('Live')).toBeInTheDocument();
-    expect(within(row).getByText('Promoted by gate')).toBeInTheDocument();
-    expect(within(row).queryByText('Declined by gate')).toBeNull();
+    expect(within(row).getByText('Passed quality check')).toBeInTheDocument();
+    expect(within(row).queryByText('Failed quality check')).toBeNull();
   });
 
-  it('shows "Promoted by gate" (and no Live badge) on a past gate-promoted, non-live row', async () => {
+  it('shows "Passed quality check" (and no Live badge) on a past gate-promoted, non-live row', async () => {
     const pastPromoted: TrainingRun = {
       ...OVERRIDE_ROW,
       version: 'v16',
@@ -128,7 +128,7 @@ describe('Model training tab (Logs P2.6)', () => {
     vi.spyOn(api, 'getTrainingRuns').mockResolvedValue(page([pastPromoted]));
     renderPage();
     const row = await findRow('v16');
-    expect(within(row).getByText('Promoted by gate')).toBeInTheDocument();
+    expect(within(row).getByText('Passed quality check')).toBeInTheDocument();
     expect(within(row).queryByText('Live')).toBeNull();
   });
 
