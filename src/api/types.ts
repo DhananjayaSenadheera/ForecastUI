@@ -500,6 +500,18 @@ export interface AdminUser {
   updatedAt: string; // ISO datetime
 }
 
+/** Body of POST /api/users/create (Admin-only account provisioning). Mirrors the public
+ *  register fields and adds `role`, which self-registration does not have (a self-registered
+ *  account is always a Farmer). The password is the initial one the admin hands to the user
+ *  out-of-band; the response is a plain AdminUser — deliberately NO token, so creating an
+ *  account never touches the acting admin's own session. */
+export interface CreateUserInput {
+  username: string;
+  email: string;
+  password: string;
+  role: 'Farmer' | 'Admin';
+}
+
 // ---------------------------------------------------------------------------
 // ADM-5 festival calendar — LIVE (API-10, backend merged). Audited read-only against
 // FestivalCalendarController + Application/Requests/FestivalCalendar (DTOs, validators)

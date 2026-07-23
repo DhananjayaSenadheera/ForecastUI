@@ -451,7 +451,7 @@
     },
     "users": {
       "title": "Users",
-      "subtitle": "Accounts and roles. Farmers self-register; assign roles and manage accounts here.",
+      "subtitle": "Accounts and roles. Farmers can self-register; add accounts and assign roles here.",
       "colUsername": "Username",
       "colEmail": "Email",
       "colRole": "Role",
@@ -474,10 +474,20 @@
       "deletedFlash": "Deleted “{{name}}” (demo).",
       "emptyTitle": "No users",
       "emptyBody": "There are no user accounts to show.",
-      "selfRegisterNote": "Farmers create their own accounts by registering. There is no add-user button here on purpose — use this page to change roles or remove accounts.",
       "savedFlashLive": "Role updated.",
       "deletedFlashLive": "Deleted the account “{{name}}”.",
-      "working": "Working…"
+      "working": "Working…",
+      "add": "Add user",
+      "addTitle": "Add user",
+      "create": "Create",
+      "password": "Password",
+      "passwordHint": "At least {{min}} characters. Give it to the user directly — it is not emailed to them and cannot be read back later.",
+      "addNote": "The account is usable straight away. Farmers can also register themselves at the sign-in page.",
+      "createdFlash": "Created “{{name}}” (demo).",
+      "createdFlashLive": "Created the account “{{name}}”.",
+      "errUsername": "Enter a username of 50 characters or fewer.",
+      "errEmail": "Enter a valid email address.",
+      "errPassword": "Password must be between {{min}} and {{max}} characters."
     },
     "festivals": {
       "title": "Festival calendar",

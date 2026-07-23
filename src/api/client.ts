@@ -18,6 +18,7 @@ import type {
   CropReadiness,
   CropCreateCommand,
   CropTimeline,
+  CreateUserInput,
   DailyIndicatorPoint,
   FestivalCreateDto,
   FestivalEntry,
@@ -390,8 +391,10 @@ export const api = {
 
   // ---- ADMIN CONSOLE — USERS (ADM-4 / API-9 — LIVE, backend PR #26) --------
   // Role is a plain STRING on the wire ('Admin' | 'Farmer'), camelCase throughout.
-  // There is NO admin-create-user route by design: /register (anonymous, always
-  // role Farmer) is the ONLY account-creation path. Admins assign roles here.
+  // TWO account-creation paths exist, and they are NOT interchangeable: /register
+  // (anonymous, always role Farmer, issues a refresh cookie to the caller) and
+  // POST /api/users/create (Admin-only, role chosen, issues NOTHING). The admin
+  // console must only ever use the latter — see createUser below.
   //
   // GET /api/users/get/all?page=&pageSize= [Admin-only] -> flat AdminUser[],
   // newest-first. Paging is OPTIONAL: the server clamps page>=1, pageSize in
@@ -401,6 +404,40 @@ export const api = {
   async getAdminUsers(): Promise<AdminUser[]> {
     if (USE_FIXTURES) return fxUsers().map((u) => ({ ...u }));
     return request<AdminUser[]>('/api/users/get/all');
+  },
+
+  // POST /api/users/create  body {username, email, password, role} [Admin-only]
+  // -> the created AdminUser. NEVER call auth register (src/api/auth.ts) from the
+  // admin console for this: that endpoint sets the httpOnly refresh cookie for the
+  // CALLER, so provisioning an account would swap the acting admin's refresh cookie
+  // for the new user's and hand their next silent renew the wrong identity. This
+  // route returns the row only — no token, no cookie, admin session untouched.
+  // Server guards arrive as the house error shape (400): "Username is already
+  // taken." / "Email is already registered." / "Invalid role." — surfaced verbatim.
+  async createUser(input: CreateUserInput): Promise<AdminUser> {
+    if (USE_FIXTURES) {
+      const users = fxUsers();
+      // Mirror the server's uniqueness guards so the demo flow hits the same walls.
+      if (users.some((u) => u.username.toLowerCase() === input.username.toLowerCase()))
+        throw new ApiError('Username is already taken.', 400);
+      if (users.some((u) => u.email.toLowerCase() === input.email.toLowerCase()))
+        throw new ApiError('Email is already registered.', 400);
+      const now = new Date().toISOString();
+      const created: AdminUser = {
+        id: `u-new-${Date.now()}`,
+        username: input.username,
+        email: input.email,
+        role: input.role,
+        createdAt: now,
+        updatedAt: now,
+      };
+      users.push(created);
+      return { ...created };
+    }
+    return request<AdminUser>('/api/users/create', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
   },
 
   // PUT /api/users/update-role  body {userId, role:'Admin'|'Farmer'} [Admin-only]
