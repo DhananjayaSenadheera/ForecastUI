@@ -1,15 +1,21 @@
 // ADM-4 — User management (/admin/users). LIVE against API-9 (backend PR #26):
-// list (GET /api/users/get/all), role change (PUT /api/users/update-role), delete
-// (DELETE /api/users/delete/{id}). Mutations go through api.* then REFETCH the list
-// (honest re-read of server truth at the 500-cap scale). Server guard messages
-// ("cannot delete yourself", "cannot delete/demote the last remaining admin") are
-// surfaced verbatim in the flash. In FIXTURES mode the same calls mutate an
-// in-memory copy so the demo flow still works. There is NO add-user affordance by
-// design: farmers self-register (/register, always Farmer); admins assign roles here.
+// list (GET /api/users/get/all), create (POST /api/users/create), role change
+// (PUT /api/users/update-role), delete (DELETE /api/users/delete/{id}). Mutations go
+// through api.* then REFETCH the list (honest re-read of server truth at the 500-cap
+// scale). Server guard messages ("cannot delete yourself", "cannot delete/demote the
+// last remaining admin", "username is already taken") are surfaced verbatim in the
+// flash. In FIXTURES mode the same calls mutate an in-memory copy so the demo flow
+// still works.
+//
+// ADD USER (owner request 2026-07-23, replacing the earlier self-register-only rule):
+// admins can now provision an account here, choosing the role at creation. It posts to
+// the Admin-only create route, NEVER to /register — that anonymous endpoint issues a
+// refresh cookie to the caller, which would replace the acting admin's own session
+// cookie with the new user's. Farmers can still self-register as before.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, ApiError, apiMode } from '../api/client';
-import type { AdminUser } from '../api/types';
+import type { AdminUser, CreateUserInput } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { formatDate } from '../lib/format';
 import {
@@ -43,6 +49,9 @@ export default function UsersPage() {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [editing, setEditing] = useState<AdminUser | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<AdminUser | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [flash, setFlash] = useState<Flash | null>(null);
 
@@ -112,6 +121,33 @@ export default function UsersPage() {
     [t, load, errMessage],
   );
 
+  // Create keeps its error INSIDE the dialog (the form stays open with the typed values
+  // intact so the admin can fix the one field the server rejected) — unlike role/delete,
+  // whose dialogs close and report through the page flash. Only a success closes it.
+  const createUser = useCallback(
+    async (input: CreateUserInput) => {
+      setCreating(true);
+      setCreateError(null);
+      setFlash(null);
+      try {
+        const created = await api.createUser(input);
+        setAdding(false);
+        setFlash({
+          msg: t(isFixtures ? 'admin.users.createdFlash' : 'admin.users.createdFlashLive', {
+            name: created.username,
+          }),
+          kind: 'ok',
+        });
+        await load();
+      } catch (e) {
+        setCreateError(errMessage(e));
+      } finally {
+        setCreating(false);
+      }
+    },
+    [t, load, errMessage],
+  );
+
   const doDelete = useCallback(
     async (u: AdminUser) => {
       setBusyId(u.id);
@@ -139,14 +175,25 @@ export default function UsersPage() {
       <AdminTopbar title={t('admin.users.title')} subtitle={t('admin.users.subtitle')} />
       <section className="panel adm" aria-label={t('admin.users.title')}>
         <DemoNote hasLiveEndpoint={true} />
-        <p className="adm-note" role="note">
-          {t('admin.users.selfRegisterNote')}
-        </p>
         {flash && (
           <p className={`adm-note${flash.kind === 'error' ? ' adm-note--error' : ''}`} role="status">
             {flash.msg}
           </p>
         )}
+
+        <div className="adm-toolbar">
+          <span />
+          <button
+            type="button"
+            className="adm-btn"
+            onClick={() => {
+              setCreateError(null);
+              setAdding(true);
+            }}
+          >
+            + {t('admin.users.add')}
+          </button>
+        </div>
 
         {error ? (
           <AdminError onRetry={() => void load()} />
@@ -215,6 +262,14 @@ export default function UsersPage() {
         )}
       </section>
 
+      {adding && (
+        <AddUserDialog
+          busy={creating}
+          error={createError}
+          onClose={() => setAdding(false)}
+          onSave={createUser}
+        />
+      )}
       {editing && (
         <EditRoleDialog
           user={editing}
@@ -247,6 +302,129 @@ export default function UsersPage() {
         </AdminDialog>
       )}
     </>
+  );
+}
+
+// Client-side rules are a MIRROR of CreateUserCommandValidator (username <= 50, valid
+// email <= 256, password 8..128, role from the closed whitelist) — they exist to save a
+// round-trip, never to replace the server check. Anything the server rejects anyway
+// (duplicate username/email) is left to it and shown verbatim, because only the server
+// knows the current account list.
+const PASSWORD_MIN = 8;
+const PASSWORD_MAX = 128;
+const USERNAME_MAX = 50;
+const EMAIL_MAX = 256;
+
+function AddUserDialog({
+  busy,
+  error,
+  onClose,
+  onSave,
+}: {
+  busy: boolean;
+  error: string | null;
+  onClose: () => void;
+  onSave: (input: CreateUserInput) => void;
+}) {
+  const { t } = useTranslation();
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  // Role whitelist is strictly Admin | Farmer — never invent other roles. Farmer is the
+  // default so the common case is one click, and an accidental Enter never mints an admin.
+  const [role, setRole] = useState<'Farmer' | 'Admin'>('Farmer');
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = username.trim();
+    const mail = email.trim();
+    if (!name || name.length > USERNAME_MAX) return setLocalError(t('admin.users.errUsername'));
+    if (!mail || mail.length > EMAIL_MAX || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail))
+      return setLocalError(t('admin.users.errEmail'));
+    if (password.length < PASSWORD_MIN || password.length > PASSWORD_MAX)
+      return setLocalError(t('admin.users.errPassword', { min: PASSWORD_MIN, max: PASSWORD_MAX }));
+    setLocalError(null);
+    // Password is passed through UNTRIMMED — leading/trailing spaces are legitimate
+    // characters in a password and trimming them would silently change what the admin set.
+    onSave({ username: name, email: mail, password, role });
+  };
+
+  const shown = localError ?? error;
+
+  return (
+    <AdminDialog title={t('admin.users.addTitle')} onClose={onClose}>
+      {/* noValidate: type="email" still gives mobile the right keyboard, but the browser's
+          own constraint bubble would speak the BROWSER's language, not the app's — and this
+          app ships si/ta. Validation is ours so every message is translated. */}
+      <form className="adm-form" onSubmit={submit} noValidate>
+        <label className="adm-field">
+          <span className="wrap-label">{t('admin.users.colUsername')}</span>
+          <input
+            type="text"
+            className="adm-input"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            maxLength={USERNAME_MAX}
+            autoComplete="off"
+            disabled={busy}
+          />
+        </label>
+        <label className="adm-field">
+          <span className="wrap-label">{t('admin.users.colEmail')}</span>
+          <input
+            type="email"
+            className="adm-input"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            maxLength={EMAIL_MAX}
+            autoComplete="off"
+            disabled={busy}
+          />
+        </label>
+        <label className="adm-field">
+          <span className="wrap-label">{t('admin.users.password')}</span>
+          <input
+            type="password"
+            className="adm-input"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            maxLength={PASSWORD_MAX}
+            // new-password keeps a password manager from offering the ADMIN's own
+            // credentials for an account they are creating for someone else.
+            autoComplete="new-password"
+            disabled={busy}
+          />
+          <span className="adm-caption">{t('admin.users.passwordHint', { min: PASSWORD_MIN })}</span>
+        </label>
+        <label className="adm-field">
+          <span className="wrap-label">{t('admin.users.colRole')}</span>
+          <select
+            className="adm-select"
+            value={role}
+            onChange={(e) => setRole(e.target.value as 'Farmer' | 'Admin')}
+            disabled={busy}
+          >
+            <option value="Farmer">{t('admin.users.role.farmer')}</option>
+            <option value="Admin">{t('admin.users.role.admin')}</option>
+          </select>
+        </label>
+        <p className="adm-caption">{t('admin.users.addNote')}</p>
+        {shown && (
+          <p className="adm-error" role="alert">
+            {shown}
+          </p>
+        )}
+        <div className="adm-form__actions">
+          <button type="button" className="btn-ghost" onClick={onClose} disabled={busy}>
+            {t('admin.users.cancel')}
+          </button>
+          <button type="submit" className="adm-btn" disabled={busy}>
+            {busy ? t('admin.users.working') : t('admin.users.create')}
+          </button>
+        </div>
+      </form>
+    </AdminDialog>
   );
 }
 
