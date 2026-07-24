@@ -28,6 +28,7 @@ import {
   DemoNote,
   TrainingWarningBanner,
 } from './adminShared';
+import { IconEdit, IconTrash } from './icons';
 
 const FESTIVAL_KEYS = ['AVURUDU', 'THAI_PONGAL', 'VESAK', 'DEEPAVALI', 'CHRISTMAS'] as const;
 const DEFAULT_LEAD_UP = 14;
@@ -70,6 +71,11 @@ export default function FestivalsPage() {
   // error). Dismissible; cleared on the next mutation attempt.
   const [warning, setWarning] = useState<string | null>(null);
 
+  // Year filter (toolbar, left of the Add button). Defaults to the CURRENT calendar year
+  // — the year an admin most often maintains — with an "all years" escape hatch.
+  const currentYear = useMemo(() => String(new Date().getFullYear()), []);
+  const [yearFilter, setYearFilter] = useState<string>(currentYear);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(false);
@@ -109,6 +115,20 @@ export default function FestivalsPage() {
       .sort((a, b) => b[0].localeCompare(a[0]))
       .map(([year, rows]) => [year, rows.sort((a, b) => a.date.localeCompare(b.date))] as const);
   }, [items]);
+
+  // Dropdown years: every year present in the data UNION the current year (so the default
+  // is always selectable even before this year has any entries), newest first.
+  const years = useMemo(() => {
+    const set = new Set<string>(byYear.map(([y]) => y));
+    set.add(currentYear);
+    return [...set].sort((a, b) => b.localeCompare(a));
+  }, [byYear, currentYear]);
+
+  // The year groups actually rendered: all, or just the selected year.
+  const visibleYears = useMemo(
+    () => (yearFilter === 'all' ? byYear : byYear.filter(([y]) => y === yearFilter)),
+    [byYear, yearFilter],
+  );
 
   // Create (no id) or full-object update (id). Both refetch server truth; only update
   // carries a trainingDataWarning (create is always a fresh row).
@@ -196,7 +216,21 @@ export default function FestivalsPage() {
         </p>
 
         <div className="adm-toolbar">
-          <span />
+          <label className="adm-field ing-filter">
+            <span className="wrap-label">{t('admin.festivals.filterLabel')}</span>
+            <select
+              className="adm-select"
+              value={yearFilter}
+              onChange={(e) => setYearFilter(e.target.value)}
+            >
+              {years.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+              <option value="all">{t('admin.festivals.filterAll')}</option>
+            </select>
+          </label>
           <button type="button" className="adm-btn" onClick={() => setEditing('new')}>
             + {t('admin.festivals.add')}
           </button>
@@ -208,8 +242,13 @@ export default function FestivalsPage() {
           <AdminLoading />
         ) : items.length === 0 ? (
           <AdminEmpty title={t('admin.festivals.emptyTitle')} body={t('admin.festivals.emptyBody')} />
+        ) : visibleYears.length === 0 ? (
+          <AdminEmpty
+            title={t('admin.festivals.emptyYearTitle', { year: yearFilter })}
+            body={t('admin.festivals.emptyYearBody', { year: yearFilter })}
+          />
         ) : (
-          byYear.map(([year, rows]) => (
+          visibleYears.map(([year, rows]) => (
             <div key={year}>
               <h2 className="adm-yeargroup">{year}</h2>
               <div className="adm-tablewrap">
@@ -248,22 +287,26 @@ export default function FestivalsPage() {
                           {f.source ?? <span className="adm-muted">—</span>}
                         </td>
                         <td data-label={t('admin.festivals.colActions')}>
-                          <button
-                            type="button"
-                            className="adm-rowbtn"
-                            onClick={() => setEditing(f)}
-                            disabled={busyId === f.id}
-                          >
-                            {t('admin.festivals.edit')}
-                          </button>
-                          <button
-                            type="button"
-                            className="adm-rowbtn adm-rowbtn--danger"
-                            onClick={() => setConfirmDelete(f)}
-                            disabled={busyId === f.id}
-                          >
-                            {busyId === f.id ? t('admin.festivals.working') : t('admin.festivals.delete')}
-                          </button>
+                          <div className="adm-actions">
+                            <button
+                              type="button"
+                              className="adm-rowbtn"
+                              onClick={() => setEditing(f)}
+                              disabled={busyId === f.id}
+                            >
+                              <IconEdit />
+                              {t('admin.festivals.edit')}
+                            </button>
+                            <button
+                              type="button"
+                              className="adm-rowbtn adm-rowbtn--danger"
+                              onClick={() => setConfirmDelete(f)}
+                              disabled={busyId === f.id}
+                            >
+                              <IconTrash />
+                              {busyId === f.id ? t('admin.festivals.working') : t('admin.festivals.delete')}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}

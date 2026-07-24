@@ -364,6 +364,10 @@ export interface Market {
   district: string | null;
   marketType: number; // MarketType enum (integer wire value) — see MarketType below
   isEconomicCenter: boolean;
+  // --- Monitoring status (admin Markets registry) ---
+  hasStoredData: boolean; // has >=1 stored price observation (any status) — literal storage
+  lastStoredDate: string | null; // "YYYY-MM-DD" of the freshest stored row, or null when never
+  isTrainingSource: boolean; // feature-safe AND has usable data → currently feeds model training
 }
 export interface PriceHistoryPoint {
   date: string; // "YYYY-MM-DD"

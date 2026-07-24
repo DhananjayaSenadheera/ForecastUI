@@ -73,9 +73,9 @@ describe('prices lib — market colours (stable by id order, never by rank)', ()
 
 describe('prices lib — market comparison', () => {
   const markets: Market[] = [
-    { id: 'm1', name: 'Dambulla', district: 'Matale', marketType: 1, isEconomicCenter: true },
-    { id: 'm2', name: 'Colombo', district: 'Colombo', marketType: 1, isEconomicCenter: false },
-    { id: 'm3', name: 'Kandy', district: 'Kandy', marketType: 1, isEconomicCenter: false },
+    { id: 'm1', name: 'Dambulla', district: 'Matale', marketType: 1, isEconomicCenter: true, hasStoredData: true, lastStoredDate: '2026-07-10', isTrainingSource: true },
+    { id: 'm2', name: 'Colombo', district: 'Colombo', marketType: 1, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-10', isTrainingSource: true },
+    { id: 'm3', name: 'Kandy', district: 'Kandy', marketType: 1, isEconomicCenter: false, hasStoredData: false, lastStoredDate: null, isTrainingSource: false },
   ];
   const byMarket: Record<string, PriceHistoryPoint[]> = {
     m1: hist([['2026-07-09', 400, 440], ['2026-07-10', 410, 450]]),

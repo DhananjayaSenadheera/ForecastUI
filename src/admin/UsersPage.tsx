@@ -29,6 +29,7 @@ import {
   SortableTh,
   usePagination,
 } from './adminShared';
+import { IconEdit, IconTrash } from './icons';
 
 type SortKey = 'username' | 'email' | 'role' | 'created';
 type SortDir = 'asc' | 'desc';
@@ -234,23 +235,27 @@ export default function UsersPage() {
                       </td>
                       <td data-label={t('admin.users.colCreated')}>{formatDate(u.createdAt.slice(0, 10), lang)}</td>
                       <td data-label={t('admin.users.colActions')}>
-                        <button
-                          type="button"
-                          className="adm-rowbtn"
-                          onClick={() => setEditing(u)}
-                          disabled={rowBusy}
-                        >
-                          {t('admin.users.editRole')}
-                        </button>
-                        <button
-                          type="button"
-                          className="adm-rowbtn adm-rowbtn--danger"
-                          onClick={() => setConfirmDelete(u)}
-                          disabled={isMe || rowBusy}
-                          title={isMe ? t('admin.users.cannotDeleteSelf') : undefined}
-                        >
-                          {rowBusy ? t('admin.users.working') : t('admin.users.delete')}
-                        </button>
+                        <div className="adm-actions">
+                          <button
+                            type="button"
+                            className="adm-rowbtn"
+                            onClick={() => setEditing(u)}
+                            disabled={rowBusy}
+                          >
+                            <IconEdit />
+                            {t('admin.users.editRole')}
+                          </button>
+                          <button
+                            type="button"
+                            className="adm-rowbtn adm-rowbtn--danger"
+                            onClick={() => setConfirmDelete(u)}
+                            disabled={isMe || rowBusy}
+                            title={isMe ? t('admin.users.cannotDeleteSelf') : undefined}
+                          >
+                            <IconTrash />
+                            {rowBusy ? t('admin.users.working') : t('admin.users.delete')}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

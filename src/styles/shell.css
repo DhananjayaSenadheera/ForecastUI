@@ -174,8 +174,9 @@
 
 /* ---------------- main column ---------------- */
 .main {
+  /* No max-width: the content column fills the full width beside the sidebar on every
+     page (admin data tables and farmer dashboards alike). */
   padding: 20px 22px 26px;
-  max-width: 1300px;
 }
 
 .topbar {

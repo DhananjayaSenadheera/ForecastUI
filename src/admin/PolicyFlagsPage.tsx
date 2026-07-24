@@ -37,6 +37,7 @@ import {
   TrainingWarningBanner,
   usePagination,
 } from './adminShared';
+import { IconEdit, IconTrash } from './icons';
 
 type SortKey = 'type' | 'title' | 'direction' | 'from' | 'to' | 'status';
 type SortDir = 'asc' | 'desc';
@@ -301,22 +302,26 @@ export default function PolicyFlagsPage() {
                         )}
                       </td>
                       <td data-label={t('admin.policy.colActions')}>
-                        <button
-                          type="button"
-                          className="adm-rowbtn"
-                          onClick={() => setEditing(f)}
-                          disabled={busyId === f.id}
-                        >
-                          {t('admin.policy.edit')}
-                        </button>
-                        <button
-                          type="button"
-                          className="adm-rowbtn adm-rowbtn--danger"
-                          onClick={() => setConfirmDelete(f)}
-                          disabled={busyId === f.id}
-                        >
-                          {busyId === f.id ? t('admin.policy.working') : t('admin.policy.delete')}
-                        </button>
+                        <div className="adm-actions">
+                          <button
+                            type="button"
+                            className="adm-rowbtn"
+                            onClick={() => setEditing(f)}
+                            disabled={busyId === f.id}
+                          >
+                            <IconEdit />
+                            {t('admin.policy.edit')}
+                          </button>
+                          <button
+                            type="button"
+                            className="adm-rowbtn adm-rowbtn--danger"
+                            onClick={() => setConfirmDelete(f)}
+                            disabled={busyId === f.id}
+                          >
+                            <IconTrash />
+                            {busyId === f.id ? t('admin.policy.working') : t('admin.policy.delete')}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
