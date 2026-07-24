@@ -418,10 +418,31 @@
   color: var(--critical-fg);
   border-color: var(--line-strong);
 }
+/* Row-action button group: the canonical wrapper for a cell's action buttons. Flex + gap
+   spaces the buttons consistently BOTH horizontally and when they wrap to a second line on
+   a narrow column — unlike a per-button margin, which leaves no vertical gap once wrapped.
+   Use this wrapper around any set of row buttons in future admin tables. */
+.adm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  /* gap spaces the buttons BOTH side by side and when a dense table (e.g. policy flags,
+     8 columns) forces them to wrap onto two lines — the case the old per-button margin
+     left with no vertical space. Wrapping (not nowrap) keeps every table within the
+     viewport instead of pushing a button off-screen behind a horizontal scroll. */
+}
 .adm-rowbtn {
+  /* inline-flex + a shared min-width so paired row actions (Edit / Delete) render at the
+     same width and their icon + label stay centred, regardless of label length.
+     Spacing between buttons is owned by the .adm-actions wrapper's gap, not a margin. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-width: 5.5rem;
   min-height: 36px;
   padding: var(--sp-1) var(--sp-3);
-  margin-right: var(--sp-2);
   border-radius: var(--r-sm);
   border: 1px solid var(--line-strong);
   background: var(--surface);
@@ -432,6 +453,10 @@
 }
 .adm-rowbtn:hover {
   background: var(--surface-3);
+}
+/* Icon inside a row button: sized to the text, never shrinks, optically aligned. */
+.adm-btn-ico {
+  flex: 0 0 auto;
 }
 .adm-rowbtn--danger {
   color: var(--critical-fg);

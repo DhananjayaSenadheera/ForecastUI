@@ -91,7 +91,7 @@ export default function AppShell() {
         </div>
       </div>
 
-      {/* ---- main column: pages render here ---- */}
+      {/* ---- main column: pages render here (fills the full content width) ---- */}
       <main className="main">
         {/* Honest "showing saved data" notice when the SW served an offline cache. */}
         <StalenessBanner />

@@ -39,6 +39,7 @@ import {
   DemoNote,
   useServerPagination,
 } from './adminShared';
+import { IconRefresh } from './icons';
 
 const POLL_BASE_MS = 30_000;
 const POLL_MAX_MS = 120_000;
@@ -224,7 +225,7 @@ export default function IngestionRunsPage() {
             onClick={() => void loadRuns('refresh')}
             disabled={refreshing || runsLoading}
           >
-            <span aria-hidden="true">↻ </span>
+            <IconRefresh />
             {refreshing ? t('admin.ingestion.refreshing') : t('admin.ingestion.refresh')}
           </button>
         </div>

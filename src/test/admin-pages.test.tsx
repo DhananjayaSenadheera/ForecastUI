@@ -182,6 +182,34 @@ describe('Admin console pages', () => {
       await waitFor(() => expect(document.querySelectorAll('.adm-table tbody tr').length).toBe(12));
       expect(screen.getByText('1 of 1')).toBeInTheDocument();
     });
+
+    it('shows monitoring status: summary counts, stored/last-stored/training per market', async () => {
+      renderPage(<MarketsPage />);
+      await screen.findByText('Dambulla Dedicated Economic Centre');
+
+      // Summary reflects the WHOLE set: 12 monitored, 11 storing, 11 feeding training
+      // (only the CBSL national-average placeholder stores nothing / never trains).
+      expect(screen.getByText(/12 markets monitored/)).toBeInTheDocument();
+      expect(screen.getByText(/11 storing data/)).toBeInTheDocument();
+      expect(screen.getByText(/11 feeding training/)).toBeInTheDocument();
+
+      // A live market: stored ✓, a real last-stored date (not "Never"), feeds training.
+      const dambulla = screen.getByText('Dambulla Dedicated Economic Centre').closest('tr')!;
+      expect(within(dambulla).getByText('Stored', { selector: '.adm-yes' })).toBeInTheDocument();
+      expect(within(dambulla).getByText('Feeds training', { selector: '.adm-yes' })).toBeInTheDocument();
+      expect(within(dambulla).queryByText('Never')).toBeNull();
+
+      // The national-average placeholder is monitored but empty: no stored data, Never,
+      // and explicitly excluded from training — the honest distinction.
+      const cbsl = screen.getByText('CBSL national average (pseudo-market)').closest('tr')!;
+      expect(within(cbsl).getByText('Never')).toBeInTheDocument();
+      expect(within(cbsl).getByText('Excluded from training')).toBeInTheDocument();
+      expect(within(cbsl).queryByText('Stored', { selector: '.adm-yes' })).toBeNull();
+
+      // A market whose feed stalled >1 week ago is flagged stale (soft ops cue).
+      const norochchole = screen.getByText('Norochchole (HARTI wholesale)').closest('tr')!;
+      expect(within(norochchole).getByText('Stale')).toBeInTheDocument();
+    });
   });
 
   // ---- ADM-4 users --------------------------------------------------------
@@ -233,15 +261,37 @@ describe('Admin console pages', () => {
 
   // ---- ADM-5 festivals (API-10 — LIVE) ------------------------------------
   describe('FestivalsPage (ADM-5)', () => {
-    it('groups festivals by year and shows the model warning', async () => {
+    it('defaults the year filter to the current year and shows only that year, with the model warning', async () => {
       renderPage(<FestivalsPage />);
-      await screen.findByText('2026');
-      expect(screen.getByText('2025')).toBeInTheDocument();
+      // current-year group (2026) is shown; year headings are h2, distinct from the
+      // select's <option> text (which also contains the year).
+      await screen.findByRole('heading', { name: '2026' });
+      // the filter defaults to the current calendar year
+      const yearSelect = screen.getByLabelText('Year') as HTMLSelectElement;
+      expect(yearSelect.value).toBe(String(new Date().getFullYear()));
+      // 2025 is hidden until the filter widens
+      expect(screen.queryByRole('heading', { name: '2025' })).toBeNull();
       expect(
         screen.getAllByText(/feeds the forecasting model/i).length,
       ).toBeGreaterThan(0);
       // a provisional 2026 row carries the Provisional badge
       expect(screen.getAllByText('Provisional').length).toBeGreaterThan(0);
+    });
+
+    it('year filter widens to all years and narrows to a single past year', async () => {
+      renderPage(<FestivalsPage />);
+      await screen.findByRole('heading', { name: '2026' });
+      const yearSelect = screen.getByLabelText('Year') as HTMLSelectElement;
+
+      // "All years" reveals the 2025 group alongside 2026
+      fireEvent.change(yearSelect, { target: { value: 'all' } });
+      await screen.findByRole('heading', { name: '2025' });
+      expect(screen.getByRole('heading', { name: '2026' })).toBeInTheDocument();
+
+      // Selecting 2025 hides the 2026 group
+      fireEvent.change(yearSelect, { target: { value: '2025' } });
+      await waitFor(() => expect(screen.queryByRole('heading', { name: '2026' })).toBeNull());
+      expect(screen.getByRole('heading', { name: '2025' })).toBeInTheDocument();
     });
 
     it('shows a dismissible amber banner (not an error) when a mutation returns trainingDataWarning', async () => {
@@ -250,7 +300,7 @@ describe('Admin console pages', () => {
         trainingDataWarning: 'past date touched',
       });
       renderPage(<FestivalsPage />);
-      await screen.findByText('2026');
+      await screen.findByRole('heading', { name: '2026' });
       fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0]);
       const dialog = screen.getByRole('dialog');
       fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
@@ -267,7 +317,7 @@ describe('Admin console pages', () => {
     it('creates a festival with leadUpDays=0 (paired-day value is not coerced to the default)', async () => {
       const spy = vi.spyOn(api, 'createFestival').mockResolvedValue(true);
       renderPage(<FestivalsPage />);
-      await screen.findByText('2026');
+      await screen.findByRole('heading', { name: '2026' });
       fireEvent.click(screen.getByText(/Add festival/));
       const dialog = screen.getByRole('dialog');
       fireEvent.change(dialog.querySelector('input[type="date"]') as HTMLInputElement, {
@@ -290,7 +340,7 @@ describe('Admin console pages', () => {
       const msg = 'Festival does not exist.';
       vi.spyOn(api, 'deleteFestival').mockRejectedValueOnce(new ApiError(msg, 400));
       renderPage(<FestivalsPage />);
-      await screen.findByText('2026');
+      await screen.findByRole('heading', { name: '2026' });
       fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0]);
       const dialog = screen.getByRole('dialog');
       fireEvent.click(dialog.querySelector('.adm-btn--danger') as HTMLButtonElement);
