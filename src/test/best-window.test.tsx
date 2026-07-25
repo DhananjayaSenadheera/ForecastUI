@@ -20,7 +20,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import i18n from '../i18n';
 import BestWindowPanel from '../components/BestWindowPanel';
-import MyHarvestPage from '../pages/MyHarvestPage';
+import MyHarvestPage, { HORIZON_DAYS } from '../pages/MyHarvestPage';
 import { api } from '../api/client';
 import { formatDate, ymdLocal } from '../lib/format';
 import { fxCrops, fxHarvestWindowFor, fxForecastFor } from '../api/fixtures';
@@ -630,7 +630,9 @@ describe('MyHarvestPage — the window strip lives inside the result', () => {
       .mockImplementation(() => new Promise((r) => { resolve = r as (v: unknown) => void; }) as never);
 
     fireEvent.click(bars[12]);
-    expect(await screen.findByText(/Updating for the new planting date/)).toHaveAttribute('role', 'status');
+    // The chip lives INSIDE a permanently-mounted live region (a region inserted
+    // together with its text is announced unreliably), so the role is on the parent.
+    expect((await screen.findByText(/Updating for the new planting date/)).closest('[role="status"]')).not.toBeNull();
     expect(screen.getAllByRole('button', { name: /^Plant / })).toHaveLength(bars.length);
     expect(screen.getByText('Expected at harvest')).toBeInTheDocument();
 
@@ -746,9 +748,10 @@ describe('MyHarvestPage — the window strip lives inside the result', () => {
       expect(asDate.getTime()).toBeGreaterThanOrEqual(new Date(min).getTime());
       expect(asDate.getTime()).toBeLessThanOrEqual(new Date(max).getTime());
     }
-    // Stronger than "inside the range": the LAST bar must be the field's max, which
-    // is the only way the two horizons can be shown to be the same number rather
-    // than merely compatible.
+    // Stronger than "inside the range": the sweep must be exactly as long as the
+    // field allows AND end on its max — the only way the two horizons can be shown
+    // to be the same number rather than merely compatible.
+    expect(dates.length).toBe(HORIZON_DAYS + 1); // inclusive of today
     expect(dates[dates.length - 1]).toContain(formatDate(max, 'en'));
   });
 

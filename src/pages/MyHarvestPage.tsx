@@ -33,7 +33,10 @@ import AudioHelpButton from '../components/AudioHelpButton';
 //   - the loop must not run backwards up the page: activating a bar re-forecasts
 //     IN PLACE rather than sending the farmer back to the date field + CTA above.
 
-const HORIZON_DAYS = 60; // how far ahead a farmer may plan a planting date
+/** How far ahead a farmer may plan a planting date. EXPORTED because the window
+ *  strip's sweep length and this field's `max` must be the SAME number — the test
+ *  that pins that should read the number, not restate it. */
+export const HORIZON_DAYS = 60;
 const LOOKBACK_DAYS = 365; // how far back a planting date may be back-dated
 
 function shiftDays(base: Date, days: number): string {
@@ -179,6 +182,18 @@ export default function MyHarvestPage() {
   // visible to it yet. Passing the value removes the whole class of "forecast ran
   // for the previous date" bug.
   const fcReq = useRef(0);
+  // `fcReq` guards ORDER, not LIFETIME. A continuation that resumes after the page
+  // has gone would still run the localStorage writes below — setState is a harmless
+  // no-op, but "remember my crop" is a real side effect and must not fire for a
+  // screen the farmer has already left. (Assigned in the effect body, not just the
+  // cleanup, so a StrictMode double-mount does not leave it stuck false.)
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
 
   const runForecast = useCallback(
     async (date: string) => {
@@ -191,15 +206,15 @@ export default function MyHarvestPage() {
       setFcError(false);
       try {
         const data = await api.getHarvestForecast(selected.id, date);
-        if (fcReq.current !== req) return;
+        if (!alive.current || fcReq.current !== req) return;
         setForecast(data);
         // Remember this successful pick (crop + date) + push it onto the Recent list.
         writeLastHarvest(selected.id, date);
         setRecentIds(pushRecentCrop(selected.id));
       } catch {
-        if (fcReq.current === req) setFcError(true);
+        if (alive.current && fcReq.current === req) setFcError(true);
       } finally {
-        if (fcReq.current === req) setFcLoading(false);
+        if (alive.current && fcReq.current === req) setFcLoading(false);
       }
     },
     [selected],

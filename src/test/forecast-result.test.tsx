@@ -132,11 +132,60 @@ describe('ForecastResult — the window slot', () => {
     const { unmount } = renderResult({ windowSlot: slot, loading: true, forecast: null });
     expect(screen.getByText('WINDOW SLOT')).toBeInTheDocument();
     expect(screen.getByText('Loading…')).toBeInTheDocument();
+    // Every state keeps it inside .fc-main, whose min-width:0 is what stops 60+
+    // bars from stretching the page at 360px.
+    expect(document.querySelector('.fc-main')).toContainElement(screen.getByText('WINDOW SLOT'));
     unmount();
 
     renderResult({ windowSlot: slot, error: true, forecast: null });
     expect(screen.getByText('WINDOW SLOT')).toBeInTheDocument();
     expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(document.querySelector('.fc-main')).toContainElement(screen.getByText('WINDOW SLOT'));
+  });
+
+  it('is the SAME DOM node across all three states — the strip must never remount', () => {
+    // Not cosmetic: the slot holds the window strip, a live control. Returning a
+    // structurally different tree per state made React tear it down on a failed
+    // re-fetch — focus fell off the tapped bar onto <body>, the roving tabindex
+    // reset, and the strip's horizontal scroll position was lost on a phone.
+    // Node identity across re-renders is the only way to pin that.
+    const { rerender } = renderResult({ windowSlot: slot });
+    const node = screen.getByText('WINDOW SLOT');
+    const props = {
+      forecast: fxHarvestForecast,
+      onRetry: () => {},
+      cropLabel: 'Capsicum',
+      windowSlot: slot,
+    };
+
+    rerender(<ForecastResult {...props} loading error={false} />); // refreshing
+    expect(screen.getByText('WINDOW SLOT')).toBe(node);
+    rerender(<ForecastResult {...props} loading={false} error />); // failed re-fetch
+    expect(screen.getByText('WINDOW SLOT')).toBe(node);
+    rerender(<ForecastResult {...props} forecast={null} loading error={false} />); // fresh load
+    expect(screen.getByText('WINDOW SLOT')).toBe(node);
+    rerender(<ForecastResult {...props} loading={false} error={false} />); // back to success
+    expect(screen.getByText('WINDOW SLOT')).toBe(node);
+  });
+
+  it('never shows stale numbers under a failed refresh', () => {
+    // The error branch wins even when the previous payload is still held: a retry
+    // card is honest, a price with a retry button beside it is not.
+    renderResult({ windowSlot: slot, error: true, forecast: fxHarvestForecast });
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(document.querySelector('.fc-hero__num')).toBeNull();
+  });
+
+  it('pauses Share while a newer forecast is in flight', () => {
+    // The share text quotes a price against a planting date and carries no
+    // staleness marker once it is in WhatsApp, so it must not be composable from
+    // numbers that are already being replaced.
+    renderResult({ windowSlot: slot, loading: true });
+    expect(screen.getByRole('button', { name: /Share/ })).toBeDisabled();
+    expect(screen.getByText(/Wait for the new planting date/)).toBeInTheDocument();
+
+    renderResult({ windowSlot: slot });
+    expect(screen.getAllByRole('button', { name: /Share/ })[1]).toBeEnabled();
   });
 
   it('keeps the previous forecast visible — and says so — while a new one loads', () => {
@@ -146,7 +195,7 @@ describe('ForecastResult — the window slot', () => {
     renderResult({ windowSlot: slot, loading: true });
     expect(document.querySelector('.fc-hero__num')?.textContent).toBe('Rs. 552');
     expect(screen.getByText('WINDOW SLOT')).toBeInTheDocument();
-    expect(screen.getByText(/Updating for the new planting date/)).toHaveAttribute('role', 'status');
+    expect(screen.getByText(/Updating for the new planting date/).closest('[role="status"]')).not.toBeNull();
     expect(document.querySelector('.fc[aria-busy="true"]')).toBeInTheDocument();
     expect(screen.queryByText('Loading…')).toBeNull();
   });
@@ -155,5 +204,12 @@ describe('ForecastResult — the window slot', () => {
     renderResult({ windowSlot: slot });
     expect(screen.queryByText(/Updating for the new planting date/)).toBeNull();
     expect(document.querySelector('.fc[aria-busy="true"]')).toBeNull();
+    // ...but the live region itself is already mounted and empty. A role="status"
+    // element inserted at the same moment as its text is announced unreliably
+    // (VoiceOver/Safari), so it must ship with the hero and only toggle content.
+    const live = document.querySelector('.fc-hero__live');
+    expect(live).not.toBeNull();
+    expect(live).toHaveAttribute('role', 'status');
+    expect(live!.textContent).toBe('');
   });
 });

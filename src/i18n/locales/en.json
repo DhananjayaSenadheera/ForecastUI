@@ -159,6 +159,7 @@
     "button": "Share",
     "copied": "Copied",
     "copyManual": "Copy this text:",
+    "paused": "Wait for the new planting date's forecast before sharing.",
     "lineCrop": "{{crop}} — harvest around {{date}}",
     "lineCropNoDate": "{{crop}} — harvest forecast",
     "lineExpected": "Expected price: {{mid}}{{unit}} (likely {{min}} – {{max}})",
