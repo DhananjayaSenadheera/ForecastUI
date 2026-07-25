@@ -236,6 +236,11 @@ export interface HarvestWindow {
   modelVersion: string | null;
   explanation: string;
   windowDays: number | null;
+  /** Today's average market price for this crop, same basis as
+   *  `HarvestForecast.currentPrice` — the anchor the window is judged against.
+   *  0 (or absent, on an API build that predates the field) means UNKNOWN: show
+   *  the crop alone and skip the below-today comparison. NEVER render "Rs. 0". */
+  currentPrice: number;
   points: HarvestWindowPoint[];
   best: HarvestWindowBest | null;
 }
