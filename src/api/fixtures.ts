@@ -22,6 +22,7 @@ import {
   type DailyIndicatorPoint,
   type FestivalEntry,
   type HarvestForecast,
+  type HarvestWindow,
   type IngestionRun,
   type IngestionRunPage,
   type IngestionStatus,
@@ -483,6 +484,120 @@ export const fxCropReadiness: CropReadiness = {
     // with an active model renders exactly like ready=false).
   ],
 };
+
+// =============================================================================
+// Best harvest window (2026-07-25) — demo sweep for /my-harvest step 2.
+//
+// Mirrors the LIVE contract's two outcomes so BOTH panel states are demo-able:
+//   * a crop the model serves (ready in fxCropReadiness) gets a real-shaped curve
+//     — a seasonal sine over the swept horizon plus a festival-demand bump — and
+//     a best window picked the same way the server picks it (highest rolling mean).
+//   * a crop the model does NOT serve gets rankable=false / crop_not_model_served,
+//     which is the honest "we cannot rank dates for this crop yet" state.
+// The readiness split is reused deliberately: in production the same history gate
+// decides both, so the demo can never show a green crop tile with no window (or
+// the reverse) and mislead about how the two relate.
+// =============================================================================
+const FX_WINDOW_DAYS = 14;
+
+const round2 = (n: number): number => Math.round(n * 100) / 100;
+
+function fxWindowPrice(ref: number, dayIndex: number): number {
+  // Seasonal cycle + a demand bump centred ~7 weeks out, so the recommended
+  // window sits mid-strip rather than at an edge (the interesting demo case).
+  const seasonal = Math.sin((2 * Math.PI * dayIndex) / 180) * ref * 0.09;
+  const bump = Math.exp(-(((dayIndex - 48) / 13) ** 2)) * ref * 0.14;
+  return ref + seasonal + bump;
+}
+
+// horizonDays MUST be honoured (not hardcoded): the caller keeps the sweep length
+// equal to the planting-date field's own max, so a fixture that returned a longer
+// sweep would offer demo dates the field silently clamps on tap — the exact bug
+// the equal-horizons rule exists to prevent, hidden in demo mode only.
+export function fxHarvestWindowFor(cropId: string, horizonDays = 90, asOf?: string): HarvestWindow {
+  const crop = fxCrops.find((c) => c.id === cropId);
+  const readiness = fxCropReadiness.crops.find((c) => c.cropId === cropId);
+  // Sweeps forward from the REQUESTED date (the caller passes today), not from
+  // the fixed demo price anchor other fixtures use. A forward-looking panel that
+  // opened on dates already in the past would misrepresent how live behaves.
+  const start = asOf ?? ymdLocal(new Date());
+
+  // Not served by the model (or absent from the readiness map entirely) -> the
+  // curve would be flat, so we refuse rather than invent a winner.
+  if (!readiness?.ready) {
+    return {
+      cropId,
+      cropName: crop?.name ?? null,
+      asOf: start,
+      growthPeriodDays: crop?.growthDays ?? null,
+      rankable: false,
+      reasonCode: 'crop_not_model_served',
+      activePredictor: 'unavailable',
+      confidence: 'Low',
+      modelVersion: 'v17-fixture',
+      explanation:
+        'We are still collecting data for this crop. Until the model covers it, ' +
+        'every date would return the same price — so we will not guess.',
+      windowDays: null,
+      points: [],
+      best: null,
+    };
+  }
+
+  const ref = cropReferencePrice(cropId);
+  const growthDays = crop?.growthDays ?? 90;
+  const prices = Array.from({ length: horizonDays + 1 }, (_, i) => fxWindowPrice(ref, i));
+
+  // Best window = highest rolling mean, exactly as the server computes it.
+  let bestStart = 0;
+  let bestMean = -Infinity;
+  for (let i = 0; i + FX_WINDOW_DAYS <= prices.length; i++) {
+    const mean = prices.slice(i, i + FX_WINDOW_DAYS).reduce((a, b) => a + b, 0) / FX_WINDOW_DAYS;
+    if (mean > bestMean) {
+      bestMean = mean;
+      bestStart = i;
+    }
+  }
+  const bestEnd = bestStart + FX_WINDOW_DAYS - 1;
+
+  const points = prices.map((p, i) => ({
+    plantDate: addDays(start, i) ?? start,
+    harvestDate: addDays(start, i + growthDays) ?? start,
+    predictedPrice: round2(p),
+    lowerBound: round2(p * 0.74),
+    upperBound: round2(p * 1.27),
+    inBestWindow: i >= bestStart && i <= bestEnd,
+  }));
+
+  const baseline = prices.reduce((a, b) => a + b, 0) / prices.length;
+  return {
+    cropId,
+    cropName: crop?.name ?? null,
+    asOf: start,
+    growthPeriodDays: growthDays,
+    rankable: true,
+    reasonCode: 'ml_served',
+    activePredictor: 'residual',
+    confidence: 'Medium',
+    modelVersion: 'v17-fixture',
+    explanation:
+      'Compares planting dates using the season and festival demand around each ' +
+      "harvest date. Today's prices and weather are held constant, so this ranks " +
+      'TIMING — it is not a weather forecast.',
+    windowDays: FX_WINDOW_DAYS,
+    points,
+    best: {
+      plantStart: points[bestStart].plantDate,
+      plantEnd: points[bestEnd].plantDate,
+      harvestStart: points[bestStart].harvestDate,
+      harvestEnd: points[bestEnd].harvestDate,
+      predictedPrice: round2(bestMean),
+      lowerBound: round2(bestMean * 0.74),
+      upperBound: round2(bestMean * 1.27),
+      upliftPct: Math.round(((bestMean - baseline) / baseline) * 1000) / 10,
+    },
+  };
+}
 
 // ---- FIXTURE-ONLY (no live endpoint — API gaps #1 / #2) ----
 export const fxMarkets: Market[] = [
