@@ -22,7 +22,10 @@
 // ship English-first; si/ta get them when a native speaker writes them, never
 // from a machine. A row therefore renders in whichever mode its ACTIVE LOCALE
 // can actually support:
-//   * sentence mode — locale owns `factor.sentence.*` (+ the strength word)
+//   * sentence mode — locale owns THIS row's `factor.sentence.*`, the strength
+//                     word that row's size maps to, and — only for a sentence
+//                     that interpolates {{crop}} when no crop name was passed
+//                     in — `factor.cropGeneric`
 //   * compact mode  — the previous rendering (translated factor label +
 //                     translated "pushes price up/down" + weight bar), which
 //                     si/ta already have in full.
@@ -38,7 +41,7 @@
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ForecastFactor } from '../api/types';
-import i18n, { hasOwnTranslation } from '../i18n';
+import i18n, { hasOwnTranslation, ownTranslation } from '../i18n';
 import {
   factorDirectionKey,
   factorGlyph,
@@ -53,6 +56,9 @@ import {
 import { FactorIcon } from './factorIcons';
 
 const DESKTOP_QUERY = '(min-width: 1024px)';
+
+/** Does a sentence template actually interpolate the crop name? (i18next `{{crop}}`) */
+const CROP_VAR = /\{\{\s*crop\s*\}\}/;
 
 /** Default-open on desktop, collapsed on mobile. Guards SSR/jsdom (no matchMedia). */
 function initialOpen(): boolean {
@@ -80,6 +86,15 @@ export default function WhyForecast({ factors, explanation, cropLabel }: WhyFore
   // "Capsicum prices have been climbing" / "This crop's prices have been
   // climbing" — both grammatical, so one template covers a missing crop name.
   const crop = cropLabel?.trim() || t('factor.cropGeneric');
+  // ...but `factor.cropGeneric` is itself English-first, so without a crop name
+  // it is a THIRD way English can get wedged inside a translated sentence
+  // ("... This crop's ..." mid-Sinhala). Callers always pass a crop name today;
+  // this closes the hole before someone reuses the component. Checked per ROW
+  // below, and only for sentences that actually interpolate {{crop}} — pushing
+  // an unrelated row (market conditions, weather) back to compact over a word it
+  // never renders would be a false degradation.
+  const hasCropName = !!cropLabel?.trim();
+  const cropWordOk = hasCropName || hasOwnTranslation('factor.cropGeneric');
 
   return (
     <section className="wf">
@@ -114,8 +129,10 @@ export default function WhyForecast({ factors, explanation, cropLabel }: WhyFore
               // no caption — and therefore no strength word to render.
               const wantsCaption = f.direction !== 'neutral';
               const sentenceKey = factorSentenceKey(f.code, f.direction);
+              const template = ownTranslation(sentenceKey);
               const useSentence =
-                hasOwnTranslation(sentenceKey) &&
+                template !== undefined &&
+                (cropWordOk || !CROP_VAR.test(template)) &&
                 (!wantsCaption || strength == null || hasOwnTranslation(factorStrengthKey(strength)));
 
               if (useSentence) {

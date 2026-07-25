@@ -67,11 +67,16 @@ document.documentElement.lang = initialLang;
  * Empty strings count as MISSING on purpose: a blank key is a translation stub,
  * not a translation.
  */
-export function hasOwnTranslation(key: string, lng?: string): boolean {
+export function ownTranslation(key: string, lng?: string): string | undefined {
   const lang = lng ?? i18n.resolvedLanguage ?? i18n.language;
-  if (!lang) return false;
+  if (!lang) return undefined;
   const value = i18n.getResource(lang, 'translation', key);
-  return typeof value === 'string' && value.trim().length > 0;
+  return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
+}
+
+/** Boolean form of {@link ownTranslation} — the usual gate. */
+export function hasOwnTranslation(key: string, lng?: string): boolean {
+  return ownTranslation(key, lng) !== undefined;
 }
 
 export default i18n;

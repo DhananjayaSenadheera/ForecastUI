@@ -157,8 +157,8 @@
         "down": "{{crop}} prices have been falling in recent weeks. That weighs on the forecast."
       },
       "festival_demand": {
-        "up": "Your harvest lands close to festival time, when demand is usually higher.",
-        "down": "Your harvest misses the festival rush, when demand is usually higher."
+        "up": "Your harvest lands close to festival time, when demand is usually higher. That lifts the forecast.",
+        "down": "Your harvest misses the festival rush, so demand is usually softer then. That weighs on the price."
       },
       "seasonal_supply": {
         "up": "Your harvest lands when fewer farms are harvesting. With less in the market, prices are usually better.",

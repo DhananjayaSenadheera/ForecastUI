@@ -4,13 +4,16 @@ import i18n from '../i18n';
 import WhyForecast from '../components/WhyForecast';
 import { fxHarvestForecast, fxHarvestForecastLow } from '../api/fixtures';
 import type { ForecastFactor } from '../api/types';
+import en from '../i18n/locales/en.json';
 
 // Snapshot of the untouched si bundle — one test below adds Sinhala resources at
 // runtime to prove the per-locale light-up, and must restore them afterwards.
 const siOriginal = JSON.parse(JSON.stringify(i18n.getResourceBundle('si', 'translation')));
 
 const CODES = ['recent_price_trend', 'festival_demand', 'seasonal_supply', 'weather_monsoon'];
-const SENTENCE_CODES = [...CODES, 'market_conditions', 'economic_conditions'];
+// DERIVED from the bundle, never hand-listed: a 7th factor code must not be able
+// to slip past the copy rules below just because someone forgot this array.
+const SENTENCE_CODES = Object.keys(en.factor.sentence);
 const LOCALES = ['en', 'si', 'ta'] as const;
 
 function expand(name: RegExp = /Why this price/i) {
@@ -31,7 +34,9 @@ describe('WhyForecast (FE-6)', () => {
       screen.getByText(/Capsicum prices have been climbing in recent weeks\. That lifts the forecast\./),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Your harvest lands close to festival time, when demand is usually higher\./),
+      screen.getByText(
+        /Your harvest lands close to festival time, when demand is usually higher\. That lifts the forecast\./,
+      ),
     ).toBeInTheDocument();
     // the DOWN factor states the supply STATE, not just "pushes price down"
     expect(
@@ -220,6 +225,10 @@ describe('WhyForecast (FE-6)', () => {
   });
 
   it('ships an English sentence for every code in BOTH directions (no silent gap)', () => {
+    // the derived list must still cover every code the API can send
+    expect(SENTENCE_CODES).toEqual(expect.arrayContaining([...CODES, 'market_conditions', 'economic_conditions']));
+    expect(SENTENCE_CODES.length).toBeGreaterThanOrEqual(6);
+
     for (const code of SENTENCE_CODES) {
       for (const dir of ['up', 'down']) {
         const v = i18n.getResource('en', 'translation', `factor.sentence.${code}.${dir}`);
@@ -227,6 +236,26 @@ describe('WhyForecast (FE-6)', () => {
         // hedged, never a promise
         expect(/\bwill\b/i.test(v as string)).toBe(false);
       }
+    }
+  });
+
+  // The whole point of the redesign: the LAST thing a farmer reads must be the
+  // consequence for THIS direction. A down-row that trails off on "demand is
+  // usually higher" re-creates the exact topic-vs-arrow collision this replaced.
+  it('ends every sentence on a consequence that agrees with its own direction', () => {
+    const UP_TAIL = /\b(lifts?|better|higher|stronger|up)\b[^.]*\.\s*$/i;
+    const DOWN_TAIL = /\b(lowers?|weighs?|softer|easing|falling|down)\b[^.]*\.\s*$/i;
+    for (const code of SENTENCE_CODES) {
+      const up = i18n.getResource('en', 'translation', `factor.sentence.${code}.up`) as string;
+      const down = i18n.getResource('en', 'translation', `factor.sentence.${code}.down`) as string;
+      const upLast = up.trim().split(/(?<=\.)\s+/).pop()!;
+      const downLast = down.trim().split(/(?<=\.)\s+/).pop()!;
+      expect(upLast, `up/${code} must close on an upward consequence`).toMatch(UP_TAIL);
+      expect(downLast, `down/${code} must close on a downward consequence`).toMatch(DOWN_TAIL);
+      // and the pair must not SHARE that closing clause — the festival pair once
+      // both ended "...when demand is usually higher", so the down row's last
+      // words argued against its own arrow.
+      expect(downLast, `${code}: up/down must not end on the same clause`).not.toBe(upLast);
     }
   });
 });
@@ -295,6 +324,42 @@ describe('WhyForecast — si/ta fall back to the compact row, never to English p
       expect(screen.getByText(/ළඟපාත වෙළඳපොළවල මිල ඉහළයි\./)).toBeInTheDocument();
       expect(screen.getByText(/ප්‍රබල බලපෑම/)).toBeInTheDocument();
       expect(document.querySelector('.wf-body')!.textContent).not.toMatch(/harvesting/i);
+    } finally {
+      i18n.removeResourceBundle('si', 'translation');
+      i18n.addResourceBundle('si', 'translation', siOriginal);
+      await i18n.changeLanguage('en');
+    }
+  });
+
+  // The third English-first key. `factor.cropGeneric` only appears when NO crop
+  // name is passed in, so it is easy to forget in the gate — and the leak it
+  // causes is the worst kind: two English words wedged mid-Sinhala-sentence.
+  it('keeps the row compact when the locale has the sentence but not cropGeneric', async () => {
+    i18n.addResource(
+      'si',
+      'translation',
+      'factor.sentence.recent_price_trend.up',
+      '{{crop}} මිල මෑතකදී ඉහළ ගොස් ඇත.',
+    );
+    i18n.addResource('si', 'translation', 'factor.strength.strong', 'ප්‍රබල බලපෑම');
+    i18n.addResource('si', 'translation', 'factor.caption', '{{label}} · {{strength}}');
+    // deliberately NOT adding factor.cropGeneric
+    try {
+      await i18n.changeLanguage('si');
+      const factors: ForecastFactor[] = [{ code: 'recent_price_trend', direction: 'up', weight: 1 }];
+
+      // no crop name -> the sentence would need the English "This crop's"
+      const { unmount } = render(<WhyForecast factors={factors} explanation="x" />);
+      fireEvent.click(screen.getByRole('button'));
+      expect(document.querySelectorAll('.wf-factor--sentence').length).toBe(0);
+      expect(document.querySelector('.wf-body')!.textContent).not.toMatch(/This crop's/i);
+      unmount();
+
+      // WITH a crop name the key is never read, so the sentence renders
+      render(<WhyForecast factors={factors} explanation="x" cropLabel="මිරිස්" />);
+      fireEvent.click(screen.getByRole('button'));
+      expect(document.querySelectorAll('.wf-factor--sentence').length).toBe(1);
+      expect(screen.getByText(/මිරිස් මිල මෑතකදී ඉහළ ගොස් ඇත\./)).toBeInTheDocument();
     } finally {
       i18n.removeResourceBundle('si', 'translation');
       i18n.addResourceBundle('si', 'translation', siOriginal);
