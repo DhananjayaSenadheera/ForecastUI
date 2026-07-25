@@ -235,12 +235,27 @@ interface CropShape {
   phase: number; // seasonal phase (radians)
   trend: number; // 12-month drift, fraction of reference
 }
+/**
+ * `fxBestCrops` is the demo's DECLARED story about a crop — "Falling", "Not
+ * recommended". The generators must not tell a different one: before this,
+ * Cabbage was labelled Falling/Not recommended on the best-crops screen while
+ * its generated series drifted UP (+3% on the harvest card), so the two screens
+ * quietly contradicted each other. Deriving the drift from the declared trend
+ * keeps one source of truth — and it is what makes the below-today state on the
+ * best-window panel reachable at all in demo mode.
+ */
+function cropFalls(cropId: string): boolean {
+  return fxBestCrops.find((b) => b.cropId === cropId)?.trend === PriceTrend.Down;
+}
+
 function cropShape(cropId: string): CropShape {
   const h = hashStr(cropId);
+  const trend = -0.05 + (((h >>> 15) % 100) / 100) * 0.16; // -0.05–0.11
   return {
     amp: 0.05 + ((h % 100) / 100) * 0.12, // 0.05–0.17
     phase: (((h >>> 7) % 360) * Math.PI) / 180, // 0–2π
-    trend: -0.05 + (((h >>> 15) % 100) / 100) * 0.16, // -0.05–0.11
+    // A crop the demo calls Falling falls: same magnitude, sign forced down.
+    trend: cropFalls(cropId) ? -Math.abs(trend) - 0.05 : trend,
   };
 }
 
@@ -502,12 +517,16 @@ const FX_WINDOW_DAYS = 14;
 
 const round2 = (n: number): number => Math.round(n * 100) / 100;
 
-function fxWindowPrice(ref: number, dayIndex: number): number {
+function fxWindowPrice(anchor: number, dayIndex: number, falling: boolean): number {
   // Seasonal cycle + a demand bump centred ~7 weeks out, so the recommended
   // window sits mid-strip rather than at an edge (the interesting demo case).
-  const seasonal = Math.sin((2 * Math.PI * dayIndex) / 180) * ref * 0.09;
-  const bump = Math.exp(-(((dayIndex - 48) / 13) ** 2)) * ref * 0.14;
-  return ref + seasonal + bump;
+  const seasonal = Math.sin((2 * Math.PI * dayIndex) / 180) * anchor * 0.09;
+  const bump = Math.exp(-(((dayIndex - 48) / 13) ** 2)) * anchor * 0.14;
+  // Both terms are non-negative across a 0–90 day sweep, so a rising crop's whole
+  // strip sits at or above its anchor. A FALLING crop gets the mirror image — a
+  // seasonal sag and a glut dip — which is what makes its best window the
+  // least-bad date rather than a gain.
+  return falling ? anchor - seasonal - bump : anchor + seasonal + bump;
 }
 
 // horizonDays MUST be honoured (not hardcoded): the caller keeps the sweep length
@@ -517,6 +536,13 @@ function fxWindowPrice(ref: number, dayIndex: number): number {
 export function fxHarvestWindowFor(cropId: string, horizonDays = 90, asOf?: string): HarvestWindow {
   const crop = fxCrops.find((c) => c.id === cropId);
   const readiness = fxCropReadiness.crops.find((c) => c.cropId === cropId);
+  // Today's price comes from the SAME place the harvest-forecast fixture takes it
+  // (last month of history), so demo mode cannot show the window panel and the
+  // forecast screen disagreeing about what "today" costs. fxTimelineFor, NOT
+  // genTimeline: three crops (Capsicum/Beans/Passion Fruit) have hand-authored
+  // timelines, and going straight to the generator gave Capsicum a Rs. 500 "today"
+  // on this panel while its forecast card said Rs. 460.
+  const currentPrice = round2(fxTimelineFor(cropId).history.slice(-1)[0].avgPrice);
   // Sweeps forward from the REQUESTED date (the caller passes today), not from
   // the fixed demo price anchor other fixtures use. A forward-looking panel that
   // opened on dates already in the past would misrepresent how live behaves.
@@ -539,6 +565,7 @@ export function fxHarvestWindowFor(cropId: string, horizonDays = 90, asOf?: stri
         'We are still collecting data for this crop. Until the model covers it, ' +
         'every date would return the same price — so we will not guess.',
       windowDays: null,
+      currentPrice,
       points: [],
       best: null,
     };
@@ -546,7 +573,20 @@ export function fxHarvestWindowFor(cropId: string, horizonDays = 90, asOf?: stri
 
   const ref = cropReferencePrice(cropId);
   const growthDays = crop?.growthDays ?? 90;
-  const prices = Array.from({ length: horizonDays + 1 }, (_, i) => fxWindowPrice(ref, i));
+  const falling = cropFalls(cropId);
+  // A falling crop's sweep is anchored at the lower of its reference price and
+  // today's price, CARRIED FORWARD by one growth period of the crop's own declared
+  // 12-month drift — because the earliest harvest on this strip is a whole growth
+  // period away, by which time the decline the timeline already shows has had that
+  // long to run. Anchoring at today's price instead would put the first bar exactly
+  // ON today (the mirrored shape is 0 at day 0), and the panel's warning is gated
+  // on NO single date beating today, so it would never fire. Every term here is an
+  // existing fixture surface — reference price, today's price, the declared trend,
+  // the crop's growth period — so the demo still agrees with itself.
+  const anchor = falling
+    ? Math.min(ref, currentPrice) * (1 + cropShape(cropId).trend * (growthDays / 365))
+    : ref;
+  const prices = Array.from({ length: horizonDays + 1 }, (_, i) => fxWindowPrice(anchor, i, falling));
 
   // Best window = highest rolling mean, exactly as the server computes it.
   let bestStart = 0;
@@ -585,6 +625,7 @@ export function fxHarvestWindowFor(cropId: string, horizonDays = 90, asOf?: stri
       "harvest date. Today's prices and weather are held constant, so this ranks " +
       'TIMING — it is not a weather forecast.',
     windowDays: FX_WINDOW_DAYS,
+    currentPrice,
     points,
     best: {
       plantStart: points[bestStart].plantDate,
