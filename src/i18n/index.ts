@@ -53,4 +53,30 @@ void i18n.use(initReactI18next).init({
 
 document.documentElement.lang = initialLang;
 
+/**
+ * TRUE only when `key` exists in the ACTIVE locale's OWN resource bundle — i.e.
+ * a real translation, not the English fallback.
+ *
+ * WHY THIS EXISTS: `i18n.exists()` and `t()` both walk `fallbackLng`, so an
+ * English-only key reports as "existing" while the active language is Sinhala.
+ * That is exactly how a Sinhala farmer ends up staring at an English paragraph.
+ * Any string that is deliberately shipped en-first (long-form prose the owner
+ * translates later) MUST be gated on this, so the UI can degrade to a shorter
+ * rendering the locale really has, instead of leaking English.
+ *
+ * Empty strings count as MISSING on purpose: a blank key is a translation stub,
+ * not a translation.
+ */
+export function ownTranslation(key: string, lng?: string): string | undefined {
+  const lang = lng ?? i18n.resolvedLanguage ?? i18n.language;
+  if (!lang) return undefined;
+  const value = i18n.getResource(lang, 'translation', key);
+  return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
+}
+
+/** Boolean form of {@link ownTranslation} — the usual gate. */
+export function hasOwnTranslation(key: string, lng?: string): boolean {
+  return ownTranslation(key, lng) !== undefined;
+}
+
 export default i18n;

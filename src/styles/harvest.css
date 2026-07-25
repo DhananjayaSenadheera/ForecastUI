@@ -636,10 +636,13 @@
 }
 
 /* =============================================================================
-   WHY THIS FORECAST? — collapsible factor / explanation panel (FE-6).
-   Disclosure = button + region. Direction is glyph + WORD in NEUTRAL text
-   (never red/green, never a verdict). Weight bars share one scale within the
-   panel. Tokens only.
+   WHY THIS PRICE? — collapsible factor / explanation panel (FE-6).
+   Disclosure = button + region. Direction is glyph + WORDS in NEUTRAL text
+   (never red/green, never a verdict): a driver is not a verdict, and colouring
+   these rows would compete with the recommendation card that IS one.
+   Two row layouts: SENTENCE (icon + causal sentence + strength caption) and
+   COMPACT (the locale-fallback rendering: direction word + label). Weight bars
+   share one scale within the panel and are supplementary in both. Tokens only.
    ============================================================================= */
 .wf {
   border: 1px solid var(--line);
@@ -733,6 +736,47 @@
   color: var(--text-3);
   font-style: italic;
 }
+/* --- SENTENCE row (locale has the causal prose) ---------------------------- */
+.wf-factor--sentence {
+  align-items: flex-start;
+  gap: var(--sp-3);
+}
+.wf-factor__icon {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  color: var(--text-2);
+  /* nudge the icon onto the first line's optical centre */
+  margin-top: 1px;
+}
+.wf-factor__sentence {
+  margin: 0;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--text);
+}
+.wf-factor__sentence .wf-factor__glyph {
+  /* Arrow sits WITH the sentence (which states the consequence in words), so
+     direction is never carried by colour or glyph alone. */
+  margin-right: var(--sp-2);
+  color: var(--text-2);
+}
+.wf-factor__caption {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+/* A near-zero driver is stated plainly and de-emphasised — it is not news. */
+.wf-factor--sentence.wf-factor--neutral .wf-factor__sentence {
+  color: var(--text-2);
+}
+
 .wf-factor__bar {
   display: block;
   width: 100%;

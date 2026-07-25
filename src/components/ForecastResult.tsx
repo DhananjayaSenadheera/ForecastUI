@@ -252,9 +252,10 @@ export default function ForecastResult({
           {f.reason && <p className="fc-take__reason">{f.reason}</p>}
         </div>
 
-        {/* "Why this forecast?" factor breakdown (FE-6) — structured when the
-            API-5 topFactors are present, honest degraded note otherwise. */}
-        <WhyForecast factors={f.topFactors} explanation={f.explanation} />
+        {/* "Why this price?" factor breakdown (FE-6) — causal sentences when the
+            API-5 topFactors are present, honest degraded note otherwise. The crop
+            name is interpolated into the price-trend sentence. */}
+        <WhyForecast factors={f.topFactors} explanation={f.explanation} cropLabel={name} />
 
         {/* Share this forecast as plain text (FE-11). Paused while a newer
             forecast is in flight: the composed message quotes a price for a

@@ -127,6 +127,7 @@
     "provAsOf": "விலைகள் {{date}} நிலவரப்படி"
   },
   "factor": {
+    "_note": "`factor.sentence.*`, `factor.sentenceNeutral`, `factor.strength.*`, `factor.caption` and `factor.cropGeneric` are DELIBERATELY ABSENT here. They are long-form causal prose and must be written by a native Tamil speaker, never machine-translated. While they are missing, WhyForecast renders the compact rows below (label + factor.dir.*) — no English prose reaches a Tamil farmer. The gate is per ROW: a row shows its sentence only once Tamil has that row's `sentence` key AND (for up/down rows) the `strength` word its size maps to, plus `caption`. So you may land them a few at a time — the rest stay compact, never half-English. `cropGeneric` is used ONLY by sentences containing {{crop}} (today just recent_price_trend) and ONLY when the screen passes no crop name — which it always does; omit it and the sole effect is that one row staying compact in that unused case.",
     "title": "இந்த முன்னறிவிப்பு ஏன்?",
     "dir": {
       "up": "விலையை மேலே தள்ளுகிறது",
