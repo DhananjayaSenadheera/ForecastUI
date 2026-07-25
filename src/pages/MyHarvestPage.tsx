@@ -277,13 +277,23 @@ export default function MyHarvestPage() {
   //     warns whenever no single date beats today — a sweep 0–5% under today shows
   //     "Little data / roughly flat versus today" and states no loss at all;
   //   - `fcError` replaces the whole result with a retry card — no verdict;
-  //   - `fcLoading` with no forecast yet is the first-load skeleton — no verdict,
-  //     while the strip beside it is already fully painted from the pre-fetch.
+  //   - no forecast yet is the first-load skeleton — no verdict either, while the
+  //     strip beside it is already fully painted from the crop-select pre-fetch.
   // Anything but a live NotRecommended verdict => the panel says it itself.
+  //
+  // This is EXACTLY ForecastResult's own predicate for "a verdict card is
+  // rendered" (`f = error ? null : forecast`, side column iff `f`), which is why
+  // it must NOT also test `fcLoading`. During an in-place re-run the previous
+  // verdict deliberately stays on screen — that is the whole point of not
+  // collapsing to a skeleton — so treating "loading" as "no verdict" would assert
+  // something false, and would insert/remove a two-line warning ABOVE the strip on
+  // every tap of a below-today crop, shunting the bars ~50px under a 7px pointer
+  // target and destroying the scroll-stability that justifies re-forecasting in
+  // place. No stale window opens either: suppression and verdict read the same
+  // `forecast` object in the same render, so they flip in one commit.
   const lossCarriedByVerdict =
     forecast !== null &&
     !fcError &&
-    !fcLoading &&
     forecast.recommendationLevel === RecommendationLevel.NotRecommended;
 
   return (
