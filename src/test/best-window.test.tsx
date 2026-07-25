@@ -502,6 +502,7 @@ describe('MyHarvestPage — the window strip lives inside the result', () => {
   // from the same anchor, so the numbers are identical wherever it renders. It
   // moved for context (min-max bars need a price beside them) and for flow.
   const BEANS = 'Beans';
+  const BEANS_ID = 'c0000002-0000-0000-0000-000000000002';
 
   function renderPage() {
     return render(
@@ -557,31 +558,27 @@ describe('MyHarvestPage — the window strip lives inside the result', () => {
   });
 
   it('tapping a bar re-forecasts IN PLACE — new price, no unmount, no focus jump', async () => {
-    // The fixture forecast is (still) plant-date independent, so the price is
-    // stubbed per date here — that is exactly the live contract, where /predict
-    // scores the what-if row for the date it is given.
-    const spy = vi
-      .spyOn(api, 'getHarvestForecast')
-      .mockImplementation(async (cropId: string, plantDate: string | Date) => {
-        const ymd = String(plantDate);
-        return { ...fxForecastFor(cropId, ymd), predictedPrice: 100 + Number(ymd.slice(-2)) };
-      });
-
+    // Reads the REAL fixture: since the plant-date invariant landed, the fixture
+    // forecast for date D is the same row as the strip's bar for D, so this needs
+    // no mock to prove the price moved.
     const bars = await forecastBeans();
+    const win = fxHarvestWindowFor(BEANS_ID, 60, shiftYmd(0));
     const result = screen.getByRole('region', { name: 'Expected at harvest' });
     const target = bars[10]; // the sweep starts at today, so bar i == today + i
     const targetDate = shiftYmd(10);
+    expect(win.points[10].plantDate).toBe(targetDate);
     // The hero numeral specifically — the same figure also appears on the band and
     // in the table alternative, and it is the HERO the farmer reads.
     const hero = () => document.querySelector('.fc-hero__num')!.textContent;
-    await waitFor(() => expect(hero()).toBe(`Rs. ${100 + Number(shiftYmd(0).slice(-2))}`));
+    const rs = (n: number) => `Rs. ${Math.round(n).toLocaleString('en-US')}`;
+    await waitFor(() => expect(hero()).toBe(rs(win.points[0].predictedPrice)));
+    expect(win.points[10].predictedPrice).not.toBe(win.points[0].predictedPrice);
 
     target.focus();
     fireEvent.click(target);
 
-    // The hero price is the tapped date's price...
-    await waitFor(() => expect(hero()).toBe(`Rs. ${100 + Number(targetDate.slice(-2))}`));
-    expect(spy).toHaveBeenLastCalledWith('c0000002-0000-0000-0000-000000000002', targetDate);
+    // The hero price is the tapped bar's OWN price — one row, two renderings.
+    await waitFor(() => expect(hero()).toBe(rs(win.points[10].predictedPrice)));
     // ...the date field (step 2, above) follows...
     expect(screen.getByLabelText<HTMLInputElement>(/planting date/i).value).toBe(targetDate);
     // ...the bar's own highlight moves with it...
@@ -590,7 +587,6 @@ describe('MyHarvestPage — the window strip lives inside the result', () => {
     expect(screen.getByRole('region', { name: 'Expected at harvest' })).toBe(result);
     expect(screen.getAllByRole('button', { name: /^Plant / })[10]).toBe(target);
     expect(target).toHaveFocus();
-    spy.mockRestore();
   });
 
   it('re-forecasts identically from the keyboard', async () => {
@@ -612,7 +608,7 @@ describe('MyHarvestPage — the window strip lives inside the result', () => {
     fireEvent.click(active);
     await waitFor(() => expect(spy).toHaveBeenCalledTimes(2));
     expect(spy).toHaveBeenLastCalledWith(
-      'c0000002-0000-0000-0000-000000000002',
+      BEANS_ID,
       shiftYmd(start + 1),
     );
     expect(active).toHaveAttribute('aria-pressed', 'true');
@@ -636,7 +632,7 @@ describe('MyHarvestPage — the window strip lives inside the result', () => {
     expect(screen.getAllByRole('button', { name: /^Plant / })).toHaveLength(bars.length);
     expect(screen.getByText('Expected at harvest')).toBeInTheDocument();
 
-    resolve(fxForecastFor('c0000002-0000-0000-0000-000000000002', shiftYmd(12)));
+    resolve(fxForecastFor(BEANS_ID, shiftYmd(12)));
     await waitFor(() =>
       expect(screen.queryByText(/Updating for the new planting date/)).toBeNull(),
     );

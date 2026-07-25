@@ -351,17 +351,114 @@ function genHarvest(cropId: string, plantDate: string): HarvestForecast {
   };
 }
 
-export function fxForecastFor(cropId: string, plantDate: string): HarvestForecast {
-  const base = fxHarvestByCrop[cropId];
-  if (base) {
-    return {
-      ...base,
-      cropId,
-      plantDate,
-      harvestDate: addDays(plantDate, base.growthPeriodDays) ?? base.harvestDate,
-    };
+// =============================================================================
+// THE PLANT-DATE INVARIANT (2026-07-25). Live, `/predict` and `/harvest-window`
+// build the SAME what-if row from the SAME anchor for a given planting date —
+// `TestForecastAgreement` pins that both return identical p10/p50/p90 and the
+// same harvest date. Until now the fixtures did NOT: every date returned the
+// same price and only harvestDate moved, which is a working replica of the very
+// production bug PR #58 fixed. Demo mode therefore taught the opposite of the
+// truth — tapping along the strip changed nothing but the date.
+//
+// So the fixture forecast now READS ITS NUMBERS FROM THE WINDOW: one source, one
+// definition of "what is this crop worth if planted on D", exactly as the server
+// routes both endpoints through `_whatif_rows()`.
+//
+// Dates OUTSIDE the sweep (back-dated, or a crop the window cannot rank) have no
+// window point to agree with, so they keep the hand-authored / generated tier
+// fixture. That is honest rather than convenient: there is nothing to be
+// consistent WITH, and the confidence-tier showcase stays pinned and stable.
+// =============================================================================
+const FX_FORECAST_SWEEP = 90; // ≥ the 60 days the planting-date field allows
+
+/** The window's own row for one planting date, or null if it does not rank it. */
+function fxWindowRowFor(cropId: string, plantDate: string) {
+  // Anchored at TODAY, exactly as MyHarvestPage requests the strip, so the point
+  // the farmer tapped and the forecast they get back are the same row.
+  const w = fxHarvestWindowFor(cropId, FX_FORECAST_SWEEP, ymdLocal(new Date()));
+  if (!w.rankable) return null;
+  const point = w.points.find((p) => p.plantDate === plantDate);
+  // growthPeriodDays travels WITH the point: harvestDate is derived from it, and a
+  // payload whose harvestDate does not equal plantDate + growthPeriodDays is a lie
+  // the share text would repeat.
+  return point ? { point, growthPeriodDays: w.growthPeriodDays } : null;
+}
+
+/**
+ * The .NET verdict rule (GetHarvestForecastQueryHandler), mirrored so a fixture
+ * cannot show a price that moved with the date beside a verdict that did not.
+ * The verdict SHOULD change as the farmer taps along the strip — that is the
+ * feature, and the −5% deadband between "below today" and "Not recommended" is
+ * precisely what the panel's own loss warning has to cover.
+ */
+function fxVerdictFor(
+  currentPrice: number,
+  p: { predictedPrice: number; lowerBound: number; upperBound: number },
+  lowTrust: boolean,
+) {
+  const upside = (p.predictedPrice - currentPrice) / currentPrice;
+  const width = (p.upperBound - p.lowerBound) / p.predictedPrice;
+  let ceiling = lowTrust ? RecommendationLevel.Recommended : RecommendationLevel.StronglyRecommended;
+  if (width > 0.6) ceiling = Math.min(ceiling, RecommendationLevel.RecommendedWithRisk);
+
+  let raw: RecommendationLevel;
+  let reason: string;
+  if (upside < -0.05) {
+    raw = RecommendationLevel.NotRecommended;
+    reason = "Forecast below today's price - consider another crop.";
+  } else if (upside < 0.08) {
+    raw = RecommendationLevel.RecommendedWithRisk;
+    reason = 'Roughly flat versus today - limited upside.';
+  } else if (upside < 0.2) {
+    raw = width <= 0.3 ? RecommendationLevel.Recommended : RecommendationLevel.RecommendedWithRisk;
+    reason =
+      width <= 0.3
+        ? "Harvest price forecast above today's - favorable."
+        : 'Higher harvest price likely, but the forecast is uncertain.';
+  } else {
+    raw =
+      width <= 0.3
+        ? RecommendationLevel.StronglyRecommended
+        : width <= 0.6
+          ? RecommendationLevel.Recommended
+          : RecommendationLevel.RecommendedWithRisk;
+    reason =
+      width <= 0.3
+        ? 'Strong harvest-price upside with a tight forecast - a good bet.'
+        : 'Large potential upside, but the forecast is wide - some risk.';
   }
-  return genHarvest(cropId, plantDate); // distinct per-crop synthetic forecast
+  return {
+    recommendationLevel: Math.min(raw, ceiling) as RecommendationLevel,
+    reason,
+    upsidePct: Math.round(upside * 100),
+    intervalWidthPct: Math.round(width * 100),
+  };
+}
+
+export function fxForecastFor(cropId: string, plantDate: string): HarvestForecast {
+  const tier = fxHarvestByCrop[cropId];
+  const base: HarvestForecast = tier
+    ? {
+        ...tier,
+        cropId,
+        plantDate,
+        harvestDate: addDays(plantDate, tier.growthPeriodDays) ?? tier.harvestDate,
+      }
+    : genHarvest(cropId, plantDate); // distinct per-crop synthetic forecast
+
+  const row = fxWindowRowFor(cropId, plantDate);
+  if (!row) return base;
+
+  return {
+    ...base,
+    // Same row as the bar the farmer tapped — never a second opinion.
+    predictedPrice: row.point.predictedPrice,
+    lowerBound: row.point.lowerBound,
+    upperBound: row.point.upperBound,
+    harvestDate: row.point.harvestDate,
+    growthPeriodDays: row.growthPeriodDays ?? base.growthPeriodDays,
+    ...fxVerdictFor(base.currentPrice, row.point, base.lowTrust),
+  };
 }
 
 // HIGH-tier, full 12-month history (Capsicum). Forecast cones out to the harvest.
