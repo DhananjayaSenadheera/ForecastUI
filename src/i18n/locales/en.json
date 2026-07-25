@@ -202,7 +202,7 @@
     "appLine": "— {{app}}"
   },
   "bestWindow": {
-    "title": "Best time to harvest",
+    "title": "Best time to Plant",
     "lead": "When to plant {{crop}} so the harvest meets a better price.",
     "plantCap": "Plant",
     "harvestCap": "Harvest",

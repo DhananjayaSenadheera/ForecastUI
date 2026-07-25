@@ -531,7 +531,7 @@ describe('MyHarvestPage — the window strip lives inside the result', () => {
 
     // Picking a crop pre-loads the window data, but nothing renders yet: at that
     // point there is no price on screen to read the bars against.
-    expect(screen.queryByRole('heading', { name: /Best time to harvest/ })).toBeNull();
+    expect(screen.queryByRole('heading', { name: /Best time to Plant/ })).toBeNull();
     expect(screen.queryAllByRole('button', { name: /^Plant / })).toHaveLength(0);
 
     fireEvent.click(screen.getByRole('button', { name: 'Get forecast' }));
@@ -539,12 +539,12 @@ describe('MyHarvestPage — the window strip lives inside the result', () => {
 
     // Exactly one strip: two charts of identical data on one screen is a bug, not
     // a convenience.
-    expect(screen.getAllByRole('heading', { name: /Best time to harvest/ })).toHaveLength(1);
+    expect(screen.getAllByRole('heading', { name: /Best time to Plant/ })).toHaveLength(1);
   });
 
   it('renders below the price range, inside the result — not back up the page', async () => {
     await forecastBeans();
-    const heading = screen.getByRole('heading', { name: /Best time to harvest/ });
+    const heading = screen.getByRole('heading', { name: /Best time to Plant/ });
     // (The same string is also the sr-only caption of the table alternative.)
     const range = screen.getAllByText('Likely price range')[0];
     const dateHeading = screen.getByRole('heading', { name: 'When did you plant?' });
