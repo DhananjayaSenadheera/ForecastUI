@@ -106,3 +106,54 @@ describe('ForecastResult (FE-4)', () => {
     expect(screen.getByText(/Prices as of/)).toBeInTheDocument();
   });
 });
+
+// The slot exists so the best-planting-window strip can sit UNDER the price range
+// (2026-07-25, ClickUp 86cawt9tr). It carries a control that re-runs this very
+// forecast, which is why it must survive every state: dropping it in the error or
+// loading branch would leave the farmer with no way to change the date that failed.
+describe('ForecastResult — the window slot', () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage('en');
+  });
+
+  const slot = <p>WINDOW SLOT</p>;
+
+  it('renders below the range block and its table alternative, in the left column', () => {
+    renderResult({ windowSlot: slot });
+    const mounted = screen.getByText('WINDOW SLOT');
+    const table = screen.getByText(/View as table/);
+    expect(table.compareDocumentPosition(mounted)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    // Nothing may come between the band and the table that is its text equivalent.
+    expect(document.querySelector('.fc-main')).toContainElement(mounted);
+    expect(document.querySelector('.fc-side')).not.toContainElement(mounted);
+  });
+
+  it('survives the loading and error states', () => {
+    const { unmount } = renderResult({ windowSlot: slot, loading: true, forecast: null });
+    expect(screen.getByText('WINDOW SLOT')).toBeInTheDocument();
+    expect(screen.getByText('Loading…')).toBeInTheDocument();
+    unmount();
+
+    renderResult({ windowSlot: slot, error: true, forecast: null });
+    expect(screen.getByText('WINDOW SLOT')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+  });
+
+  it('keeps the previous forecast visible — and says so — while a new one loads', () => {
+    // A skeleton here would unmount the strip the farmer just tapped. The numbers
+    // still on screen belong to the PREVIOUS planting date, so they are announced
+    // as being updated rather than silently presented as the new ones.
+    renderResult({ windowSlot: slot, loading: true });
+    expect(document.querySelector('.fc-hero__num')?.textContent).toBe('Rs. 552');
+    expect(screen.getByText('WINDOW SLOT')).toBeInTheDocument();
+    expect(screen.getByText(/Updating for the new planting date/)).toHaveAttribute('role', 'status');
+    expect(document.querySelector('.fc[aria-busy="true"]')).toBeInTheDocument();
+    expect(screen.queryByText('Loading…')).toBeNull();
+  });
+
+  it('shows no "Updating" chip when nothing is in flight', () => {
+    renderResult({ windowSlot: slot });
+    expect(screen.queryByText(/Updating for the new planting date/)).toBeNull();
+    expect(document.querySelector('.fc[aria-busy="true"]')).toBeNull();
+  });
+});

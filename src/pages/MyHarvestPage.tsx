@@ -15,11 +15,22 @@ import TimelineChart from '../components/TimelineChart';
 import AudioHelpButton from '../components/AudioHelpButton';
 
 // My harvest — forecast workspace (FE-3, ClickUp 86cacw5wy).
-// Flow: pick crop (illustrated searchable grid) -> confirm planting date ->
-// "Get forecast". The forecast result panel itself lands in FE-4/FE-5; here it is
-// a labelled placeholder so the pick -> date -> submit flow is complete + testable.
-// The page is a workspace panel INSIDE the dashboard shell (desktop-first, 2-col
-// grid collapses to a single column, and the crop grid to 2 cols, at narrow width).
+// Flow: step 1 pick crop (illustrated searchable grid) -> step 2 confirm planting
+// date -> "Get forecast" -> the result, which now CONTAINS the best-planting-window
+// strip (ClickUp 86cawt9tr, 2026-07-25). The page is a workspace panel INSIDE the
+// dashboard shell (desktop-first, 2-col grid collapses to a single column, and the
+// crop grid to 2 cols, at narrow width).
+//
+// WHY THE WINDOW STRIP MOVED INTO THE RESULT: not accuracy — the strip and
+// /predict have built the same what-if row from the same anchor since the
+// consistency fix, so the numbers are identical wherever it renders. It moved for
+// CONTEXT (min-max bars need the hero price and the range beside them to mean
+// anything) and for FLOW ("Not recommended" is a dead end; the strip answers "then
+// when?"). Two consequences are load-bearing here:
+//   - onPickDate must NOT reset `submitted`. The strip lives inside the result, so
+//     clearing it would unmount the very control being used.
+//   - the loop must not run backwards up the page: activating a bar re-forecasts
+//     IN PLACE rather than sending the farmer back to the date field + CTA above.
 
 const HORIZON_DAYS = 60; // how far ahead a farmer may plan a planting date
 const LOOKBACK_DAYS = 365; // how far back a planting date may be back-dated
@@ -128,10 +139,12 @@ export default function MyHarvestPage() {
     setSubmitted(false); // changing the crop invalidates a prior forecast request
   }, []);
 
-  // Best planting window (step 2). Depends on the CROP ONLY — not the date — so it
-  // loads as soon as a crop is picked and informs the step-3 date field below,
-  // rather than second-guessing it after the fact. Fail-soft: an error shows a
-  // compact retry inside the panel and never blocks the picker or the CTA.
+  // Best planting window. Depends on the CROP ONLY — not the date — so it is
+  // fetched the moment a crop is picked, well before "Get forecast" is pressed.
+  // That is deliberate: the strip renders inside the result, and pre-loading it
+  // here is what keeps a second spinner from appearing in there. Fail-soft: an
+  // error shows a compact retry inside the panel and never blocks the picker,
+  // the CTA or the forecast itself.
   const runWindow = useCallback(async () => {
     if (!selected) return;
     setBwLoading(true);
@@ -158,34 +171,59 @@ export default function MyHarvestPage() {
     void runWindow();
   }, [selected, runWindow]);
 
-  // Tap-to-apply: this is what makes the panel a control rather than a poster.
-  // Selecting a bar fills the date field; the farmer still presses "Get forecast".
-  const onPickDate = useCallback(
-    (date: string) => {
-      setPlantDate(clampPlantDateToRange(date, todayStr, minDate, maxDate));
-      setSubmitted(false);
-    },
-    [todayStr, minDate, maxDate],
-  );
-
   const canSubmit = selected !== null && Boolean(plantDate);
 
-  const runForecast = useCallback(async () => {
-    if (!selected || !plantDate) return;
-    setFcLoading(true);
-    setFcError(false);
-    try {
-      const data = await api.getHarvestForecast(selected.id, plantDate);
-      setForecast(data);
-      // Remember this successful pick (crop + date) + push it onto the Recent list.
-      writeLastHarvest(selected.id, plantDate);
-      setRecentIds(pushRecentCrop(selected.id));
-    } catch {
-      setFcError(true);
-    } finally {
-      setFcLoading(false);
-    }
-  }, [selected, plantDate]);
+  // Takes the date EXPLICITLY rather than reading `plantDate` from state: a bar tap
+  // sets the date and re-forecasts in the same handler, and the state update is not
+  // visible to it yet. Passing the value removes the whole class of "forecast ran
+  // for the previous date" bug.
+  const fcReq = useRef(0);
+
+  const runForecast = useCallback(
+    async (date: string) => {
+      if (!selected || !date) return;
+      // Tapping along the strip fires overlapping requests; only the newest may
+      // write. Without this a slow earlier response lands last and the hero ends up
+      // showing a different date's price than the highlighted bar.
+      const req = ++fcReq.current;
+      setFcLoading(true);
+      setFcError(false);
+      try {
+        const data = await api.getHarvestForecast(selected.id, date);
+        if (fcReq.current !== req) return;
+        setForecast(data);
+        // Remember this successful pick (crop + date) + push it onto the Recent list.
+        writeLastHarvest(selected.id, date);
+        setRecentIds(pushRecentCrop(selected.id));
+      } catch {
+        if (fcReq.current === req) setFcError(true);
+      } finally {
+        if (fcReq.current === req) setFcLoading(false);
+      }
+    },
+    [selected],
+  );
+
+  // Activating a bar on the strip. The strip now lives INSIDE the result, so this
+  // is a comparison control, not advice to read: it applies the date AND re-runs
+  // the forecast on the spot. `submitted` stays true and the previous forecast is
+  // deliberately NOT cleared, so the result panel — and the strip inside it — never
+  // unmounts, focus stays on the bar and the page does not jump. ForecastResult
+  // marks itself busy while the new numbers land.
+  const onPickDate = useCallback(
+    (date: string) => {
+      const applied = clampPlantDateToRange(date, todayStr, minDate, maxDate);
+      setPlantDate(applied);
+      // Defensive: standalone use (no result on screen) keeps the old behaviour of
+      // simply filling the field.
+      if (!submitted || !selected) return;
+      void runForecast(applied);
+      // The timeline is deliberately NOT refetched: it is crop + as-of-today + 12
+      // months, none of which a planting date changes. Its ▲ harvest marker follows
+      // the new forecast's harvestDate.
+    },
+    [todayStr, minDate, maxDate, submitted, selected, runForecast],
+  );
 
   // Timeline is loaded independently of the harvest call (same crop, asOf=today,
   // months=12). Fail-soft: a timeline error must NOT fail the whole result panel.
@@ -208,11 +246,11 @@ export default function MyHarvestPage() {
     setSubmitted(true);
     setForecast(null); // clear any prior result so the skeleton shows
     setTimeline(null);
-    void runForecast();
+    void runForecast(plantDate);
     void runTimeline();
     // Move focus/scroll to the result so the flow feels connected.
     requestAnimationFrame(() => resultRef.current?.focus());
-  }, [canSubmit, runForecast, runTimeline]);
+  }, [canSubmit, plantDate, runForecast, runTimeline]);
 
   const selectedLabel = selected ? cropDisplayName(selected, i18n.language) : null;
 
@@ -243,32 +281,14 @@ export default function MyHarvestPage() {
         />
       </section>
 
-      {/* Step 2 — best planting window. Sits ABOVE the date field on purpose: it
-          answers the question that field asks, so it must arrive before it. Only
-          rendered once a crop is chosen (there is nothing to rank before that). */}
-      {selected && (
+      {/* Step 2 — planting date + summary/CTA. (The best-planting-window strip used
+          to sit above this as its own step; it now renders inside the forecast
+          result below, where the prices give its bars a scale — and it is NOT
+          rendered twice: two charts of identical data on one screen is a bug.) */}
+      <div className="panelgrid panelgrid--half hv-row">
         <section className="panel hv-step" aria-labelledby="hv-step2">
           <h2 id="hv-step2" className="hv-step__head">
             <span className="hv-step__num" aria-hidden="true">2</span>
-            {t('bestWindow.title')}
-          </h2>
-          <BestWindowPanel
-            window={bestWindow}
-            loading={bwLoading}
-            error={bwError}
-            onRetry={() => void runWindow()}
-            onPickDate={onPickDate}
-            selectedDate={plantDate}
-            cropLabel={selectedLabel}
-          />
-        </section>
-      )}
-
-      {/* Step 3 — planting date + summary/CTA */}
-      <div className="panelgrid panelgrid--half hv-row">
-        <section className="panel hv-step" aria-labelledby="hv-step3">
-          <h2 id="hv-step3" className="hv-step__head">
-            <span className="hv-step__num" aria-hidden="true">3</span>
             {t('pages.myHarvest.plantDateQ')}
           </h2>
           <label className="wrap-label" htmlFor="hv-plant-date">
@@ -330,8 +350,23 @@ export default function MyHarvestPage() {
             forecast={forecast}
             loading={fcLoading}
             error={fcError}
-            onRetry={() => void runForecast()}
+            onRetry={() => void runForecast(plantDate)}
             cropLabel={selectedLabel}
+            windowSlot={
+              <>
+                <h3 className="fc-window__title">{t('bestWindow.title')}</h3>
+                <BestWindowPanel
+                  embedded
+                  window={bestWindow}
+                  loading={bwLoading}
+                  error={bwError}
+                  onRetry={() => void runWindow()}
+                  onPickDate={onPickDate}
+                  selectedDate={plantDate}
+                  cropLabel={selectedLabel}
+                />
+              </>
+            }
           />
 
           {/* 12-month timeline (FE-5) — stacks under the hero; fail-soft on error. */}

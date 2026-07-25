@@ -131,6 +131,7 @@
     "lowTrustTitle": "Rough estimate only",
     "lowTrustLead": "This is a rough guide, not a promise — check other sources before you decide.",
     "takeLabel": "Our take",
+    "updating": "Updating for the new planting date…",
     "provAsOf": "Prices as of {{date}}"
   },
   "factor": {
@@ -176,6 +177,7 @@
     "uplift": "About {{pct}}% better than planting at an average time.",
     "upliftSmall": "The difference across these dates is small — timing matters little for this crop right now.",
     "tapHint": "Choose a bar to use that planting date. Use the arrow keys to move between dates.",
+    "tapHintForecast": "Choose a bar to see the forecast for that planting date. Use the arrow keys to move between dates.",
     "timingOnly": "This compares timing only — the season and festival demand around each harvest date. Today's prices and weather are held as they are now, so it is not a weather forecast.",
     "barAria": "Plant {{plant}}, harvest {{harvest}} — expected {{price}}",
     "summaryAria": "Best window for {{crop}}: plant {{plant}}, harvest {{harvest}}, expected {{price}}.",
