@@ -21,7 +21,8 @@ import { MemoryRouter } from 'react-router-dom';
 import i18n from '../i18n';
 import BestWindowPanel from '../components/BestWindowPanel';
 import MyHarvestPage from '../pages/MyHarvestPage';
-import { formatDate } from '../lib/format';
+import { api } from '../api/client';
+import { formatDate, ymdLocal } from '../lib/format';
 import { fxCrops, fxHarvestWindowFor, fxForecastFor } from '../api/fixtures';
 import type { HarvestWindow } from '../api/types';
 
@@ -88,6 +89,10 @@ function renderPanel(props: Partial<React.ComponentProps<typeof BestWindowPanel>
 
 beforeEach(async () => {
   await i18n.changeLanguage('en');
+  // A successful forecast now happens inside these tests (the strip only renders
+  // after one), and it writes the crop onto the Recent list — which would then be
+  // rendered a second time in the picker of the NEXT test.
+  localStorage.clear();
 });
 
 describe('BestWindowPanel — rankable', () => {
@@ -435,62 +440,199 @@ describe('BestWindowPanel — the honesty states', () => {
   });
 });
 
-describe('MyHarvestPage — window placement and wiring', () => {
-  it('appears as step 2, above the planting-date field, only after a crop is picked', async () => {
-    render(
-      <MemoryRouter initialEntries={['/my-harvest']}>
-        <MyHarvestPage />
-      </MemoryRouter>,
-    );
+describe('BestWindowPanel — embedded in the forecast result', () => {
+  // The move (2026-07-25, ClickUp 86cawt9tr) put the strip inches from the forecast
+  // verdict. Two components now know the same thing about the same crop, so the
+  // question stops being "is it true?" and becomes "who says it".
+  const LOSS = { ...RANKABLE, currentPrice: 300 }; // every date loses against today
 
-    // Before a crop is chosen there is nothing to rank, so no panel at all.
-    await screen.findByRole('button', { name: 'Beans' });
-    expect(screen.queryByRole('heading', { name: /Best time to harvest/ })).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Beans' }));
-    const heading = await screen.findByRole('heading', { name: /Best time to harvest/ });
-    expect(heading).toBeInTheDocument();
-
-    // Reading order: the window must come BEFORE the date question it informs.
-    const dateHeading = screen.getByRole('heading', { name: 'When did you plant?' });
-    expect(heading.compareDocumentPosition(dateHeading)).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    );
+  it('drops the loss SENTENCE — the verdict beside it is the more specific claim', () => {
+    renderPanel({ window: LOSS, embedded: true });
+    expect(screen.queryByText(/Even at the best time/)).toBeNull();
   });
 
-  it('tapping a bar fills the planting-date field', async () => {
-    render(
+  it('keeps the loss STATE — tint and softened uplift, so it cannot read as a win', () => {
+    // Suppressing the duplicate sentence must not quietly restore the good-news
+    // styling: the panel would then look like encouragement next to "Not
+    // recommended".
+    const { container } = renderPanel({ window: LOSS, embedded: true });
+    expect(container.querySelector('.bw-verdict.is-below')).not.toBeNull();
+    expect(screen.getByText(/compares these dates with each other, not with today/)).toBeInTheDocument();
+  });
+
+  it('still carries the full warning when rendered standalone', () => {
+    // The suppression is positional, not a deletion — this is the path that keeps
+    // the standalone panel honest if it is ever used on its own again.
+    renderPanel({ window: LOSS });
+    expect(screen.getByText(/Even at the best time/)).toBeInTheDocument();
+  });
+
+  it('says what a bar actually does here — re-forecast, not fill a field below', () => {
+    renderPanel({ embedded: true });
+    expect(screen.getByText(/Choose a bar to see the forecast for that planting date/)).toBeInTheDocument();
+    expect(screen.queryByText(/Choose a bar to use that planting date/)).toBeNull();
+  });
+
+  it('drops its own title line embedded — the block above supplies the heading', () => {
+    const { container } = renderPanel({ window: UNRANKED, embedded: true });
+    expect(container.querySelectorAll('.bw__title')).toHaveLength(0);
+    // ...and the reason itself is still shown: this is a heading change, not a
+    // silencing of the honest not-rankable state.
+    expect(screen.getByText(/still collecting data for this crop/i)).toBeInTheDocument();
+  });
+});
+
+describe('MyHarvestPage — the window strip lives inside the result', () => {
+  // WHY IT MOVED: not accuracy. The strip and /predict build the same what-if row
+  // from the same anchor, so the numbers are identical wherever it renders. It
+  // moved for context (min-max bars need a price beside them) and for flow.
+  const BEANS = 'Beans';
+
+  function renderPage() {
+    return render(
       <MemoryRouter initialEntries={['/my-harvest']}>
         <MyHarvestPage />
       </MemoryRouter>,
     );
-    fireEvent.click(await screen.findByRole('button', { name: 'Beans' }));
+  }
 
-    const bars = await screen.findAllByRole('button', { name: /^Plant / });
-    const target = bars[5];
-    const label = target.getAttribute('aria-label')!;
+  async function forecastBeans() {
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: BEANS }));
+    fireEvent.click(screen.getByRole('button', { name: 'Get forecast' }));
+    return screen.findAllByRole('button', { name: /^Plant / });
+  }
+
+  function shiftYmd(days: number): string {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    return ymdLocal(d);
+  }
+
+  it('is absent until a forecast is on screen, and then rendered exactly ONCE', async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: BEANS }));
+
+    // Picking a crop pre-loads the window data, but nothing renders yet: at that
+    // point there is no price on screen to read the bars against.
+    expect(screen.queryByRole('heading', { name: /Best time to harvest/ })).toBeNull();
+    expect(screen.queryAllByRole('button', { name: /^Plant / })).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Get forecast' }));
+    await screen.findAllByRole('button', { name: /^Plant / });
+
+    // Exactly one strip: two charts of identical data on one screen is a bug, not
+    // a convenience.
+    expect(screen.getAllByRole('heading', { name: /Best time to harvest/ })).toHaveLength(1);
+  });
+
+  it('renders below the price range, inside the result — not back up the page', async () => {
+    await forecastBeans();
+    const heading = screen.getByRole('heading', { name: /Best time to harvest/ });
+    // (The same string is also the sr-only caption of the table alternative.)
+    const range = screen.getAllByText('Likely price range')[0];
+    const dateHeading = screen.getByRole('heading', { name: 'When did you plant?' });
+
+    // After the range block it explains...
+    expect(range.compareDocumentPosition(heading)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    // ...and after the date field, so the loop never runs backwards up the page.
+    expect(dateHeading.compareDocumentPosition(heading)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    // Physically inside the result panel, not a sibling of it.
+    expect(screen.getByRole('region', { name: 'Expected at harvest' })).toContainElement(heading);
+  });
+
+  it('tapping a bar re-forecasts IN PLACE — new price, no unmount, no focus jump', async () => {
+    // The fixture forecast is (still) plant-date independent, so the price is
+    // stubbed per date here — that is exactly the live contract, where /predict
+    // scores the what-if row for the date it is given.
+    const spy = vi
+      .spyOn(api, 'getHarvestForecast')
+      .mockImplementation(async (cropId: string, plantDate: string | Date) => {
+        const ymd = String(plantDate);
+        return { ...fxForecastFor(cropId, ymd), predictedPrice: 100 + Number(ymd.slice(-2)) };
+      });
+
+    const bars = await forecastBeans();
+    const result = screen.getByRole('region', { name: 'Expected at harvest' });
+    const target = bars[10]; // the sweep starts at today, so bar i == today + i
+    const targetDate = shiftYmd(10);
+    // The hero numeral specifically — the same figure also appears on the band and
+    // in the table alternative, and it is the HERO the farmer reads.
+    const hero = () => document.querySelector('.fc-hero__num')!.textContent;
+    await waitFor(() => expect(hero()).toBe(`Rs. ${100 + Number(shiftYmd(0).slice(-2))}`));
+
+    target.focus();
     fireEvent.click(target);
 
-    const field = screen.getByLabelText<HTMLInputElement>(/planting date/i);
-    // The applied value must be the date the bar NAMED — never a clamped rewrite.
-    // (The sweep horizon and the field's max are deliberately kept equal so the
-    // clamp can never silently hand back a different date than the one tapped.)
-    await waitFor(() => expect(field.value).not.toBe(''));
-    expect(label).toContain(formatDate(field.value, 'en'));
+    // The hero price is the tapped date's price...
+    await waitFor(() => expect(hero()).toBe(`Rs. ${100 + Number(targetDate.slice(-2))}`));
+    expect(spy).toHaveBeenLastCalledWith('c0000002-0000-0000-0000-000000000002', targetDate);
+    // ...the date field (step 2, above) follows...
+    expect(screen.getByLabelText<HTMLInputElement>(/planting date/i).value).toBe(targetDate);
+    // ...the bar's own highlight moves with it...
+    expect(target).toHaveAttribute('aria-pressed', 'true');
+    // ...and NOTHING remounted: same result node, same bar node, focus untouched.
+    expect(screen.getByRole('region', { name: 'Expected at harvest' })).toBe(result);
+    expect(screen.getAllByRole('button', { name: /^Plant / })[10]).toBe(target);
+    expect(target).toHaveFocus();
+    spy.mockRestore();
+  });
+
+  it('re-forecasts identically from the keyboard', async () => {
+    // Keyboard parity is the whole point of the roving tabindex: a bar reached with
+    // the arrow keys and activated must do what a tap does, not merely fill a field.
+    const spy = vi.spyOn(api, 'getHarvestForecast');
+    const bars = await forecastBeans();
+    await waitFor(() => expect(spy).toHaveBeenCalledTimes(1));
+
+    // One tab stop, arrow keys move within it (unchanged by the move).
+    expect(bars.filter((b) => b.tabIndex === 0)).toHaveLength(1);
+    const start = bars.findIndex((b) => b.tabIndex === 0);
+    bars[start].focus();
+    fireEvent.keyDown(bars[start].parentElement!, { key: 'ArrowRight' });
+    const active = document.activeElement as HTMLButtonElement;
+    expect(active).toBe(bars[start + 1]);
+
+    // A browser delivers Enter/Space on a focused <button> as a click.
+    fireEvent.click(active);
+    await waitFor(() => expect(spy).toHaveBeenCalledTimes(2));
+    expect(spy).toHaveBeenLastCalledWith(
+      'c0000002-0000-0000-0000-000000000002',
+      shiftYmd(start + 1),
+    );
+    expect(active).toHaveAttribute('aria-pressed', 'true');
+    expect(active).toHaveFocus();
+    spy.mockRestore();
+  });
+
+  it('keeps the previous result on screen while the new one loads', async () => {
+    // A skeleton here would unmount the strip mid-tap and jump the page. The old
+    // numbers stay, flagged as being updated — never presented as the new date's.
+    let resolve!: (v: unknown) => void;
+    const bars = await forecastBeans();
+    const spy = vi
+      .spyOn(api, 'getHarvestForecast')
+      .mockImplementation(() => new Promise((r) => { resolve = r as (v: unknown) => void; }) as never);
+
+    fireEvent.click(bars[12]);
+    expect(await screen.findByText(/Updating for the new planting date/)).toHaveAttribute('role', 'status');
+    expect(screen.getAllByRole('button', { name: /^Plant / })).toHaveLength(bars.length);
+    expect(screen.getByText('Expected at harvest')).toBeInTheDocument();
+
+    resolve(fxForecastFor('c0000002-0000-0000-0000-000000000002', shiftYmd(12)));
+    await waitFor(() =>
+      expect(screen.queryByText(/Updating for the new planting date/)).toBeNull(),
+    );
+    spy.mockRestore();
   });
 
   it('never offers a date the planting-date field would clamp away', async () => {
     // Regression: the sweep horizon and the field's max must stay equal. When they
     // drift, the late bars still render but tapping one silently rewrites the date
     // to the field's max — the farmer gets a different date from the one they
-    // chose, and nothing on screen says so.
-    render(
-      <MemoryRouter initialEntries={['/my-harvest']}>
-        <MyHarvestPage />
-      </MemoryRouter>,
-    );
-    fireEvent.click(await screen.findByRole('button', { name: 'Beans' }));
-    await screen.findAllByRole('button', { name: /^Plant / });
+    // chose, and nothing on screen says so. Now that a tap also RE-FORECASTS, a
+    // drift would additionally price a date nobody asked for.
+    await forecastBeans();
 
     const field = screen.getByLabelText<HTMLInputElement>(/planting date/i);
     const min = field.min;
@@ -508,5 +650,19 @@ describe('MyHarvestPage — window placement and wiring', () => {
       expect(asDate.getTime()).toBeGreaterThanOrEqual(new Date(min).getTime());
       expect(asDate.getTime()).toBeLessThanOrEqual(new Date(max).getTime());
     }
+    // Stronger than "inside the range": the LAST bar must be the field's max, which
+    // is the only way the two horizons can be shown to be the same number rather
+    // than merely compatible.
+    expect(dates[dates.length - 1]).toContain(formatDate(max, 'en'));
+  });
+
+  it('the tapped date is the date the bar NAMED — never a clamped rewrite', async () => {
+    const bars = await forecastBeans();
+    const label = bars[5].getAttribute('aria-label')!;
+    fireEvent.click(bars[5]);
+
+    const field = screen.getByLabelText<HTMLInputElement>(/planting date/i);
+    await waitFor(() => expect(field.value).not.toBe(''));
+    expect(label).toContain(formatDate(field.value, 'en'));
   });
 });

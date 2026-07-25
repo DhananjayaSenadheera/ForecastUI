@@ -15,7 +15,7 @@
 // (red = "Not recommended" verdict, FE-7); the verdict is a neutral hint.
 // Presentation only — band geometry / low-trust / verdict-tone live in lib/forecast.
 // =============================================================================
-import { useId } from 'react';
+import { useId, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { HarvestForecast } from '../api/types';
 import { formatDate, formatPrice, mapConfidenceString, mapVerdict } from '../lib/format';
@@ -30,39 +30,66 @@ export interface ForecastResultProps {
   onRetry: () => void;
   /** Localized crop name from the picker; falls back to the payload cropName. */
   cropLabel?: string | null;
+  /**
+   * Extra content for the LEFT column, below the price-range block — in practice
+   * the best-planting-window strip (2026-07-25). It is rendered in EVERY state,
+   * including error and first-load, because it is a control the farmer uses to
+   * change the very forecast those states describe: unmounting it would remove
+   * the only way out of a failed or pending result.
+   */
+  windowSlot?: ReactNode;
 }
 
 const DOTS = 4; // pictograph is 4 dots; High fills 3 (●●●○), Fair 2, Low 1
 
-export default function ForecastResult({ forecast, loading, error, onRetry, cropLabel }: ForecastResultProps) {
+export default function ForecastResult({
+  forecast,
+  loading,
+  error,
+  onRetry,
+  cropLabel,
+  windowSlot,
+}: ForecastResultProps) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const rs = t('common.rs');
   const tableId = useId();
 
+  const slot = windowSlot ? <div className="fc-window">{windowSlot}</div> : null;
+
   // ---- error ----------------------------------------------------------------
   if (error) {
     return (
-      <div className="fc-state" role="alert">
-        <p className="fc-state__title">{t('common.errorTitle')}</p>
-        <p className="fc-state__body">{t('common.errorBody')}</p>
-        <button type="button" className="btn-ghost fc-state__retry" onClick={onRetry}>
-          {t('common.retry')}
-        </button>
-      </div>
+      <>
+        <div className="fc-state" role="alert">
+          <p className="fc-state__title">{t('common.errorTitle')}</p>
+          <p className="fc-state__body">{t('common.errorBody')}</p>
+          <button type="button" className="btn-ghost fc-state__retry" onClick={onRetry}>
+            {t('common.retry')}
+          </button>
+        </div>
+        {slot}
+      </>
     );
   }
 
   // ---- loading skeleton -----------------------------------------------------
-  if (loading || !forecast) {
+  // Only when there is NOTHING to show yet. A re-run triggered from the window
+  // strip below keeps the previous result on screen (flagged "Updating…" further
+  // down) rather than collapsing the whole panel — swapping a full result for a
+  // skeleton would unmount the strip the farmer just tapped and jump the page.
+  if (!forecast) {
     return (
-      <div className="fc fc--skeleton" aria-busy="true">
-        <p className="sr-only">{t('common.loading')}</p>
-        <div className="fc-skel fc-skel--hero" />
-        <div className="fc-skel fc-skel--band" />
-        <div className="fc-skel fc-skel--line" />
-        <div className="fc-skel fc-skel--line fc-skel--short" />
-      </div>
+      <>
+        <div className="fc fc--skeleton" aria-busy="true">
+          <p className="sr-only">{t('common.loading')}</p>
+          <div className="fc-skel fc-skel--hero" />
+          <div className="fc-skel fc-skel--band" />
+          <div className="fc-skel fc-skel--line" />
+          <div className="fc-skel fc-skel--line fc-skel--short" />
+        </div>
+        {slot}
+      </>
     );
   }
 
@@ -83,8 +110,14 @@ export default function ForecastResult({ forecast, loading, error, onRetry, crop
   const verdict = mapVerdict(f.recommendationLevel);
   const verdictTone = forecastVerdictTone(f.recommendationLevel);
 
+  // A forecast is on screen AND a newer one is in flight (the farmer tapped a bar
+  // on the strip below). Everything visible still belongs to the previous planting
+  // date, so it is marked busy and labelled — but NOT dimmed: fading real numbers
+  // would push their contrast under AA for the seconds it takes to land.
+  const refreshing = loading;
+
   return (
-    <div className={`fc${lowTrust ? ' fc--lowtrust' : ''}`}>
+    <div className={`fc${lowTrust ? ' fc--lowtrust' : ''}`} aria-busy={refreshing || undefined}>
       <div className="fc-layout">
         {/* ---- LEFT: hero price + marked-centre band ---- */}
         <div className="fc-main">
@@ -100,6 +133,13 @@ export default function ForecastResult({ forecast, loading, error, onRetry, crop
               <span className="fc-hero__unit">{t('common.perKg')}</span>
             </p>
             <p className="fc-hero__label">{t('forecast.expectedAt')}</p>
+            {/* role=status announces the pending change without stealing focus
+                from the bar that started it. */}
+            {refreshing && (
+              <p className="fc-hero__updating" role="status">
+                {t('forecast.updating')}
+              </p>
+            )}
           </div>
 
           {/* Marked-centre P10–P90 band — never a bare interval. */}
@@ -176,6 +216,13 @@ export default function ForecastResult({ forecast, loading, error, onRetry, crop
               </tbody>
             </table>
           </details>
+
+          {/* Best planting window (2026-07-25). Placed AFTER the range block and
+              its table alternative — the table is that block's text equivalent, so
+              nothing may come between them — and inside the left column, where the
+              hero price, the P10–P90 range and today's price give the min-max
+              scaled bars something to be judged against. */}
+          {slot}
         </div>
 
         {/* ---- RIGHT: confidence + verdict + provenance ---- */}

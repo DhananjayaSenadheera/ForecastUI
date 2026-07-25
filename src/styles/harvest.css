@@ -328,6 +328,14 @@
   gap: var(--sp-6);
   align-items: start;
 }
+/* A grid item defaults to min-width:auto, so it grows to its WIDEST child instead
+   of letting that child scroll. Since the window strip moved in here (60+ bars,
+   several screens wide on a phone) that default pushed the whole page ~1270px wide
+   at 360px. The same fix as `.main` in shell.css — measured 1272px -> 0px of
+   strip-caused overflow. */
+.fc-main {
+  min-width: 0;
+}
 
 /* ---- hero central price ---- */
 .fc-hero {
@@ -369,6 +377,20 @@
   font-size: var(--fs-sm);
   color: var(--text-3);
   margin: var(--sp-1) 0 0;
+}
+/* "Updating…" — shown while a bar tap on the window strip re-runs the forecast.
+   The numbers above still belong to the PREVIOUS planting date for that moment, so
+   they are labelled rather than faded: fading real prices would drop their contrast
+   below AA exactly when someone is reading them. */
+.fc-hero__updating {
+  display: inline-block;
+  margin: var(--sp-2) 0 0;
+  padding: 2px var(--sp-2);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--warn-fg);
+  background: var(--warn-bg);
+  border-radius: var(--r-sm);
 }
 
 /* ---- marked-centre band ---- */
@@ -1025,8 +1047,26 @@
   resize: vertical;
 }
 
+/* ---------------------------------------------------------------------------
+   The window strip's home INSIDE the result (2026-07-25, ClickUp 86cawt9tr):
+   left column, under the price range. Separated by a rule rather than a card so
+   it reads as part of this forecast — it is the control that changes it — not as
+   a second, competing panel.
+   --------------------------------------------------------------------------- */
+.fc-window {
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--line);
+}
+.fc-window__title {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-bold);
+  color: var(--text);
+}
+
 /* ===========================================================================
-   Best harvest window (2026-07-25) — /my-harvest step 2.
+   Best harvest window (2026-07-25) — rendered inside the forecast result.
    The strip's bar heights are a RANKING cue on a min-max scale, never a
    magnitude claim (a real seasonal spread is a few percent and a zero-based
    axis would flatten it). The magnitude is always stated in words by
@@ -1157,6 +1197,15 @@
   min-width: 0;
   max-width: 100%;
 }
+/* Above the phone breakpoint every candidate date is on screen at once, which is
+   the whole point of the strip — the SHAPE of the season is the information. Since
+   the strip moved into the result's left column (2026-07-25) that column is ~565px
+   at 1280px viewport, so a 60-day sweep gives ~7px per bar: below SC 2.5.8's 24px
+   pointer target, as it already was at ~16px in the old full-width position. It
+   rides the criterion's EQUIVALENT-CONTROL exception — the planting-date field in
+   step 2 is a full-size native control that sets the same date on the same page,
+   and every bar's date is also reachable from the keyboard via the roving tabindex.
+   Below 600px there is no such luxury (3px bars) and the 24px rule is enforced. */
 .bw-bar {
   flex: 1 1 0;
   min-width: 2px;

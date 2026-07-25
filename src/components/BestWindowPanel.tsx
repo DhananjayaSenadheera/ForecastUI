@@ -1,10 +1,18 @@
 // =============================================================================
 // BestWindowPanel (2026-07-25) — "when should I plant to sell into a good price?"
 //
-// Sits on /my-harvest between the crop picker and the planting-date input, so the
-// answer arrives BEFORE the decision it informs. Each bar is one candidate
-// planting date; activating it fills the date field below (tap-to-apply is what
-// makes this a control rather than a poster).
+// PLACEMENT (moved 2026-07-25, ClickUp 86cawt9tr): the strip now lives INSIDE the
+// forecast result, under "Likely price range", and activating a bar re-runs the
+// forecast in place. Nothing about the NUMBERS changed by moving it — since the
+// consistency fix the strip and /predict build the same what-if row from the same
+// anchor — what changed is CONTEXT. The bars are min-max scaled, so they rank
+// dates without stating a magnitude; beside the hero price, the P10–P90 range and
+// today's price they finally have something to be read against, and they land
+// exactly where "then when?" gets asked (a "Not recommended" verdict is otherwise
+// a dead end).
+//
+// Each bar is one candidate planting date; activating it applies that date
+// (tap-to-apply is what makes this a control rather than a poster).
 //
 // HONESTY RULES (load-bearing — the API is built to support exactly these):
 //   - rankable=false means the forecast genuinely cannot tell these dates apart.
@@ -44,12 +52,27 @@ export interface BestWindowPanelProps {
   loading: boolean;
   error: boolean;
   onRetry: () => void;
-  /** Applies a planting date ("YYYY-MM-DD") to the step-3 date field. */
+  /** Applies a planting date ("YYYY-MM-DD"): fills the date field and, in the
+   *  embedded position, re-runs the forecast for that date. */
   onPickDate: (plantDate: string) => void;
-  /** The date currently in the step-3 field, so the strip can mark it. */
+  /** The date currently in the date field, so the strip can mark it. */
   selectedDate?: string | null;
   /** Localized crop name from the picker; falls back to the payload cropName. */
   cropLabel?: string | null;
+  /**
+   * Rendered INSIDE the forecast result rather than standalone. Three effects,
+   * all about not saying the same thing twice on one screen:
+   *  - the `belowToday` LOSS SENTENCE is suppressed: the "Not recommended"
+   *    verdict sits inches away and is the more specific claim. The warn TINT and
+   *    the softened uplift line STAY — they stop the panel reading as good news
+   *    and they duplicate nothing.
+   *  - the not-rankable branch drops its own title line: the embedding block
+   *    supplies the heading.
+   *  - the tap hint says what activating a bar actually does here (re-forecast),
+   *    not "fills the field below" — there is no field below any more.
+   * Standalone rendering keeps the full warning; that code must stay correct.
+   */
+  embedded?: boolean;
 }
 
 // Below this the difference between the best and an average date is too small to
@@ -80,6 +103,7 @@ export default function BestWindowPanel({
   onPickDate,
   selectedDate,
   cropLabel,
+  embedded = false,
 }: BestWindowPanelProps) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
@@ -210,7 +234,8 @@ export default function BestWindowPanel({
   if (!win.rankable || points.length === 0 || !win.best) {
     return (
       <div className="bw bw--unranked">
-        <p className="bw__title">{t('bestWindow.title')}</p>
+        {/* Embedded, the heading right above this line already says it. */}
+        {!embedded && <p className="bw__title">{t('bestWindow.title')}</p>}
         <p className="bw-unranked__body" role="note">
           <span aria-hidden="true">🌱 </span>
           {t(`bestWindow.reason.${win.reasonCode}`, { defaultValue: win.explanation })}
@@ -308,8 +333,14 @@ export default function BestWindowPanel({
         </div>
       </div>
 
-      {/* Colour is never the message: warn tint + ⚠ + the sentence itself. */}
-      {belowToday && (
+      {/* Colour is never the message: warn tint + ⚠ + the sentence itself.
+          EMBEDDED: the sentence is suppressed, not the state. The forecast
+          verdict a few centimetres to the right already says "Not recommended —
+          the forecast is below today's price" about this very crop, and it is the
+          more specific claim; printing both would read as two separate problems.
+          The tint above and the softened uplift line below still fire, so nothing
+          on this panel can read as good news while the verdict says otherwise. */}
+      {belowToday && !embedded && (
         <p className="bw-below" role="note">
           <span aria-hidden="true">⚠️ </span>
           {t('bestWindow.belowToday', { price: currentStr })}
@@ -389,7 +420,9 @@ export default function BestWindowPanel({
         <span>{formatDate(points[points.length - 1].plantDate, lang)}</span>
       </div>
 
-      <p className="bw-hint">{t('bestWindow.tapHint')}</p>
+      {/* Say what the control DOES. Embedded, a bar does not fill a field further
+          down the page — it re-runs the forecast above, in place. */}
+      <p className="bw-hint">{t(embedded ? 'bestWindow.tapHintForecast' : 'bestWindow.tapHint')}</p>
 
       {/* The caveat is permanent copy, not a tooltip: this ranks timing only. */}
       <p className="bw-caveat" role="note">
