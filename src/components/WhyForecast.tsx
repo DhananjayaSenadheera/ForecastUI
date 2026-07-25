@@ -109,15 +109,21 @@ export default function WhyForecast({ factors, explanation, cropLabel }: WhyFore
               // Sentence mode needs the sentence AND (when there is a magnitude)
               // the strength word in THIS locale — a half-translated row reading
               // "කන්නයට අනුව සැපයුම · strong effect" is worse than the compact one.
+              // A neutral row's sentence already names the factor AND states the
+              // magnitude ("... made little difference this time"), so it needs
+              // no caption — and therefore no strength word to render.
+              const wantsCaption = f.direction !== 'neutral';
               const sentenceKey = factorSentenceKey(f.code, f.direction);
               const useSentence =
                 hasOwnTranslation(sentenceKey) &&
-                (strength == null || hasOwnTranslation(factorStrengthKey(strength)));
+                (!wantsCaption || strength == null || hasOwnTranslation(factorStrengthKey(strength)));
 
               if (useSentence) {
-                const caption = strength
-                  ? t('factor.caption', { label, strength: t(factorStrengthKey(strength)) })
-                  : label;
+                const caption = !wantsCaption
+                  ? null
+                  : strength
+                    ? t('factor.caption', { label, strength: t(factorStrengthKey(strength)) })
+                    : label;
                 return (
                   <li
                     className={`wf-factor wf-factor--sentence wf-factor--${f.direction}`}
@@ -137,7 +143,7 @@ export default function WhyForecast({ factors, explanation, cropLabel }: WhyFore
                       </p>
                       {/* Magnitude in WORDS. The bar below only echoes it, so the
                           bar is decorative — the caption is the real carrier. */}
-                      <p className="wf-factor__caption">{caption}</p>
+                      {caption && <p className="wf-factor__caption">{caption}</p>}
                       {pct != null && (
                         <span className="wf-factor__bar" aria-hidden="true">
                           <span className="wf-factor__barfill" style={{ width: `${pct}%` }} />

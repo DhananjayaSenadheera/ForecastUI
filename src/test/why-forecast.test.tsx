@@ -67,6 +67,9 @@ describe('WhyForecast (FE-6)', () => {
       screen.getByText('Weather and monsoon made little difference this time.'),
     ).toBeInTheDocument();
     expect(document.querySelector('.wf-factor--neutral')).not.toBeNull();
+    // no strength caption: the sentence already names the factor AND its size,
+    // so "Weather and monsoon · small effect" underneath is pure repetition
+    expect(document.querySelector('.wf-factor__caption')).toBeNull();
   });
 
   it('names the crop in the price-trend sentence, and stays grammatical without one', () => {
@@ -104,7 +107,9 @@ describe('WhyForecast (FE-6)', () => {
     expect(screen.getByText('Recent price trend · strong effect')).toBeInTheDocument();
     expect(screen.getByText('Festival demand · medium effect')).toBeInTheDocument();
     expect(screen.getByText('Seasonal supply · small effect')).toBeInTheDocument();
-    expect(screen.getByText('Weather and monsoon · small effect')).toBeInTheDocument();
+    // the neutral row is the exception — its sentence already says "little difference"
+    expect(screen.queryByText('Weather and monsoon · small effect')).not.toBeInTheDocument();
+    expect(document.querySelectorAll('.wf-factor__caption').length).toBe(3);
     // the bar no longer carries meaning on its own -> decorative
     const bars = document.querySelectorAll('.wf-factor--sentence .wf-factor__bar');
     expect(bars.length).toBe(4);
