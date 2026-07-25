@@ -127,6 +127,7 @@
     "provAsOf": "මිල {{date}} වන විට"
   },
   "factor": {
+    "_note": "`factor.sentence.*`, `factor.strength.*`, `factor.caption` and `factor.cropGeneric` are DELIBERATELY ABSENT here. They are long-form causal prose and must be written by a native Sinhala speaker, never machine-translated. While they are missing, WhyForecast renders the compact rows below (label + factor.dir.*) — no English prose reaches a Sinhala farmer. Add the whole `sentence` block + `strength` + `caption` + `cropGeneric` together, or rows stay compact.",
     "title": "මෙම අනාවැකිය ඇයි?",
     "dir": {
       "up": "මිල ඉහළට තල්ලු කරයි",

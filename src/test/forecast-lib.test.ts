@@ -6,11 +6,16 @@ import {
   factorDirectionKey,
   factorGlyph,
   factorLabelKey,
+  factorSentenceKey,
+  factorStrength,
+  factorStrengthKey,
   factorWeightPct,
   forecastVerdictTone,
   isLowTrust,
   maxFactorWeight,
+  totalFactorWeight,
 } from '../lib/forecast';
+import type { ForecastFactor } from '../api/types';
 
 describe('bandCentrePct (marked-centre position, never a bare interval)', () => {
   it('places the centre proportionally inside the P10–P90 band', () => {
@@ -83,5 +88,54 @@ describe('factor weight bar (shared-scale, FE-6)', () => {
     expect(factorWeightPct(undefined, 0.9)).toBeNull();
     expect(factorWeightPct(0, 0.9)).toBeNull();
     expect(factorWeightPct(0.5, 0)).toBeNull(); // no positive reference
+  });
+});
+
+describe('factor causal sentence keys (FE-6 redesign)', () => {
+  it('keys a sentence by code AND direction — up/down are different states', () => {
+    expect(factorSentenceKey('seasonal_supply', 'up')).toBe('factor.sentence.seasonal_supply.up');
+    expect(factorSentenceKey('seasonal_supply', 'down')).toBe('factor.sentence.seasonal_supply.down');
+    expect(factorSentenceKey('economic_conditions', 'up')).toBe('factor.sentence.economic_conditions.up');
+  });
+
+  it('collapses every neutral factor onto one generic key (label is interpolated)', () => {
+    expect(factorSentenceKey('seasonal_supply', 'neutral')).toBe('factor.sentenceNeutral');
+    expect(factorSentenceKey('weather_monsoon', 'neutral')).toBe('factor.sentenceNeutral');
+  });
+});
+
+describe('factor strength WORD (magnitude never lives in the bar alone)', () => {
+  const f = (weight?: number): ForecastFactor => ({ code: 'x', direction: 'up', weight });
+
+  it('sums only the positive displayed weights as the denominator', () => {
+    expect(totalFactorWeight([f(0.44), f(0.24), f(0.14), f(0.01)])).toBeCloseTo(0.83, 5);
+    expect(totalFactorWeight([f(0.5), f(undefined), f(0)])).toBe(0.5);
+    expect(totalFactorWeight([])).toBe(0);
+  });
+
+  it('buckets the share of the displayed total: >=40% strong, >=20% medium, else small', () => {
+    expect(factorStrength(0.4, 1)).toBe('strong'); // exactly at the boundary
+    expect(factorStrength(0.39, 1)).toBe('medium');
+    expect(factorStrength(0.2, 1)).toBe('medium'); // exactly at the boundary
+    expect(factorStrength(0.19, 1)).toBe('small');
+    expect(factorStrength(0.01, 1)).toBe('small');
+  });
+
+  it('is relative, not absolute: a small weight is strong when it dominates', () => {
+    // one factor carrying the whole (small) displayed total is still the driver
+    expect(factorStrength(0.05, 0.06)).toBe('strong');
+    // and a big weight is small when everything else is bigger
+    expect(factorStrength(0.3, 3)).toBe('small');
+  });
+
+  it('claims no strength when there is no honest basis for a word', () => {
+    expect(factorStrength(undefined, 1)).toBeNull();
+    expect(factorStrength(0, 1)).toBeNull();
+    expect(factorStrength(0.5, 0)).toBeNull();
+  });
+
+  it('namespaces the strength word for translation', () => {
+    expect(factorStrengthKey('strong')).toBe('factor.strength.strong');
+    expect(factorStrengthKey('small')).toBe('factor.strength.small');
   });
 });

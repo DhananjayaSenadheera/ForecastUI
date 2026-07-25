@@ -135,7 +135,7 @@
     "provAsOf": "Prices as of {{date}}"
   },
   "factor": {
-    "title": "Why this forecast?",
+    "title": "Why this price?",
     "dir": {
       "up": "Pushes price up",
       "down": "Pushes price down",
@@ -143,6 +143,40 @@
     },
     "weightAria": "Relative strength {{pct}} percent",
     "noBreakdown": "We don't have a detailed factor breakdown for this crop yet — this estimate is based on the note above.",
+    "caption": "{{label}} · {{strength}}",
+    "strength": {
+      "strong": "strong effect",
+      "medium": "medium effect",
+      "small": "small effect"
+    },
+    "cropGeneric": "This crop's",
+    "sentenceNeutral": "{{label}} made little difference this time.",
+    "sentence": {
+      "recent_price_trend": {
+        "up": "{{crop}} prices have been climbing in recent weeks. That lifts the forecast.",
+        "down": "{{crop}} prices have been falling in recent weeks. That weighs on the forecast."
+      },
+      "festival_demand": {
+        "up": "Your harvest lands close to festival time, when demand is usually higher.",
+        "down": "Your harvest misses the festival rush, when demand is usually higher."
+      },
+      "seasonal_supply": {
+        "up": "Your harvest lands when fewer farms are harvesting. With less in the market, prices are usually better.",
+        "down": "Your harvest lands when many farms are also harvesting. Plenty in the market usually lowers prices."
+      },
+      "weather_monsoon": {
+        "up": "Recent weather has been hard on crops. Less supply usually lifts prices.",
+        "down": "Recent weather has been good for growing. More supply usually lowers prices."
+      },
+      "market_conditions": {
+        "up": "Prices in nearby markets are running higher than usual. That lifts the forecast here.",
+        "down": "Prices in nearby markets are running lower than usual. That weighs on the forecast here."
+      },
+      "economic_conditions": {
+        "up": "The rupee and cost of living are pushing food prices up.",
+        "down": "The wider economy — the rupee and cost of living — is easing food prices."
+      }
+    },
     "codes": {
       "recent_price_trend": "Recent price trend",
       "festival_demand": "Festival demand",

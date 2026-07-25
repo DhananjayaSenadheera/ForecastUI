@@ -81,6 +81,59 @@ export function factorLabelKey(code: string): string {
   return `factor.codes.${code}`;
 }
 
+/**
+ * i18n key for a factor's full CAUSAL SENTENCE (cause → everyday consequence →
+ * direction), the primary text of a row: `factor.sentence.<code>.<up|down>`.
+ *
+ * `neutral` collapses to ONE generic key (`factor.sentenceNeutral`, interpolating
+ * the factor label) because "this barely mattered" reads the same whatever the
+ * factor is — and inventing six near-identical neutral sentences would give
+ * translators twelve extra strings for no farmer benefit.
+ */
+export function factorSentenceKey(code: string, direction: FactorDirection): string {
+  return direction === 'neutral' ? 'factor.sentenceNeutral' : `factor.sentence.${code}.${direction}`;
+}
+
+/** How much a factor moved the number, in WORDS (the bar is only supplementary). */
+export type FactorStrength = 'strong' | 'medium' | 'small';
+
+/**
+ * Share-of-displayed-total cut-offs for the strength WORD. The API sends each
+ * factor's share of total absolute attribution (serving/explain.py) and the panel
+ * shows the top 4, so shares are re-normalised over what is actually on screen:
+ * an even 4-way split is 25% each, so 40%+ is genuinely the dominant driver and
+ * under 20% is a bit-part. Deliberately coarse — three buckets a farmer can act
+ * on, not a false-precision percentage.
+ */
+export const FACTOR_STRENGTH_STRONG = 0.4;
+export const FACTOR_STRENGTH_MEDIUM = 0.2;
+
+/** Sum of the positive weights actually DISPLAYED — the strength denominator. */
+export function totalFactorWeight(factors: ForecastFactor[]): number {
+  return factors.reduce((s, f) => (typeof f.weight === 'number' && f.weight > 0 ? s + f.weight : s), 0);
+}
+
+/**
+ * Strength word for one factor as a share of the displayed total. Returns null
+ * when there is no honest basis for a word (weight missing/zero, or no positive
+ * total) — the caption then names the factor without claiming a magnitude.
+ */
+export function factorStrength(
+  weight: number | undefined | null,
+  totalWeight: number,
+): FactorStrength | null {
+  if (typeof weight !== 'number' || !(weight > 0) || !(totalWeight > 0)) return null;
+  const share = weight / totalWeight;
+  if (share >= FACTOR_STRENGTH_STRONG) return 'strong';
+  if (share >= FACTOR_STRENGTH_MEDIUM) return 'medium';
+  return 'small';
+}
+
+/** i18n key for a strength word (`factor.strength.<strong|medium|small>`). */
+export function factorStrengthKey(s: FactorStrength): string {
+  return `factor.strength.${s}`;
+}
+
 /** Largest positive weight in the set (0 if none) — the shared-scale reference. */
 export function maxFactorWeight(factors: ForecastFactor[]): number {
   return factors.reduce((m, f) => (typeof f.weight === 'number' && f.weight > m ? f.weight : m), 0);

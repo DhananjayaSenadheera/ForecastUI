@@ -127,6 +127,7 @@
     "provAsOf": "விலைகள் {{date}} நிலவரப்படி"
   },
   "factor": {
+    "_note": "`factor.sentence.*`, `factor.strength.*`, `factor.caption` and `factor.cropGeneric` are DELIBERATELY ABSENT here. They are long-form causal prose and must be written by a native Tamil speaker, never machine-translated. While they are missing, WhyForecast renders the compact rows below (label + factor.dir.*) — no English prose reaches a Tamil farmer. Add the whole `sentence` block + `strength` + `caption` + `cropGeneric` together, or rows stay compact.",
     "title": "இந்த முன்னறிவிப்பு ஏன்?",
     "dir": {
       "up": "விலையை மேலே தள்ளுகிறது",
