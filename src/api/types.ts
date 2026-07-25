@@ -170,6 +170,77 @@ export interface CropTimeline {
 }
 
 // ---------------------------------------------------------------------------
+// Best harvest window — GET /api/forecast/crop/{id}/harvest-window
+// (HarvestWindowDto). Ranks candidate planting dates by the price their harvest
+// is forecast to fetch, and names the best contiguous window.
+//
+// THE FIELD THAT DRIVES THE UI IS `rankable`.
+//   rankable=true  -> `points` (one per candidate planting date) and `best` are
+//                     populated; render the strip + the verdict.
+//   rankable=false -> `points` is EMPTY and `best` is null. Render the honest
+//                     "we cannot rank dates for this crop yet" state using
+//                     `reasonCode` / `explanation`. NEVER synthesise a window on
+//                     this side to fill the gap — the whole point of the flag is
+//                     that the forecast genuinely cannot tell these dates apart,
+//                     and a farmer cannot un-plant a crop.
+//
+// The API deliberately ranks TIMING ONLY: today's prices and weather are held
+// constant while the season/festival encoding varies per candidate date. The
+// panel must not present it as a weather forecast — `explanation` says so and is
+// shown verbatim.
+// ---------------------------------------------------------------------------
+
+/** Why a window is (or is not) available. Unknown codes must degrade to the
+ *  generic not-rankable copy, never crash the panel. */
+export type HarvestWindowReason =
+  | 'ml_served' // rankable
+  | 'no_growth_period'
+  | 'no_feature_row'
+  | 'model_inactive'
+  | 'crop_not_model_served'
+  | 'scoring_failed'
+  | 'flat_curve'
+  | 'unavailable';
+
+export interface HarvestWindowPoint {
+  plantDate: string; // "YYYY-MM-DD"
+  harvestDate: string; // "YYYY-MM-DD"
+  predictedPrice: number;
+  lowerBound: number;
+  upperBound: number;
+  inBestWindow: boolean;
+}
+
+export interface HarvestWindowBest {
+  plantStart: string;
+  plantEnd: string;
+  harvestStart: string;
+  harvestEnd: string;
+  predictedPrice: number;
+  lowerBound: number;
+  upperBound: number;
+  /** Gain over planting at an AVERAGE date in the swept horizon (not vs the
+   *  worst date, not vs today). Can be small; the UI hides it under ~1%. */
+  upliftPct: number;
+}
+
+export interface HarvestWindow {
+  cropId: string;
+  cropName: string | null;
+  asOf: string; // "YYYY-MM-DD"
+  growthPeriodDays: number | null;
+  rankable: boolean;
+  reasonCode: HarvestWindowReason;
+  activePredictor: string; // "model" | "residual" | "unavailable"
+  confidence: ConfidenceString;
+  modelVersion: string | null;
+  explanation: string;
+  windowDays: number | null;
+  points: HarvestWindowPoint[];
+  best: HarvestWindowBest | null;
+}
+
+// ---------------------------------------------------------------------------
 // Crop readiness — GET /api/forecast/crop-readiness (CropReadiness_GetDto).
 // Feeds the crop-status colouring (owner request 2026-07-22): green "good
 // forecast" for model-served crops, amber "collecting data" for fallback-served

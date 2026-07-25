@@ -25,6 +25,7 @@ import type {
   FestivalMutationResult,
   FestivalUpdateDto,
   HarvestForecast,
+  HarvestWindow,
   IngestionRunPage,
   IngestionStatus,
   MacroSeriesPoint,
@@ -265,6 +266,16 @@ export const api = {
     const q = new URLSearchParams({ months: String(months) });
     if (asOf) q.set('asOf', iso(asOf));
     return request<CropTimeline>(`/api/forecast/crop/${cropId}/timeline?${q.toString()}`);
+  },
+
+  // Best harvest window (2026-07-25). A rankable=false response is a normal 200,
+  // NOT an error — the panel renders an honest "we cannot rank dates for this
+  // crop yet" state from reasonCode. Only a thrown ApiError is a failure.
+  async getHarvestWindow(cropId: string, horizonDays = 90, asOf?: string | Date): Promise<HarvestWindow> {
+    if (USE_FIXTURES) return fx.fxHarvestWindowFor(cropId, horizonDays, asOf ? iso(asOf) : undefined);
+    const q = new URLSearchParams({ horizonDays: String(horizonDays) });
+    if (asOf) q.set('asOf', iso(asOf));
+    return request<HarvestWindow>(`/api/forecast/crop/${cropId}/harvest-window?${q.toString()}`);
   },
 
   async getBestCrops(lookbackMonths = 3): Promise<BestCrop[]> {

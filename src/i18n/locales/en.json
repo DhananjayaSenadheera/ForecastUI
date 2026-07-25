@@ -165,6 +165,37 @@
     "lineCaveat": "Note: rough estimate only — little data, so treat this as a rough guide, not a promise.",
     "appLine": "— {{app}}"
   },
+  "bestWindow": {
+    "title": "Best time to harvest",
+    "lead": "When to plant {{crop}} so the harvest meets a better price.",
+    "plantCap": "Plant",
+    "harvestCap": "Harvest",
+    "expectedCap": "Expected",
+    "dateRange": "{{from}} – {{to}}",
+    "bandRange": "(likely {{min}} – {{max}})",
+    "uplift": "About {{pct}}% better than planting at an average time.",
+    "upliftSmall": "The difference across these dates is small — timing matters little for this crop right now.",
+    "tapHint": "Choose a bar to use that planting date. Use the arrow keys to move between dates.",
+    "timingOnly": "This compares timing only — the season and festival demand around each harvest date. Today's prices and weather are held as they are now, so it is not a weather forecast.",
+    "barAria": "Plant {{plant}}, harvest {{harvest}} — expected {{price}}",
+    "summaryAria": "Best window for {{crop}}: plant {{plant}}, harvest {{harvest}}, expected {{price}}.",
+    "errorNote": "We could not work out the best planting window just now.",
+    "tableToggle": "See the dates as a table",
+    "tablePlant": "Plant on",
+    "tableHarvest": "Harvest around",
+    "tableLikely": "Expected price",
+    "tableAction": "Use",
+    "useDate": "Use this date",
+    "reason": {
+      "no_growth_period": "We do not yet have a confirmed growing period for this crop, so we cannot tell which planting date leads to which harvest date.",
+      "no_feature_row": "We have no recent price data for this crop to compare planting dates with.",
+      "model_inactive": "Our forecasting model is not running right now, so every date would give the same answer. We would rather say nothing than guess.",
+      "crop_not_model_served": "We are still collecting data for this crop. Until we have enough, every date would give the same answer — so we will not guess.",
+      "scoring_failed": "We could not compare planting dates for this crop just now.",
+      "flat_curve": "For this crop the expected price is much the same whichever date you plant, so there is no better or worse time to aim for.",
+      "unavailable": "We could not work out the best planting window for this crop just now."
+    }
+  },
   "timeline": {
     "title": "12-month price — past and forecast",
     "keyHistory": "Past prices",

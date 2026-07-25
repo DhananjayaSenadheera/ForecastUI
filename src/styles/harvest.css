@@ -1024,3 +1024,241 @@
   border-radius: var(--r-md);
   resize: vertical;
 }
+
+/* ===========================================================================
+   Best harvest window (2026-07-25) — /my-harvest step 2.
+   The strip's bar heights are a RANKING cue on a min-max scale, never a
+   magnitude claim (a real seasonal spread is a few percent and a zero-based
+   axis would flatten it). The magnitude is always stated in words by
+   .bw-uplift and the axis ends — see BestWindowPanel.tsx for the full rule.
+   =========================================================================== */
+.bw__title {
+  margin: 0 0 var(--sp-1);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+}
+.bw__lead {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+
+/* ---- verdict: the answer in words ---- */
+.bw-verdict {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  background: var(--good-bg);
+  border-radius: var(--r-md);
+}
+.bw-verdict__leg {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bw-verdict__leg--price {
+  margin-left: auto;
+}
+.bw-verdict__cap {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--good-fg);
+}
+.bw-verdict__val {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--good-fg);
+}
+.bw-verdict__band {
+  font-weight: var(--fw-regular);
+  white-space: nowrap;
+}
+.bw-verdict__arrow {
+  color: var(--good-fg);
+  font-size: var(--fs-md);
+}
+
+.bw-uplift {
+  margin: var(--sp-2) 0 var(--sp-3);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--good-fg);
+}
+.bw-uplift.is-small {
+  font-weight: var(--fw-regular);
+  color: var(--text-2);
+}
+
+/* ---- the strip ---- */
+.bw-strip {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 96px;
+  padding: 0;
+  /* min-width:0 + max-width:100% keep the strip inside its panel: without them a
+     flex child sizes to its CONTENT, so the scrolling variant below would widen
+     the page instead of scrolling itself. */
+  min-width: 0;
+  max-width: 100%;
+}
+.bw-bar {
+  flex: 1 1 0;
+  min-width: 2px;
+  padding: 0;
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  border-bottom: none;
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.bw-bar:hover {
+  background: var(--line);
+}
+.bw-bar.is-best {
+  background: var(--good-bg);
+  border-color: var(--good);
+}
+.bw-bar.is-best:hover {
+  background: var(--brand-tint-2);
+}
+/* Selection is marked by SHAPE + colour (a solid cap), never colour alone. */
+.bw-bar.is-selected {
+  background: var(--brand);
+  border-color: var(--brand-dark);
+  box-shadow: inset 0 3px 0 0 var(--brand-dark);
+}
+.bw-bar:focus-visible {
+  outline: 3px solid var(--brand-dark);
+  outline-offset: 1px;
+}
+
+.bw-axis {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin-top: var(--sp-1);
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+.bw-axis__scale {
+  font-variant-numeric: tabular-nums;
+}
+
+.bw-hint {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+.bw-caveat {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  color: var(--text-2);
+}
+
+/* ---- honest "cannot rank" state ---- */
+.bw-unranked__body {
+  margin: 0;
+  padding: var(--sp-3);
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+  color: var(--text-2);
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+/* ---- compact error note (fail-soft) ---- */
+.bw-note--error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  background: var(--warn-bg);
+  border-radius: var(--r-md);
+}
+.bw-note__body {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--warn-fg);
+}
+
+/* ---- loading skeleton: same footprint as the real panel (no layout shift) ---- */
+.bw-skel {
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  animation: cp-pulse 1.2s ease-in-out infinite;
+}
+.bw-skel__title { width: 40%; height: 18px; margin-bottom: var(--sp-3); }
+.bw-skel__strip { width: 100%; height: 96px; margin-bottom: var(--sp-2); }
+.bw-skel__line  { width: 60%; height: 14px; }
+
+/* ---- table alternative ---- */
+.bw-table {
+  margin-top: var(--sp-3);
+}
+.bw-table__summary {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--brand-strong);
+  cursor: pointer;
+}
+.bw-table__grid {
+  width: 100%;
+  margin-top: var(--sp-2);
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+.bw-table__grid th,
+.bw-table__grid td {
+  padding: var(--sp-2);
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+.bw-table__num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.bw-table__grid tr.is-best {
+  background: var(--good-bg);
+}
+.bw-table__use {
+  padding: var(--sp-1) var(--sp-2);
+  font-size: var(--fs-xs);
+}
+
+@media (max-width: 600px) {
+  /* On a phone 60+ bars would be ~3px wide — unreadable and untappable. Let the
+     strip scroll instead, so each bar keeps a legible width and the SHAPE of the
+     season stays readable. Selection on mobile is meant to happen through the
+     table's "Use this date" buttons (a full-size, WCAG-conforming equivalent
+     control on the same page); the bars stay a visual overview. */
+  .bw-strip {
+    height: 72px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+  }
+  .bw-bar {
+    flex: 0 0 auto;
+    width: 8px;
+  }
+  .bw-verdict__leg--price { margin-left: 0; }
+  /* The table is the primary control at this width — open it by default so the
+     tappable path is not hidden behind a disclosure a farmer may never find. */
+  .bw-table__summary { font-size: var(--fs-body); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bw-skel { animation: none; }
+  .bw-bar { transition: none; }
+}

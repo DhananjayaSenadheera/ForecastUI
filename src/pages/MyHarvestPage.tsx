@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
-import type { Crop, CropTimeline, HarvestForecast } from '../api/types';
+import type { Crop, CropTimeline, HarvestForecast, HarvestWindow } from '../api/types';
 import { cropDisplayName } from '../lib/crops';
 import { clampPlantDateToRange, formatDate, ymdLocal } from '../lib/format';
 import { isLowTrust } from '../lib/forecast';
 import { buildReadinessMap, type ReadinessMap } from '../lib/readiness';
 import { pushRecentCrop, readLastHarvest, readRecentCrops, writeLastHarvest } from '../lib/storage';
+import BestWindowPanel from '../components/BestWindowPanel';
 import CropPicker from '../components/CropPicker';
 import ForecastResult from '../components/ForecastResult';
 import TimelineChart from '../components/TimelineChart';
@@ -50,6 +51,9 @@ export default function MyHarvestPage() {
   const [tlError, setTlError] = useState(false);
   const [recentIds, setRecentIds] = useState<string[]>(() => readRecentCrops());
   const [readiness, setReadiness] = useState<ReadinessMap | null>(null);
+  const [bestWindow, setBestWindow] = useState<HarvestWindow | null>(null);
+  const [bwLoading, setBwLoading] = useState(false);
+  const [bwError, setBwError] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
 
   // Crop-status colouring (2026-07-22). Strictly fail-soft: readiness is
@@ -123,6 +127,46 @@ export default function MyHarvestPage() {
     setSelected(crop);
     setSubmitted(false); // changing the crop invalidates a prior forecast request
   }, []);
+
+  // Best planting window (step 2). Depends on the CROP ONLY — not the date — so it
+  // loads as soon as a crop is picked and informs the step-3 date field below,
+  // rather than second-guessing it after the fact. Fail-soft: an error shows a
+  // compact retry inside the panel and never blocks the picker or the CTA.
+  const runWindow = useCallback(async () => {
+    if (!selected) return;
+    setBwLoading(true);
+    setBwError(false);
+    try {
+      // Sweep EXACTLY as far as the date field will accept (HORIZON_DAYS). If the
+      // sweep ran longer, the strip would recommend dates that clampPlantDateToRange
+      // silently rewrites on tap — handing the farmer a different date from the bar
+      // they chose. The two horizons must stay equal.
+      setBestWindow(await api.getHarvestWindow(selected.id, HORIZON_DAYS, todayStr));
+    } catch {
+      setBwError(true);
+    } finally {
+      setBwLoading(false);
+    }
+  }, [selected, todayStr]);
+
+  useEffect(() => {
+    if (!selected) {
+      setBestWindow(null);
+      return;
+    }
+    setBestWindow(null); // clear the previous crop's window so the skeleton shows
+    void runWindow();
+  }, [selected, runWindow]);
+
+  // Tap-to-apply: this is what makes the panel a control rather than a poster.
+  // Selecting a bar fills the date field; the farmer still presses "Get forecast".
+  const onPickDate = useCallback(
+    (date: string) => {
+      setPlantDate(clampPlantDateToRange(date, todayStr, minDate, maxDate));
+      setSubmitted(false);
+    },
+    [todayStr, minDate, maxDate],
+  );
 
   const canSubmit = selected !== null && Boolean(plantDate);
 
@@ -199,11 +243,32 @@ export default function MyHarvestPage() {
         />
       </section>
 
-      {/* Step 2 — planting date + summary/CTA */}
-      <div className="panelgrid panelgrid--half hv-row">
+      {/* Step 2 — best planting window. Sits ABOVE the date field on purpose: it
+          answers the question that field asks, so it must arrive before it. Only
+          rendered once a crop is chosen (there is nothing to rank before that). */}
+      {selected && (
         <section className="panel hv-step" aria-labelledby="hv-step2">
           <h2 id="hv-step2" className="hv-step__head">
             <span className="hv-step__num" aria-hidden="true">2</span>
+            {t('bestWindow.title')}
+          </h2>
+          <BestWindowPanel
+            window={bestWindow}
+            loading={bwLoading}
+            error={bwError}
+            onRetry={() => void runWindow()}
+            onPickDate={onPickDate}
+            selectedDate={plantDate}
+            cropLabel={selectedLabel}
+          />
+        </section>
+      )}
+
+      {/* Step 3 — planting date + summary/CTA */}
+      <div className="panelgrid panelgrid--half hv-row">
+        <section className="panel hv-step" aria-labelledby="hv-step3">
+          <h2 id="hv-step3" className="hv-step__head">
+            <span className="hv-step__num" aria-hidden="true">3</span>
             {t('pages.myHarvest.plantDateQ')}
           </h2>
           <label className="wrap-label" htmlFor="hv-plant-date">
