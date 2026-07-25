@@ -336,6 +336,13 @@
 .fc-main {
   min-width: 0;
 }
+/* The error card and the first-load skeleton have no right-hand column to sit
+   beside, so the shell collapses to one column for them. This is a CLASS change on
+   a structure that stays put — the window strip below must not be remounted just
+   because the forecast above it failed. */
+.fc--solo .fc-layout {
+  grid-template-columns: 1fr;
+}
 
 /* ---- hero central price ---- */
 .fc-hero {
@@ -377,6 +384,12 @@
   font-size: var(--fs-sm);
   color: var(--text-3);
   margin: var(--sp-1) 0 0;
+}
+/* PERMANENT live region: in the DOM and EMPTY when idle, so an announcement is
+   never made by inserting the region and its text in the same tick (unreliable in
+   VoiceOver/Safari). Empty it collapses to zero height, so it costs no layout. */
+.fc-hero__live {
+  margin: 0;
 }
 /* "Updating…" — shown while a bar tap on the window strip re-runs the forecast.
    The numbers above still belong to the PREVIOUS planting date for that moment, so
@@ -1030,6 +1043,14 @@
 .fc-share__status:empty {
   display: none;
 }
+/* Why the Share button is disabled — a dead control with no reason is worse than
+   no control. Shown only while a newer forecast is in flight. */
+.fc-share__paused {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
 .fc-share__manual {
   flex: 1 1 100%;
   display: block;
@@ -1202,9 +1223,13 @@
    the strip moved into the result's left column (2026-07-25) that column is ~565px
    at 1280px viewport, so a 60-day sweep gives ~7px per bar: below SC 2.5.8's 24px
    pointer target, as it already was at ~16px in the old full-width position. It
-   rides the criterion's EQUIVALENT-CONTROL exception — the planting-date field in
-   step 2 is a full-size native control that sets the same date on the same page,
-   and every bar's date is also reachable from the keyboard via the roving tabindex.
+   rides the criterion's EQUIVALENT-CONTROL exception: the planting-date field in
+   step 2 is a full-size native control that reaches the same planting dates on the
+   same page. Describe that path accurately — it is NOT one tap. Changing the field
+   clears `submitted`, so it is: set the date, scroll back up, press "Get forecast",
+   and the result panel rebuilds from a skeleton. Conforming, but slower.
+   The keyboard path (roving tabindex) is NOT part of this justification — SC 2.5.8
+   is about pointer targets only, so keyboard reachability carries no weight here.
    Below 600px there is no such luxury (3px bars) and the 24px rule is enforced. */
 .bw-bar {
   flex: 1 1 0;

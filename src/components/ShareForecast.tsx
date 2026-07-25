@@ -12,7 +12,7 @@
 // jsdom has neither navigator.share nor a reliable clipboard, so every access is
 // typeof-guarded (and mocked in tests).
 // =============================================================================
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { HarvestForecast } from '../api/types';
 import { composeShareText } from '../lib/share';
@@ -21,12 +21,21 @@ export interface ShareForecastProps {
   forecast: HarvestForecast;
   /** Localized crop name (already resolved via cropDisplayName). */
   cropLabel: string;
+  /**
+   * A newer forecast is in flight (the farmer tapped another planting date on the
+   * window strip), so `forecast` still describes the PREVIOUS date. Sharing is
+   * blocked until it lands: the composed message is plain text that quotes a price
+   * against a planting/harvest date, and once it is in WhatsApp nothing marks it
+   * as stale. Waiting a moment is cheap; an un-retractable wrong price is not.
+   */
+  paused?: boolean;
 }
 
 const COPIED_MS = 2500;
 
-export default function ShareForecast({ forecast, cropLabel }: ShareForecastProps) {
+export default function ShareForecast({ forecast, cropLabel, paused = false }: ShareForecastProps) {
   const { t, i18n } = useTranslation();
+  const pausedId = useId();
   const [copied, setCopied] = useState(false);
   const [manualText, setManualText] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -34,6 +43,15 @@ export default function ShareForecast({ forecast, cropLabel }: ShareForecastProp
   useEffect(() => () => {
     if (timer.current) clearTimeout(timer.current);
   }, []);
+
+  // The manual-copy textarea holds a composed message for the OLD planting date;
+  // leaving it on screen would let it be copied by hand while the numbers change
+  // underneath. Clear it (and the "Copied" flash) the moment a re-run starts.
+  useEffect(() => {
+    if (!paused) return;
+    setManualText(null);
+    setCopied(false);
+  }, [paused]);
 
   const flashCopied = useCallback(() => {
     setCopied(true);
@@ -74,7 +92,13 @@ export default function ShareForecast({ forecast, cropLabel }: ShareForecastProp
 
   return (
     <div className="fc-share">
-      <button type="button" className="btn-ghost fc-share__btn" onClick={() => void onShare()}>
+      <button
+        type="button"
+        className="btn-ghost fc-share__btn"
+        onClick={() => void onShare()}
+        disabled={paused}
+        aria-describedby={paused ? pausedId : undefined}
+      >
         <span className="fc-share__icon" aria-hidden="true">
           {/* share glyph */}
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -91,6 +115,13 @@ export default function ShareForecast({ forecast, cropLabel }: ShareForecastProp
       <span className="fc-share__status" role="status" aria-live="polite">
         {copied ? t('share.copied') : ''}
       </span>
+
+      {/* A disabled control with no reason is a dead end; say why. */}
+      {paused && (
+        <p className="fc-share__paused" id={pausedId}>
+          {t('share.paused')}
+        </p>
+      )}
 
       {/* Manual fallback when there is no share sheet AND no clipboard. */}
       {manualText != null && (

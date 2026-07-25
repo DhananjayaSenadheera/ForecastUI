@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
+import { RecommendationLevel } from '../api/types';
 import type { Crop, CropTimeline, HarvestForecast, HarvestWindow } from '../api/types';
 import { cropDisplayName } from '../lib/crops';
 import { clampPlantDateToRange, formatDate, ymdLocal } from '../lib/format';
@@ -32,7 +33,10 @@ import AudioHelpButton from '../components/AudioHelpButton';
 //   - the loop must not run backwards up the page: activating a bar re-forecasts
 //     IN PLACE rather than sending the farmer back to the date field + CTA above.
 
-const HORIZON_DAYS = 60; // how far ahead a farmer may plan a planting date
+/** How far ahead a farmer may plan a planting date. EXPORTED because the window
+ *  strip's sweep length and this field's `max` must be the SAME number — the test
+ *  that pins that should read the number, not restate it. */
+export const HORIZON_DAYS = 60;
 const LOOKBACK_DAYS = 365; // how far back a planting date may be back-dated
 
 function shiftDays(base: Date, days: number): string {
@@ -178,6 +182,18 @@ export default function MyHarvestPage() {
   // visible to it yet. Passing the value removes the whole class of "forecast ran
   // for the previous date" bug.
   const fcReq = useRef(0);
+  // `fcReq` guards ORDER, not LIFETIME. A continuation that resumes after the page
+  // has gone would still run the localStorage writes below — setState is a harmless
+  // no-op, but "remember my crop" is a real side effect and must not fire for a
+  // screen the farmer has already left. (Assigned in the effect body, not just the
+  // cleanup, so a StrictMode double-mount does not leave it stuck false.)
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
 
   const runForecast = useCallback(
     async (date: string) => {
@@ -190,15 +206,15 @@ export default function MyHarvestPage() {
       setFcError(false);
       try {
         const data = await api.getHarvestForecast(selected.id, date);
-        if (fcReq.current !== req) return;
+        if (!alive.current || fcReq.current !== req) return;
         setForecast(data);
         // Remember this successful pick (crop + date) + push it onto the Recent list.
         writeLastHarvest(selected.id, date);
         setRecentIds(pushRecentCrop(selected.id));
       } catch {
-        if (fcReq.current === req) setFcError(true);
+        if (alive.current && fcReq.current === req) setFcError(true);
       } finally {
-        if (fcReq.current === req) setFcLoading(false);
+        if (alive.current && fcReq.current === req) setFcLoading(false);
       }
     },
     [selected],
@@ -253,6 +269,32 @@ export default function MyHarvestPage() {
   }, [canSubmit, plantDate, runForecast, runTimeline]);
 
   const selectedLabel = selected ? cropDisplayName(selected, i18n.language) : null;
+
+  // The panel may only drop its "even at the best time this loses money" sentence
+  // if a verdict is on screen RIGHT NOW saying it. That is a narrower condition
+  // than "the panel is embedded":
+  //   - the API calls it "Not recommended" only below −5% upside, while the panel
+  //     warns whenever no single date beats today — a sweep 0–5% under today shows
+  //     "Little data / roughly flat versus today" and states no loss at all;
+  //   - `fcError` replaces the whole result with a retry card — no verdict;
+  //   - no forecast yet is the first-load skeleton — no verdict either, while the
+  //     strip beside it is already fully painted from the crop-select pre-fetch.
+  // Anything but a live NotRecommended verdict => the panel says it itself.
+  //
+  // This is EXACTLY ForecastResult's own predicate for "a verdict card is
+  // rendered" (`f = error ? null : forecast`, side column iff `f`), which is why
+  // it must NOT also test `fcLoading`. During an in-place re-run the previous
+  // verdict deliberately stays on screen — that is the whole point of not
+  // collapsing to a skeleton — so treating "loading" as "no verdict" would assert
+  // something false, and would insert/remove a two-line warning ABOVE the strip on
+  // every tap of a below-today crop, shunting the bars ~50px under a 7px pointer
+  // target and destroying the scroll-stability that justifies re-forecasting in
+  // place. No stale window opens either: suppression and verdict read the same
+  // `forecast` object in the same render, so they flip in one commit.
+  const lossCarriedByVerdict =
+    forecast !== null &&
+    !fcError &&
+    forecast.recommendationLevel === RecommendationLevel.NotRecommended;
 
   return (
     <>
@@ -357,6 +399,7 @@ export default function MyHarvestPage() {
                 <h3 className="fc-window__title">{t('bestWindow.title')}</h3>
                 <BestWindowPanel
                   embedded
+                  lossCarriedByVerdict={lossCarriedByVerdict}
                   window={bestWindow}
                   loading={bwLoading}
                   error={bwError}
