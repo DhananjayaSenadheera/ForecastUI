@@ -60,19 +60,35 @@ export interface BestWindowPanelProps {
   /** Localized crop name from the picker; falls back to the payload cropName. */
   cropLabel?: string | null;
   /**
-   * Rendered INSIDE the forecast result rather than standalone. Three effects,
-   * all about not saying the same thing twice on one screen:
-   *  - the `belowToday` LOSS SENTENCE is suppressed: the "Not recommended"
-   *    verdict sits inches away and is the more specific claim. The warn TINT and
-   *    the softened uplift line STAY — they stop the panel reading as good news
-   *    and they duplicate nothing.
-   *  - the not-rankable branch drops its own title line: the embedding block
-   *    supplies the heading.
+   * Rendered INSIDE the forecast result rather than standalone. PRESENTATION
+   * ONLY — it must never decide whether a warning is safe to drop:
+   *  - the not-rankable branch drops its own title line, because the embedding
+   *    block supplies the heading;
    *  - the tap hint says what activating a bar actually does here (re-forecast),
    *    not "fills the field below" — there is no field below any more.
-   * Standalone rendering keeps the full warning; that code must stay correct.
    */
   embedded?: boolean;
+  /**
+   * The caller PROVES that a verdict currently on screen already states the loss,
+   * which is the only condition under which this panel may stay silent about it.
+   * Defaults to false — the sentence is shown unless proven redundant.
+   *
+   * It is a proof obligation, not a position flag, because "it is embedded" does
+   * NOT imply "a verdict is saying it". Three states break that assumption:
+   *   (a) the −5% DEADBAND, and it is the common case, not an edge: this panel
+   *       warns when `max(points) < currentPrice`, while the API only says
+   *       "Not recommended" below −5% (GetHarvestForecastQueryHandler). A sweep
+   *       sitting 0–5% under today — the typical shape, since a real seasonal
+   *       spread is a few percent — renders "Little data / roughly flat versus
+   *       today" while every date on this strip loses money;
+   *   (b) the ERROR branch: the forecast failed, the window data is fetched
+   *       independently and is fine, so the strip paints with no verdict at all;
+   *   (c) the FIRST-LOAD skeleton: the window is pre-fetched on crop select, so
+   *       the strip is fully painted before any verdict exists.
+   * In all three the tint would be carrying the loss ALONE (WCAG 1.4.1, and the
+   * panel's own rule three lines above the render: colour is never the message).
+   */
+  lossCarriedByVerdict?: boolean;
 }
 
 // Below this the difference between the best and an average date is too small to
@@ -104,6 +120,7 @@ export default function BestWindowPanel({
   selectedDate,
   cropLabel,
   embedded = false,
+  lossCarriedByVerdict = false,
 }: BestWindowPanelProps) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
@@ -334,13 +351,12 @@ export default function BestWindowPanel({
       </div>
 
       {/* Colour is never the message: warn tint + ⚠ + the sentence itself.
-          EMBEDDED: the sentence is suppressed, not the state. The forecast
-          verdict a few centimetres to the right already says "Not recommended —
-          the forecast is below today's price" about this very crop, and it is the
-          more specific claim; printing both would read as two separate problems.
-          The tint above and the softened uplift line below still fire, so nothing
-          on this panel can read as good news while the verdict says otherwise. */}
-      {belowToday && !embedded && (
+          The sentence is dropped ONLY when the caller has proved that a verdict on
+          screen is already stating the loss (see `lossCarriedByVerdict`) — never
+          merely because the panel is embedded. The tint and the softened uplift
+          line always stay, so nothing here can read as good news; but a tint plus
+          a hedge is not a statement of loss, so on its own it is not enough. */}
+      {belowToday && !lossCarriedByVerdict && (
         <p className="bw-below" role="note">
           <span aria-hidden="true">⚠️ </span>
           {t('bestWindow.belowToday', { price: currentStr })}

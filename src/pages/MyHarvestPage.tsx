@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
+import { RecommendationLevel } from '../api/types';
 import type { Crop, CropTimeline, HarvestForecast, HarvestWindow } from '../api/types';
 import { cropDisplayName } from '../lib/crops';
 import { clampPlantDateToRange, formatDate, ymdLocal } from '../lib/format';
@@ -254,6 +255,22 @@ export default function MyHarvestPage() {
 
   const selectedLabel = selected ? cropDisplayName(selected, i18n.language) : null;
 
+  // The panel may only drop its "even at the best time this loses money" sentence
+  // if a verdict is on screen RIGHT NOW saying it. That is a narrower condition
+  // than "the panel is embedded":
+  //   - the API calls it "Not recommended" only below −5% upside, while the panel
+  //     warns whenever no single date beats today — a sweep 0–5% under today shows
+  //     "Little data / roughly flat versus today" and states no loss at all;
+  //   - `fcError` replaces the whole result with a retry card — no verdict;
+  //   - `fcLoading` with no forecast yet is the first-load skeleton — no verdict,
+  //     while the strip beside it is already fully painted from the pre-fetch.
+  // Anything but a live NotRecommended verdict => the panel says it itself.
+  const lossCarriedByVerdict =
+    forecast !== null &&
+    !fcError &&
+    !fcLoading &&
+    forecast.recommendationLevel === RecommendationLevel.NotRecommended;
+
   return (
     <>
       <div className="topbar">
@@ -357,6 +374,7 @@ export default function MyHarvestPage() {
                 <h3 className="fc-window__title">{t('bestWindow.title')}</h3>
                 <BestWindowPanel
                   embedded
+                  lossCarriedByVerdict={lossCarriedByVerdict}
                   window={bestWindow}
                   loading={bwLoading}
                   error={bwError}

@@ -24,6 +24,7 @@ import MyHarvestPage from '../pages/MyHarvestPage';
 import { api } from '../api/client';
 import { formatDate, ymdLocal } from '../lib/format';
 import { fxCrops, fxHarvestWindowFor, fxForecastFor } from '../api/fixtures';
+import { RecommendationLevel } from '../api/types';
 import type { HarvestWindow } from '../api/types';
 
 const RANKABLE: HarvestWindow = {
@@ -446,23 +447,37 @@ describe('BestWindowPanel — embedded in the forecast result', () => {
   // question stops being "is it true?" and becomes "who says it".
   const LOSS = { ...RANKABLE, currentPrice: 300 }; // every date loses against today
 
-  it('drops the loss SENTENCE — the verdict beside it is the more specific claim', () => {
+  it('KEEPS the loss sentence when embedded but nothing has proved a verdict says it', () => {
+    // The bug this pins: dropping the sentence on position alone. Embedded is not
+    // evidence that a "Not recommended" verdict is on screen — in the −5% deadband
+    // the same numbers render as "Little data", and in the error / first-load
+    // states there is no verdict at all. Silence there leaves the loss carried by
+    // a background tint: colour alone, WCAG 1.4.1.
     renderPanel({ window: LOSS, embedded: true });
+    expect(screen.getByText(/Even at the best time/)).toBeInTheDocument();
+  });
+
+  it('drops it ONLY when the caller proves a verdict is already stating the loss', () => {
+    renderPanel({ window: LOSS, embedded: true, lossCarriedByVerdict: true });
     expect(screen.queryByText(/Even at the best time/)).toBeNull();
   });
 
   it('keeps the loss STATE — tint and softened uplift, so it cannot read as a win', () => {
-    // Suppressing the duplicate sentence must not quietly restore the good-news
+    // Dropping the duplicate sentence must not quietly restore the good-news
     // styling: the panel would then look like encouragement next to "Not
     // recommended".
-    const { container } = renderPanel({ window: LOSS, embedded: true });
+    const { container } = renderPanel({
+      window: LOSS,
+      embedded: true,
+      lossCarriedByVerdict: true,
+    });
     expect(container.querySelector('.bw-verdict.is-below')).not.toBeNull();
     expect(screen.getByText(/compares these dates with each other, not with today/)).toBeInTheDocument();
   });
 
   it('still carries the full warning when rendered standalone', () => {
-    // The suppression is positional, not a deletion — this is the path that keeps
-    // the standalone panel honest if it is ever used on its own again.
+    // Suppression is opt-in and proof-gated, not a deletion — this is the path
+    // that keeps the standalone panel honest if it is ever used on its own again.
     renderPanel({ window: LOSS });
     expect(screen.getByText(/Even at the best time/)).toBeInTheDocument();
   });
@@ -624,6 +639,87 @@ describe('MyHarvestPage — the window strip lives inside the result', () => {
       expect(screen.queryByText(/Updating for the new planting date/)).toBeNull(),
     );
     spy.mockRestore();
+  });
+
+  // -- who says the loss out loud -------------------------------------------
+  // Cabbage is the fixture crop whose WHOLE sweep sits below today's price, so
+  // the panel's warn state is live in every test here; what varies is whether a
+  // verdict on screen is also stating it. If none is, the panel must.
+  describe('the loss sentence follows the verdict, not the position', () => {
+    const CABBAGE = 'Cabbage';
+    const LOSS_SENTENCE = /Even at the best time, the forecast is below today.s price/;
+
+    async function forecastCabbage() {
+      renderPage();
+      fireEvent.click(await screen.findByRole('button', { name: CABBAGE }));
+      fireEvent.click(screen.getByRole('button', { name: 'Get forecast' }));
+    }
+
+    function mockVerdict(level: RecommendationLevel, reason: string) {
+      return vi.spyOn(api, 'getHarvestForecast').mockImplementation(async (id: string, d: string | Date) => ({
+        ...fxForecastFor(id, String(d)),
+        recommendationLevel: level,
+        reason,
+      }));
+    }
+
+    it('SPEAKS in the −5% deadband, where the verdict only says "Little data"', async () => {
+      // The common case, not an edge: the panel warns when no single date beats
+      // today, the API only says "Not recommended" below −5% upside. A sweep
+      // sitting 0–5% under today therefore renders "Little data / roughly flat
+      // versus today" — which states no loss at all — while every date on the
+      // strip loses money. Without this the loss is carried by a tint alone.
+      const spy = mockVerdict(
+        RecommendationLevel.RecommendedWithRisk,
+        'Roughly flat versus today - limited upside.',
+      );
+      await forecastCabbage();
+      await screen.findAllByRole('button', { name: /^Plant / });
+
+      expect(await screen.findByText('Little data')).toBeInTheDocument();
+      expect(screen.getByText(LOSS_SENTENCE)).toBeInTheDocument();
+      spy.mockRestore();
+    });
+
+    it('stays silent only when the verdict really is "Not recommended"', async () => {
+      const spy = mockVerdict(
+        RecommendationLevel.NotRecommended,
+        "Forecast below today's price - consider another crop.",
+      );
+      await forecastCabbage();
+      await screen.findAllByRole('button', { name: /^Plant / });
+
+      expect(await screen.findByText('Not recommended')).toBeInTheDocument();
+      await waitFor(() => expect(screen.queryByText(LOSS_SENTENCE)).toBeNull());
+      // ...and the state is still visible without reading the sentence.
+      expect(document.querySelector('.bw-verdict.is-below')).not.toBeNull();
+      spy.mockRestore();
+    });
+
+    it('SPEAKS on the error path, where no verdict exists at all', async () => {
+      // The window is fetched independently of the forecast, so it can be perfectly
+      // good while the forecast fails: strip fully painted, retry card beside it,
+      // nothing anywhere saying the dates lose money.
+      const spy = vi.spyOn(api, 'getHarvestForecast').mockRejectedValue(new Error('boom'));
+      await forecastCabbage();
+
+      expect(await screen.findByRole('alert')).toBeInTheDocument();
+      expect(await screen.findByText(LOSS_SENTENCE)).toBeInTheDocument();
+      spy.mockRestore();
+    });
+
+    it('SPEAKS during the first-load skeleton, before any verdict exists', async () => {
+      // The window is pre-fetched on crop select, so the strip is already painted
+      // while the forecast is still in flight.
+      const spy = vi
+        .spyOn(api, 'getHarvestForecast')
+        .mockImplementation(() => new Promise(() => {}) as never);
+      await forecastCabbage();
+
+      expect(await screen.findByText('Loading…')).toBeInTheDocument();
+      expect(await screen.findByText(LOSS_SENTENCE)).toBeInTheDocument();
+      spy.mockRestore();
+    });
   });
 
   it('never offers a date the planting-date field would clamp away', async () => {
