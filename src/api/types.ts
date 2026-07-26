@@ -907,24 +907,46 @@ export interface TrainingRunPage {
   total: number;
 }
 
-/** The five frozen user-activity event-type wire strings. The server 400s any other
- *  `type` filter value — the client sends OMIT (all) or one of these EXACT strings,
- *  never free text. */
-export const USER_ACTIVITY_EVENT_TYPES = [
-  'loginSucceeded',
-  'loginFailed',
+/** The event-type wire strings, grouped the way the System log tab groups them. The
+ *  server 400s any value outside the known set — the client sends OMIT (all), one EXACT
+ *  string via `type`, or a comma-joined subset via `types`, never free text.
+ *
+ *  SIGN-IN + USER-MANAGEMENT are the FIVE ORIGINAL FROZEN strings (Logs Phase 2) and do
+ *  not change. CONTENT is the 2026-07-26 addition (admin edits to reference data); some
+ *  of these may never occur in a given deployment, which is harmless. */
+export const USER_ACTIVITY_SIGN_IN_EVENT_TYPES = ['loginSucceeded', 'loginFailed'] as const;
+export const USER_ACTIVITY_USER_MGMT_EVENT_TYPES = [
   'userRegistered',
   'roleChanged',
   'userDeleted',
 ] as const;
+export const USER_ACTIVITY_CONTENT_EVENT_TYPES = [
+  'policyFlagChanged',
+  'festivalChanged',
+  'newsEventChanged',
+  'cropChanged',
+  'marketChanged',
+] as const;
+
+/** Every wire string the client knows about (sign-in + user management + content). */
+export const USER_ACTIVITY_EVENT_TYPES = [
+  ...USER_ACTIVITY_SIGN_IN_EVENT_TYPES,
+  ...USER_ACTIVITY_USER_MGMT_EVENT_TYPES,
+  ...USER_ACTIVITY_CONTENT_EVENT_TYPES,
+] as const;
 export type UserActivityEventType = (typeof USER_ACTIVITY_EVENT_TYPES)[number];
+
+/** FORWARD-COMPAT: the server may log an event type this build has never heard of.
+ *  Such a row renders verbatim in a neutral badge rather than breaking the table, so
+ *  the wire type is "a known string, or any other string". */
+export type UserActivityEventTypeWire = UserActivityEventType | (string & {});
 
 /** One user-activity event — GET /api/admin/logs/user-activity (ordered OccurredUtc
  *  DESC). actorUserId/targetUserId are GUIDs (rendered truncated, full value in title);
  *  usernameAttempted is populated on a loginFailed (an UNVERIFIED attempt, shown quoted). */
 export interface UserActivityEvent {
   occurredUtc: string; // ISO Z
-  eventType: UserActivityEventType;
+  eventType: UserActivityEventTypeWire;
   actorUserId: string | null; // Guid
   targetUserId: string | null; // Guid
   usernameAttempted: string | null; // present on loginFailed (unverified)

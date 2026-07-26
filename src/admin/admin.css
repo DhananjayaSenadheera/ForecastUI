@@ -1404,6 +1404,47 @@
   color: var(--text-2);
 }
 
+/* System log — group sub-tabs (All / Sign-ins / User management / Content changes).
+   A SEGMENTED PILL control, deliberately NOT the hub's underlined route tabs: this
+   strip sits inside a tab panel, and two identical-looking strips would read as two
+   competing "which page am I on?" controls. Pills read as a filter. ------------- */
+.syslog-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+}
+.syslog-group {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-min); /* 44px — thumb-sized even on the admin console */
+  padding: var(--sp-2) var(--sp-4);
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.syslog-group:hover {
+  color: var(--text);
+  border-color: var(--brand);
+}
+/* Selected: filled tint + brand text + a heavier weight, so the state survives both
+   greyscale and a colour-blind reading (never colour alone). */
+.syslog-group.is-active {
+  background: var(--brand-tint-2);
+  border-color: var(--brand);
+  color: var(--brand-dark);
+  font-weight: var(--fw-bold);
+}
+.syslog-group:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 /* Logs Phase 2 — User activity cells (reuse .ing-table layout). -------------- */
 .ua-id {
   font-variant-numeric: var(--fvn-tabular);
