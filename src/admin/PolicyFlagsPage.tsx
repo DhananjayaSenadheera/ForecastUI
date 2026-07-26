@@ -1,23 +1,10 @@
-// ADM-2 — Policy flags admin page (/admin/policy-flags). Sortable data table over the
-// LIVE GET /api/policy-flag/get/all, with LIVE Edit + Delete (API-13).
-//
-// Honest display: Direction is a GLYPH + WORD on a NEUTRAL badge — never colour-only,
-// and never red/green (RED is reserved app-wide for the farmer "Not recommended"
-// verdict). Status (Active / Scheduled / Expired) is DERIVED client-side from the
-// effective window (derivePolicyStatus, tested). An as-of date filter maps to the
-// ?asOfDate= query. referenceUrl renders as an external link when present.
-//
-// MUTATIONS (API-13, Admin-only): PUT /api/policy-flag/update (full-object; wrapped
-// under policyFlagUpdateDto) and DELETE /api/policy-flag/delete/{id}. Both return
-// { id, trainingDataWarning }: policy flags are as-of-joined into the model's training
-// data, so mutating a PAST-dated flag returns a non-null warning. The mutation still
-// SUCCEEDED — we surface the warning in a dismissible amber note, NEVER as an error.
-// After a mutation we REFETCH (honest re-read of server truth). Server guard messages
-// are surfaced verbatim in the flash (house pattern from UsersPage).
-//
-// EMPTY-RESULT QUIRK: the .NET GetAll handler returns HTTP 400 ("No policy flags
-// found.") for an empty list (and for an as-of date with no active flags), NOT 200 [].
-// We treat a 400 on this route as the honest EMPTY state, not a hard error.
+// Admin page for policy flags (/admin/policy-flags): sortable table with edit and
+// delete. Status (Active / Scheduled / Expired) is derived client-side from the
+// effective window. Direction is a glyph + word, never colour alone.
+// A mutation can return a trainingDataWarning: the save SUCCEEDED, so it is shown as
+// an amber note, never as an error.
+// Quirk: GET /api/policy-flag/get/all answers 400 for an EMPTY list, so a 400 on that
+// route is treated as the empty state.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, ApiError } from '../api/client';
@@ -49,8 +36,8 @@ const STATUS_LABEL: Record<PolicyStatus, string> = {
   expired: 'admin.policy.status.expired',
 };
 
-// Option orders for the edit form. Types 0..8 in enum order; direction Bullish/Neutral/
-// Bearish (the -1 is the LAST option so the list reads high→low market impact).
+// Option order for the edit form: types 0..8 in enum order; direction reads
+// Bullish / Neutral / Bearish, i.e. high to low market impact.
 const POLICY_TYPE_OPTIONS: number[] = [
   PolicyType.Subsidy,
   PolicyType.ImportBan,
@@ -72,10 +59,8 @@ export default function PolicyFlagsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [empty, setEmpty] = useState(false);
-  // Defaults to TODAY (owner request 2026-07-12): the everyday admin question is
-  // "what's in force right now". "Show all flags" clears it to the full register
-  // (scheduled + expired included) — without that escape the other rows would be
-  // invisible by default.
+  // Defaults to today ("what is in force right now"); "Show all flags" clears the
+  // filter, without which scheduled and expired rows would be unreachable.
   const [asOf, setAsOf] = useState(() => ymdLocal(new Date()));
   const [sortKey, setSortKey] = useState<SortKey>('from');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -83,8 +68,7 @@ export default function PolicyFlagsPage() {
   const [confirmDelete, setConfirmDelete] = useState<PolicyFlag | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [flash, setFlash] = useState<Flash | null>(null);
-  // trainingDataWarning banner: a non-null warning off a SUCCESSFUL mutation (never
-  // an error). Dismissible; cleared on the next mutation attempt.
+  // Warning returned by a SUCCESSFUL mutation, not an error. Dismissible.
   const [warning, setWarning] = useState<string | null>(null);
 
   const load = useCallback(async (asOfDate: string) => {
@@ -123,8 +107,7 @@ export default function PolicyFlagsPage() {
     [sortKey],
   );
 
-  // Server guard / validation messages (house error shape) arrive on ApiError.message
-  // — surface them verbatim so honest constraints reach the admin. Network -> generic.
+  // Server validation messages arrive on ApiError.message — show them verbatim.
   const errMessage = useCallback(
     (e: unknown) => (e instanceof ApiError && e.message && e.status !== 0 ? e.message : t('common.errorBody')),
     [t],

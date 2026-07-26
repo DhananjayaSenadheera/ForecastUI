@@ -1,17 +1,8 @@
-// ADM-4 — User management (/admin/users). LIVE against API-9 (backend PR #26):
-// list (GET /api/users/get/all), create (POST /api/users/create), role change
-// (PUT /api/users/update-role), delete (DELETE /api/users/delete/{id}). Mutations go
-// through api.* then REFETCH the list (honest re-read of server truth at the 500-cap
-// scale). Server guard messages ("cannot delete yourself", "cannot delete/demote the
-// last remaining admin", "username is already taken") are surfaced verbatim in the
-// flash. In FIXTURES mode the same calls mutate an in-memory copy so the demo flow
-// still works.
-//
-// ADD USER (owner request 2026-07-23, replacing the earlier self-register-only rule):
-// admins can now provision an account here, choosing the role at creation. It posts to
-// the Admin-only create route, NEVER to /register — that anonymous endpoint issues a
-// refresh cookie to the caller, which would replace the acting admin's own session
-// cookie with the new user's. Farmers can still self-register as before.
+// Admin page for user management (/admin/users): list, create, change role, delete.
+// Every mutation refetches the list, and server guard messages ("cannot delete the
+// last remaining admin", etc.) are shown verbatim.
+// Create posts to the Admin-only /api/users/create, NEVER to /register — /register
+// would set a refresh cookie for the new user in the acting admin's browser.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, ApiError, apiMode } from '../api/client';
@@ -72,9 +63,7 @@ export default function UsersPage() {
     void load();
   }, [load]);
 
-  // Server guard messages (house error shape) arrive on ApiError.message — show
-  // them verbatim so honest constraints ("last remaining admin", "cannot delete
-  // yourself") reach the admin. Non-ApiError / network -> generic human line.
+  // Server guard messages arrive on ApiError.message — show them verbatim.
   const errMessage = useCallback(
     (e: unknown) => (e instanceof ApiError && e.message && e.status !== 0 ? e.message : t('common.errorBody')),
     [t],
@@ -122,9 +111,8 @@ export default function UsersPage() {
     [t, load, errMessage],
   );
 
-  // Create keeps its error INSIDE the dialog (the form stays open with the typed values
-  // intact so the admin can fix the one field the server rejected) — unlike role/delete,
-  // whose dialogs close and report through the page flash. Only a success closes it.
+  // Create keeps its error inside the dialog so the typed values survive; the role and
+  // delete dialogs close and report through the page flash instead.
   const createUser = useCallback(
     async (input: CreateUserInput) => {
       setCreating(true);
@@ -310,11 +298,8 @@ export default function UsersPage() {
   );
 }
 
-// Client-side rules are a MIRROR of CreateUserCommandValidator (username <= 50, valid
-// email <= 256, password 8..128, role from the closed whitelist) — they exist to save a
-// round-trip, never to replace the server check. Anything the server rejects anyway
-// (duplicate username/email) is left to it and shown verbatim, because only the server
-// knows the current account list.
+// Client-side rules mirror CreateUserCommandValidator to save a round-trip; they never
+// replace the server check. Duplicate username/email is left to the server.
 const PASSWORD_MIN = 8;
 const PASSWORD_MAX = 128;
 const USERNAME_MAX = 50;
@@ -335,8 +320,8 @@ function AddUserDialog({
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  // Role whitelist is strictly Admin | Farmer — never invent other roles. Farmer is the
-  // default so the common case is one click, and an accidental Enter never mints an admin.
+  // Roles are strictly Admin | Farmer. Farmer is the default so an accidental Enter
+  // never creates an admin.
   const [role, setRole] = useState<'Farmer' | 'Admin'>('Farmer');
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -350,8 +335,7 @@ function AddUserDialog({
     if (password.length < PASSWORD_MIN || password.length > PASSWORD_MAX)
       return setLocalError(t('admin.users.errPassword', { min: PASSWORD_MIN, max: PASSWORD_MAX }));
     setLocalError(null);
-    // Password is passed through UNTRIMMED — leading/trailing spaces are legitimate
-    // characters in a password and trimming them would silently change what the admin set.
+    // Password is passed through UNTRIMMED — leading/trailing spaces are legitimate.
     onSave({ username: name, email: mail, password, role });
   };
 
@@ -395,7 +379,7 @@ function AddUserDialog({
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             maxLength={PASSWORD_MAX}
-            // new-password keeps a password manager from offering the ADMIN's own
+            // new-password stops a password manager offering the admin's own
             // credentials for an account they are creating for someone else.
             autoComplete="new-password"
             disabled={busy}

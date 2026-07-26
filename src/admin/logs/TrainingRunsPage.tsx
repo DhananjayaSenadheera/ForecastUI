@@ -1,20 +1,9 @@
-// LOGS Phase 2 — Model training (/admin/logs/training). READ-ONLY admin observability
-// over the model-training history. A SERVER-PAGED runs table (desktop) / stacked cards
-// (<600px) mirroring the ingestion tab's four async states (loading skeleton / error +
-// retry / empty / data) and its per-row expansion idiom.
-//
-// HONEST PROMOTION GATE (the whole point of this tab): `promoted` (currently LIVE —
-// exactly one row) and `decisionPromoted` (the gate's verdict at train time) are shown
-// as INDEPENDENT signals, never collapsed. When promoted=true && decisionPromoted=false
-// (a MANUAL OVERRIDE) the row honestly shows BOTH a "Live" badge AND "Failed quality check",
-// with the promotionDecision text available as a tooltip + an expandable drill-down.
-// Verdicts are never colour-only (the text label always accompanies the tone). MAE is a
-// raw metric shown to 2dp and is NEVER colour-coded (lower-is-better is context, not a
-// verdict). checksJson-style parse hazards do not exist here — promotionDecision is plain
-// text rendered verbatim.
-//
-// AUTH: the route sits behind an Admin JWT; a 401/403 flows through the existing global
-// client interceptor (silent renew → /login), so there is ZERO new auth code here.
+// Admin page for model training runs (/admin/logs/training), read-only and
+// server-paged.
+// `promoted` (live right now) and `decisionPromoted` (the quality gate's verdict) are
+// shown as independent signals and never collapsed: a manual override shows BOTH
+// "Live" and "Failed quality check", with promotionDecision as the explanation.
+// MAE is shown to 2dp and is never colour-coded.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../api/client';
@@ -121,16 +110,13 @@ export default function TrainingRunsPage() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// One training row (+ its expandable promotion-decision detail row).
-// ---------------------------------------------------------------------------
+// One training row plus its expandable promotion-decision detail row.
 function TrainingRow({ run, lang }: { run: TrainingRun; lang: string }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const gate = mapGateOutcome(run.decisionPromoted);
   const na = t('admin.logs.training.notApplicable');
-  // A manual override: currently live yet the gate declined it. Shown honestly (both
-  // badges), with promotionDecision as the explaining tooltip + drill-down.
+  // Manual override: live even though the gate declined it. Both badges are shown.
   const isOverride = run.promoted && !run.decisionPromoted;
   const canExpand = !!run.promotionDecision;
   const detailId = `train-detail-${run.version}`;
@@ -169,8 +155,7 @@ function TrainingRow({ run, lang }: { run: TrainingRun; lang: string }) {
         <td data-label={t('admin.logs.training.colGate')}>
           <span
             className={`adm-status adm-status--${gate.tone}`}
-            // Tooltip: on an override the gate declined but we promoted anyway — the
-            // promotionDecision explains why. Verbatim admin diagnostic text.
+            // On an override, promotionDecision explains why we promoted anyway.
             title={isOverride ? run.promotionDecision ?? undefined : undefined}
           >
             {t(gate.labelKey)}
@@ -219,8 +204,8 @@ function TrainingRow({ run, lang }: { run: TrainingRun; lang: string }) {
   );
 }
 
-/** Kind + MAE cell. Shows "kind · MAE x.xx"; degrades to kind-only or MAE-only or a
- *  muted dash when a piece is null. MAE is NEVER colour-coded here. */
+/** Kind + MAE cell ("kind · MAE x.xx"), degrading when a piece is null. MAE is never
+ *  colour-coded. */
 function MetricCell({
   kind,
   mae,

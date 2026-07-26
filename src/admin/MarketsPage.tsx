@@ -1,15 +1,7 @@
-// ADM-3 — Markets registry + monitoring VIEW page (/admin/markets). LIVE via
-// GET /api/markets/get/all (backend PR #24); the client falls back to fixtures that
-// mirror the REAL 12 seeded markets when VITE_API_MODE=fixtures.
-//
-// Beyond the registry (Name/District/Type/Economic centre) the table now answers three
-// operational questions per market, straight off the wire DTO:
-//   • Data stored     — does the market hold any stored price observation at all?
-//   • Last stored     — the freshest observation date we hold (with a stale cue when old).
-//   • Training source  — does its USABLE data actually feed the forecasting models?
-//                        (feature-safe + usable; the national-average row is monitored but
-//                        excluded by design, so it reads —/Never/Excluded — honestly.)
-// All flags are icon + text, never colour-only.
+// Admin page for the markets registry (/admin/markets), read-only. As well as the
+// registry columns it answers three operational questions per market: is any price
+// stored, how fresh is it, and does its data feed model training. Flags are icon +
+// text, never colour alone.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';

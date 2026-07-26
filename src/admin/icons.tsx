@@ -1,8 +1,5 @@
-// Shared admin action icons — small inline SVGs (Feather-style, stroke = currentColor)
-// so a button's icon always matches its text colour, including the danger (delete) red.
-// One definition per action, reused across every admin page, so Edit/Delete/Refresh look
-// identical everywhere. All are decorative (aria-hidden): the button's text is the label,
-// so the accessible name is unchanged.
+// Shared admin action icons: inline SVGs with stroke=currentColor so an icon always
+// matches its button's text colour. All are aria-hidden — the button text is the label.
 import type { SVGProps } from 'react';
 
 const base: SVGProps<SVGSVGElement> = {

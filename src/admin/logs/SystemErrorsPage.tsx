@@ -1,17 +1,6 @@
-// LOGS Phase 3 — System errors (/admin/logs/errors). READ-ONLY admin observability
-// over UNHANDLED server exceptions (500s). A SERVER-PAGED table (desktop) / stacked
-// cards (<600px) mirroring the sibling tabs' four async states (loading skeleton /
-// error + retry / empty / data) and their per-row expansion idiom.
-//
-// HONEST DISPLAY: each row is ONE unexpected server error. The empty state is a GOOD
-// state (no unhandled errors) and is phrased positively — never dressed as a failure.
-// The exceptionType keeps its full value in a title while the namespace prefix is
-// de-emphasised so the class name reads first. The message is truncated in the table
-// with the full text (+ stack trace + full traceId) behind a "Show details" drill-down;
-// a null stackTrace shows a quiet "No stack trace" note rather than an empty box.
-//
-// AUTH: the route sits behind an Admin JWT; a 401/403 flows through the existing global
-// client interceptor (silent renew → /login), so there is ZERO new auth code here.
+// Admin page for unhandled server errors (/admin/logs/errors), read-only and
+// server-paged. Same four async states and row-expansion idiom as the sibling tabs.
+// The empty state is a GOOD state (no unhandled errors) and is worded that way.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../api/client';
@@ -117,9 +106,7 @@ export default function SystemErrorsPage() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// One error row (+ its expandable full-message / stack-trace detail row).
-// ---------------------------------------------------------------------------
+// One error row plus its expandable message / stack-trace detail row.
 function ErrorRow({ err, lang }: { err: SystemError; lang: string }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -214,8 +201,7 @@ function ErrorRow({ err, lang }: { err: SystemError; lang: string }) {
   );
 }
 
-/** Where the error happened: "GET /api/…". Degrades to path-only or method-only or a
- *  muted dash when a piece is null (both fields are nullable on the wire). */
+/** Where the error happened ("GET /api/…"). Degrades when method or path is null. */
 function WhereCell({
   method,
   path,

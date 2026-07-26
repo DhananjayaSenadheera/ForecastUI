@@ -1,10 +1,7 @@
-// Admin "Logs" hub. One page heading (H1) + a route-driven tab strip; the active tab's
-// content renders into <Outlet/>. Phase 2 adds Model training + User activity alongside
-// Ingestion runs — each tab is its own lazy child route (App.tsx), so a tab's code only
-// loads when its route is visited and none of it lands in the farmer first-load bundle.
-// Each tab's one-paragraph explainer is a hover/focus tooltip on the tab itself (owner
-// request 2026-07-22, replacing the per-page 💡 banner). Touch devices have no hover, so
-// a mobile-only ⓘ toggle below the strip shows the ACTIVE tab's explainer on tap.
+// Admin "Logs" hub: one page heading plus a route-driven tab strip, with the active
+// tab rendered into <Outlet/>. Each tab is its own lazy child route. A tab's explainer
+// is a hover/focus tooltip; touch has no hover, so a mobile-only ⓘ toggle shows the
+// active tab's text instead.
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -25,8 +22,7 @@ export default function LogsPage() {
   const { pathname } = useLocation();
   const activeTab = LOGS_TABS.find((tab) => tab.to === pathname) ?? LOGS_TABS[0];
 
-  // Mobile ⓘ state. Collapses on tab change so a stale explainer never lingers
-  // under a different tab.
+  // Collapse the ⓘ note on tab change so a stale explainer never sits under a new tab.
   const [hintOpen, setHintOpen] = useState(false);
   useEffect(() => {
     setHintOpen(false);
@@ -40,8 +36,7 @@ export default function LogsPage() {
         type="button"
         className="logs-hint-toggle"
         aria-expanded={hintOpen}
-        // aria-controls only while the note exists — a collapsed note is not in the
-        // DOM, and a dangling idref is an ARIA violation.
+        // aria-controls only while the note exists — a dangling idref is invalid.
         {...(hintOpen ? { 'aria-controls': LOGS_HINT_ID } : {})}
         onClick={() => setHintOpen((open) => !open)}
       >

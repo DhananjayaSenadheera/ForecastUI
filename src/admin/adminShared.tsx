@@ -1,15 +1,12 @@
-// Shared admin-console primitives (ADM-1..7). Imported ONLY by lazy admin pages,
-// so this ships in the admin async chunk — never the farmer first-load bundle.
-// Keeps every admin page's four async states + the "demo data" honesty note + the
-// sortable header idiom consistent (mirrors the farmer pages' BestCrops/Prices).
+// Shared admin primitives. Imported only by lazy admin pages, so this ships in the
+// admin chunk and never in the farmer first-load bundle.
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiMode } from '../api/client';
 import './admin.css';
 
-// Table pagination is app-wide (owner 2026-07-13: "all the tables, not only the
-// admin") — the implementation lives in components/TablePagination; re-exported
-// here so admin pages keep their existing imports.
+// TablePagination is app-wide now; re-exported here so admin pages keep their existing
+// imports.
 export {
   default as AdminPagination,
   usePagination,
@@ -17,9 +14,7 @@ export {
   PAGE_SIZES,
 } from '../components/TablePagination';
 
-/** Page header: title + optional subtitle (mirrors the farmer `.topbar`). An optional
- *  `hint` renders an AdminHint ⓘ beside the title (owner request 2026-07-22 — page
- *  explainers live on a tooltip, not a 💡 banner). */
+/** Page header: title + optional subtitle, with an optional ⓘ hint beside the title. */
 export function AdminTopbar({ title, subtitle, hint, hintId }: { title: string; subtitle?: string; hint?: string; hintId?: string }) {
   return (
     <div className="topbar adm-topbar">
@@ -34,16 +29,12 @@ export function AdminTopbar({ title, subtitle, hint, hintId }: { title: string; 
   );
 }
 
-/** ⓘ explainer affordance — the standalone-page counterpart of the Logs tab tooltips
- *  (owner request 2026-07-22; the 💡 banner treatment is retired). Desktop: the same
- *  i18n text shows as a hover/keyboard-focus tooltip attached via aria-describedby —
- *  the tooltip lives OUTSIDE the button label so it never joins the accessible name.
- *  Touch has no hover, so tapping the ⓘ toggles the text as an inline note (this also
- *  lets any user pin the explainer open). The note only carries aria-controls while it
- *  exists — a collapsed note is not in the DOM, and a dangling idref is an ARIA
- *  violation. Callers place AdminHint INSIDE an `.adm-title-row` flex row, NEVER inside
- *  the heading element itself (heading content becomes the heading's accessible name);
- *  the opened note wraps to its own full-width line via flex-basis. */
+/** ⓘ explainer. On desktop the text is a hover/focus tooltip attached with
+ *  aria-describedby — it lives OUTSIDE the button so it never joins the accessible
+ *  name. Touch has no hover, so tapping toggles the same text as an inline note.
+ *  aria-controls is only set while that note exists (a dangling idref is invalid).
+ *  Place AdminHint in the `.adm-title-row`, never inside the heading element, because
+ *  heading content becomes the heading's accessible name. */
 export function AdminHint({ hint, id }: { hint: string; id: string }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -75,9 +66,8 @@ export function AdminHint({ hint, id }: { hint: string; id: string }) {
   );
 }
 
-/** Honest "this is demo data" note — shown in FIXTURES mode only. Every admin page
- *  renders it so nobody mistakes seeded fixtures for the live registry. `live` prop
- *  lets a page say whether a live endpoint exists yet. */
+/** "This is demo data" note — fixtures mode only, so seeded rows are never mistaken
+ *  for the live registry. */
 export function DemoNote({ hasLiveEndpoint = true }: { hasLiveEndpoint?: boolean }) {
   const { t } = useTranslation();
   if (apiMode !== 'fixtures') return null;
@@ -89,12 +79,8 @@ export function DemoNote({ hasLiveEndpoint = true }: { hasLiveEndpoint?: boolean
   );
 }
 
-/** Dismissible AMBER training-data warning banner (ADM-2/ADM-5). Rendered when a
- *  SUCCESSFUL mutation returns a non-null trainingDataWarning — the affected row is
- *  as-of-joined into the model's training data, so a past-dated edit/delete may need a
- *  retrain. It is honest info, NEVER an error: role="status" (not alert), and the amber
- *  `.adm-warn--dismiss` styling is shared, not red. Title + body are page-supplied so
- *  PolicyFlags and Festivals reuse identical markup with their own wording. */
+/** Dismissible amber banner for a trainingDataWarning returned by a SUCCESSFUL
+ *  mutation. It is information, never an error: role="status", amber, not red. */
 export function TrainingWarningBanner({
   title,
   body,
@@ -189,8 +175,7 @@ export function EnumBadge({
   );
 }
 
-/** Sortable table header cell (button-in-th + aria-sort) — same idiom as the
- *  farmer BestCrops/Prices tables. */
+/** Sortable table header cell (button inside th + aria-sort). */
 export function SortableTh<K extends string>({
   col,
   label,

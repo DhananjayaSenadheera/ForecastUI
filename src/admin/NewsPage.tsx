@@ -1,23 +1,7 @@
-// ADM-7v2 — Ingested news table (/admin/news), owner redesign 2026-07-22.
-//
-// The page is now a READ-ONLY table over what the news ingestion pipeline captured
-// (Python-owned NewsArticles + the per-article signals the scorer writes back: Topics CSV +
-// SentimentScore). The manual "Add news event" CRUD is GONE — owner decision: "I like to feed
-// the news only through the ingestion service." (The NewsEvents backend CRUD remains live but
-// UI-less; this page no longer touches it.)
-//
-// Columns: Date | Category | Headline (external link) + a farmer-facing impact line | Effect
-// (bullish/bearish badge, same glyph+word treatment as the Policy flags page — never colour-only).
-// The impact line and direction are DERIVED display heuristics (src/lib/news.ts), not model
-// output — the ⓘ explainer says so honestly. Unscored rows show a muted "—", never a guess.
-//
-// Category filter (top of the table, owner request): defaults to "Agriculture only" so the
-// agri-relevant subset leads; "All news" one tap away. Filtering is client-side over the
-// fetched window (take=200, the server max).
-//
-// WIRE NOTES: timestamps are naive UTC (no Z) — slice(0,10) before formatDate. Titles/summaries
-// may carry HTML entities — decodeEntities (DOMParser textContent: plain text only, nothing from
-// the feed can reach the DOM as markup).
+// Admin page for ingested news (/admin/news), read-only. There is no manual "add news"
+// form — articles come from the ingestion pipeline only.
+// The impact line and the bullish/bearish direction are derived display heuristics
+// (src/lib/news.ts), not model output; unscored rows show "—" rather than a guess.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
@@ -184,9 +168,8 @@ export default function NewsPage() {
   );
 }
 
-// Feed titles arrive with HTML entities (&#8217; etc. — stored verbatim by the Python capture
-// pipeline). Decode via DOMParser textContent — yields plain text only, so nothing from the
-// feed can ever reach the DOM as markup.
+// Feed titles arrive with HTML entities. DOMParser textContent gives back plain text
+// only, so nothing from the feed can reach the DOM as markup.
 function decodeEntities(s: string): string {
   const doc = new DOMParser().parseFromString(s, 'text/html');
   return doc.documentElement.textContent ?? s;
