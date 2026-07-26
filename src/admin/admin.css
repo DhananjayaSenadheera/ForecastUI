@@ -612,6 +612,11 @@
 .adm-form__actions .btn-ghost {
   width: auto;
 }
+/* Direct child of the dialog only: form dialogs get this spacing from
+   .adm-form's column gap instead. */
+.adm-dialog > .adm-form__actions {
+  margin-top: var(--sp-4);
+}
 .adm-form__actions button {
   white-space: nowrap;
 }
