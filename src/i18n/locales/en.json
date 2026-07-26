@@ -691,7 +691,7 @@
       "tabs": {
         "ingestion": "Ingestion runs",
         "training": "Model training",
-        "userActivity": "User activity",
+        "userActivity": "System log",
         "errors": "System errors"
       },
       "training": {
@@ -720,8 +720,15 @@
         "notApplicable": "—"
       },
       "userActivity": {
-        "title": "User activity",
-        "explainer": "A record of sign-ins and account changes. Failed sign-ins show the username that was tried — an unverified attempt, not a confirmed account.",
+        "title": "System log",
+        "explainer": "Everything the system and its users did — sign-ins, user changes, and admin edits. Failed sign-ins show the username that was tried — an unverified attempt, not a confirmed account.",
+        "groups": {
+          "label": "Activity type",
+          "all": "All",
+          "signIns": "Sign-ins",
+          "userManagement": "User management",
+          "contentChanges": "Content changes"
+        },
         "filterType": "Event",
         "filterAll": "All events",
         "colWhen": "When",
@@ -734,12 +741,18 @@
           "loginFailed": "Failed sign-in",
           "userRegistered": "Registered",
           "roleChanged": "Role changed",
-          "userDeleted": "User deleted"
+          "userDeleted": "User deleted",
+          "policyFlagChanged": "Policy flag changed",
+          "festivalChanged": "Festival changed",
+          "newsEventChanged": "News event changed",
+          "cropChanged": "Crop changed",
+          "marketChanged": "Market changed"
         },
         "attemptedUser": "“{{username}}”",
         "unverifiedAttempt": "(unverified attempt)",
         "emptyTitle": "No activity",
-        "emptyBody": "No user activity has been recorded yet.",
+        "emptyBody": "No activity has been recorded yet.",
+        "emptyBodyFiltered": "Nothing of this kind has been recorded yet. Try another activity type.",
         "notApplicable": "—"
       },
       "errors": {

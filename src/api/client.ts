@@ -715,14 +715,20 @@ export const api = {
     return request<TrainingRunPage>(`/api/admin/logs/training?${q.toString()}`);
   },
 
-  // GET /api/admin/logs/user-activity?page=&pageSize=&type= -> UserActivityPage
-  // (ordered OccurredUtc DESC). `type` is OPTIONAL and must be one of the five frozen
-  // wire strings (USER_ACTIVITY_EVENT_TYPES) — the server 400s any other value, so the
-  // client only ever OMITS it (all) or sends an exact enum string, never free text.
-  async getUserActivity(page = 1, pageSize = 25, type?: string): Promise<UserActivityPage> {
-    if (USE_FIXTURES) return fx.fxUserActivity(page, pageSize, type);
+  // GET /api/admin/logs/user-activity?page=&pageSize=&type=|&types= -> UserActivityPage
+  // (ordered OccurredUtc DESC). Two mutually-exclusive OPTIONAL filters, both built from
+  // KNOWN wire strings only (the server 400s anything else, so free text can never reach
+  // it): `type` = exactly one event type; `types` = a comma-separated OR-set (the System
+  // log tab's group filter). `type` wins if both are given — it is the narrower request.
+  async getUserActivity(
+    page = 1,
+    pageSize = 25,
+    filter: { type?: string; types?: readonly string[] } = {},
+  ): Promise<UserActivityPage> {
+    if (USE_FIXTURES) return fx.fxUserActivity(page, pageSize, filter);
     const q = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
-    if (type) q.set('type', type);
+    if (filter.type) q.set('type', filter.type);
+    else if (filter.types?.length) q.set('types', filter.types.join(','));
     return request<UserActivityPage>(`/api/admin/logs/user-activity?${q.toString()}`);
   },
 

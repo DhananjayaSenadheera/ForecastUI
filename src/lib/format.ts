@@ -330,6 +330,13 @@ const USER_ACTIVITY_KEYS: Record<string, string> = {
   userRegistered: 'admin.logs.userActivity.event.userRegistered',
   roleChanged: 'admin.logs.userActivity.event.roleChanged',
   userDeleted: 'admin.logs.userActivity.event.userDeleted',
+  // Content changes (admin edits to reference data) — all neutral in tone: an edit is
+  // neither good news nor a warning, it is a record of who changed what.
+  policyFlagChanged: 'admin.logs.userActivity.event.policyFlagChanged',
+  festivalChanged: 'admin.logs.userActivity.event.festivalChanged',
+  newsEventChanged: 'admin.logs.userActivity.event.newsEventChanged',
+  cropChanged: 'admin.logs.userActivity.event.cropChanged',
+  marketChanged: 'admin.logs.userActivity.event.marketChanged',
 };
 
 /** User-activity event type -> label + badge tone. loginFailed is amber (a failed,

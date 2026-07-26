@@ -3,6 +3,7 @@ import { api, apiMode } from '../api/client';
 import {
   ForecastConfidenceCode,
   RecommendationLevel,
+  USER_ACTIVITY_CONTENT_EVENT_TYPES,
   type BestCrop,
   type HarvestForecast,
 } from '../api/types';
@@ -175,6 +176,73 @@ describe('API client (live mode — markets + price history URLs)', () => {
     vi.stubGlobal('fetch', fetchMock);
     await (await liveApi()).getIndicatorDaily('USD_LKR');
     expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:5282/api/indicators?code=USD_LKR');
+  });
+
+  // ---- System log filters (GET /api/admin/logs/user-activity) -------------
+  // The page tests mock api.getUserActivity, so THIS is the only place the built
+  // query string is exercised. `type` and `types` are mutually exclusive on the
+  // wire and the server 400s an unknown value, so which param goes out is
+  // load-bearing, not cosmetic.
+  const UA_URL = 'http://localhost:5282/api/admin/logs/user-activity';
+  const uaPage = { items: [], page: 1, pageSize: 25, total: 0 };
+
+  it('getUserActivity sends NEITHER filter param for the All group', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes(uaPage));
+    vi.stubGlobal('fetch', fetchMock);
+    await (await liveApi()).getUserActivity(1, 25, {});
+    expect(fetchMock.mock.calls[0][0]).toBe(`${UA_URL}?page=1&pageSize=25`);
+  });
+
+  it('getUserActivity comma-joins a group into types= (an OR-set)', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes(uaPage));
+    vi.stubGlobal('fetch', fetchMock);
+    await (await liveApi()).getUserActivity(2, 25, {
+      types: ['loginSucceeded', 'loginFailed'],
+    });
+    // URLSearchParams percent-encodes the separator; the server decodes it back.
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      `${UA_URL}?page=2&pageSize=25&types=loginSucceeded%2CloginFailed`,
+    );
+    expect(decodeURIComponent(fetchMock.mock.calls[0][0] as string)).toContain(
+      'types=loginSucceeded,loginFailed',
+    );
+  });
+
+  it('getUserActivity sends the five content-change strings verbatim', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes(uaPage));
+    vi.stubGlobal('fetch', fetchMock);
+    await (await liveApi()).getUserActivity(1, 25, {
+      types: USER_ACTIVITY_CONTENT_EVENT_TYPES,
+    });
+    expect(decodeURIComponent(fetchMock.mock.calls[0][0] as string)).toContain(
+      'types=policyFlagChanged,festivalChanged,newsEventChanged,cropChanged,marketChanged',
+    );
+  });
+
+  it('getUserActivity emits type= ONLY when both filters are given (narrower wins)', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes(uaPage));
+    vi.stubGlobal('fetch', fetchMock);
+    await (await liveApi()).getUserActivity(1, 25, {
+      type: 'loginFailed',
+      types: ['loginSucceeded', 'loginFailed'],
+    });
+    const url = fetchMock.mock.calls[0][0] as string;
+    expect(url).toBe(`${UA_URL}?page=1&pageSize=25&type=loginFailed`);
+    expect(url).not.toContain('types='); // never both — they could contradict
+  });
+
+  it('getUserActivity defaults to no filter when the arg is omitted entirely', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes(uaPage));
+    vi.stubGlobal('fetch', fetchMock);
+    await (await liveApi()).getUserActivity();
+    expect(fetchMock.mock.calls[0][0]).toBe(`${UA_URL}?page=1&pageSize=25`);
+  });
+
+  it('getUserActivity ignores an EMPTY types array (no dangling types=)', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes(uaPage));
+    vi.stubGlobal('fetch', fetchMock);
+    await (await liveApi()).getUserActivity(1, 25, { types: [] });
+    expect(fetchMock.mock.calls[0][0]).toBe(`${UA_URL}?page=1&pageSize=25`);
   });
 
   // ---- ADM-2 policy-flag mutations (API-13, backend merged) ---------------
