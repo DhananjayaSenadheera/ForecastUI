@@ -33,6 +33,8 @@ const CONTENT_TYPES = [
   'cropChanged',
   'marketChanged',
 ];
+// Frozen spelling: "…StopRequested", because the API only ASKS for a cancellation.
+const PIPELINE_TYPES = ['ingestionServiceStarted', 'ingestionServiceStopRequested'];
 
 const groupTablist = () => screen.getByRole('tablist', { name: 'Activity type' });
 const groupTab = (name: string) => within(groupTablist()).getByRole('tab', { name });
@@ -168,6 +170,17 @@ describe('System log tab (Logs P2.7)', () => {
     // All is the ONLY group that can show it: All sends no filter, so a type this
     // build has never heard of is still reachable instead of vanishing from the log.
     expect(groupTab('All')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('labels both pipeline-action event types', async () => {
+    vi.spyOn(api, 'getUserActivity').mockResolvedValue(
+      page(PIPELINE_TYPES.map((eventType) => ({ ...ROLE_ROW, eventType }))),
+    );
+    renderPage();
+    const t = await table();
+    // A known type must never fall back to its raw wire string in the badge.
+    expect(within(t).getByText('Ingestion started')).toBeInTheDocument();
+    expect(within(t).getByText('Ingestion stop requested')).toBeInTheDocument();
   });
 
   it('labels each of the five content-change event types', async () => {
@@ -307,6 +320,36 @@ describe('System log — group sub-tabs', () => {
     fireEvent.click(groupTab('Content changes'));
     await waitFor(() => expect(spy).toHaveBeenCalledWith(1, 25, { types: CONTENT_TYPES }));
     expect(screen.getByTestId('search')).toHaveTextContent('?group=content-changes');
+  });
+
+  // Pipeline actions: the ingestion play/stop audit trail.
+  it('sends the pipeline-action wire strings as types= and deep-links ?group=pipeline-actions', async () => {
+    const spy = vi.mocked(api.getUserActivity);
+    renderPage();
+    await table();
+    fireEvent.click(groupTab('Pipeline actions'));
+    await waitFor(() => expect(spy).toHaveBeenCalledWith(1, 25, { types: PIPELINE_TYPES }));
+    expect(groupTab('Pipeline actions')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('search')).toHaveTextContent('?group=pipeline-actions');
+  });
+
+  it('deep-links ?group=pipeline-actions on FIRST load (no all-events flash)', async () => {
+    const spy = vi.mocked(api.getUserActivity);
+    renderPage('/admin/logs/user-activity?group=pipeline-actions');
+    await table();
+    expect(spy).toHaveBeenNthCalledWith(1, 1, 25, { types: PIPELINE_TYPES });
+    expect(groupTab('Pipeline actions')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('scopes the event dropdown to the two pipeline-action types', async () => {
+    renderPage();
+    await table();
+    fireEvent.click(groupTab('Pipeline actions'));
+    await waitFor(() =>
+      expect(
+        [...(screen.getByLabelText('Event') as HTMLSelectElement).options].map((o) => o.value),
+      ).toEqual(['', ...PIPELINE_TYPES]),
+    );
   });
 
   it('drops ?group= again when returning to All (no ?group=all noise)', async () => {
