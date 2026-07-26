@@ -1,0 +1,38 @@
+# Build context hygiene. Anything here is invisible to `docker build` — it keeps
+# the context small (faster builds on a rural-bandwidth laptop) and, more
+# importantly, keeps local config and agent scratch OUT of the image.
+
+# deps + build output (the image builds its own via `npm ci && npm run build`)
+node_modules/
+dist/
+*.tsbuildinfo
+
+# local env — VITE_* values are baked at build time via --build-arg, NEVER by
+# copying a developer's .env.local into the image.
+.env
+.env.local
+.env.*.local
+
+# vcs + agent/editor scratch
+.git/
+.gitignore
+.github/
+.claude/
+.vscode/
+.idea/
+
+# tests + coverage artefacts (the image ships the bundle, not the suite)
+coverage/
+
+# docs + design collateral (large HTML/CSS samples, not runtime assets)
+docs/
+README.md
+k8s/
+
+# container files themselves
+Dockerfile
+.dockerignore
+
+# OS / logs
+.DS_Store
+*.log
