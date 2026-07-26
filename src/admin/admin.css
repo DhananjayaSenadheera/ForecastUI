@@ -606,6 +606,15 @@
   gap: var(--sp-3);
   justify-content: flex-end;
 }
+/* .btn-ghost is a farmer-shell primitive with width:100% (full-width stacked
+   mobile buttons). In a dialog action row that makes Cancel swallow the row
+   and squeeze the primary button until its label wraps. */
+.adm-form__actions .btn-ghost {
+  width: auto;
+}
+.adm-form__actions button {
+  white-space: nowrap;
+}
 .adm-error {
   color: var(--critical-fg);
   font-size: var(--fs-sm);
