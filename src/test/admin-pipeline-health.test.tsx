@@ -235,6 +235,35 @@ describe('PipelineHealthBanner — dismissal', () => {
     const el = await screen.findByRole('alert');
     expect(el).toHaveTextContent(/failed/i);
   });
+
+  it('re-announces the SAME key after the pipeline goes quiet, so a dismissed transient cannot silence the real thing', async () => {
+    // The sequence that would otherwise lose an alert: a transient `failed` mid-run gets
+    // dismissed, then the night genuinely ends failed on the same date — identical
+    // state|date key, so a remembered dismissal would hide the one notice that matters.
+    const spy = vi.spyOn(api, 'getPipelineHealth').mockResolvedValue(fx.failed);
+    render(
+      <MemoryRouter>
+        <PipelineHealthBanner />
+      </MemoryRouter>,
+    );
+    await screen.findByRole('alert');
+    fireEvent.click(screen.getByRole('button', { name: dismissName }));
+    expect(banner()).toBeNull();
+    expect(readPipelineHealthDismissed()).toBe('failed|2026-07-21');
+
+    // The pass carries on and reports `running` — quiet, so the dismissal is forgotten.
+    spy.mockResolvedValue(fx.running);
+    hideTab(true);
+    hideTab(false);
+    await waitFor(() => expect(readPipelineHealthDismissed()).toBeNull());
+    expect(banner()).toBeNull(); // `running` is still not news
+
+    // The night genuinely ends failed. Same key as the dismissed transient — must show.
+    spy.mockResolvedValue(fx.failed);
+    hideTab(true);
+    hideTab(false);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/failed/i);
+  });
 });
 
 /** Flip document.hidden and fire the event the poll hook listens to. */

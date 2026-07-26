@@ -28,6 +28,14 @@ function writeRaw(key: string, value: string): void {
   }
 }
 
+function removeRaw(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    /* private mode / disabled — non-fatal, there was nothing to forget anyway */
+  }
+}
+
 function readJSON<T>(key: string): T | null {
   const raw = readRaw(key);
   if (raw == null) return null;
@@ -129,6 +137,12 @@ export function readPipelineHealthDismissed(): string | null {
 export function writePipelineHealthDismissed(key: string): void {
   if (!key) return;
   writeJSON(STORAGE_KEYS.pipelineHealthDismissed, { v: PIPELINE_DISMISS_V, key });
+}
+
+/** Forget the dismissal entirely. Called when the pipeline goes quiet again, so a
+ *  dismissal can never outlive the notice it was aimed at (see PipelineHealthBanner). */
+export function clearPipelineHealthDismissed(): void {
+  removeRaw(STORAGE_KEYS.pipelineHealthDismissed);
 }
 
 /**

@@ -14,13 +14,17 @@
 //    page owns the loud "could not read the pipeline" error; a bar that shouted about its
 //    own fetch on every admin page would be noise, and a skeleton would flash on every
 //    page load for a banner that is usually absent.)
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import { formatDate, formatDateTime, mapRunStatus, mapVerificationVerdict } from '../lib/format';
 import { pipelineHealthDismissKey, presentPipelineHealth } from '../lib/pipelineHealth';
-import { readPipelineHealthDismissed, writePipelineHealthDismissed } from '../lib/storage';
+import {
+  clearPipelineHealthDismissed,
+  readPipelineHealthDismissed,
+  writePipelineHealthDismissed,
+} from '../lib/storage';
 import { usePolledSnapshot } from './usePolledSnapshot';
 
 // Five minutes while visible, backing off to twenty while the endpoint is failing. The
@@ -44,9 +48,24 @@ export default function PipelineHealthBanner() {
     writePipelineHealthDismissed(key);
   }, []);
 
-  if (!health) return null;
-  const look = presentPipelineHealth(health.state);
-  if (!look) return null; // green, running, or a state added to the API after this build
+  const look = health ? presentPipelineHealth(health.state) : null;
+
+  // A dismissal must never outlive the notice it was aimed at. Without this, one bad
+  // sequence silences a real alert: a transient `failed` appears mid-run, the admin
+  // dismisses failed|<today>, the night then genuinely ends failed — same key, so the
+  // banner would stay hidden for the one state that matters most.
+  // Whenever the pipeline is quiet again (green, running, or a state we cannot read) the
+  // dismissal is forgotten. A transient is ALWAYS followed by running or green, so the
+  // later genuine alert re-announces itself with no action from the admin. The cost of
+  // being wrong here is one extra banner; the cost of the other choice is a missed one.
+  const quiet = health !== null && look === null;
+  useEffect(() => {
+    if (!quiet) return;
+    setDismissedKey(null);
+    clearPipelineHealthDismissed();
+  }, [quiet]);
+
+  if (!health || !look) return null; // green, running, or a state added to the API after this build
 
   // Dismissal is keyed to state+date, so a new pipeline day — or the same day getting
   // worse — brings the banner back without the admin doing anything.
