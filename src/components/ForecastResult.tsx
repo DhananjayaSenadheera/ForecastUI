@@ -1,32 +1,20 @@
-// =============================================================================
-// ForecastResult (FE-4, ClickUp 86cacw5xg). The app's signature screen — the
-// honest harvest-price forecast panel. Renders inside the My Harvest workspace
-// once the farmer hits "Get forecast".
-//
-// Four async states (loading skeleton / success / error+retry). Success surfaces
-// uncertainty honestly:
-//   - hero central price (the numeral IS the product) + exact harvest date
-//   - a marked-centre P10–P90 band (never a bare interval), amber when low-trust
-//   - confidence as pictograph dots + translated word + plain-language reason
-//   - an amber "rough estimate" banner when confidence is Low / data is stale
-//   - provenance line + a <details> table alternative (WCAG) for the band
-// NO natural-frequency phrasing: the payload exposes no frequency field, so per
-// owner decision #4 it is omitted rather than invented. RED is never used here
-// (red = "Not recommended" verdict, FE-7); the verdict is a neutral hint.
-// Presentation only — band geometry / low-trust / verdict-tone live in lib/forecast.
-//
-// ONE TREE, THREE STATES (2026-07-25). The states are branches INSIDE a fixed
-// `.fc > .fc-layout > .fc-main > .fc-result` shell, not three different trees.
-// `windowSlot` holds a live control — the best-planting-window strip, which
-// re-runs this very forecast — and returning a structurally different root per
-// state made React tear that subtree down whenever a re-fetch failed: focus fell
-// off the tapped bar onto <body>, the roving tabindex reset, and on a phone the
-// strip's horizontal scroll position was lost. Keeping the shell fixed (and the
-// slot at a stable position within it) is what makes "the strip never unmounts"
-// an enforced structure instead of a hopeful comment. It also keeps the slot
-// inside `.fc-main`, whose `min-width: 0` is the only thing stopping 60+ bars
-// from stretching the whole page at 360px.
-// =============================================================================
+// ForecastResult — the app's signature screen: the honest harvest-price forecast panel,
+// rendered inside the My Harvest workspace once the farmer asks for a forecast.
+// Loading skeleton / success / error + retry. Success surfaces uncertainty honestly: the
+// hero central price and the exact harvest date, a marked-centre P10–P90 band (amber when
+// low-trust), confidence as pictograph dots + a translated word + a plain-language reason,
+// an amber "rough estimate" banner when confidence is Low or the data is stale, and a
+// provenance line plus a <details> table alternative for the band.
+// Red is never used here — red means the "Not recommended" verdict — and band geometry,
+// low-trust and verdict tone live in lib/forecast.
+// ONE TREE, THREE STATES: the states are branches inside a fixed
+// `.fc > .fc-layout > .fc-main > .fc-result` shell, not three different trees, because
+// `windowSlot` holds a live control (the planting-window strip, which re-runs this very
+// forecast). Returning a structurally different root per state made React tear that
+// subtree down whenever a re-fetch failed: focus fell onto <body>, the roving tabindex
+// reset, and on a phone the strip's scroll position was lost. The fixed shell also keeps
+// the slot inside `.fc-main`, whose min-width:0 is the only thing stopping 60+ bars from
+// stretching the page at 360px.
 import { useId, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { HarvestForecast } from '../api/types';
@@ -43,11 +31,10 @@ export interface ForecastResultProps {
   /** Localized crop name from the picker; falls back to the payload cropName. */
   cropLabel?: string | null;
   /**
-   * Extra content for the LEFT column, below the price-range block — in practice
-   * the best-planting-window strip (2026-07-25). It is rendered in EVERY state,
-   * including error and first-load, because it is a control the farmer uses to
-   * change the very forecast those states describe: unmounting it would remove
-   * the only way out of a failed or pending result.
+   * Extra content for the LEFT column, below the price-range block — in practice the
+   * planting-window strip. It renders in EVERY state, including error and first load,
+   * because it is the control the farmer uses to change the very forecast those states
+   * describe: unmounting it would remove the only way out of a failed result.
    */
   windowSlot?: ReactNode;
 }
@@ -71,10 +58,9 @@ export default function ForecastResult({
   // will not present stale numbers under a failed refresh.
   const f = error ? null : forecast;
   const lowTrust = f ? isLowTrust(f) : false;
-  // A forecast is on screen AND a newer one is in flight (the farmer tapped a bar
-  // on the strip below). Everything visible still belongs to the previous planting
-  // date, so it is marked busy and labelled — but NOT dimmed: fading real numbers
-  // would push their contrast under AA for the seconds it takes to land.
+  // A forecast is on screen AND a newer one is in flight (the farmer tapped a bar on the
+  // strip). Everything visible still belongs to the previous planting date, so it is marked
+  // busy and labelled — but NOT dimmed: fading real numbers would push them under AA.
   const refreshing = f !== null && loading;
 
   const name = cropLabel ?? f?.cropName ?? '';
@@ -95,9 +81,8 @@ export default function ForecastResult({
       </div>
     );
   } else if (!f) {
-    // Only when there is NOTHING to show yet. A re-run triggered from the strip
-    // below keeps the previous result on screen (flagged "Updating…") rather than
-    // collapsing the panel the farmer is working in.
+    // Only when there is NOTHING to show yet. A re-run triggered from the strip keeps the
+    // previous result on screen (flagged "Updating…") instead of collapsing the panel.
     stateContent = (
       <>
         <p className="sr-only">{t('common.loading')}</p>

@@ -9,10 +9,8 @@ import StalenessBanner from './StalenessBanner';
 import ErrorBoundary from './ErrorBoundary';
 import SessionMenu from './SessionMenu';
 
-// Dashboard shell (normative ref: dashboard-style-samples-v1).
-// Desktop/tablet: dark teal sidebar (nav + footer audio/lang). Mobile: sidebar is
-// replaced by a top brand bar + a bottom tab bar (CSS-driven at <600px).
-// The shell is a layout wrapper; routed pages render into <Outlet/>.
+// Dashboard shell: dark teal sidebar on desktop and tablet; below 600px a top brand bar
+// plus a bottom tab bar (CSS-driven). Routed pages render into <Outlet/>.
 export default function AppShell() {
   const { t } = useTranslation();
   const location = useLocation();

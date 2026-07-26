@@ -1,13 +1,8 @@
-// =============================================================================
-// StalenessBanner (FE-9). Honest "you are seeing SAVED data" notice. Renders only
-// when the service worker had to serve the last API response from its offline
-// cache (network unreachable). Amber caution (never red — this is not an error,
-// the data is just old), localized, dismissible, and re-appears if a newer cached
-// snapshot is shown after being dismissed.
-//
-// Product principle: hiding staleness is a bug. A farmer must never mistake
-// yesterday's saved price for today's live one.
-// =============================================================================
+// StalenessBanner — the honest "you are seeing SAVED data" notice. Renders only when the
+// service worker had to serve the last API response from its offline cache. Amber, never
+// red: the data is old, not wrong. Dismissible, and it re-appears when a newer cached
+// snapshot is shown. Hiding staleness is a bug — a farmer must never mistake yesterday's
+// saved price for today's live one.
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getCacheState, subscribeCacheSignal, type CacheState } from '../api/cacheSignal';

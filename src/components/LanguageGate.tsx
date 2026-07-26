@@ -20,8 +20,8 @@ function markSeen() {
   }
 }
 
-// First-launch language pick (onboarding O1). Skippable — English is the fallback.
-// No registration wall (PRD): this is the only interstitial before browsing.
+// First-launch language pick. Skippable, with English as the fallback; it is the only
+// interstitial before browsing.
 export default function LanguageGate({ onDone }: { onDone: () => void }) {
   const { t, i18n } = useTranslation();
   const [selected, setSelected] = useState<AppLanguage>(i18n.language as AppLanguage);

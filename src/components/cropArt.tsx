@@ -1,13 +1,9 @@
-// =============================================================================
-// Crop illustrations (FE-3). Semi-abstract, hand-drawn-feeling inline SVGs.
-// RATIONALE (PRD §4): for low-literacy users, simple stroke illustrations beat
-// photos — they read fast, scale crisply, and stay tiny. These are PLACEHOLDERS
-// for commissioned art; keep each <1KB, stroke-based, drawn in `currentColor`
-// so the card controls the hue via CSS (no hard-coded colors here).
-//
-// Lookup is keyword-based on the crop NAME (English), with a code-prefix hint and
-// a guaranteed generic fallback, so a crop the map doesn't know still renders.
-// =============================================================================
+// Crop illustrations — semi-abstract inline SVGs. For low-literacy users simple stroke
+// illustrations beat photos: they read fast, scale crisply and stay tiny. These are
+// placeholders for commissioned art; keep each under 1KB, stroke-based and drawn in
+// `currentColor` so the card controls the hue via CSS.
+// Lookup is keyword-based on the English crop NAME, with a code-prefix hint and a
+// guaranteed generic fallback, so a crop the map does not know still renders.
 import type { Crop } from '../api/types';
 
 type Art = { key: string; paths: React.ReactNode };

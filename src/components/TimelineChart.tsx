@@ -1,20 +1,12 @@
-// =============================================================================
-// TimelineChart (FE-5, ClickUp 86cacw5x5). The 12-month price story below the
-// FE-4 harvest hero: solid history line → dashed central forecast line inside a
-// shaded P10–P90 band that cones out from "today", with a prominent Harvest
-// marker (the decision point) and a "Today" guide.
-//
-// Honest-uncertainty, farmer-first (per PRD §4 + v1.1 data-viz amendments):
-//   - Band is AMBER when the forecast is low-trust, teal otherwise (never dress a
-//     fallback up as precise). Markers use SHAPE (▲ / dashed) not hue alone.
-//   - Direct labels on the history line, band and markers — no legend-hunting.
-//   - MANDATORY <details> table alternative (the number IS the product) + a
-//     sentence-long aria-label summarising the trend.
-//   - Honest thin-data note ("Only N months of data") — never fabricate a series.
-//   - Fail-soft: if the timeline call errors the panel shows a COMPACT retry note,
-//     not a full-panel failure (the FE-4 hero already succeeded).
-// Geometry (band cone, marker snap, nice scale) lives in lib/timeline — tested.
-// =============================================================================
+// TimelineChart — the 12-month price story under the harvest hero: a solid history line,
+// then a dashed central forecast line inside a shaded P10–P90 band that cones out from
+// "today", with a prominent harvest marker and a "Today" guide.
+// The band is AMBER when the forecast is low-trust and teal otherwise; markers use SHAPE
+// (▲ / dashed) as well as hue. Line, band and markers are labelled directly, so there is no
+// legend to hunt. A <details> table alternative and a sentence-long aria-label are
+// mandatory — the number is the product. Thin data says "only N months" honestly, and a
+// failed timeline call shows a compact retry note rather than sinking the panel (the hero
+// above already succeeded). Geometry lives in lib/timeline.
 import { useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { CropTimeline } from '../api/types';
@@ -55,8 +47,8 @@ export default function TimelineChart({ timeline, loading, error, onRetry, harve
     return buildTimelineGeometry(timeline, { width: VIEW_W, height: VIEW_H, harvestDate, monthLabel });
   }, [timeline, harvestDate, monthLabel]);
 
-  // ---- FE-20 tooltip: past points show the month + price; forecast points also
-  // show the honest "likely" band range. Values also live in the table below. ----
+  // Tooltip: past points show the month + price; forecast points also show the honest
+  // "likely" band range. The same values live in the table below.
   const tipPoints: TooltipPoint[] = useMemo(() => {
     if (!geo || !timeline) return [];
     const out: TooltipPoint[] = [];

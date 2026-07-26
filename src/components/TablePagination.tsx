@@ -1,13 +1,8 @@
-// =============================================================================
-// TablePagination — app-wide table pager (owner request 2026-07-13: "all the
-// tables, not only the admin"). Promoted out of the admin chunk so farmer pages
-// can use it too; adminShared re-exports it for the admin pages.
-//   - 10/25/50 items per page (default 10), first/prev/next/last, "x of y".
-//   - Hides itself entirely while the table fits in the smallest page size —
-//     a pager on a 6-row table is noise.
-//   - Trilingual: labels come from the root `pagination.*` i18n keys (si/ta
-//     drafts pending FE-8 native review, like the rest of the app strings).
-// =============================================================================
+// App-wide table pager: 10/25/50 rows per page (default 10), first/prev/next/last and
+// "x of y". It hides itself entirely while the table fits in the smallest page size — a
+// pager on a 6-row table is noise. Labels come from the root `pagination.*` i18n keys.
+// It lives here rather than in the admin chunk so farmer pages can use it too; adminShared
+// re-exports it for the admin pages.
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import '../styles/pagination.css';
@@ -33,19 +28,17 @@ export function usePagination<T>(rows: T[], defaultPerPage: number = PAGE_SIZES[
 }
 
 /**
- * Server-paged sibling of usePagination. The SERVER slices the rows; we only track
- * the page/perPage cursor and derive totalPages from the server-reported `total`. The
- * page NEVER client-slices — it re-fetches on page/perPage change. Changing the page
- * size returns to page 1 (a size change invalidates the old page cursor). Feed the
- * returned shape straight into <TablePagination/>. `total` self-updates each fetch.
+ * Server-paged sibling of usePagination. The SERVER slices the rows; we only track the
+ * page/perPage cursor and derive totalPages from the server-reported `total`. The page
+ * NEVER client-slices — it refetches on page/perPage change — and changing the page size
+ * returns to page 1. `total` self-updates on each fetch.
  */
 export function useServerPagination(total: number, defaultPerPage: number = PAGE_SIZES[1]) {
   const [rawPage, setPage] = useState(1);
   const [perPage, setPerPageState] = useState<number>(defaultPerPage);
   const totalPages = Math.max(1, Math.ceil(total / perPage));
-  // Self-clamp when `total` shrinks (e.g. a Refresh returns fewer rows) so a stale
-  // page-3 cursor over a now-1-page set resolves to page 1, never an empty "3 of 1".
-  // Mirrors the client usePagination clamp; callers read the clamped `page`.
+  // Self-clamp when `total` shrinks (a refresh returning fewer rows) so a stale page-3
+  // cursor over a now-1-page set resolves to page 1, never an empty "3 of 1".
   const page = Math.min(rawPage, totalPages);
   const setPerPage = (n: number) => {
     setPerPageState(n);

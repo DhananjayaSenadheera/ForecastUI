@@ -1,9 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import { SUPPORTED_LANGUAGES, persistLanguage, type AppLanguage } from '../i18n';
 
-// Segmented language switcher (si / த / EN). Present in the shell footer on
-// desktop and the mobile top bar. PRD: never buried in settings, never a flag,
-// never resets the user's route/data mid-task.
+// Segmented language switcher (si / த / EN), in the sidebar footer on desktop and the
+// mobile top bar. Never buried in settings, never a flag, and never resets the user's
+// route or data mid-task.
 export default function LanguageSwitcher() {
   const { t, i18n } = useTranslation();
   const current = i18n.language as AppLanguage;

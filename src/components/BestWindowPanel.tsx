@@ -1,47 +1,25 @@
-// =============================================================================
-// BestWindowPanel (2026-07-25) — "when should I plant to sell into a good price?"
-//
-// PLACEMENT (moved 2026-07-25, ClickUp 86cawt9tr): the strip now lives INSIDE the
-// forecast result, under "Likely price range", and activating a bar re-runs the
-// forecast in place. Nothing about the NUMBERS changed by moving it — since the
-// consistency fix the strip and /predict build the same what-if row from the same
-// anchor — what changed is CONTEXT. The bars are min-max scaled, so they rank
-// dates without stating a magnitude; beside the hero price, the P10–P90 range and
-// today's price they finally have something to be read against, and they land
-// exactly where "then when?" gets asked (a "Not recommended" verdict is otherwise
-// a dead end).
-//
-// Each bar is one candidate planting date; activating it applies that date
-// (tap-to-apply is what makes this a control rather than a poster).
-//
-// HONESTY RULES (load-bearing — the API is built to support exactly these):
-//   - rankable=false means the forecast genuinely cannot tell these dates apart.
-//     We render the reason and NOTHING else. No greyed-out "best guess", no
-//     bars — a farmer cannot un-plant a crop.
-//   - The bar heights use a MIN-MAX scale, not a zero baseline, because a real
-//     seasonal spread is a few percent and a zero-based axis would flatten it to
-//     nothing. That makes the heights a ranking cue, NOT a magnitude claim — so
-//     the magnitude is always ALSO stated in words (the uplift line) and the axis
-//     ends are labelled with real prices. Never let the bars carry it alone.
-//   - The caveat that this ranks TIMING (today's prices/weather held constant, so
-//     it is not a weather forecast) is translated copy shown every time, not
-//     buried in a tooltip.
-//   - NEVER encouragement when the verdict is a loss. If NO SINGLE DATE on the
-//     strip beats today's price we keep showing the window (least-bad timing is
-//     real information) but flip the verdict tint to warn, add a worded warning,
-//     and drop the "% better" line to a neutral comparison — the forecast screen
-//     says "not recommended" for the very same crop, and two screens must never
-//     disagree about the same number. Note "no single date", not "the window
-//     mean": see the gate below, and never widen it back to the mean.
-//
-// TEXT ALTERNATIVE (WCAG): each bar is a real <button> whose aria-label names the
-// planting date, the harvest date AND the price, and the strip is a single tab
-// stop with roving arrow-key focus. That IS the non-visual path — there is no
-// table any more (owner call 2026-07-25), so the labels and the roving tabindex
-// are load-bearing: never trim them to "Jul 26" and never give every bar
-// tabIndex=0. The hover/focus tooltip is pure enhancement (aria-hidden) because
-// it repeats exactly what the button already announces.
-// =============================================================================
+// BestWindowPanel — "when should I plant to sell into a good price?"
+// The strip lives INSIDE the forecast result, under "Likely price range": each bar is one
+// candidate planting date and activating it re-runs the forecast in place. That is what
+// makes it a control rather than a poster, and it puts the bars beside the hero price and
+// the range they have to be read against.
+// Honesty rules the API is built to support:
+//   - rankable=false means the forecast genuinely cannot tell these dates apart. Render
+//     the reason and NOTHING else: no bars, no greyed-out "best guess".
+//   - bar heights use a MIN-MAX scale, not a zero baseline, because a real seasonal spread
+//     is only a few percent. That makes them a ranking cue, not a magnitude claim, so the
+//     magnitude is always ALSO stated in words and the axis ends carry real prices.
+//   - the caveat that this ranks TIMING (today's prices and weather held constant) is
+//     shown every time, not buried in a tooltip.
+//   - never encouragement when the verdict is a loss: if NO SINGLE DATE beats today's
+//     price we still show the window (least-bad timing is real information) but flip the
+//     tint to warn, add a worded warning and drop the "% better" line to a neutral
+//     comparison. Note "no single date", not "the window mean" — see the gate below.
+// Text alternative: each bar is a real <button> whose aria-label names the planting date,
+// the harvest date AND the price, and the strip is one tab stop with roving arrow-key
+// focus. There is no table any more, so those labels and the roving tabindex ARE the
+// non-visual path — never trim them and never give every bar tabIndex=0. The hover/focus
+// tooltip is aria-hidden enhancement: it repeats what the button already announces.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { HarvestWindow, HarvestWindowPoint } from '../api/types';
@@ -60,33 +38,26 @@ export interface BestWindowPanelProps {
   /** Localized crop name from the picker; falls back to the payload cropName. */
   cropLabel?: string | null;
   /**
-   * Rendered INSIDE the forecast result rather than standalone. PRESENTATION
-   * ONLY — it must never decide whether a warning is safe to drop:
-   *  - the not-rankable branch drops its own title line, because the embedding
-   *    block supplies the heading;
-   *  - the tap hint says what activating a bar actually does here (re-forecast),
-   *    not "fills the field below" — there is no field below any more.
+   * Rendered INSIDE the forecast result rather than standalone. PRESENTATION ONLY — it
+   * must never decide whether a warning is safe to drop. The not-rankable branch drops its
+   * own title (the embedding block supplies the heading) and the tap hint says what
+   * activating a bar does here: re-forecast, not "fill the field below".
    */
   embedded?: boolean;
   /**
-   * The caller PROVES that a verdict currently on screen already states the loss,
-   * which is the only condition under which this panel may stay silent about it.
-   * Defaults to false — the sentence is shown unless proven redundant.
-   *
-   * It is a proof obligation, not a position flag, because "it is embedded" does
-   * NOT imply "a verdict is saying it". Three states break that assumption:
-   *   (a) the −5% DEADBAND, and it is the common case, not an edge: this panel
-   *       warns when `max(points) < currentPrice`, while the API only says
-   *       "Not recommended" below −5% (GetHarvestForecastQueryHandler). A sweep
-   *       sitting 0–5% under today — the typical shape, since a real seasonal
-   *       spread is a few percent — renders "Little data / roughly flat versus
-   *       today" while every date on this strip loses money;
-   *   (b) the ERROR branch: the forecast failed, the window data is fetched
-   *       independently and is fine, so the strip paints with no verdict at all;
-   *   (c) the FIRST-LOAD skeleton: the window is pre-fetched on crop select, so
-   *       the strip is fully painted before any verdict exists.
-   * In all three the tint would be carrying the loss ALONE (WCAG 1.4.1, and the
-   * panel's own rule three lines above the render: colour is never the message).
+   * The caller PROVES that a verdict already on screen states the loss — the only
+   * condition under which this panel may stay silent about it. Defaults to false.
+   * It is a proof obligation, not a position flag: "it is embedded" does NOT imply "a
+   * verdict is saying it". Three states break that assumption:
+   *   (a) the −5% DEADBAND, and it is the common case: this panel warns when
+   *       max(points) < currentPrice, while the API only says "Not recommended" below −5%,
+   *       so a sweep sitting 0–5% under today renders "roughly flat versus today" while
+   *       every date on the strip loses money;
+   *   (b) the ERROR branch: the forecast failed but the window data is fine, so the strip
+   *       paints with no verdict at all;
+   *   (c) the FIRST-LOAD skeleton: the window is pre-fetched on crop select, so the strip
+   *       is fully painted before any verdict exists.
+   * In all three the tint would be carrying the loss alone (WCAG 1.4.1).
    */
   lossCarriedByVerdict?: boolean;
 }
@@ -128,9 +99,8 @@ export default function BestWindowPanel({
 
   const points = win?.points ?? [];
 
-  // Roving tabindex: the strip is ONE tab stop and arrow keys move between bars,
-  // which is the correct pattern for a dense set of related controls (91 separate
-  // tab stops would make the rest of the page unreachable by keyboard).
+  // Roving tabindex: the strip is ONE tab stop and arrow keys move between bars. 91
+  // separate tab stops would make the rest of the page unreachable by keyboard.
   const bestIndex = useMemo(() => points.findIndex((p) => p.inBestWindow), [points]);
   const [activeIdx, setActiveIdx] = useState(0);
   const stripRef = useRef<HTMLDivElement>(null);
@@ -141,10 +111,9 @@ export default function BestWindowPanel({
     setActiveIdx(bestIndex >= 0 ? bestIndex : 0);
   }, [bestIndex]);
 
-  // At phone widths the strip scrolls (bars are sized for fingers, so ~90 dates is
-  // several screens wide). Bring the recommended window into view instead of
-  // leaving the farmer to swipe for it. scrollLeft, never scrollIntoView: the
-  // latter would scroll the PAGE and yank the panel around under them.
+  // At phone widths the strip scrolls, so bring the recommended window into view instead of
+  // leaving the farmer to swipe for it. scrollLeft, never scrollIntoView: the latter would
+  // scroll the PAGE and yank the panel around under them.
   useEffect(() => {
     const strip = stripRef.current;
     if (!strip || bestIndex < 0) return;
@@ -154,13 +123,10 @@ export default function BestWindowPanel({
     strip.scrollLeft = Math.max(0, bar.offsetLeft - strip.clientWidth / 2 + bar.offsetWidth / 2);
   }, [bestIndex, points.length]);
 
-  // ---- hover/focus readout ---------------------------------------------------
-  // The bars are HTML, not SVG, so the shared useChartTooltip hook (which hit-tests
-  // pointer position against viewBox coordinates and owns its own arrow-key
-  // stepping) buys us nothing here and would fight the roving tabindex above. We
-  // reuse the part that matters — the .ct-tip card and its tokens — and anchor it
-  // off each bar's own rect, which is exact and stays right while the strip
-  // scrolls on a phone.
+  // The bars are HTML, not SVG, so the shared useChartTooltip hook (which hit-tests pointer
+  // position against viewBox coordinates and owns its own arrow-key stepping) buys nothing
+  // here and would fight the roving tabindex. We reuse the .ct-tip card and its tokens and
+  // anchor off each bar's own rect, which stays right while the strip scrolls on a phone.
   const wrapRef = useRef<HTMLDivElement>(null);
   const [tip, setTip] = useState<BarTip | null>(null);
 
@@ -245,9 +211,8 @@ export default function BestWindowPanel({
   const name = cropLabel ?? win.cropName ?? '';
 
   // ---- honest not-rankable state --------------------------------------------
-  // The reason CODE is what gets translated; the server's English `explanation`
-  // is only a defaultValue so an unknown/new code still says something true
-  // rather than rendering a raw snake_case token at a farmer.
+  // The reason CODE is what gets translated; the server's English `explanation` is only a
+  // defaultValue, so an unknown code still says something true instead of a raw token.
   if (!win.rankable || points.length === 0 || !win.best) {
     return (
       <div className="bw bw--unranked">
@@ -285,16 +250,12 @@ export default function BestWindowPanel({
   const currentPrice = win.currentPrice ?? 0;
   const hasCurrent = currentPrice > 0;
   const currentStr = hasCurrent ? formatPrice(currentPrice, lang, rs) : '';
-  // The honest one: our "best" window is still a loss against selling today. The
-  // forecast screen calls this "Not recommended" — this panel must not read as a
-  // recommendation while that is true.
-  //
-  // GATED ON `hi`, THE TOP OF THE STRIP — NEVER on best.predictedPrice. That field
-  // is the rolling MEAN of the window's p50s (server-side predict.harvest_window),
-  // so a window straddling today (p50s 290/300/310 against a current 300) has a
-  // mean of exactly 300 and would fire this warning while the strip still holds a
-  // date worth +3.3%. The sentence says "even at the best time", so it may only
-  // appear when no SINGLE date beats today — true by construction with `hi`.
+  // The honest case: even our best window is a loss against selling today. The forecast
+  // screen calls this "Not recommended", and the two must not disagree.
+  // GATED ON `hi`, THE TOP OF THE STRIP — never on best.predictedPrice, which is the
+  // rolling MEAN of the window's p50s: a window straddling today would fire this warning
+  // while the strip still holds a date worth taking. The sentence says "even at the best
+  // time", so it may only appear when no SINGLE date beats today.
   const belowToday = hasCurrent && hi < currentPrice;
 
   const summary = t('bestWindow.summaryAria', {
@@ -367,9 +328,8 @@ export default function BestWindowPanel({
         {smallDiff
           ? t('bestWindow.upliftSmall')
           : belowToday
-            ? // "9% better than average" is a true sentence that reads like good
-              // news; when every date loses money it has to say what it is — a
-              // comparison INSIDE this strip, not a gain.
+            ? // "9% better than average" reads like good news; when every date loses money
+              // it has to say what it is — a comparison inside this strip, not a gain.
               t('bestWindow.upliftBelow', { pct: best.upliftPct.toFixed(1) })
             : t('bestWindow.uplift', { pct: best.upliftPct.toFixed(1) })}
       </p>

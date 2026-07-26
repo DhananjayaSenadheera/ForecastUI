@@ -1,43 +1,26 @@
-// =============================================================================
-// WhyForecast (FE-6, ClickUp 86cacw5xq / 86cawu59h). The collapsible
-// "Why this price?" factor / explanation panel on the harvest result view.
-//
+// WhyForecast — the collapsible "Why this price?" panel on the harvest result.
 // Two honest modes:
-//   1. STRUCTURED (API-5): a `topFactors` list of stable reason CODES. Each row
-//      is a full CAUSAL SENTENCE — cause -> everyday consequence -> direction —
-//      plus a muted "<factor> · <strength> effect" caption.
-//   2. DEGRADED (fallback predictor / no factors): the free-text `explanation`
-//      sentence + an honest note that a detailed breakdown isn't available for
-//      this crop yet. NEVER invented factors, NEVER an empty panel.
-//
-// WHY SENTENCES, NOT `topic + arrow`: the old row said "Seasonal supply /
-// Pushes price down" — it named the TOPIC and the EFFECT but omitted the STATE
-// (supply will be plentiful). A farmer's own causal model ("low supply -> high
-// demand -> price up") then collides with the arrow and the panel reads wrong.
-// Lay-user XAI work finds natural-language causal templates the best-performing
-// explanation format; smallholder-advisory work adds spoken-style sentences,
-// concrete referents and HEDGED predictions ("usually", never "will").
-//
-// ROW RENDERING IS PER-LOCALE, BY DESIGN. The sentences are long-form prose and
-// ship English-first; si/ta get them when a native speaker writes them, never
-// from a machine. A row therefore renders in whichever mode its ACTIVE LOCALE
-// can actually support:
-//   * sentence mode — locale owns THIS row's `factor.sentence.*`, the strength
-//                     word that row's size maps to, and — only for a sentence
-//                     that interpolates {{crop}} when no crop name was passed
-//                     in — `factor.cropGeneric`
-//   * compact mode  — the previous rendering (translated factor label +
-//                     translated "pushes price up/down" + weight bar), which
-//                     si/ta already have in full.
-// The gate is `hasOwnTranslation` (a real per-locale resource lookup), NOT
-// `i18n.exists()`/try-catch: i18next resolves through fallbackLng, so both of
-// those would report English prose as "present" and leak it to a Sinhala farmer.
-//
-// Disclosure: WAI-ARIA button + region (aria-expanded / aria-controls) rather
-// than native <details>, so the default-open state can be responsive (open on
-// desktop >=1024px, collapsed on mobile) AND aria-expanded is assertable. State
-// is seeded once from the breakpoint at mount; it does not track live resizes.
-// =============================================================================
+//   1. STRUCTURED: a `topFactors` list of stable reason CODES. Each row is a full causal
+//      sentence (cause -> everyday consequence -> direction) plus a muted
+//      "<factor> · <strength> effect" caption.
+//   2. DEGRADED (fallback predictor, or no factors): the free-text `explanation` plus an
+//      honest note that no detailed breakdown exists for this crop yet. Never invented
+//      factors, never an empty panel.
+// Sentences, not "topic + arrow": the old row said "Seasonal supply / Pushes price down",
+// naming the topic and the effect but omitting the STATE (supply will be plentiful), which
+// collides with a farmer's own causal model and makes the panel read wrong.
+// ROW RENDERING IS PER-LOCALE BY DESIGN. The sentences are long-form prose shipped
+// English-first; si/ta get them when a native speaker writes them. A row renders in
+// whichever mode its ACTIVE LOCALE supports: sentence mode when the locale owns that row's
+// `factor.sentence.*` (plus the strength word, plus `factor.cropGeneric` when the sentence
+// interpolates {{crop}} and no crop name was passed), otherwise the compact rendering
+// (translated label + "pushes price up/down" + weight bar) that si/ta already have in full.
+// The gate is `hasOwnTranslation` — a real per-locale resource lookup — NOT `i18n.exists()`
+// or try/catch: i18next resolves through fallbackLng, so both would report English prose as
+// present and leak it to a Sinhala farmer.
+// Disclosure uses a button + region (aria-expanded / aria-controls) rather than <details>,
+// so the default-open state can be responsive (open on desktop, collapsed on mobile) and
+// aria-expanded is assertable. It is seeded once at mount and does not track resizes.
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ForecastFactor } from '../api/types';
@@ -83,15 +66,12 @@ export default function WhyForecast({ factors, explanation, cropLabel }: WhyFore
   const hasFactors = list.length > 0;
   const maxWeight = maxFactorWeight(list);
   const totalWeight = totalFactorWeight(list);
-  // "Capsicum prices have been climbing" / "This crop's prices have been
-  // climbing" — both grammatical, so one template covers a missing crop name.
+  // Both "Capsicum prices have been climbing" and "This crop's prices have been climbing"
+  // are grammatical, so one template covers a missing crop name.
   const crop = cropLabel?.trim() || t('factor.cropGeneric');
-  // ...but `factor.cropGeneric` is itself English-first, so without a crop name
-  // it is a THIRD way English can get wedged inside a translated sentence
-  // ("... This crop's ..." mid-Sinhala). Callers always pass a crop name today;
-  // this closes the hole before someone reuses the component. Checked per ROW
-  // below, and only for sentences that actually interpolate {{crop}} — pushing
-  // an unrelated row (market conditions, weather) back to compact over a word it
+  // But `factor.cropGeneric` is itself English-first, so it is a third way English can get
+  // wedged inside a translated sentence. Checked per ROW, and only for sentences that
+  // actually interpolate {{crop}}: pushing an unrelated row back to compact over a word it
   // never renders would be a false degradation.
   const hasCropName = !!cropLabel?.trim();
   const cropWordOk = hasCropName || hasOwnTranslation('factor.cropGeneric');
@@ -121,12 +101,10 @@ export default function WhyForecast({ factors, explanation, cropLabel }: WhyFore
               const pct = factorWeightPct(f.weight, maxWeight);
               const strength = factorStrength(f.weight, totalWeight);
 
-              // Sentence mode needs the sentence AND (when there is a magnitude)
-              // the strength word in THIS locale — a half-translated row reading
-              // "කන්නයට අනුව සැපයුම · strong effect" is worse than the compact one.
-              // A neutral row's sentence already names the factor AND states the
-              // magnitude ("... made little difference this time"), so it needs
-              // no caption — and therefore no strength word to render.
+              // Sentence mode needs the sentence AND (when there is a magnitude) the
+              // strength word in THIS locale — a half-translated row is worse than the
+              // compact one. A neutral row's sentence already names the factor and states
+              // the magnitude, so it needs no caption and no strength word.
               const wantsCaption = f.direction !== 'neutral';
               const sentenceKey = factorSentenceKey(f.code, f.direction);
               const template = ownTranslation(sentenceKey);
@@ -171,9 +149,8 @@ export default function WhyForecast({ factors, explanation, cropLabel }: WhyFore
                 );
               }
 
-              // Compact mode — unchanged from the previous release. This is what
-              // si/ta render until their sentences land, so they see no English
-              // prose and no regression.
+              // Compact mode: what si/ta render until their sentences land, so they never
+              // see English prose.
               return (
                 <li className="wf-factor" key={`${f.code}-${i}`}>
                   <span className={`wf-factor__dir wf-factor__dir--${f.direction}`}>

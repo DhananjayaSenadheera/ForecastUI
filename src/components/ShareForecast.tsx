@@ -1,17 +1,9 @@
-// =============================================================================
-// ShareForecast (FE-11). A "Share" action on the successful harvest-forecast
-// panel. Renders ONLY when a forecast has loaded (the parent mounts it in the
-// success branch), never on loading/error.
-//
-// Primary path: navigator.share({ text }) with a plain-text summary composed
-// from the ACTUAL payload (lib/share). Fallbacks, in order:
-//   1. navigator.clipboard.writeText -> inline "Copied" confirmation (aria-live,
-//      auto-dismiss).
-//   2. neither available (or clipboard rejects) -> a readonly <textarea> the user
-//      can select + copy by hand.
-// jsdom has neither navigator.share nor a reliable clipboard, so every access is
-// typeof-guarded (and mocked in tests).
-// =============================================================================
+// ShareForecast — the "Share" action on a successful harvest forecast (the parent mounts it
+// in the success branch only).
+// Primary path is navigator.share({ text }) with a plain-text summary composed from the
+// actual payload (lib/share). Fallbacks in order: clipboard.writeText with an inline
+// "Copied" confirmation, then a readonly <textarea> to copy by hand. jsdom has neither
+// navigator.share nor a reliable clipboard, so every access is typeof-guarded.
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { HarvestForecast } from '../api/types';
@@ -22,11 +14,10 @@ export interface ShareForecastProps {
   /** Localized crop name (already resolved via cropDisplayName). */
   cropLabel: string;
   /**
-   * A newer forecast is in flight (the farmer tapped another planting date on the
-   * window strip), so `forecast` still describes the PREVIOUS date. Sharing is
-   * blocked until it lands: the composed message is plain text that quotes a price
-   * against a planting/harvest date, and once it is in WhatsApp nothing marks it
-   * as stale. Waiting a moment is cheap; an un-retractable wrong price is not.
+   * A newer forecast is in flight (the farmer tapped another planting date), so `forecast`
+   * still describes the PREVIOUS date. Sharing is blocked until it lands: the message is
+   * plain text quoting a price against a planting and harvest date, and once it is in
+   * WhatsApp nothing marks it as stale.
    */
   paused?: boolean;
 }
@@ -44,9 +35,8 @@ export default function ShareForecast({ forecast, cropLabel, paused = false }: S
     if (timer.current) clearTimeout(timer.current);
   }, []);
 
-  // The manual-copy textarea holds a composed message for the OLD planting date;
-  // leaving it on screen would let it be copied by hand while the numbers change
-  // underneath. Clear it (and the "Copied" flash) the moment a re-run starts.
+  // The manual-copy textarea holds a message composed for the OLD planting date, so clear
+  // it (and the "Copied" flash) the moment a re-run starts.
   useEffect(() => {
     if (!paused) return;
     setManualText(null);

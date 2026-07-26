@@ -1,8 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
-// STUB (FE-2). Persistent audio-help affordance — evidence-backed for low-literacy
-// autonomous use (PRD §2.3). Pre-recorded per-page clips land in FE-8; for now this
-// is a real, labelled, keyboard-reachable >=44px control that no-ops.
+// STUB. Persistent audio-help affordance for low-literacy users: a real, labelled,
+// keyboard-reachable >=44px control that currently does nothing. Clips land later.
 export default function AudioHelpButton() {
   const { t } = useTranslation();
   return (
