@@ -719,6 +719,49 @@ export interface IngestionRunPage {
   total: number;
 }
 
+// ADMIN — nightly pipeline health. GET /api/admin/pipeline/health (Admin JWT) answers
+// one question: did last night's pipeline produce the data today's forecasts need?
+// It is a rollup over the ingestion batch, the verification gate and the feature build,
+// so an admin does not have to open three screens to notice a silent failure.
+
+/** The states the pinned contract defines today. The server owns this vocabulary and may
+ *  grow it, which is why `PipelineHealth.state` below is a plain string: a banner that
+ *  crashed — or worse, guessed a colour — on a word this build has never seen would be
+ *  a bigger bug than one that stays quiet. */
+export const PIPELINE_HEALTH_STATES = [
+  'green', // ran and finished cleanly — nothing to say
+  'running', // still running right now — not yet news
+  'partial', // ran, but some sources did not finish
+  'failed', // ran and failed
+  'gate_blocked', // stopped at the data-verification gate; the new data was NOT used
+  'missing', // no run recorded at all for the expected date
+] as const;
+export type PipelineHealthState = (typeof PIPELINE_HEALTH_STATES)[number];
+
+/** Narrow a wire string to a state this build knows how to render. */
+export function isPipelineHealthState(s: string | null | undefined): s is PipelineHealthState {
+  return !!s && (PIPELINE_HEALTH_STATES as readonly string[]).includes(s);
+}
+
+/** Feature-build outcome — the same four words an ingestion run's status uses, so
+ *  mapRunStatus() renders it without a second vocabulary. */
+export type FeatureBuildStatus = 'succeeded' | 'failed' | 'running' | 'skipped';
+
+/** GET /api/admin/pipeline/health — the nightly-pipeline snapshot. */
+export interface PipelineHealth {
+  /** "YYYY-MM-DD" — the pipeline date this snapshot is about (last night's run). */
+  expectedForDate: string;
+  /** One of PIPELINE_HEALTH_STATES today; typed wide on purpose (see above). */
+  state: string;
+  batchId: string | null;
+  startedUtc: string | null;
+  /** Frozen verdict spelling, shared with ingestion verification (Pass/Warn/Fail). */
+  verificationStatus: VerificationVerdict | null;
+  featureBuildStatus: FeatureBuildStatus | null;
+  /** When the server computed this snapshot (not when the pipeline ran). */
+  checkedAtUtc: string;
+}
+
 // ADMIN — logs hub (model training + user activity). Both routes are Admin-only and
 // return the same server-paged {items,page,pageSize,total} envelope as ingestion runs.
 // Timestamps are Z-suffixed UTC.

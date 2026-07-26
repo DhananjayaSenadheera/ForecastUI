@@ -445,6 +445,28 @@ describe('API client (live mode — markets + price history URLs)', () => {
     expect(init.body).toBeUndefined();
   });
 
+  // Pipeline health. A GET on the wrong path would 404 into "we do not know", which the
+  // banner renders as SILENCE — i.e. a typo here would look exactly like a healthy night.
+  it('getPipelineHealth GETs /api/admin/pipeline/health', async () => {
+    const health = {
+      expectedForDate: '2026-07-21',
+      state: 'gate_blocked',
+      batchId: null,
+      startedUtc: null,
+      verificationStatus: 'Fail',
+      featureBuildStatus: 'skipped',
+      checkedAtUtc: '2026-07-22T04:10:00Z',
+    };
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes(health));
+    vi.stubGlobal('fetch', fetchMock);
+    const res = await (await liveApi()).getPipelineHealth();
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit | undefined];
+    expect(url).toBe('http://localhost:5282/api/admin/pipeline/health');
+    expect(init?.method ?? 'GET').toBe('GET');
+    // Consumed verbatim — the client never narrows or rewrites `state`.
+    expect(res).toEqual(health);
+  });
+
   // The 409 bodies use { error: "<code>" }, NOT the errors[] envelope every other route
   // uses. Without ApiError.code the UI could only say "something went wrong" for a
   // refusal that is not a failure at all.

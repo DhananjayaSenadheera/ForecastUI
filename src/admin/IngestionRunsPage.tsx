@@ -28,98 +28,31 @@ import {
   useServerPagination,
 } from './adminShared';
 import IngestionServiceControl from './IngestionServiceControl';
+import { usePolledSnapshot } from './usePolledSnapshot';
 import { IconRefresh } from './icons';
 
+// Status cadence: 30s, backing off to 120s while the endpoint is failing. The polling
+// mechanics live in usePolledSnapshot (shared with the pipeline-health banner).
 const POLL_BASE_MS = 30_000;
 const POLL_MAX_MS = 120_000;
 const RUNS_PAGE_SIZE = 25;
 const KNOWN_SOURCE_STATUS = new Set(['ok', 'disabled', 'failed']);
 
-// Status polling. Uses setTimeout (not setInterval) so the backoff cadence is exact and
-// a hidden tab simply stops rescheduling. Errors back off 30 -> 60 -> 120s; a success
-// resets to 30s. The previous status stays on screen during a transient error.
-function useIngestionStatus() {
-  const [status, setStatus] = useState<IngestionStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const timer = useRef<number | null>(null);
-  const errorCount = useRef(0);
-  const mounted = useRef(true);
-  const reqId = useRef(0); // stale-response guard: only the latest in-flight poll may commit
-  const pollRef = useRef<() => Promise<void>>(async () => {});
-
-  const stop = useCallback(() => {
-    if (timer.current !== null) {
-      clearTimeout(timer.current);
-      timer.current = null;
-    }
-  }, []);
-
-  const schedule = useCallback(
-    (delayMs: number) => {
-      stop();
-      // Paused while the tab is hidden — the visibilitychange handler re-polls.
-      if (typeof document !== 'undefined' && document.hidden) return;
-      timer.current = window.setTimeout(() => void pollRef.current(), delayMs);
-    },
-    [stop],
-  );
-
-  const poll = useCallback(async () => {
-    const id = ++reqId.current;
-    // Only the newest poll may commit — drop a superseded response.
-    const isStale = () => !mounted.current || id !== reqId.current;
-    try {
-      const s = await api.getIngestionStatus();
-      if (isStale()) return;
-      setStatus(s);
-      setError(false);
-      errorCount.current = 0;
-      schedule(POLL_BASE_MS);
-    } catch {
-      if (isStale()) return;
-      setError(true);
-      const delay = Math.min(POLL_BASE_MS * 2 ** errorCount.current, POLL_MAX_MS);
-      errorCount.current += 1;
-      schedule(delay);
-    } finally {
-      if (!isStale()) setLoading(false);
-    }
-  }, [schedule]);
-
-  useEffect(() => {
-    pollRef.current = poll;
-  }, [poll]);
-
-  useEffect(() => {
-    mounted.current = true;
-    // Don't fetch on mount while the tab is hidden; visibilitychange does the first poll.
-    if (typeof document === 'undefined' || !document.hidden) {
-      void pollRef.current();
-    }
-    const onVisibility = () => {
-      if (document.hidden) stop();
-      else void pollRef.current(); // resume: poll immediately when the tab returns
-    };
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => {
-      mounted.current = false;
-      stop();
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-    // Run-once: poll/stop are stable and re-read via refs.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const retry = useCallback(() => void pollRef.current(), []);
-  return { status, loading, error, retry };
-}
-
 export default function IngestionRunsPage() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
 
-  const { status, loading: statusLoading, error: statusError, retry: retryStatus } = useIngestionStatus();
+  // The fetcher is an arrow, not `api.getIngestionStatus`, so the method is resolved at
+  // call time — a test that spies on `api` after render still intercepts it.
+  const {
+    data: status,
+    loading: statusLoading,
+    error: statusError,
+    refetch: retryStatus,
+  } = usePolledSnapshot(() => api.getIngestionStatus(), {
+    baseMs: POLL_BASE_MS,
+    maxMs: POLL_MAX_MS,
+  });
 
   // Runs list: server-paged, reloads on page/filter change and on manual refresh.
   const [runs, setRuns] = useState<IngestionRunPage | null>(null);

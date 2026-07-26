@@ -22,6 +22,7 @@ import {
   type IngestionRun,
   type IngestionRunPage,
   type IngestionStatus,
+  type PipelineHealth,
   type TrainingRun,
   type TrainingRunPage,
   type UserActivityEvent,
@@ -1346,6 +1347,104 @@ export function fxStopIngestionService():
   if (fxServiceState === 'running-scheduler') return { ok: false, code: 'not_stoppable' };
   fxServiceState = 'stopped';
   return { ok: true };
+}
+
+// Nightly pipeline health (GET /api/admin/pipeline/health). One scenario per contract
+// state, PLUS a deliberately unknown word: the banner is admin-wide, so "the server grew
+// a state we have never heard of" has to be a demoable, testable case and not a theory.
+// Every scenario is about the SAME expectedForDate so switching between them exercises
+// the "state changed for the same day" dismissal path.
+const FX_PIPELINE_DATE = '2026-07-21';
+
+export const fxPipelineHealthScenarios = {
+  // Clean night: verification passed, features built. The banner says nothing.
+  green: {
+    expectedForDate: FX_PIPELINE_DATE,
+    state: 'green',
+    batchId: 'a1000001-0000-4000-8000-000000000001',
+    startedUtc: '2026-07-21T15:30:04Z',
+    verificationStatus: 'Pass',
+    featureBuildStatus: 'succeeded',
+    checkedAtUtc: '2026-07-22T04:10:00Z',
+  },
+  // Still in flight — not news yet, so also silent.
+  running: {
+    expectedForDate: FX_PIPELINE_DATE,
+    state: 'running',
+    batchId: 'a1000001-0000-4000-8000-000000000002',
+    startedUtc: '2026-07-21T15:30:04Z',
+    verificationStatus: null,
+    featureBuildStatus: 'running',
+    checkedAtUtc: '2026-07-21T15:41:00Z',
+  },
+  // Some sources did not finish (the live HARTI-503 shape) — amber.
+  partial: {
+    expectedForDate: FX_PIPELINE_DATE,
+    state: 'partial',
+    batchId: 'a1000001-0000-4000-8000-000000000003',
+    startedUtc: '2026-07-21T15:30:04Z',
+    verificationStatus: 'Warn',
+    featureBuildStatus: 'succeeded',
+    checkedAtUtc: '2026-07-22T04:10:00Z',
+  },
+  // The verification gate refused the data, so nothing new reached the model — amber,
+  // because the model is serving the PREVIOUS day's features, not wrong ones.
+  gate_blocked: {
+    expectedForDate: FX_PIPELINE_DATE,
+    state: 'gate_blocked',
+    batchId: 'a1000001-0000-4000-8000-000000000004',
+    startedUtc: '2026-07-21T15:30:04Z',
+    verificationStatus: 'Fail',
+    featureBuildStatus: 'skipped',
+    checkedAtUtc: '2026-07-22T04:10:00Z',
+  },
+  // Ran and failed — red.
+  failed: {
+    expectedForDate: FX_PIPELINE_DATE,
+    state: 'failed',
+    batchId: 'a1000001-0000-4000-8000-000000000005',
+    startedUtc: '2026-07-21T15:30:04Z',
+    verificationStatus: null,
+    featureBuildStatus: 'failed',
+    checkedAtUtc: '2026-07-22T04:10:00Z',
+  },
+  // Nothing ran at all — the 8-mornings-silent case. No batch, no start time.
+  missing: {
+    expectedForDate: FX_PIPELINE_DATE,
+    state: 'missing',
+    batchId: null,
+    startedUtc: null,
+    verificationStatus: null,
+    featureBuildStatus: null,
+    checkedAtUtc: '2026-07-22T04:10:00Z',
+  },
+  // NOT in the contract: a state a future backend might add. The banner must render
+  // nothing for it rather than crash or invent a colour.
+  unknownFutureState: {
+    expectedForDate: FX_PIPELINE_DATE,
+    state: 'degraded_upstream',
+    batchId: 'a1000001-0000-4000-8000-000000000006',
+    startedUtc: '2026-07-21T15:30:04Z',
+    verificationStatus: null,
+    featureBuildStatus: null,
+    checkedAtUtc: '2026-07-22T04:10:00Z',
+  },
+} satisfies Record<string, PipelineHealth>;
+
+export type FxPipelineHealthScenario = keyof typeof fxPipelineHealthScenarios;
+
+// Which scenario fixtures mode serves. Defaults to the amber "partial" night so the
+// banner is visible in a fixtures demo — a default of `green` would make the whole
+// feature invisible to anyone running without a backend.
+let fxPipelineScenario: FxPipelineHealthScenario = 'partial';
+
+/** Test/demo hook: choose which pipeline-health scenario the fixture serves. */
+export function fxSetPipelineHealth(scenario: FxPipelineHealthScenario): void {
+  fxPipelineScenario = scenario;
+}
+
+export function fxPipelineHealth(): PipelineHealth {
+  return fxPipelineHealthScenarios[fxPipelineScenario];
 }
 
 // Model-training fixtures: 17 runs (v17..v1), newest first. v17 is the current live model

@@ -779,6 +779,29 @@
         "notApplicable": "—"
       }
     },
+    "pipelineHealth": {
+      "missing": {
+        "title": "Last night's data update did not run",
+        "body": "No pipeline run was recorded for {{date}}. Prices, forecasts and recommendations are still built from older data until it runs."
+      },
+      "failed": {
+        "title": "Last night's data update failed",
+        "body": "The run for {{date}} stopped with an error, so no new data was added. Prices, forecasts and recommendations are still built from older data."
+      },
+      "gateBlocked": {
+        "title": "Last night's data update was blocked at the quality check",
+        "body": "The data collected for {{date}} did not pass the quality check, so it was not used. Forecasts are still built from the last data that passed."
+      },
+      "partial": {
+        "title": "Last night's data update ran only partly",
+        "body": "Some sources did not finish for {{date}}, so part of that day's data is missing. Forecasts still work, but they may be less accurate."
+      },
+      "startedAt": "Started {{time}}",
+      "qualityCheck": "Quality check: {{status}}",
+      "featureBuild": "Data preparation: {{status}}",
+      "viewRuns": "See what happened",
+      "dismiss": "Hide this pipeline notice"
+    },
     "ingestion": {
       "title": "Ingestion runs",
       "subtitle": "Data pipeline runs and freshness checks.",

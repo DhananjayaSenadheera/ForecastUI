@@ -1594,3 +1594,87 @@
     white-space: normal;
   }
 }
+
+/* Pipeline-health banner ----------------------------------------------------
+   Admin-wide notice for last night's pipeline outcome. Two tones only:
+   critical (nothing ran / it failed) and warn (it ran, imperfectly). Colour is
+   never the message — the title sentence and the role carry it, and the glyph is
+   aria-hidden decoration. Sits at the top of the admin column, above the page. */
+.pipe-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid;
+  border-radius: var(--r-md);
+  margin-bottom: var(--sp-4);
+}
+.pipe-banner--critical {
+  background: var(--critical-bg);
+  color: var(--critical-fg);
+  border-color: var(--critical-fg);
+}
+.pipe-banner--warn {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  border-color: var(--lowtrust-border);
+}
+.pipe-banner__icon {
+  font-size: 18px;
+  line-height: var(--lh-body);
+  flex: none;
+}
+.pipe-banner__body {
+  flex: 1;
+  min-width: 0; /* long Sinhala/Tamil sentences wrap instead of forcing a scrollbar */
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.pipe-banner__title {
+  margin: 0;
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-body);
+  line-height: var(--lh-heading);
+}
+.pipe-banner__text {
+  margin: 0;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+}
+/* Compact machine detail (start time / quality check / data preparation). Muted,
+   but still AA on the tint — it is evidence, not decoration. */
+.pipe-banner__detail {
+  margin: 0;
+  /* --fs-sm, not --fs-xs: this line is translated words, and 12px is Latin-only. */
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+  opacity: 0.85;
+}
+.pipe-banner__link {
+  align-self: flex-start;
+  margin-top: var(--sp-1);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: inherit;
+  text-decoration: underline;
+  min-height: var(--touch-min);
+  display: inline-flex;
+  align-items: center;
+}
+.pipe-banner__dismiss {
+  flex: none;
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: var(--r-sm);
+}
