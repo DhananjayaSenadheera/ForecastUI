@@ -43,6 +43,16 @@ async function showing(state: IngestionState, canStop = state === 'running') {
 /** Open the confirmation dialog for whichever action the card is offering.
  *  The trigger is focused first because that is what a real activation does (jsdom's
  *  fireEvent.click does not move focus), and focus RESTORE depends on it. */
+/** The whole sentence a screen reader reads after the button's name: every element
+ *  aria-describedby points at, in order, joined. */
+function accessibleDescription(btn: HTMLElement) {
+  return (btn.getAttribute('aria-describedby') ?? '')
+    .split(' ')
+    .filter(Boolean)
+    .map((id) => document.getElementById(id)?.textContent ?? '')
+    .join(' ');
+}
+
 async function openDialog(button: string) {
   const trigger = screen.getByRole('button', { name: button });
   trigger.focus();
@@ -106,6 +116,19 @@ describe('Ingestion service control — which button, and its accessible name', 
     expect(screen.getByRole('button', { name: START_BTN })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: STOP_BTN })).toBeNull();
     expect(screen.getByText(/state could not be read/i)).toBeInTheDocument();
+  });
+
+  // unknown + canStop is real: the first-ever start on a fresh DB sets canStop before
+  // any run row exists to read a state from. The button offered is Stop, so the
+  // description must be about stopping — unknownNote argues that STARTING is safe.
+  it('describes the unknown-state STOP button with stop copy, not the start note', async () => {
+    await showing('unknown', true);
+    const btn = screen.getByRole('button', { name: STOP_BTN });
+    const description = accessibleDescription(btn);
+    expect(description).toMatch(/can only cancel a pass that was started from this screen/i);
+    expect(description).not.toMatch(/state could not be read/i);
+    // ...and the start-only note is nowhere on the card either.
+    expect(screen.queryByText(/state could not be read/i)).toBeNull();
   });
 
   it('gives the button a real text name, not an icon alone', async () => {
@@ -332,6 +355,48 @@ describe('Ingestion service control — 409s are information, not failures', () 
     ).toBeInTheDocument();
     // No success wording anywhere — the pass is still running.
     expect(screen.queryByText(/Stop requested/i)).toBeNull();
+  });
+
+  // The refusal notice and the hint are the SAME sentence, and aria-describedby points
+  // at both, so a screen reader would read it twice once the refetch reveals the
+  // scheduler owns the pass.
+  it('not_stoppable: says it once, not twice, once the hint carries the reason', async () => {
+    vi.spyOn(api, 'getIngestionStatus')
+      .mockResolvedValueOnce(statusWith('running', true)) // stale: stop looks possible
+      .mockResolvedValue(statusWith('running', false)); // truth: the scheduler owns it
+    vi.spyOn(api, 'getIngestionRuns').mockResolvedValue(fxIngestionRuns(1, 25));
+    vi.spyOn(api, 'stopIngestionService').mockRejectedValue(conflict('not_stoppable'));
+    renderPage();
+
+    await screen.findByRole('button', { name: STOP_BTN });
+    const d = await openDialog(STOP_BTN);
+    fireEvent.click(within(d).getByRole('button', { name: 'Stop the pass' }));
+
+    // The refetch lands and the button becomes the disabled scheduler-owned stop.
+    await waitFor(() => expect(screen.getByRole('button', { name: STOP_BTN })).toBeDisabled());
+    const reason = /started by the scheduled nightly job, not from this screen/gi;
+    const description = accessibleDescription(screen.getByRole('button', { name: STOP_BTN }));
+    expect(description.match(reason)).toHaveLength(1);
+    // ...and it is not duplicated on screen either.
+    expect(screen.getAllByText(/started by the scheduled nightly job/i)).toHaveLength(1);
+  });
+
+  // The same refusal against a snapshot that still says this API owns the pass has no
+  // hint to lean on, so the notice must stay: suppressing it would swallow the reason.
+  it('not_stoppable: keeps the notice when the refetched snapshot is still stale', async () => {
+    await showing('running', true); // every refetch keeps canStop=true
+    vi.spyOn(api, 'stopIngestionService').mockRejectedValue(conflict('not_stoppable'));
+
+    const d = await openDialog(STOP_BTN);
+    fireEvent.click(within(d).getByRole('button', { name: 'Stop the pass' }));
+
+    const note = await screen.findByText(
+      /started by the scheduled nightly job, not from this screen/i,
+    );
+    expect(note).toHaveAttribute('role', 'status');
+    expect(accessibleDescription(screen.getByRole('button', { name: STOP_BTN }))).toMatch(
+      /scheduled nightly job/i,
+    );
   });
 
   it('a 500 uses the page error pattern (alert), not a reassuring 409 sentence', async () => {

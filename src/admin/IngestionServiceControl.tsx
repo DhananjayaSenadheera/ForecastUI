@@ -26,6 +26,9 @@ type Action = 'start' | 'stop';
 interface Notice {
   tone: 'info' | 'error';
   text: string;
+  /** The 409 code behind an informational notice, kept so a sentence the hint already
+   *  shows is not printed a second time (see `visibleNotice`). */
+  code?: IngestionServiceErrorCode;
 }
 
 const NOTICE_ID = 'ing-service-notice';
@@ -92,14 +95,27 @@ export default function IngestionServiceControl({
   );
 
   const busy = pending !== null;
-  // The hint explains a button the user cannot use, so it is its accessible
-  // description — never colour or placement alone.
+  // The hint explains a button the user cannot use — or can use for a reason the state
+  // line does not give — so it is the button's accessible description, never colour or
+  // placement alone. unknownNote argues that STARTING is safe, so it must not be
+  // attached to a stop button: an unreadable state with canStop=true (first-ever start
+  // on a fresh DB, before any run row exists) offers Stop, and that button gets the
+  // stop scope instead.
   const hint = schedulerOwned
     ? t('admin.ingestion.service.notStoppable')
     : state === 'unknown'
-      ? t('admin.ingestion.service.unknownNote')
+      ? t(
+          action === 'start'
+            ? 'admin.ingestion.service.unknownNote'
+            : 'admin.ingestion.service.stopScope',
+        )
       : null;
-  const describedBy = [hint ? HINT_ID : null, notice ? NOTICE_ID : null]
+  // A not_stoppable 409 answers with the very sentence the hint carries once the
+  // refetch lands, and aria-describedby points at both — so a screen reader reads it
+  // twice. Suppress the notice only while the hint is actually on screen; a stale
+  // snapshot (schedulerOwned false) still needs the notice to explain the refusal.
+  const visibleNotice = schedulerOwned && notice?.code === 'not_stoppable' ? null : notice;
+  const describedBy = [hint ? HINT_ID : null, visibleNotice ? NOTICE_ID : null]
     .filter(Boolean)
     .join(' ');
   const label =
@@ -135,13 +151,13 @@ export default function IngestionServiceControl({
         )}
       </div>
 
-      {notice && (
+      {visibleNotice && (
         <p
           id={NOTICE_ID}
-          className={`adm-note${notice.tone === 'error' ? ' adm-note--error' : ''}`}
-          role={notice.tone === 'error' ? 'alert' : 'status'}
+          className={`adm-note${visibleNotice.tone === 'error' ? ' adm-note--error' : ''}`}
+          role={visibleNotice.tone === 'error' ? 'alert' : 'status'}
         >
-          {notice.text}
+          {visibleNotice.text}
         </p>
       )}
 
@@ -197,7 +213,8 @@ const NOTICE_KEY_BY_CODE: Record<IngestionServiceErrorCode, string> = {
  *  they come back as polite information; everything else is the page's normal error. */
 function explain(e: unknown, t: (k: string) => string): Notice {
   const code = e instanceof ApiError && e.status === 409 ? e.code : null;
-  if (isIngestionServiceError(code)) return { tone: 'info', text: t(NOTICE_KEY_BY_CODE[code]) };
+  if (isIngestionServiceError(code))
+    return { tone: 'info', text: t(NOTICE_KEY_BY_CODE[code]), code };
   // Network, 500, or a 409 code this build has never heard of: do not invent a
   // reassuring explanation for something we cannot name.
   return { tone: 'error', text: t('common.errorBody') };
