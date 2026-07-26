@@ -5,9 +5,10 @@
 //  1. The START button runs ONE INGESTION PASS and nothing else. Verification, feature
 //     building and model training stay with the nightly pipeline, so the confirmation
 //     says so instead of letting an admin assume "run" means "run everything".
-//  2. STOP can only cancel a pass this API hosts. A pass started by the scheduled
-//     worker answers 409 not_stoppable, and that is stated up front in the dialog AND
-//     repeated verbatim if the server answers it.
+//  2. STOP can only cancel a pass this API hosts, which the snapshot states outright
+//     via canStop. A scheduler-owned pass therefore gets a DISABLED stop button with
+//     the reason attached, not an enabled one whose only outcome is a 409; the
+//     not_stoppable handler stays as the fallback for a stale snapshot.
 //  3. Every 409 means our snapshot was wrong, so the status is refetched after EVERY
 //     response — success or refusal. A refusal is a change of truth, not an error.
 import { useCallback, useState } from 'react';
@@ -28,13 +29,17 @@ interface Notice {
 }
 
 const NOTICE_ID = 'ing-service-notice';
+const HINT_ID = 'ing-service-hint';
 const DIALOG_BODY_ID = 'ing-service-dialog-body';
 
 export default function IngestionServiceControl({
   state,
+  canStop,
   onChanged,
 }: {
   state: IngestionState;
+  /** True only while a pass THIS API can cancel is in flight (see IngestionStatus). */
+  canStop: boolean;
   /** Refetch the status snapshot — called after EVERY response, including 409s. */
   onChanged: () => void;
 }) {
@@ -43,10 +48,19 @@ export default function IngestionServiceControl({
   const [pending, setPending] = useState<Action | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
 
-  // Only a state we KNOW is running offers Stop. 'unknown' offers Start, because the
-  // server's single-flight lock makes a redundant start harmless (it answers 409
-  // already_running) while a redundant stop would just be a lie about what is running.
-  const action: Action = state === 'running' ? 'stop' : 'start';
+  // canStop leads, because it is the only field that is true the moment a start is
+  // accepted: `state` lags until the pass's first run row commits, so keying purely off
+  // `state` would flip the button back to Start under a "pass started" notice.
+  // Falling back to state==='running' still surfaces a pass this API did not start.
+  // 'unknown' offers Start: the server's single-flight lock makes a redundant start
+  // harmless (409 already_running), while a redundant stop would be a lie about what
+  // is running.
+  const action: Action = canStop || state === 'running' ? 'stop' : 'start';
+
+  // Running, but owned by the scheduled worker: the API physically cannot cancel it.
+  // Show Stop DISABLED with the reason, rather than an enabled button whose only
+  // possible outcome is a 409 the user had to click to discover.
+  const schedulerOwned = action === 'stop' && !canStop;
 
   const run = useCallback(
     async (which: Action) => {
@@ -78,6 +92,16 @@ export default function IngestionServiceControl({
   );
 
   const busy = pending !== null;
+  // The hint explains a button the user cannot use, so it is its accessible
+  // description — never colour or placement alone.
+  const hint = schedulerOwned
+    ? t('admin.ingestion.service.notStoppable')
+    : state === 'unknown'
+      ? t('admin.ingestion.service.unknownNote')
+      : null;
+  const describedBy = [hint ? HINT_ID : null, notice ? NOTICE_ID : null]
+    .filter(Boolean)
+    .join(' ');
   const label =
     action === 'start'
       ? busy
@@ -96,16 +120,18 @@ export default function IngestionServiceControl({
           type="button"
           className={`adm-rowbtn ing-svcbtn ing-svcbtn--${action}`}
           onClick={() => setConfirming(action)}
-          disabled={busy}
+          disabled={busy || schedulerOwned}
           aria-busy={busy}
-          {...(notice ? { 'aria-describedby': NOTICE_ID } : {})}
+          {...(describedBy ? { 'aria-describedby': describedBy } : {})}
         >
           {action === 'start' ? <IconPlay /> : <IconStop />}
           {/* The label is real text, never icon-only: the icon is aria-hidden. */}
           {label}
         </button>
-        {state === 'unknown' && (
-          <span className="ing-svc__hint adm-muted">{t('admin.ingestion.service.unknownNote')}</span>
+        {hint && (
+          <span id={HINT_ID} className="ing-svc__hint adm-muted">
+            {hint}
+          </span>
         )}
       </div>
 

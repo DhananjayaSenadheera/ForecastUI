@@ -627,13 +627,13 @@ describe('API client (fixture mode — ingestion service single-flight)', () => 
     fxSetIngestionServiceState('stopped');
   });
 
-  it('start returns a batchId and flips the status snapshot to running', async () => {
+  it('start returns a batchId and flips the status snapshot to running + canStop', async () => {
     fxSetIngestionServiceState('stopped');
-    expect((await api.getIngestionStatus()).state).toBe('stopped');
+    expect(await api.getIngestionStatus()).toMatchObject({ state: 'stopped', canStop: false });
     const res = await api.startIngestionService();
     expect(res.batchId).toBeTruthy();
-    // The card and the control can never disagree: the snapshot derives from the flag.
-    expect((await api.getIngestionStatus()).state).toBe('running');
+    // The card and the control can never disagree: both fields derive from the flag.
+    expect(await api.getIngestionStatus()).toMatchObject({ state: 'running', canStop: true });
   });
 
   it('start refuses a second pass with a 409 already_running', async () => {
@@ -662,7 +662,8 @@ describe('API client (fixture mode — ingestion service single-flight)', () => 
     const err = (await api.stopIngestionService().catch((e: unknown) => e)) as ApiError;
     expect(err.status).toBe(409);
     expect(err.code).toBe('not_stoppable');
-    // The refusal must not fake a stop — the nightly pass is still running.
-    expect((await api.getIngestionStatus()).state).toBe('running');
+    // The refusal must not fake a stop — the nightly pass is still running, and the
+    // snapshot says outright that this API cannot cancel it.
+    expect(await api.getIngestionStatus()).toMatchObject({ state: 'running', canStop: false });
   });
 });

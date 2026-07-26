@@ -20,16 +20,20 @@ function renderPage() {
   );
 }
 
-function statusWith(state: IngestionState): IngestionStatus {
-  return { ...fxIngestionStatusObj, state };
+/** canStop defaults to "whatever an API-owned pass would report", so a plain
+ *  running/stopped case reads the way the API process's own passes do. */
+function statusWith(state: IngestionState, canStop = state === 'running'): IngestionStatus {
+  return { ...fxIngestionStatusObj, state, canStop };
 }
 
 const START_BTN = 'Run ingestion now';
 const STOP_BTN = 'Stop ingestion';
 
 /** Render the page with a known service state and wait for the card. */
-async function showing(state: IngestionState) {
-  const statusSpy = vi.spyOn(api, 'getIngestionStatus').mockResolvedValue(statusWith(state));
+async function showing(state: IngestionState, canStop = state === 'running') {
+  const statusSpy = vi
+    .spyOn(api, 'getIngestionStatus')
+    .mockResolvedValue(statusWith(state, canStop));
   vi.spyOn(api, 'getIngestionRuns').mockResolvedValue(fxIngestionRuns(1, 25));
   renderPage();
   await screen.findByText(/Ingestion service is/i);
@@ -60,9 +64,38 @@ describe('Ingestion service control — which button, and its accessible name', 
     expect(screen.queryByRole('button', { name: STOP_BTN })).toBeNull();
   });
 
-  it('offers STOP when the service is running', async () => {
-    await showing('running');
-    expect(screen.getByRole('button', { name: STOP_BTN })).toBeInTheDocument();
+  it('offers an ENABLED stop when a pass this API owns is running (canStop)', async () => {
+    await showing('running', true);
+    expect(screen.getByRole('button', { name: STOP_BTN })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: START_BTN })).toBeNull();
+  });
+
+  // The scheduler owns the pass, so stop could only ever 409. Offering an enabled
+  // button whose single possible outcome is a refusal is a control that lies.
+  it('DISABLES stop for a scheduler-owned pass and says why', async () => {
+    await showing('running', false);
+    const btn = screen.getByRole('button', { name: STOP_BTN });
+    expect(btn).toBeDisabled();
+    // The reason is the button's accessible description, not just nearby grey text.
+    const describedBy = btn.getAttribute('aria-describedby');
+    expect(describedBy).toBeTruthy();
+    const reason = document.getElementById(describedBy!.split(' ')[0]);
+    expect(reason?.textContent).toMatch(/scheduled nightly job, not from this screen/i);
+  });
+
+  it('does not open a dialog from the disabled scheduler-owned stop button', async () => {
+    await showing('running', false);
+    const stopSpy = vi.spyOn(api, 'stopIngestionService');
+    fireEvent.click(screen.getByRole('button', { name: STOP_BTN }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(stopSpy).not.toHaveBeenCalled();
+  });
+
+  // canStop is set the moment a start is accepted; `state` only follows once the first
+  // run row commits. Trusting `state` alone would flip the button back to Start.
+  it('offers stop on canStop even while state still reads stopped (the flip-back race)', async () => {
+    await showing('stopped', true);
+    expect(screen.getByRole('button', { name: STOP_BTN })).toBeEnabled();
     expect(screen.queryByRole('button', { name: START_BTN })).toBeNull();
   });
 
@@ -347,7 +380,7 @@ describe('Ingestion service control — the status card stays the source of trut
     const statusSpy = vi
       .spyOn(api, 'getIngestionStatus')
       .mockResolvedValueOnce(statusWith('stopped'))
-      .mockResolvedValue(statusWith('running'));
+      .mockResolvedValue(statusWith('running', true));
     vi.spyOn(api, 'getIngestionRuns').mockResolvedValue(fxIngestionRuns(1, 25));
     vi.spyOn(api, 'startIngestionService').mockResolvedValue({ batchId: 'b-1' });
     renderPage();
@@ -360,6 +393,27 @@ describe('Ingestion service control — the status card stays the source of trut
     expect(await screen.findByRole('button', { name: STOP_BTN })).toBeInTheDocument();
     expect(statusSpy.mock.calls.length).toBeGreaterThan(1);
     expect(await screen.findByText(/Ingestion service is Running/i)).toBeInTheDocument();
+  });
+
+  // The post-start refetch can land BEFORE the pass's first run row commits, so the
+  // snapshot still says state='stopped'. Without canStop the button would revert to
+  // Start underneath a "pass started" notice — the exact contradiction to avoid.
+  it('does not flip back to Start when the post-start refetch still reads state=stopped', async () => {
+    vi.spyOn(api, 'getIngestionStatus')
+      .mockResolvedValueOnce(statusWith('stopped', false))
+      .mockResolvedValue(statusWith('stopped', true)); // accepted, not yet recorded
+    vi.spyOn(api, 'getIngestionRuns').mockResolvedValue(fxIngestionRuns(1, 25));
+    vi.spyOn(api, 'startIngestionService').mockResolvedValue({ batchId: 'b-1' });
+    renderPage();
+
+    await screen.findByRole('button', { name: START_BTN });
+    const d = await openDialog(START_BTN);
+    fireEvent.click(within(d).getByRole('button', { name: 'Run now' }));
+
+    expect(await screen.findByRole('button', { name: STOP_BTN })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: START_BTN })).toBeNull();
+    // ...and the notice it sits under still says the pass started.
+    expect(screen.getByText(/Ingestion pass started/i)).toBeInTheDocument();
   });
 
   it('keeps the control out of the polite live region that announces the state', async () => {

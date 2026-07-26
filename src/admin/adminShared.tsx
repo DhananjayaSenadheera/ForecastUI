@@ -262,6 +262,9 @@ export function AdminDialog({
 
   function onKeyDown(e: ReactKeyboardEvent<HTMLDivElement>) {
     if (e.key === 'Escape') {
+      // preventDefault too: Escape has native meanings (cancelling an open <select>
+      // popup, reverting an input) that must not also fire as the dialog closes.
+      e.preventDefault();
       e.stopPropagation();
       onClose();
       return;

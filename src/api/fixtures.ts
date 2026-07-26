@@ -1281,6 +1281,7 @@ export function fxIngestionRuns(page = 1, pageSize = 20, source?: string): Inges
 
 export const fxIngestionStatusObj: IngestionStatus = {
   state: 'stopped',
+  canStop: false, // nothing running, so nothing this API could cancel
   serviceAddress: 'unconfigured',
   lastRunAtUtc: '2026-07-21T19:07:48Z',
   lastRunStatus: 'partial', // partial — HARTI failed while the other sources succeeded
@@ -1317,9 +1318,14 @@ export function fxSetIngestionServiceState(state: FxServiceState): void {
 }
 
 export function fxIngestionStatus(): IngestionStatus {
-  // The snapshot's `state` is DERIVED from the working flag, so the status card and the
-  // control can never disagree in fixtures mode.
-  return { ...fxIngestionStatusObj, state: fxServiceState === 'stopped' ? 'stopped' : 'running' };
+  // Both fields are DERIVED from the working flag, so the status card and the control
+  // can never disagree in fixtures mode. canStop is true ONLY for an API-started pass —
+  // a scheduler-owned pass reads running-but-not-stoppable, exactly like the live API.
+  return {
+    ...fxIngestionStatusObj,
+    state: fxServiceState === 'stopped' ? 'stopped' : 'running',
+    canStop: fxServiceState === 'running-api',
+  };
 }
 
 /** Fixture mirror of POST /service/start. Returns the refusal rather than throwing —

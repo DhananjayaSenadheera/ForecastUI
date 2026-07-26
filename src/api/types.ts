@@ -674,6 +674,12 @@ export interface IngestionVerificationSummary {
 /** GET /api/admin/ingestion/status — the pipeline snapshot (Admin JWT). */
 export interface IngestionStatus {
   state: IngestionState;
+  /** True only while a pass STARTED BY THIS API PROCESS is in flight — i.e. the only
+   *  case POST /service/stop can actually cancel. It is set synchronously when the
+   *  start request is accepted, so it is also the earliest honest signal that a pass
+   *  began: `state` only turns 'running' once the pass's first run row commits.
+   *  A scheduler-owned pass is state='running' with canStop=false. */
+  canStop: boolean;
   serviceAddress: string; // e.g. "unconfigured" — rendered verbatim from the payload
   lastRunAtUtc: string | null;
   lastRunStatus: IngestionLastRunStatus | null;

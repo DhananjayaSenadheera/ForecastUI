@@ -294,7 +294,11 @@ function StatusCard({
           a polite region that also contains a button would re-announce the button
           label on every poll. */}
       <div className="ing-status__line">
-        <IngestionServiceControl state={status.state} onChanged={onServiceChanged} />
+        <IngestionServiceControl
+          state={status.state}
+          canStop={status.canStop}
+          onChanged={onServiceChanged}
+        />
         {/* aria-hidden dot is decoration; the textual state is the a11y source of truth. */}
         <p className="ing-status__state" aria-live="polite">
           <StatusDot state={status.state} lastRunFailed={lastRunFailed} />
