@@ -14,31 +14,12 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 
-# Base URL of the .NET API as the BROWSER sees it (not as the cluster sees it):
-# the bundle runs on the farmer's phone/laptop, so this must be an address that
-# is reachable from OUTSIDE the cluster. In the local k8s setup that is the
-# forecast-api NodePort. CORS is handled backend-side; nginx does NOT proxy.
-ARG VITE_API_BASE_URL=http://localhost:30082
-ARG VITE_API_MODE=live
-
-ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
-ENV VITE_API_MODE=${VITE_API_MODE}
-
-# TRAP GUARD: src/api/client.ts reads
-#   `import.meta.env.VITE_API_BASE_URL || 'http://localhost:5282'`
-# so an EMPTY build-arg is falsy and would silently bake the *dev* default
-# (localhost:5282) into a cluster image — a container that looks fine and can
-# never reach the API. Fail loudly at build time instead.
-RUN if [ -z "$VITE_API_BASE_URL" ]; then \
-      echo "ERROR: --build-arg VITE_API_BASE_URL must be a non-empty URL." >&2; \
-      echo "       An empty value falls back to the dev default http://localhost:5282." >&2; \
-      exit 1; \
-    fi; \
-    if [ "$VITE_API_MODE" != "live" ]; then \
-      echo "WARNING: VITE_API_MODE=$VITE_API_MODE — this image will NOT call the real API." >&2; \
-    fi
-
 # Dependencies first, so a source-only change reuses this layer.
+#
+# LAYER ORDER: the ARG/ENV for VITE_* deliberately live AFTER this install, just
+# above the build step. Declared earlier they would invalidate every layer below
+# them, so changing only the API URL would re-run `npm ci` and reinstall all 182
+# packages for a rebuild that touches nothing but a string.
 COPY package.json package-lock.json ./
 
 # `npm ci` alone is NOT enough here, and the failure is confusing:
@@ -66,6 +47,30 @@ RUN npm ci --no-audit --no-fund \
       "@esbuild/linux-${ARCH}@$(node -p "require('esbuild/package.json').version")"
 
 COPY . .
+
+# Base URL of the .NET API as the BROWSER sees it (not as the cluster sees it):
+# the bundle runs on the farmer's phone/laptop, so this must be an address that
+# is reachable from OUTSIDE the cluster. In the local k8s setup that is the
+# forecast-api NodePort. CORS is handled backend-side; nginx does NOT proxy.
+ARG VITE_API_BASE_URL=http://localhost:30082
+ARG VITE_API_MODE=live
+
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+ENV VITE_API_MODE=${VITE_API_MODE}
+
+# TRAP GUARD: src/api/client.ts reads
+#   `import.meta.env.VITE_API_BASE_URL || 'http://localhost:5282'`
+# so an EMPTY build-arg is falsy and would silently bake the *dev* default
+# (localhost:5282) into a cluster image — a container that looks fine and can
+# never reach the API. Fail loudly at build time instead.
+RUN if [ -z "$VITE_API_BASE_URL" ]; then \
+      echo "ERROR: --build-arg VITE_API_BASE_URL must be a non-empty URL." >&2; \
+      echo "       An empty value falls back to the dev default http://localhost:5282." >&2; \
+      exit 1; \
+    fi; \
+    if [ "$VITE_API_MODE" != "live" ]; then \
+      echo "WARNING: VITE_API_MODE=$VITE_API_MODE — this image will NOT call the real API." >&2; \
+    fi
 
 # `npm run build` = `tsc --noEmit && vite build`. Use the project script as-is:
 # the build also runs the agri-sw-precache Vite plugin, which rewrites the
