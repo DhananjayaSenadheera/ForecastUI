@@ -316,6 +316,10 @@ const USER_ACTIVITY_KEYS: Record<string, string> = {
   newsEventChanged: 'admin.logs.userActivity.event.newsEventChanged',
   cropChanged: 'admin.logs.userActivity.event.cropChanged',
   marketChanged: 'admin.logs.userActivity.event.marketChanged',
+  // Pipeline actions (an admin driving the ingestion service by hand) — neutral too:
+  // starting a pass is a recorded action, not a success or a warning.
+  ingestionServiceStarted: 'admin.logs.userActivity.event.ingestionServiceStarted',
+  ingestionServiceStopRequested: 'admin.logs.userActivity.event.ingestionServiceStopRequested',
 };
 
 /** User-activity event type -> label + badge tone. loginFailed is amber (a failed,

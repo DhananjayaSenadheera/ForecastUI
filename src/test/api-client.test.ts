@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { api, apiMode } from '../api/client';
+import { api, apiMode, ApiError } from '../api/client';
+import { fxSetIngestionServiceState } from '../api/fixtures';
 import {
   ForecastConfidenceCode,
   RecommendationLevel,
   USER_ACTIVITY_CONTENT_EVENT_TYPES,
+  USER_ACTIVITY_PIPELINE_EVENT_TYPES,
   type BestCrop,
   type HarvestForecast,
 } from '../api/types';
@@ -77,20 +79,38 @@ describe('API client (fixture mode)', () => {
 // re-import the client with VITE_API_MODE=live and a stubbed fetch to pin the exact
 // markets / price-history URLs.
 describe('API client (live mode — markets + price history URLs)', () => {
-  function fakeRes(body: unknown): Response {
+  function fakeRes(body: unknown, status = 200): Response {
     return {
       ok: true,
-      status: 200,
+      status,
       statusText: '',
       headers: new Headers(),
       json: async () => body,
     } as unknown as Response;
   }
 
-  async function liveApi() {
+  /** A non-2xx response, so the client's error path (message + code parsing) runs. */
+  function errorRes(status: number, body: unknown): Response {
+    return {
+      ok: false,
+      status,
+      statusText: '',
+      headers: new Headers(),
+      json: async () => body,
+    } as unknown as Response;
+  }
+
+  // vi.resetModules() gives a FRESH module instance, so the ApiError class thrown by it
+  // is not the one this file imported at the top. Tests that assert on the error type
+  // must take ApiError from the same instance they called.
+  async function liveMod() {
     vi.resetModules();
     vi.stubEnv('VITE_API_MODE', 'live');
-    return (await import('../api/client')).api;
+    return await import('../api/client');
+  }
+
+  async function liveApi() {
+    return (await liveMod()).api;
   }
 
   afterEach(() => {
@@ -215,6 +235,19 @@ describe('API client (live mode — markets + price history URLs)', () => {
     });
     expect(decodeURIComponent(fetchMock.mock.calls[0][0] as string)).toContain(
       'types=policyFlagChanged,festivalChanged,newsEventChanged,cropChanged,marketChanged',
+    );
+  });
+
+  it('getUserActivity sends the two pipeline-action strings verbatim', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes(uaPage));
+    vi.stubGlobal('fetch', fetchMock);
+    await (await liveApi()).getUserActivity(1, 25, {
+      types: USER_ACTIVITY_PIPELINE_EVENT_TYPES,
+    });
+    // Frozen spelling — the server 400s anything it does not recognise, and
+    // "…StopRequested" is deliberately not "…Stopped".
+    expect(decodeURIComponent(fetchMock.mock.calls[0][0] as string)).toContain(
+      'types=ingestionServiceStarted,ingestionServiceStopRequested',
     );
   });
 
@@ -386,6 +419,63 @@ describe('API client (live mode — markets + price history URLs)', () => {
     expect(url).toBe('http://localhost:5282/api/news-events/delete/e-9');
     expect(init.method).toBe('DELETE');
   });
+
+  // Ingestion service control. These are the only two WRITE routes on the ingestion
+  // surface, so the method + path are load-bearing: a GET or a wrong path would look
+  // like "nothing happened" in the UI while the pass never started.
+  it('startIngestionService POSTs /api/admin/ingestion/service/start with NO body', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes({ batchId: 'b-1' }, 202));
+    vi.stubGlobal('fetch', fetchMock);
+    const res = await (await liveApi()).startIngestionService();
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('http://localhost:5282/api/admin/ingestion/service/start');
+    expect(init.method).toBe('POST');
+    // The action IS the route — a body would invent a contract the server has not got.
+    expect(init.body).toBeUndefined();
+    expect(res.batchId).toBe('b-1');
+  });
+
+  it('stopIngestionService POSTs /api/admin/ingestion/service/stop with NO body', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes({}, 202));
+    vi.stubGlobal('fetch', fetchMock);
+    await (await liveApi()).stopIngestionService();
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('http://localhost:5282/api/admin/ingestion/service/stop');
+    expect(init.method).toBe('POST');
+    expect(init.body).toBeUndefined();
+  });
+
+  // The 409 bodies use { error: "<code>" }, NOT the errors[] envelope every other route
+  // uses. Without ApiError.code the UI could only say "something went wrong" for a
+  // refusal that is not a failure at all.
+  it.each([
+    ['start', 'already_running'],
+    ['stop', 'not_running'],
+    ['stop', 'not_stoppable'],
+  ])('surfaces the %s 409 %s code on ApiError.code', async (which, code) => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => errorRes(409, { error: code }));
+    vi.stubGlobal('fetch', fetchMock);
+    const mod = await liveMod();
+    const call = which === 'start' ? mod.api.startIngestionService : mod.api.stopIngestionService;
+    const err = await call().catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(mod.ApiError);
+    expect((err as InstanceType<typeof mod.ApiError>).status).toBe(409);
+    expect((err as InstanceType<typeof mod.ApiError>).code).toBe(code);
+  });
+
+  it('leaves ApiError.code null for a body with no `error` string (a plain 500)', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) =>
+      errorRes(500, { errors: [{ message: 'Boom.' }] }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const mod = await liveMod();
+    const err = (await mod.api.startIngestionService().catch((e: unknown) => e)) as InstanceType<
+      typeof mod.ApiError
+    >;
+    expect(err.status).toBe(500);
+    expect(err.code).toBeNull(); // never guess a code the server did not send
+    expect(err.message).toBe('Boom.'); // the errors[] envelope still wins for the message
+  });
 });
 
 // Fixture-mode mutation semantics: the demo working copy mirrors the server's
@@ -527,5 +617,53 @@ describe('API client (fixture mode — news-event mutations)', () => {
     const res = await api.deleteNewsEvent('e0000005-0000-0000-0000-000000000005');
     expect(res).toBe('e0000005-0000-0000-0000-000000000005');
     expect((await api.getNewsEvents()).length).toBe(before - 1);
+  });
+});
+
+// Fixture-mode service control: the demo must hit the same walls the live API has, or
+// the fixtures demo a feature that does not exist (a start button that always works).
+describe('API client (fixture mode — ingestion service single-flight)', () => {
+  afterEach(() => {
+    fxSetIngestionServiceState('stopped');
+  });
+
+  it('start returns a batchId and flips the status snapshot to running + canStop', async () => {
+    fxSetIngestionServiceState('stopped');
+    expect(await api.getIngestionStatus()).toMatchObject({ state: 'stopped', canStop: false });
+    const res = await api.startIngestionService();
+    expect(res.batchId).toBeTruthy();
+    // The card and the control can never disagree: both fields derive from the flag.
+    expect(await api.getIngestionStatus()).toMatchObject({ state: 'running', canStop: true });
+  });
+
+  it('start refuses a second pass with a 409 already_running', async () => {
+    fxSetIngestionServiceState('running-api');
+    const err = (await api.startIngestionService().catch((e: unknown) => e)) as ApiError;
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.status).toBe(409);
+    expect(err.code).toBe('already_running');
+  });
+
+  it('stop ends an API-started pass and returns to stopped', async () => {
+    fxSetIngestionServiceState('running-api');
+    await api.stopIngestionService();
+    expect((await api.getIngestionStatus()).state).toBe('stopped');
+  });
+
+  it('stop answers 409 not_running when nothing is in flight', async () => {
+    fxSetIngestionServiceState('stopped');
+    const err = (await api.stopIngestionService().catch((e: unknown) => e)) as ApiError;
+    expect(err.status).toBe(409);
+    expect(err.code).toBe('not_running');
+  });
+
+  it('stop answers 409 not_stoppable for a scheduler-owned pass, leaving it running', async () => {
+    fxSetIngestionServiceState('running-scheduler');
+    const err = (await api.stopIngestionService().catch((e: unknown) => e)) as ApiError;
+    expect(err.status).toBe(409);
+    expect(err.code).toBe('not_stoppable');
+    // The refusal must not fake a stop — the nightly pass is still running, and the
+    // snapshot says outright that this API cannot cancel it.
+    expect(await api.getIngestionStatus()).toMatchObject({ state: 'running', canStop: false });
   });
 });

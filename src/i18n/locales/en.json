@@ -727,7 +727,8 @@
           "all": "All",
           "signIns": "Sign-ins",
           "userManagement": "User management",
-          "contentChanges": "Content changes"
+          "contentChanges": "Content changes",
+          "pipelineActions": "Pipeline actions"
         },
         "filterType": "Event",
         "filterAll": "All events",
@@ -746,7 +747,9 @@
           "festivalChanged": "Festival changed",
           "newsEventChanged": "News event changed",
           "cropChanged": "Crop changed",
-          "marketChanged": "Market changed"
+          "marketChanged": "Market changed",
+          "ingestionServiceStarted": "Ingestion started",
+          "ingestionServiceStopRequested": "Ingestion stop requested"
         },
         "attemptedUser": "“{{username}}”",
         "unverifiedAttempt": "(unverified attempt)",
@@ -787,6 +790,27 @@
         "unknown": "Unknown"
       },
       "stateLive": "Ingestion service is {{state}}.",
+      "service": {
+        "start": "Run ingestion now",
+        "stop": "Stop ingestion",
+        "starting": "Starting…",
+        "stopping": "Stopping…",
+        "cancel": "Cancel",
+        "startTitle": "Run one ingestion pass now?",
+        "startBody": "This runs one ingestion pass now on the server: each source is asked for its latest data.",
+        "startScope": "It runs ingestion only. Verification, feature building and model training stay with the nightly pipeline — this button does not start them.",
+        "startConfirm": "Run now",
+        "stopTitle": "Stop the running ingestion pass?",
+        "stopBody": "This asks the server to cancel the ingestion pass that is running now.",
+        "stopScope": "It can only cancel a pass that was started from this screen. The scheduled nightly pass runs on a separate worker and cannot be stopped here.",
+        "stopConfirm": "Stop the pass",
+        "startedNotice": "Ingestion pass started (batch {{batch}}). The status below refreshes as it runs.",
+        "stoppedNotice": "Stop requested. The pass ends as soon as the server can cancel it.",
+        "alreadyRunning": "An ingestion pass is already running, so a second one was not started. The status below has been refreshed.",
+        "notRunning": "No ingestion pass is running, so there was nothing to stop. The status below has been refreshed.",
+        "notStoppable": "This pass was started by the scheduled nightly job, not from this screen, so it cannot be stopped here.",
+        "unknownNote": "The service state could not be read. Starting is still safe: the server refuses a second pass if one is already running."
+      },
       "serviceAddress": "Service address",
       "lastRun": "Last run",
       "lastRunNever": "No runs recorded yet.",

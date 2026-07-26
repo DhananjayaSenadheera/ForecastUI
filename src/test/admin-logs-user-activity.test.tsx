@@ -33,6 +33,8 @@ const CONTENT_TYPES = [
   'cropChanged',
   'marketChanged',
 ];
+// Frozen spelling: "…StopRequested", because the API only ASKS for a cancellation.
+const PIPELINE_TYPES = ['ingestionServiceStarted', 'ingestionServiceStopRequested'];
 
 const groupTablist = () => screen.getByRole('tablist', { name: 'Activity type' });
 const groupTab = (name: string) => within(groupTablist()).getByRole('tab', { name });
@@ -170,6 +172,17 @@ describe('System log tab (Logs P2.7)', () => {
     expect(groupTab('All')).toHaveAttribute('aria-selected', 'true');
   });
 
+  it('labels both pipeline-action event types', async () => {
+    vi.spyOn(api, 'getUserActivity').mockResolvedValue(
+      page(PIPELINE_TYPES.map((eventType) => ({ ...ROLE_ROW, eventType }))),
+    );
+    renderPage();
+    const t = await table();
+    // A known type must never fall back to its raw wire string in the badge.
+    expect(within(t).getByText('Ingestion started')).toBeInTheDocument();
+    expect(within(t).getByText('Ingestion stop requested')).toBeInTheDocument();
+  });
+
   it('labels each of the five content-change event types', async () => {
     vi.spyOn(api, 'getUserActivity').mockResolvedValue(
       page(CONTENT_TYPES.map((eventType) => ({ ...ROLE_ROW, eventType }))),
@@ -223,7 +236,7 @@ describe('System log — group sub-tabs', () => {
   });
 
   // ARIA structure.
-  it('is a tablist of four tabs with All selected by default', async () => {
+  it('is a tablist of five tabs with All selected by default', async () => {
     renderPage();
     await table();
     const tabs = within(groupTablist()).getAllByRole('tab');
@@ -232,6 +245,7 @@ describe('System log — group sub-tabs', () => {
       'Sign-ins',
       'User management',
       'Content changes',
+      'Pipeline actions',
     ]);
     expect(groupTab('All')).toHaveAttribute('aria-selected', 'true');
     expect(groupTab('Sign-ins')).toHaveAttribute('aria-selected', 'false');
@@ -274,7 +288,7 @@ describe('System log — group sub-tabs', () => {
     expect(document.activeElement).toBe(groupTab('All'));
     // Left from the first tab wraps to the last.
     fireEvent.keyDown(document.activeElement as Element, { key: 'ArrowLeft' });
-    expect(document.activeElement).toBe(groupTab('Content changes'));
+    expect(document.activeElement).toBe(groupTab('Pipeline actions'));
   });
 
   it('Home/End jump to the first and last tab', async () => {
@@ -282,7 +296,7 @@ describe('System log — group sub-tabs', () => {
     await table();
     groupTab('All').focus();
     fireEvent.keyDown(document.activeElement as Element, { key: 'End' });
-    expect(document.activeElement).toBe(groupTab('Content changes'));
+    expect(document.activeElement).toBe(groupTab('Pipeline actions'));
     fireEvent.keyDown(document.activeElement as Element, { key: 'Home' });
     expect(document.activeElement).toBe(groupTab('All'));
   });
@@ -306,6 +320,36 @@ describe('System log — group sub-tabs', () => {
     fireEvent.click(groupTab('Content changes'));
     await waitFor(() => expect(spy).toHaveBeenCalledWith(1, 25, { types: CONTENT_TYPES }));
     expect(screen.getByTestId('search')).toHaveTextContent('?group=content-changes');
+  });
+
+  // Pipeline actions: the ingestion play/stop audit trail.
+  it('sends the pipeline-action wire strings as types= and deep-links ?group=pipeline-actions', async () => {
+    const spy = vi.mocked(api.getUserActivity);
+    renderPage();
+    await table();
+    fireEvent.click(groupTab('Pipeline actions'));
+    await waitFor(() => expect(spy).toHaveBeenCalledWith(1, 25, { types: PIPELINE_TYPES }));
+    expect(groupTab('Pipeline actions')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('search')).toHaveTextContent('?group=pipeline-actions');
+  });
+
+  it('deep-links ?group=pipeline-actions on FIRST load (no all-events flash)', async () => {
+    const spy = vi.mocked(api.getUserActivity);
+    renderPage('/admin/logs/user-activity?group=pipeline-actions');
+    await table();
+    expect(spy).toHaveBeenNthCalledWith(1, 1, 25, { types: PIPELINE_TYPES });
+    expect(groupTab('Pipeline actions')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('scopes the event dropdown to the two pipeline-action types', async () => {
+    renderPage();
+    await table();
+    fireEvent.click(groupTab('Pipeline actions'));
+    await waitFor(() =>
+      expect(
+        [...(screen.getByLabelText('Event') as HTMLSelectElement).options].map((o) => o.value),
+      ).toEqual(['', ...PIPELINE_TYPES]),
+    );
   });
 
   it('drops ?group= again when returning to All (no ?group=all noise)', async () => {
@@ -340,7 +384,7 @@ describe('System log — group sub-tabs', () => {
     await table();
     const select = () => screen.getByLabelText('Event') as HTMLSelectElement;
     // All: every known event type is offered (+ the "All events" option).
-    expect(select().options).toHaveLength(11);
+    expect(select().options).toHaveLength(13);
 
     fireEvent.click(groupTab('Sign-ins'));
     await waitFor(() =>

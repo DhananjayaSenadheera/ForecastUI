@@ -1281,6 +1281,7 @@ export function fxIngestionRuns(page = 1, pageSize = 20, source?: string): Inges
 
 export const fxIngestionStatusObj: IngestionStatus = {
   state: 'stopped',
+  canStop: false, // nothing running, so nothing this API could cancel
   serviceAddress: 'unconfigured',
   lastRunAtUtc: '2026-07-21T19:07:48Z',
   lastRunStatus: 'partial', // partial — HARTI failed while the other sources succeeded
@@ -1303,8 +1304,48 @@ export const fxIngestionStatusObj: IngestionStatus = {
   ],
 };
 
+// Fixtures-mode ingestion-service state. The seed above is the STOPPED snapshot; this
+// working flag lets the play/stop control be demoed end to end without a backend, and
+// it mirrors the server's single-flight rule exactly — start refuses while a pass is in
+// flight, stop refuses when nothing runs, and a scheduler-owned pass cannot be stopped.
+// A fixture that accepted every click would demo a feature the live API does not have.
+type FxServiceState = 'stopped' | 'running-api' | 'running-scheduler';
+let fxServiceState: FxServiceState = 'stopped';
+
+/** Test/demo hook: put the fixture service into a known state. */
+export function fxSetIngestionServiceState(state: FxServiceState): void {
+  fxServiceState = state;
+}
+
 export function fxIngestionStatus(): IngestionStatus {
-  return fxIngestionStatusObj;
+  // Both fields are DERIVED from the working flag, so the status card and the control
+  // can never disagree in fixtures mode. canStop is true ONLY for an API-started pass —
+  // a scheduler-owned pass reads running-but-not-stoppable, exactly like the live API.
+  return {
+    ...fxIngestionStatusObj,
+    state: fxServiceState === 'stopped' ? 'stopped' : 'running',
+    canStop: fxServiceState === 'running-api',
+  };
+}
+
+/** Fixture mirror of POST /service/start. Returns the refusal rather than throwing —
+ *  fixtures.ts cannot import client.ts (client.ts imports this file). */
+export function fxStartIngestionService():
+  | { ok: true; batchId: string }
+  | { ok: false; code: 'already_running' } {
+  if (fxServiceState !== 'stopped') return { ok: false, code: 'already_running' };
+  fxServiceState = 'running-api';
+  return { ok: true, batchId: 'b0000001-0000-4000-8000-000000000001' };
+}
+
+/** Fixture mirror of POST /service/stop (both 409 codes reachable). */
+export function fxStopIngestionService():
+  | { ok: true }
+  | { ok: false; code: 'not_running' | 'not_stoppable' } {
+  if (fxServiceState === 'stopped') return { ok: false, code: 'not_running' };
+  if (fxServiceState === 'running-scheduler') return { ok: false, code: 'not_stoppable' };
+  fxServiceState = 'stopped';
+  return { ok: true };
 }
 
 // Model-training fixtures: 17 runs (v17..v1), newest first. v17 is the current live model
@@ -1406,6 +1447,8 @@ const FX_FARMER_B = 'f3333333-3333-4333-8333-333333333333';
 
 export const fxUserActivityAll: UserActivityEvent[] = [
   { occurredUtc: '2026-07-21T10:15:33Z', eventType: 'festivalChanged', actorUserId: FX_ADMIN_ID, targetUserId: null, usernameAttempted: null, details: "Created 'Vesak festival 2027'." },
+  { occurredUtc: '2026-07-21T10:04:12Z', eventType: 'ingestionServiceStopRequested', actorUserId: FX_ADMIN_ID, targetUserId: null, usernameAttempted: null, details: 'Cancellation requested for the pass started from the admin screen.' },
+  { occurredUtc: '2026-07-21T10:01:39Z', eventType: 'ingestionServiceStarted', actorUserId: FX_ADMIN_ID, targetUserId: null, usernameAttempted: null, details: 'Started one ingestion pass (batch b0000001…).' },
   { occurredUtc: '2026-07-21T09:58:07Z', eventType: 'policyFlagChanged', actorUserId: FX_ADMIN_ID, targetUserId: null, usernameAttempted: null, details: 'Added a fertiliser subsidy flag starting 2026-08-01.' },
   { occurredUtc: '2026-07-21T08:42:11Z', eventType: 'loginFailed', actorUserId: null, targetUserId: null, usernameAttempted: 'admin', details: 'Invalid username or password.' },
   { occurredUtc: '2026-07-21T08:41:52Z', eventType: 'loginSucceeded', actorUserId: FX_ADMIN_ID, targetUserId: null, usernameAttempted: null, details: null },

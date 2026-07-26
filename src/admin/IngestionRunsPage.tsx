@@ -27,6 +27,7 @@ import {
   DemoNote,
   useServerPagination,
 } from './adminShared';
+import IngestionServiceControl from './IngestionServiceControl';
 import { IconRefresh } from './icons';
 
 const POLL_BASE_MS = 30_000;
@@ -174,7 +175,12 @@ export default function IngestionRunsPage() {
         ) : statusError && !status ? (
           <AdminError onRetry={retryStatus} />
         ) : status ? (
-          <StatusCard status={status} lang={lang} staleError={statusError} />
+          <StatusCard
+            status={status}
+            lang={lang}
+            staleError={statusError}
+            onServiceChanged={retryStatus}
+          />
         ) : null}
       </section>
 
@@ -269,10 +275,12 @@ function StatusCard({
   status,
   lang,
   staleError,
+  onServiceChanged,
 }: {
   status: IngestionStatus;
   lang: string;
   staleError: boolean;
+  onServiceChanged: () => void;
 }) {
   const { t } = useTranslation();
   const stateLabel = t(`admin.ingestion.state.${status.state}`, status.state);
@@ -282,11 +290,21 @@ function StatusCard({
 
   return (
     <div className="ing-status">
-      {/* aria-hidden dot is decoration; the textual state is the a11y source of truth. */}
-      <p className="ing-status__state" aria-live="polite">
-        <StatusDot state={status.state} lastRunFailed={lastRunFailed} />
-        <span className="ing-status__word">{t('admin.ingestion.stateLive', { state: stateLabel })}</span>
-      </p>
+      {/* The control sits in front of the state sentence but OUTSIDE its live region:
+          a polite region that also contains a button would re-announce the button
+          label on every poll. */}
+      <div className="ing-status__line">
+        <IngestionServiceControl
+          state={status.state}
+          canStop={status.canStop}
+          onChanged={onServiceChanged}
+        />
+        {/* aria-hidden dot is decoration; the textual state is the a11y source of truth. */}
+        <p className="ing-status__state" aria-live="polite">
+          <StatusDot state={status.state} lastRunFailed={lastRunFailed} />
+          <span className="ing-status__word">{t('admin.ingestion.stateLive', { state: stateLabel })}</span>
+        </p>
+      </div>
 
       <dl className="ing-meta">
         <div className="ing-meta__row">

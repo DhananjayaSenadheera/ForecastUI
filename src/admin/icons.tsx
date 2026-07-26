@@ -38,6 +38,25 @@ export function IconTrash() {
   );
 }
 
+// Filled triangle — start / run now. Filled (not outlined) so it still reads as "play"
+// at 14px and in high-contrast sunlight.
+export function IconPlay() {
+  return (
+    <svg {...base} fill="currentColor">
+      <path d="M7 4.5 19 12 7 19.5z" />
+    </svg>
+  );
+}
+
+// Filled square — stop. Same fill reasoning as IconPlay.
+export function IconStop() {
+  return (
+    <svg {...base} fill="currentColor">
+      <rect x="6" y="6" width="12" height="12" rx="1.5" />
+    </svg>
+  );
+}
+
 // Circular arrows — refresh / reload.
 export function IconRefresh() {
   return (

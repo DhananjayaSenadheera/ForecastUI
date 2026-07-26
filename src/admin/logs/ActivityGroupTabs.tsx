@@ -7,6 +7,7 @@ import { useRef, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   USER_ACTIVITY_CONTENT_EVENT_TYPES,
+  USER_ACTIVITY_PIPELINE_EVENT_TYPES,
   USER_ACTIVITY_SIGN_IN_EVENT_TYPES,
   USER_ACTIVITY_USER_MGMT_EVENT_TYPES,
 } from '../../api/types';
@@ -37,6 +38,11 @@ export const ACTIVITY_GROUPS: readonly ActivityGroup[] = [
     id: 'content-changes',
     labelKey: 'admin.logs.userActivity.groups.contentChanges',
     types: USER_ACTIVITY_CONTENT_EVENT_TYPES,
+  },
+  {
+    id: 'pipeline-actions',
+    labelKey: 'admin.logs.userActivity.groups.pipelineActions',
+    types: USER_ACTIVITY_PIPELINE_EVENT_TYPES,
   },
 ];
 
