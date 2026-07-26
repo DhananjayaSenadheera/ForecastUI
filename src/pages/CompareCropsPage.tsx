@@ -1,23 +1,14 @@
-// =============================================================================
-// CompareCropsPage (FE-14, ClickUp 86canmejq). Overlay 2–3 crops' 12-month price
-// timelines on ONE shared y-scale + shared date axis so a farmer can weigh crops
-// side by side before committing land.
-//
-// IA: the signed-off nav has exactly 4 tabs, so this is a NON-tab route
-// (/best-crops/compare) reached from a "Compare crops" affordance on Best crops;
-// the Best-crops NavLink stays highlighted (it is a child path). Deep-linkable via
-// ?crops=id1,id2,id3.
-//
-// HONEST UNCERTAINTY vs CLUTTER: three full P10–P90 bands overlaid are unreadable,
-// so each crop's band renders at LOW OPACITY in the crop's own colour + a caption
-// stating bands are approximate ranges (chosen over a per-crop focus toggle, which
-// would hide uncertainty behind a click — the opposite of surfacing it by default).
-// Central lines: history solid, forecast dashed (same convention as TimelineChart).
-// Colours: Okabe–Ito categorical set assigned by SELECTION ORDER (stable on-page).
-// Direct labels at line ends (no legend). A <details> month×crop table is the
-// mandatory text alternative. Per-crop fetches are fail-soft: one crop failing
-// shows an inline retry note and never sinks the chart.
-// =============================================================================
+// CompareCropsPage — overlay 2–3 crops' 12-month price timelines on one shared y-scale and
+// one shared date axis, so a farmer can weigh crops before committing land.
+// The nav has exactly 4 tabs, so this is a NON-tab route (/best-crops/compare) reached from
+// Best crops, which stays highlighted as the parent. Deep-linkable via ?crops=a,b,c.
+// Three full P10–P90 bands overlaid are unreadable, so each crop's band renders at low
+// opacity in the crop's own colour with a caption saying bands are approximate ranges —
+// chosen over a focus toggle, which would hide uncertainty behind a click. History lines
+// are solid and forecasts dashed, as on the timeline chart; colours are the Okabe–Ito set
+// assigned by selection order; lines are labelled directly instead of with a legend.
+// A <details> month × crop table is the mandatory text alternative, and per-crop fetches
+// are fail-soft: one crop failing shows an inline retry and never sinks the chart.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -43,7 +34,7 @@ export default function CompareCropsPage() {
   const rs = t('common.rs');
   const todayStr = useMemo(() => ymdLocal(new Date()), []);
 
-  // ---- crop list (names + selection universe) ----
+  // Crop list: names + the selection universe.
   const [crops, setCrops] = useState<Crop[]>([]);
   const [cropsLoading, setCropsLoading] = useState(true);
   const [cropsError, setCropsError] = useState(false);
@@ -81,7 +72,7 @@ export default function CompareCropsPage() {
     };
   }, []);
 
-  // ---- selection (source of truth = the ?crops= deep-link) ----
+  // Selection — the ?crops= deep-link is the source of truth.
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedIds = useMemo(
     () => parseCropIdList(searchParams.get('crops'), COMPARE_MAX),
@@ -109,14 +100,13 @@ export default function CompareCropsPage() {
     [selectedIds, searchParams, setSearchParams],
   );
 
-  // ---- per-crop timelines (parallel, fail-soft, cached by id) ----
+  // Per-crop timelines: parallel, fail-soft, cached by id.
   const [timelines, setTimelines] = useState<Record<string, TimelineState>>({});
   const requestedRef = useRef<Set<string>>(new Set());
   const [retryNonce, setRetryNonce] = useState(0);
 
-  // No cancelled flag here: requestedRef survives StrictMode's dev double-mount,
-  // so a first-pass "cancelled" fetch would never re-run and the panel would sit
-  // on "loading" forever. Late setState after unmount is a no-op in React 18.
+  // No cancelled flag: requestedRef survives StrictMode's dev double-mount, so a first-pass
+  // "cancelled" fetch would never re-run and the panel would sit on "loading" forever.
   useEffect(() => {
     selectedIds.forEach((id) => {
       if (requestedRef.current.has(id)) return;
@@ -144,7 +134,7 @@ export default function CompareCropsPage() {
     setRetryNonce((n) => n + 1);
   }, []);
 
-  // ---- names, colours, geometry ----
+  // Names, colours, geometry.
   const nameById = useMemo(() => {
     const m = new Map<string, string>();
     for (const c of crops) m.set(c.id, cropDisplayName(c, lang));
@@ -182,7 +172,7 @@ export default function CompareCropsPage() {
     [okSeries, monthLabel],
   );
 
-  // ---- FE-20 shared tooltip: nearest point across ALL overlaid crops. Past
+  // Shared tooltip: nearest point across ALL overlaid crops. Past points show crop +
   // points show crop + month + price; forecast points also show the "likely" band.
   const tipPoints: TooltipPoint[] = useMemo(() => {
     if (!geo) return [];
@@ -224,7 +214,7 @@ export default function CompareCropsPage() {
       </div>
       <p className="cmp-sub">{t('pages.compare.subtitle')}</p>
 
-      {/* ---- selection ---- */}
+      {/* selection */}
       <section className="panel cmp-pick" aria-label={t('pages.compare.pick')}>
         <h2 className="cmp-pick__title">{t('pages.compare.pick')}</h2>
         <p className="cmp-pick__hint">{t('pages.compare.pickHint', { max: COMPARE_MAX })}</p>
@@ -290,7 +280,7 @@ export default function CompareCropsPage() {
         )}
       </section>
 
-      {/* ---- chart / states ---- */}
+      {/* chart / states */}
       {selectedIds.length === 0 ? (
         <section className="panel cmp-empty" aria-label={t('pages.compare.chartHeading')}>
           <p className="cmp-empty__icon" aria-hidden="true">📊</p>
@@ -413,9 +403,7 @@ export default function CompareCropsPage() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Month × crop numeric table — the WCAG text alternative for the overlay chart.
-// ---------------------------------------------------------------------------
+// Month × crop numeric table — the text alternative for the overlay chart.
 function CompareTable({
   series,
   monthLabel,

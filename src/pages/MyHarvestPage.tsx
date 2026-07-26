@@ -15,23 +15,15 @@ import ForecastResult from '../components/ForecastResult';
 import TimelineChart from '../components/TimelineChart';
 import AudioHelpButton from '../components/AudioHelpButton';
 
-// My harvest — forecast workspace (FE-3, ClickUp 86cacw5wy).
-// Flow: step 1 pick crop (illustrated searchable grid) -> step 2 confirm planting
-// date -> "Get forecast" -> the result, which now CONTAINS the best-planting-window
-// strip (ClickUp 86cawt9tr, 2026-07-25). The page is a workspace panel INSIDE the
-// dashboard shell (desktop-first, 2-col grid collapses to a single column, and the
-// crop grid to 2 cols, at narrow width).
-//
-// WHY THE WINDOW STRIP MOVED INTO THE RESULT: not accuracy — the strip and
-// /predict have built the same what-if row from the same anchor since the
-// consistency fix, so the numbers are identical wherever it renders. It moved for
-// CONTEXT (min-max bars need the hero price and the range beside them to mean
-// anything) and for FLOW ("Not recommended" is a dead end; the strip answers "then
-// when?"). Two consequences are load-bearing here:
-//   - onPickDate must NOT reset `submitted`. The strip lives inside the result, so
-//     clearing it would unmount the very control being used.
-//   - the loop must not run backwards up the page: activating a bar re-forecasts
-//     IN PLACE rather than sending the farmer back to the date field + CTA above.
+// My harvest — the forecast workspace. Flow: pick a crop, confirm the planting date, ask
+// for the forecast, and the result itself CONTAINS the best-planting-window strip.
+// The strip lives inside the result for context (min-max bars need the hero price and the
+// range beside them) and for flow ("Not recommended" is otherwise a dead end). Two
+// consequences are load-bearing here:
+//   - onPickDate must NOT reset `submitted`: the strip lives inside the result, so clearing
+//     it would unmount the very control being used.
+//   - activating a bar re-forecasts IN PLACE rather than sending the farmer back up to the
+//     date field and CTA above.
 
 /** How far ahead a farmer may plan a planting date. EXPORTED because the window
  *  strip's sweep length and this field's `max` must be the SAME number — the test
@@ -71,9 +63,8 @@ export default function MyHarvestPage() {
   const [bwError, setBwError] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
 
-  // Crop-status colouring (2026-07-22). Strictly fail-soft: readiness is
-  // decoration on the picker — a failure or inactive model leaves the map null
-  // and the cards untinted, never an error state.
+  // Crop-status colouring is strictly fail-soft: readiness is decoration on the picker, so a
+  // failure or an inactive model leaves the map null and the cards untinted, never an error.
   useEffect(() => {
     let cancelled = false;
     api
@@ -89,9 +80,9 @@ export default function MyHarvestPage() {
     };
   }, []);
 
-  // Preselect precedence (runs ONCE after the list loads, so a later manual change
-  // is never undone): a /my-harvest?crop=<id> deep-link (FE-7) ALWAYS wins; failing
-  // that, the last-forecast crop + planting date remembered in localStorage (FE-16).
+  // Preselect precedence, run ONCE after the list loads so a later manual change is never
+  // undone: a /my-harvest?crop=<id> deep-link always wins; failing that, the remembered
+  // last-forecast crop and planting date.
   const [searchParams] = useSearchParams();
   const cropParam = searchParams.get('crop');
   const didPreselect = useRef(false);
@@ -143,21 +134,18 @@ export default function MyHarvestPage() {
     setSubmitted(false); // changing the crop invalidates a prior forecast request
   }, []);
 
-  // Best planting window. Depends on the CROP ONLY — not the date — so it is
-  // fetched the moment a crop is picked, well before "Get forecast" is pressed.
-  // That is deliberate: the strip renders inside the result, and pre-loading it
-  // here is what keeps a second spinner from appearing in there. Fail-soft: an
-  // error shows a compact retry inside the panel and never blocks the picker,
-  // the CTA or the forecast itself.
+  // The best planting window depends on the CROP ONLY, not the date, so it is fetched as
+  // soon as a crop is picked, well before "Get forecast". That pre-load is what keeps a
+  // second spinner from appearing inside the result. Fail-soft: an error shows a compact
+  // retry inside the panel and never blocks the picker, the CTA or the forecast.
   const runWindow = useCallback(async () => {
     if (!selected) return;
     setBwLoading(true);
     setBwError(false);
     try {
-      // Sweep EXACTLY as far as the date field will accept (HORIZON_DAYS). If the
-      // sweep ran longer, the strip would recommend dates that clampPlantDateToRange
-      // silently rewrites on tap — handing the farmer a different date from the bar
-      // they chose. The two horizons must stay equal.
+      // Sweep EXACTLY as far as the date field accepts (HORIZON_DAYS). A longer sweep would
+      // recommend dates that clampPlantDateToRange silently rewrites on tap, handing the
+      // farmer a different date from the bar they chose. The two horizons must stay equal.
       setBestWindow(await api.getHarvestWindow(selected.id, HORIZON_DAYS, todayStr));
     } catch {
       setBwError(true);
@@ -177,16 +165,13 @@ export default function MyHarvestPage() {
 
   const canSubmit = selected !== null && Boolean(plantDate);
 
-  // Takes the date EXPLICITLY rather than reading `plantDate` from state: a bar tap
-  // sets the date and re-forecasts in the same handler, and the state update is not
-  // visible to it yet. Passing the value removes the whole class of "forecast ran
-  // for the previous date" bug.
+  // Takes the date EXPLICITLY instead of reading `plantDate` from state: a bar tap sets the
+  // date and re-forecasts in the same handler, and the state update is not visible yet.
   const fcReq = useRef(0);
-  // `fcReq` guards ORDER, not LIFETIME. A continuation that resumes after the page
-  // has gone would still run the localStorage writes below — setState is a harmless
-  // no-op, but "remember my crop" is a real side effect and must not fire for a
-  // screen the farmer has already left. (Assigned in the effect body, not just the
-  // cleanup, so a StrictMode double-mount does not leave it stuck false.)
+  // `fcReq` guards ORDER, not lifetime. A continuation that resumes after the page has gone
+  // would still run the localStorage writes below — setState is a harmless no-op, but
+  // "remember my crop" is a real side effect. Assigned in the effect body, not only in the
+  // cleanup, so a StrictMode double-mount does not leave it stuck false.
   const alive = useRef(true);
   useEffect(() => {
     alive.current = true;
@@ -198,9 +183,9 @@ export default function MyHarvestPage() {
   const runForecast = useCallback(
     async (date: string) => {
       if (!selected || !date) return;
-      // Tapping along the strip fires overlapping requests; only the newest may
-      // write. Without this a slow earlier response lands last and the hero ends up
-      // showing a different date's price than the highlighted bar.
+      // Tapping along the strip fires overlapping requests and only the newest may write.
+      // Without this a slow earlier response lands last and the hero shows a different
+      // date's price than the highlighted bar.
       const req = ++fcReq.current;
       setFcLoading(true);
       setFcError(false);
@@ -220,12 +205,10 @@ export default function MyHarvestPage() {
     [selected],
   );
 
-  // Activating a bar on the strip. The strip now lives INSIDE the result, so this
-  // is a comparison control, not advice to read: it applies the date AND re-runs
-  // the forecast on the spot. `submitted` stays true and the previous forecast is
-  // deliberately NOT cleared, so the result panel — and the strip inside it — never
-  // unmounts, focus stays on the bar and the page does not jump. ForecastResult
-  // marks itself busy while the new numbers land.
+  // Activating a bar on the strip applies the date AND re-runs the forecast on the spot.
+  // `submitted` stays true and the previous forecast is deliberately NOT cleared, so the
+  // result panel — and the strip inside it — never unmounts: focus stays on the bar and the
+  // page does not jump. ForecastResult marks itself busy while the new numbers land.
   const onPickDate = useCallback(
     (date: string) => {
       const applied = clampPlantDateToRange(date, todayStr, minDate, maxDate);
@@ -234,9 +217,9 @@ export default function MyHarvestPage() {
       // simply filling the field.
       if (!submitted || !selected) return;
       void runForecast(applied);
-      // The timeline is deliberately NOT refetched: it is crop + as-of-today + 12
-      // months, none of which a planting date changes. Its ▲ harvest marker follows
-      // the new forecast's harvestDate.
+      // The timeline is deliberately NOT refetched: it is crop + as-of-today + 12 months,
+      // none of which a planting date changes. Its ▲ harvest marker follows the new
+      // forecast's harvestDate.
     },
     [todayStr, minDate, maxDate, submitted, selected, runForecast],
   );
@@ -270,26 +253,16 @@ export default function MyHarvestPage() {
 
   const selectedLabel = selected ? cropDisplayName(selected, i18n.language) : null;
 
-  // The panel may only drop its "even at the best time this loses money" sentence
-  // if a verdict is on screen RIGHT NOW saying it. That is a narrower condition
-  // than "the panel is embedded":
-  //   - the API calls it "Not recommended" only below −5% upside, while the panel
-  //     warns whenever no single date beats today — a sweep 0–5% under today shows
-  //     "Little data / roughly flat versus today" and states no loss at all;
-  //   - `fcError` replaces the whole result with a retry card — no verdict;
-  //   - no forecast yet is the first-load skeleton — no verdict either, while the
-  //     strip beside it is already fully painted from the crop-select pre-fetch.
-  // Anything but a live NotRecommended verdict => the panel says it itself.
-  //
-  // This is EXACTLY ForecastResult's own predicate for "a verdict card is
-  // rendered" (`f = error ? null : forecast`, side column iff `f`), which is why
-  // it must NOT also test `fcLoading`. During an in-place re-run the previous
-  // verdict deliberately stays on screen — that is the whole point of not
-  // collapsing to a skeleton — so treating "loading" as "no verdict" would assert
-  // something false, and would insert/remove a two-line warning ABOVE the strip on
-  // every tap of a below-today crop, shunting the bars ~50px under a 7px pointer
-  // target and destroying the scroll-stability that justifies re-forecasting in
-  // place. No stale window opens either: suppression and verdict read the same
+  // The panel may only drop its "even at the best time this loses money" sentence if a
+  // verdict is on screen RIGHT NOW saying it — a narrower condition than "the panel is
+  // embedded": the API only calls it "Not recommended" below −5% upside while the panel
+  // warns whenever no single date beats today, `fcError` replaces the result with a retry
+  // card, and before the first forecast there is only a skeleton.
+  // This is EXACTLY ForecastResult's own predicate for "a verdict card is rendered", which
+  // is why it must NOT also test `fcLoading`: during an in-place re-run the previous verdict
+  // deliberately stays on screen, so treating "loading" as "no verdict" would assert
+  // something false AND would insert a two-line warning above the strip on every tap,
+  // shunting the bars out from under the pointer. Suppression and verdict read the same
   // `forecast` object in the same render, so they flip in one commit.
   const lossCarriedByVerdict =
     forecast !== null &&
@@ -376,7 +349,7 @@ export default function MyHarvestPage() {
         </section>
       </div>
 
-      {/* Forecast result — the signature honest-uncertainty panel (FE-4). */}
+      {/* Forecast result — the signature honest-uncertainty panel. */}
       {submitted && selected && (
         <section
           className="panel hv-result"
@@ -412,7 +385,7 @@ export default function MyHarvestPage() {
             }
           />
 
-          {/* 12-month timeline (FE-5) — stacks under the hero; fail-soft on error. */}
+          {/* 12-month timeline — stacks under the hero; fail-soft on error. */}
           <div className="hv-timeline">
             <TimelineChart
               timeline={timeline}

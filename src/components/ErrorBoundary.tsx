@@ -1,13 +1,10 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-// Error boundary (FE-9). A white screen is worse than an honest error for our
-// audience. Two placements:
-//   - app-level (in main.tsx): catches a crash in the shell / i18n bootstrap.
-//   - route-level (in AppShell, keyed on pathname): one crashed panel shows this
-//     fallback while the nav/shell stay usable; navigating away auto-recovers.
-// No response bodies are logged (bundle-leak / PII rule). The fallback UI is
-// localized and offers reload.
+// Error boundary — a white screen is worse than an honest error for our audience. Used
+// app-level (main.tsx) for a crash in the shell or i18n bootstrap, and route-level (keyed
+// on pathname) so one crashed panel leaves the nav usable and navigating away recovers.
+// No response bodies are ever logged.
 
 interface Props {
   children: ReactNode;

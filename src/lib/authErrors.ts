@@ -1,7 +1,6 @@
-// Auth error -> i18n key mapping (FE-17). Kept as a pure, tested lib because the
-// mapping is real logic: it turns transport/status facts (and the backend's FIXED
-// English messages — see the AUTH contract in types.ts) into localized keys so no
-// untranslated server prose reaches the farmer.
+// Auth error -> i18n key mapping. A pure, tested lib because the mapping is real logic:
+// it turns transport/status facts and the backend's fixed English messages into localized
+// keys, so no untranslated server prose reaches the farmer.
 import { ApiError } from '../api/client';
 
 /** Login failure -> i18n key. 401 = wrong credentials; status 0 = network. */
@@ -14,8 +13,7 @@ export function loginErrorKey(err: unknown): string {
 }
 
 /** Register failure -> i18n key. Matches the two known duplicate-account messages;
- *  everything else (incl. server-side FluentValidation, which the client mirrors
- *  first) degrades to a generic localized message. */
+ *  everything else degrades to a generic localized message. */
 export function registerErrorKey(err: unknown): string {
   if (err instanceof ApiError) {
     if (err.status === 0) return 'auth.networkError';

@@ -1,29 +1,15 @@
-// =============================================================================
-// Auth API surface (FE-17). login/register against the LIVE .NET AuthController
-// with the WRAPPED body shapes ({ loginDto } / { registerDto }); reuses the
-// client.request() pipeline (error-message parsing, network shaping, the 401
-// exemption for /api/auth/*). See the AUTH contract block in types.ts.
-//
-// FIXTURE MODE (VITE_API_MODE=fixtures): auth is SIMULATED — any non-empty input
-// mints a fake in-memory session so the whole flow is demoable offline. The fake
-// session is clearly marked (simulated:true) and a subtle dev-only badge is shown
-// in the shell. The guards/pages behave IDENTICALLY to live mode.
-//
-// ADMIN SIMULATION (ADM-1): in fixtures mode the username `admin` (case-insensitive)
-// logs in with role 'Admin' so the admin console (/admin) is demoable offline; EVERY
-// other fixture username stays 'Farmer'. Live mode ignores this — role comes from the
-// real AuthResponseDto. This marker is worthless (no credential); it only picks a role.
-// =============================================================================
+// Auth API calls (login / register / refresh / logout) against the .NET AuthController.
+// Bodies are WRAPPED ({ loginDto } / { registerDto }) and go through client.request(),
+// so they reuse its error parsing and the 401 exemption for /api/auth/*.
+// In fixtures mode auth is simulated: any non-empty input mints a fake in-memory
+// session (marked simulated:true), and the username `admin` simulates an Admin role so
+// the admin console is demoable offline. Live mode ignores that marker.
 import { request, USE_FIXTURES, ApiError } from './client';
 import type { AuthResponseDto } from './types';
 
-// -----------------------------------------------------------------------------
-// FIXTURES-ONLY reload marker (FE-21). Live mode restores a session from the
-// httpOnly refresh cookie; fixtures mode has no server, so we persist a NON-SECRET
-// marker (the username string — NOT a token) in sessionStorage so a reload can
-// re-mint the simulated session for offline demos. It is deliberately readable
-// and worthless: no credential is ever stored. Live mode never touches this.
-// -----------------------------------------------------------------------------
+// FIXTURES ONLY. Live mode restores a session from the httpOnly refresh cookie;
+// fixtures mode has no server, so the username (NOT a token) is kept in sessionStorage
+// so a reload can re-mint the simulated session.
 const FX_MARKER = 'fx-session';
 
 function fxSetMarker(username: string): void {
@@ -78,15 +64,14 @@ function toSession(dto: AuthResponseDto, simulated: boolean): AuthSession {
   };
 }
 
-/** A clearly-fenced fake session for fixtures/offline demo. NEVER used in live mode.
- *  Username `admin` (case-insensitive) simulates an Admin so the admin console is
- *  demoable offline; every other username is a Farmer. */
+/** Fake session for fixtures / offline demo, never used in live mode. The username
+ *  `admin` simulates an Admin; every other username is a Farmer. */
 function fakeSession(username: string, email = ''): AuthSession {
   const in12h = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
   const uname = username.trim();
   return {
-    // Not a real JWT — a marker string. authHeaders() will send it, but fixtures
-    // mode never calls request(), so it is never put on the wire.
+    // Not a real JWT, just a marker. Fixtures mode never calls request(), so it never
+    // goes on the wire.
     token: 'fixtures.simulated.session',
     expiresAtUtc: in12h,
     username: uname,
@@ -130,10 +115,9 @@ export async function register(
   return toSession(dto, false);
 }
 
-/** Silent renew (FE-21): exchange the httpOnly refresh cookie for a fresh access
- *  token. NO request body. 200 -> new AuthSession (+ rotated cookie); throws
- *  ApiError on 401 (missing/expired cookie = not signed in) or network failure.
- *  Fixtures: re-mints the simulated session from the reload marker, else throws. */
+/** Silent renew: exchange the httpOnly refresh cookie for a fresh access token. No
+ *  request body. Throws ApiError when the cookie is missing or expired. Fixtures:
+ *  re-mints the simulated session from the reload marker. */
 export async function refresh(): Promise<AuthSession> {
   if (USE_FIXTURES) {
     const restored = fxRestoreSession();

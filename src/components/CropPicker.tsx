@@ -1,12 +1,8 @@
-// =============================================================================
-// CropPicker (FE-3, ClickUp 86cacw5wy). Searchable, illustrated crop grid.
-//   - Search across EN/SI/TA names; result count announced politely (aria-live).
-//   - Category grouping when category data exists; single "All crops" group else.
-//   - Cards are aria-pressed toggle buttons (>=48px), keyboard-navigable, with a
-//     clear selected state (never color-alone — a check badge + label back it up).
-//   - Four async states: loading skeleton, success, empty-search, error+retry.
-// Presentation only — all matching/grouping logic lives in lib/crops.ts.
-// =============================================================================
+// CropPicker — searchable, illustrated crop grid. Search matches EN/SI/TA names and the
+// result count is announced politely; crops group by category when the data has one, else
+// a single "All crops" group. Cards are aria-pressed toggle buttons (>=48px) whose selected
+// state is never colour alone. Four async states: loading, success, empty search, error +
+// retry. Matching and grouping logic lives in lib/crops.ts.
 import { useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Crop } from '../api/types';
@@ -62,15 +58,13 @@ export default function CropPicker({
     return recentIds.map((id) => byId.get(id)).filter((c): c is Crop => Boolean(c));
   }, [recentIds, crops]);
 
-  // A single card renderer shared by the Recent group and the category groups.
-  // `idPrefix` keeps the readiness-description ids unique when the SAME crop
-  // renders twice (Recent group + its category group).
+  // One card renderer shared by the Recent group and the category groups. `idPrefix` keeps
+  // the readiness-description ids unique when the SAME crop renders twice.
   const renderCard = (crop: Crop, idPrefix: string) => {
     const selected = crop.id === selectedId;
-    // Crop-status colouring: tint + glyph/word badge; null status = no claim.
-    // The badge is aria-hidden and the status is the button's DESCRIPTION
-    // (aria-describedby -> sr-only sibling) so it never joins the accessible
-    // NAME — same name-vs-description split as the Logs tab tooltips.
+    // Crop-status colouring: tint + glyph/word badge; a null status makes no claim. The
+    // badge is aria-hidden and the status is the button's DESCRIPTION (aria-describedby ->
+    // sr-only sibling) so it never joins the accessible NAME.
     const status = readinessFor(readiness, crop.id);
     const descId = status ? `${idPrefix}-rdy-${crop.id}` : undefined;
     return (
@@ -104,7 +98,7 @@ export default function CropPicker({
     );
   };
 
-  // ---- error ----------------------------------------------------------------
+  // Error state.
   if (error) {
     return (
       <div className="cp-state" role="alert">
@@ -117,7 +111,7 @@ export default function CropPicker({
     );
   }
 
-  // ---- loading skeleton -----------------------------------------------------
+  // Loading skeleton.
   if (loading) {
     return (
       <div className="cp" aria-busy="true">

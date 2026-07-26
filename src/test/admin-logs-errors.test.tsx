@@ -71,7 +71,7 @@ describe('System errors tab (Logs P3.B)', () => {
     vi.restoreAllMocks();
   });
 
-  // ---- four async states ---------------------------------------------------
+  // Four async states.
   it('loading: shows a skeleton while errors are pending', () => {
     vi.spyOn(api, 'getSystemErrors').mockImplementation(PENDING);
     renderPage();
@@ -88,9 +88,8 @@ describe('System errors tab (Logs P3.B)', () => {
   });
 
   it('renders rows newest-first (fixture OccurredUtc DESC order is load-bearing)', async () => {
-    // Fixture-order bugs have shipped before: the API contract is OccurredUtc DESC, and the
-    // fixtures must model it. Assert the RENDERED timestamps are monotonically non-increasing
-    // so a scrambled fxSystemErrorsAll can never pass green.
+    // Fixture-order bugs have shipped before: the contract is OccurredUtc DESC, so assert the
+    // RENDERED timestamps are non-increasing and a scrambled fixture cannot pass green.
     vi.spyOn(api, 'getSystemErrors').mockResolvedValue(fxSystemErrors(1, 25));
     renderPage();
     const t = await table();
@@ -122,7 +121,7 @@ describe('System errors tab (Logs P3.B)', () => {
     expect(await table()).toBeInTheDocument();
   });
 
-  // ---- exception type: namespace de-emphasised, full value in the title ----
+  // Exception type: namespace de-emphasised, full value in the title.
   it('splits the exception type into a muted namespace + the class name, full value in the title', async () => {
     vi.spyOn(api, 'getSystemErrors').mockResolvedValue(page([STACK_ROW]));
     renderPage();
@@ -132,7 +131,7 @@ describe('System errors tab (Logs P3.B)', () => {
     expect(within(row).getByTitle('System.InvalidOperationException')).toBeInTheDocument();
   });
 
-  // ---- drill-down reveals the full message + stack trace verbatim ----------
+  // Drill-down reveals the full message + stack trace verbatim.
   it('expands a row to reveal the full message and stack trace verbatim, toggling aria-expanded', async () => {
     vi.spyOn(api, 'getSystemErrors').mockResolvedValue(page([STACK_ROW]));
     renderPage();
@@ -149,7 +148,7 @@ describe('System errors tab (Logs P3.B)', () => {
     expect(within(detail).getByText(STACK_ROW.traceId!)).toBeInTheDocument();
   });
 
-  // ---- null message + null stack -> quiet "none" notes (never empty boxes) --
+  // Null message + null stack -> quiet "none" notes, never empty boxes.
   it('shows the quiet "No stack trace" and "No message" notes on a null-stack row', async () => {
     vi.spyOn(api, 'getSystemErrors').mockResolvedValue(page([NULL_ROW]));
     renderPage();
@@ -160,7 +159,7 @@ describe('System errors tab (Logs P3.B)', () => {
     expect(within(detail).getByText('No message recorded.')).toBeInTheDocument();
   });
 
-  // ---- "Where" = method + path --------------------------------------------
+  // "Where" = method + path.
   it('renders the method + request path in the "Where" cell', async () => {
     vi.spyOn(api, 'getSystemErrors').mockResolvedValue(page([STACK_ROW]));
     renderPage();
@@ -169,7 +168,7 @@ describe('System errors tab (Logs P3.B)', () => {
     expect(within(row).getByText('/api/forecast/best-crops')).toBeInTheDocument();
   });
 
-  // ---- date formatting -----------------------------------------------------
+  // Date formatting.
   it('formats the occurredUtc timestamp with the locale date formatter', async () => {
     vi.spyOn(api, 'getSystemErrors').mockResolvedValue(page([STACK_ROW]));
     renderPage();
@@ -177,7 +176,7 @@ describe('System errors tab (Logs P3.B)', () => {
     expect(within(row).getByText(formatDateTime(STACK_ROW.occurredUtc, 'en'))).toBeInTheDocument();
   });
 
-  // ---- server paging -------------------------------------------------------
+  // Server paging.
   it('calls the API server-paged and re-fetches on next page', async () => {
     const spy = vi
       .spyOn(api, 'getSystemErrors')

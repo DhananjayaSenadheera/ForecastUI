@@ -1,25 +1,17 @@
-// =============================================================================
-// PricesPage (FE-12 + FE-18 market-data view). Browse market prices for a crop in
-// two modes, chosen by a view toggle (the 4-tab IA is locked, so this all lives
-// inside the Prices tab):
-//   • One market   — a single market's daily low–high envelope (observed range).
-//   • Compare      — up to 4 markets overlaid as daily mid-price lines on ONE
-//                    shared scale, plus a sortable market×day table.
-// Both chart surfaces share the FE-20 hover/tap/keyboard tooltip (lib/chartTooltip).
-//
-// LIVE (API-1/2, backend PR #24): markets come from GET /api/markets/get/all
-// ?hasPrices=true (the price-carrying subset) and per-market series from GET
-// /api/prices/crop/{cropId}/history. Both endpoints exist now, so the page always
-// fetches (fixtures OR live) and ships the standard loading / success / empty /
-// error states — there is no "coming soon" placeholder any more.
-//
-// Honest display: an observed history is a daily low–high RANGE, never a forecast
-// and never a fake single number. Market colours are the Okabe–Ito quartet, assigned
-// by SELECTION ORDER over the ≤4 compared markets (never by price rank) so every
-// compared line is a DISTINCT colour — a full-list stable mapping would collide
-// once there are 10 live markets but only 4 colours. Every chart ships a table
-// alternative (WCAG). Geometry lives in lib/prices — tested.
-// =============================================================================
+// PricesPage — browse market prices for a crop in two modes, chosen by a view toggle (the
+// 4-tab IA is locked, so both live inside the Prices tab):
+//   • One market — a single market's daily low–high envelope (observed range).
+//   • Compare    — up to 4 markets overlaid as daily mid-price lines on one shared scale,
+//                  plus a sortable market × day table.
+// Both chart surfaces share the hover/tap/keyboard tooltip in lib/chartTooltip.
+// Markets come from GET /api/markets/get/all?hasPrices=true and each series from
+// GET /api/prices/crop/{cropId}/history, so the page always fetches and ships the standard
+// loading / success / empty / error states.
+// An observed history is a daily low–high RANGE, never a forecast and never a fake single
+// number. Market colours are the Okabe–Ito quartet assigned by SELECTION ORDER over the
+// <=4 compared markets (never by price rank), because a full-list mapping would collide
+// once there are 10 live markets and only 4 colours. Every chart ships a table
+// alternative; geometry lives in lib/prices.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
@@ -72,7 +64,7 @@ export default function PricesPage() {
   const [overlayIds, setOverlayIds] = useState<string[]>([]);
   const [capNote, setCapNote] = useState(false);
 
-  // ---- crops + markets (once) ----------------------------------------------
+  // Crops + markets, loaded once.
   const loadBase = useCallback(async () => {
     setLoading(true);
     setError(false);
@@ -117,7 +109,7 @@ export default function PricesPage() {
     };
   }, []);
 
-  // ---- price history for the selected crop across all markets ---------------
+  // Price history for the selected crop across all markets.
   const loadHistories = useCallback(async (cid: string, ms: Market[]) => {
     setError(false);
     try {
@@ -142,12 +134,10 @@ export default function PricesPage() {
   const selectedMarket = useMemo(() => markets.find((m) => m.id === marketId) ?? null, [markets, marketId]);
   const detailHistory = (marketId && byMarket[marketId]) || [];
 
-  // Okabe–Ito colour per SELECTED overlay market, by selection order (same idiom as
-  // CompareCropsPage). With 10 live markets and only 4 colours a full-list stable
-  // mapping would collide (market ids 4 apart share a colour), rendering two compared
-  // lines identically; keying off the ≤4 selected ids guarantees 4 distinct colours.
-  // Swatches (shown only on selected chips) and the overlay lines stay in sync
-  // because both read this one map.
+  // Okabe–Ito colour per SELECTED overlay market, by selection order. With 10 live markets
+  // and only 4 colours a full-list mapping would collide (ids 4 apart share a colour) and
+  // render two compared lines identically; keying off the <=4 selected ids guarantees 4
+  // distinct colours. Swatches and overlay lines stay in sync because both read this map.
   const marketColors = useMemo(() => {
     const m = new Map<string, string>();
     overlayIds.forEach((id, i) => m.set(id, marketColorVar(i)));
@@ -208,7 +198,7 @@ export default function PricesPage() {
           </div>
         ) : (
           <>
-            {/* ---- crop select (shared by both views) ---- */}
+            {/* crop select, shared by both views */}
             <div className="pr-controls">
               <label className="pr-field">
                 <span className="wrap-label">{t('pages.prices.cropLabel')}</span>
@@ -241,7 +231,7 @@ export default function PricesPage() {
               )}
             </div>
 
-            {/* ---- view toggle: one market / compare markets ---- */}
+            {/* view toggle: one market / compare markets */}
             <div className="pr-seg" role="group" aria-label={t('pages.prices.viewLabel')}>
               <button
                 type="button"
@@ -286,9 +276,7 @@ export default function PricesPage() {
   );
 }
 
-// ---------------------------------------------------------------------------
 // Single-market daily low–high envelope (observed history — never a forecast).
-// ---------------------------------------------------------------------------
 interface PriceLineChartProps {
   history: PriceHistoryPoint[];
   cropLabel: string;
@@ -424,12 +412,9 @@ function PriceLineChart({ history, cropLabel, marketName, lang }: PriceLineChart
   );
 }
 
-// ---------------------------------------------------------------------------
-// Multi-market overlay: up to 4 markets' daily mid-price on one shared scale,
-// direct line-end labels (no legend), Okabe–Ito by stable market id. A sortable
-// market×day table is the mandatory alternative. One message: how daily prices
-// compare across markets over time.
-// ---------------------------------------------------------------------------
+// Multi-market overlay: up to 4 markets' daily mid-price on one shared scale, with direct
+// line-end labels instead of a legend. A sortable market × day table is the mandatory
+// alternative.
 interface MarketOverlayChartProps {
   inputs: MarketOverlayInput[];
   markets: Market[];
@@ -484,7 +469,7 @@ function MarketOverlayChart({ inputs, markets, overlayIds, marketColors, onToggl
 
   return (
     <div className="pr-chart">
-      {/* ---- market multi-select (max 4) ---- */}
+      {/* market multi-select (max 4) */}
       <p className="pr-chart__title">{t('pages.prices.overlayTitle', { crop: cropLabel })}</p>
       <p className="pr-mkts__hint">{t('pages.prices.marketsHint', { max: OVERLAY_MAX })}</p>
       <div className="pr-mkts" role="group" aria-label={t('pages.prices.marketsLabel')}>
@@ -558,10 +543,8 @@ function MarketOverlayChart({ inputs, markets, overlayIds, marketColors, onToggl
   );
 }
 
-// ---------------------------------------------------------------------------
-// Sortable market×day table (overlay alternative). aria-sort on each header
-// (button-in-th), the same idiom as BestCropsPage. Sort by date/market/min/max/mid.
-// ---------------------------------------------------------------------------
+// Sortable market × day table (the overlay's alternative). aria-sort on each header
+// (button in th), the same idiom as BestCropsPage.
 type DayColKey = 'date' | 'market' | 'min' | 'max' | 'mid';
 type SortDir = 'asc' | 'desc';
 interface DayRow {

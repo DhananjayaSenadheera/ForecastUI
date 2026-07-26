@@ -1,7 +1,5 @@
-// =============================================================================
-// Crop-status colouring (2026-07-22): lib honesty rules, the ReadinessBadge
-// glyph+word law, CropPicker tint wiring, and the fail-soft page fetch.
-// =============================================================================
+// Crop-status colouring: the lib honesty rules, the ReadinessBadge glyph+word law, the
+// CropPicker tint wiring and the fail-soft page fetch.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';

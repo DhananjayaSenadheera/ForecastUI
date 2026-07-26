@@ -1,19 +1,6 @@
-// ADM-5 — Festival calendar admin page (/admin/festivals). List grouped by year
-// (movable festivals repeat per year = one row per occurrence) over the LIVE
-// GET /api/festival-calendar/get/all, with LIVE Create + Edit + Delete (API-10).
-//
-// This table feeds the forecasting model, so: a visible WARNING states that, Source is
-// REQUIRED on save, and an isProvisional badge flags unconfirmed dates. Mutations return
-// { id, trainingDataWarning }: festival dates are as-of-joined into the model's training
-// features (lead-up demand windows), so editing/removing a PAST-dated festival returns a
-// non-null warning. The mutation still SUCCEEDED — we surface it in a dismissible amber
-// note (shared TrainingWarningBanner, same as PolicyFlags), NEVER as an error. After a
-// mutation we REFETCH server truth. Server guard messages are surfaced verbatim in the flash.
-//
-// WIRE NOTE: `date` arrives as "YYYY-MM-DDT00:00:00" — slice(0,10) before formatDate() and
-// the date-input prefill (formatDate re-appends T00:00:00). Client validation mirrors the
-// server: festivalKey uppercase (a fixed select today, all uppercase), leadUpDays 0..90 with
-// 0 a FIRST-CLASS value (paired-day continuation convention), source required.
+// Admin page for the festival calendar (/admin/festivals), grouped by year.
+// Festival dates feed model training, so a mutation can return a trainingDataWarning:
+// the save SUCCEEDED, so show it as a note, never as an error.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, ApiError } from '../api/client';
@@ -52,8 +39,8 @@ const emptyForm = (): FormState => ({
   source: '',
 });
 
-// Blank -> default; otherwise VERBATIM. Deliberately NOT `Number(s) || DEFAULT` — that would
-// coerce a valid leadUpDays of 0 to the default (0 is falsy), destroying the paired-day value.
+// Blank means "use the default"; otherwise the typed number is used verbatim.
+// Not `Number(s) || DEFAULT` — that would turn a valid leadUpDays of 0 into the default.
 const parseLeadUp = (s: string): number => (s.trim() === '' ? DEFAULT_LEAD_UP : Number(s));
 
 export default function FestivalsPage() {
@@ -67,12 +54,10 @@ export default function FestivalsPage() {
   const [confirmDelete, setConfirmDelete] = useState<FestivalEntry | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [flash, setFlash] = useState<Flash | null>(null);
-  // trainingDataWarning banner: a non-null warning off a SUCCESSFUL mutation (never an
-  // error). Dismissible; cleared on the next mutation attempt.
+  // Warning returned by a SUCCESSFUL mutation, not an error. Dismissible.
   const [warning, setWarning] = useState<string | null>(null);
 
-  // Year filter (toolbar, left of the Add button). Defaults to the CURRENT calendar year
-  // — the year an admin most often maintains — with an "all years" escape hatch.
+  // Year filter defaults to the current year, with an "all years" option.
   const currentYear = useMemo(() => String(new Date().getFullYear()), []);
   const [yearFilter, setYearFilter] = useState<string>(currentYear);
 
@@ -92,8 +77,7 @@ export default function FestivalsPage() {
     void load();
   }, [load]);
 
-  // Server guard / validation messages (house error shape) arrive on ApiError.message —
-  // surface them verbatim so honest constraints reach the admin. Network -> generic.
+  // Server validation messages arrive on ApiError.message — show them verbatim.
   const errMessage = useCallback(
     (e: unknown) => (e instanceof ApiError && e.message && e.status !== 0 ? e.message : t('common.errorBody')),
     [t],
@@ -116,8 +100,7 @@ export default function FestivalsPage() {
       .map(([year, rows]) => [year, rows.sort((a, b) => a.date.localeCompare(b.date))] as const);
   }, [items]);
 
-  // Dropdown years: every year present in the data UNION the current year (so the default
-  // is always selectable even before this year has any entries), newest first.
+  // Dropdown years: every year in the data plus the current year, newest first.
   const years = useMemo(() => {
     const set = new Set<string>(byYear.map(([y]) => y));
     set.add(currentYear);
@@ -130,8 +113,7 @@ export default function FestivalsPage() {
     [byYear, yearFilter],
   );
 
-  // Create (no id) or full-object update (id). Both refetch server truth; only update
-  // carries a trainingDataWarning (create is always a fresh row).
+  // Create (no id) or update (id); both refetch afterwards.
   const save = useCallback(
     async (form: FormState, id: string | null) => {
       setBusyId(id ?? 'new');

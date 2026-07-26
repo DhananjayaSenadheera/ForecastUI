@@ -6,11 +6,10 @@ import { AuthProvider } from '../auth/AuthContext';
 import { api, ApiError } from '../api/client';
 import UsersPage from '../admin/UsersPage';
 
-// ADM-4 add-user (owner request 2026-07-23). Covers the dialog contract: the mirrored
-// client-side rules save a round-trip, the SERVER's uniqueness verdicts are shown verbatim
-// without closing the form, and — the security-relevant one — creation goes through the
-// Admin-only create route, never the anonymous register path that would re-cookie the
-// acting admin. Runs in fixtures mode (VITE_API_MODE=fixtures), so no network.
+// Add-user dialog: the mirrored client-side rules save a round-trip, the server's
+// uniqueness verdicts are shown verbatim without closing the form, and creation goes
+// through the Admin-only create route — never the anonymous register path, which would
+// re-cookie the acting admin. Runs in fixtures mode, so no network.
 function renderPage() {
   return render(
     <MemoryRouter initialEntries={['/admin/users']}>

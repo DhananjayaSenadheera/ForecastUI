@@ -2,10 +2,9 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthContext';
 
-// Logged-in identity + logout control (FE-17). Rendered in the sidebar footer
-// (desktop) and the mobile top bar. Logout clears the in-memory session (and the
-// SW data cache) then routes to /login. Renders nothing when unauthenticated, so
-// it is inert on the auth pages and in provider-less unit tests.
+// Logged-in identity + logout, in the sidebar footer on desktop and the mobile top bar.
+// Logout clears the in-memory session and the service-worker data cache, then routes to
+// /login. Renders nothing when unauthenticated, so it is inert on the auth pages.
 export default function SessionMenu({ variant }: { variant: 'sidebar' | 'mobile' }) {
   const { t } = useTranslation();
   const { session, isAuthenticated, logout } = useAuth();

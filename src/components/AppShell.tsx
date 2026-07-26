@@ -9,10 +9,8 @@ import StalenessBanner from './StalenessBanner';
 import ErrorBoundary from './ErrorBoundary';
 import SessionMenu from './SessionMenu';
 
-// Dashboard shell (normative ref: dashboard-style-samples-v1).
-// Desktop/tablet: dark teal sidebar (nav + footer audio/lang). Mobile: sidebar is
-// replaced by a top brand bar + a bottom tab bar (CSS-driven at <600px).
-// The shell is a layout wrapper; routed pages render into <Outlet/>.
+// Dashboard shell: dark teal sidebar on desktop and tablet; below 600px a top brand bar
+// plus a bottom tab bar (CSS-driven). Routed pages render into <Outlet/>.
 export default function AppShell() {
   const { t } = useTranslation();
   const location = useLocation();
@@ -23,7 +21,7 @@ export default function AppShell() {
 
   return (
     <div className="shell">
-      {/* ---- desktop / tablet sidebar ---- */}
+      {/* Desktop / tablet sidebar */}
       <aside className="sidebar">
         <div className="sidebar__brand">
           <span className="sidebar__leaf" aria-hidden="true">
@@ -78,7 +76,7 @@ export default function AppShell() {
         </div>
       </aside>
 
-      {/* ---- mobile top bar (brand + lang + audio; sidebar is hidden < 600px) ---- */}
+      {/* Mobile top bar: brand + language + audio (the sidebar is hidden below 600px) */}
       <div className="mobilebar">
         <span className="sidebar__leaf" aria-hidden="true">
           🌱
@@ -91,7 +89,7 @@ export default function AppShell() {
         </div>
       </div>
 
-      {/* ---- main column: pages render here (fills the full content width) ---- */}
+      {/* Main column: pages render here */}
       <main className="main">
         {/* Honest "showing saved data" notice when the SW served an offline cache. */}
         <StalenessBanner />
@@ -102,7 +100,7 @@ export default function AppShell() {
         </ErrorBoundary>
       </main>
 
-      {/* ---- mobile bottom tab bar ---- */}
+      {/* Mobile bottom tab bar */}
       <nav className="tabbar" aria-label={t('nav.overview')}>
         {tabItems.map((d) => (
           <NavLink

@@ -73,9 +73,9 @@ describe('API client (fixture mode)', () => {
   });
 });
 
-// The suite above runs in fixtures mode (vite.config test.env), so the live URL is
-// never exercised there. Here we re-import the client with VITE_API_MODE=live and a
-// stubbed fetch to pin the EXACT markets/price-history URLs (API-1/2, backend PR #24).
+// The suite above runs in fixtures mode, so the live URL is never exercised there. Here we
+// re-import the client with VITE_API_MODE=live and a stubbed fetch to pin the exact
+// markets / price-history URLs.
 describe('API client (live mode — markets + price history URLs)', () => {
   function fakeRes(body: unknown): Response {
     return {
@@ -127,7 +127,7 @@ describe('API client (live mode — markets + price history URLs)', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:5282/api/prices/crop/crop-1/history?days=90');
   });
 
-  // ---- ADM-4 users (API-9, backend PR #26) --------------------------------
+  // Users admin API.
   it('getAdminUsers hits /api/users/get/all with no paging params (default 500 cap)', async () => {
     const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes([]));
     vi.stubGlobal('fetch', fetchMock);
@@ -154,7 +154,7 @@ describe('API client (live mode — markets + price history URLs)', () => {
     expect(init.method).toBe('DELETE');
   });
 
-  // ---- ADM-6 indicators (API-11, backend merged) --------------------------
+  // Indicators.
   it('getIndicatorCatalog hits /api/indicators/catalog', async () => {
     const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes([]));
     vi.stubGlobal('fetch', fetchMock);
@@ -178,11 +178,10 @@ describe('API client (live mode — markets + price history URLs)', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:5282/api/indicators?code=USD_LKR');
   });
 
-  // ---- System log filters (GET /api/admin/logs/user-activity) -------------
-  // The page tests mock api.getUserActivity, so THIS is the only place the built
-  // query string is exercised. `type` and `types` are mutually exclusive on the
-  // wire and the server 400s an unknown value, so which param goes out is
-  // load-bearing, not cosmetic.
+  // System log filters (GET /api/admin/logs/user-activity).
+  // The page tests mock api.getUserActivity, so THIS is the only place the built query
+  // string is exercised. `type` and `types` are mutually exclusive on the wire and the
+  // server 400s an unknown value, so which param goes out is load-bearing, not cosmetic.
   const UA_URL = 'http://localhost:5282/api/admin/logs/user-activity';
   const uaPage = { items: [], page: 1, pageSize: 25, total: 0 };
 
@@ -245,7 +244,7 @@ describe('API client (live mode — markets + price history URLs)', () => {
     expect(fetchMock.mock.calls[0][0]).toBe(`${UA_URL}?page=1&pageSize=25`);
   });
 
-  // ---- ADM-2 policy-flag mutations (API-13, backend merged) ---------------
+  // Policy-flag mutations.
   it('updatePolicyFlag PUTs /api/policy-flag/update with the dto WRAPPED under policyFlagUpdateDto', async () => {
     const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes({ id: 'pf-1', trainingDataWarning: null }));
     vi.stubGlobal('fetch', fetchMock);
@@ -277,7 +276,7 @@ describe('API client (live mode — markets + price history URLs)', () => {
     expect(init.method).toBe('DELETE');
   });
 
-  // ---- ADM-5 festival calendar (API-10, backend merged) -------------------
+  // Festival calendar.
   it('getFestivals hits /api/festival-calendar/get/all', async () => {
     const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes([]));
     vi.stubGlobal('fetch', fetchMock);
@@ -329,7 +328,7 @@ describe('API client (live mode — markets + price history URLs)', () => {
     expect(init.method).toBe('DELETE');
   });
 
-  // ---- ADM-7 news events (API-12, backend merged) -------------------------
+  // News events.
   it('getNewsEvents hits /api/news-events/get/all', async () => {
     const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes([]));
     vi.stubGlobal('fetch', fetchMock);
@@ -430,7 +429,7 @@ describe('API client (fixture mode — policy-flag mutation warnings)', () => {
   });
 });
 
-// Fixture-mode festival mutations (API-10): the demo working copy mirrors the server's
+// Fixture-mode festival mutations: the demo working copy mirrors the server's
 // past-date training-data warning + keeps leadUpDays=0 verbatim so the page is demo-able.
 describe('API client (fixture mode — festival-calendar mutations)', () => {
   const PAST_FESTIVAL = 'f0000007-0000-0000-0000-000000000007'; // AVURUDU 2026-04-14 (past, today = 2026-07-16)
@@ -485,7 +484,7 @@ describe('API client (fixture mode — festival-calendar mutations)', () => {
   });
 });
 
-// Fixture-mode news mutations (API-12): capture-only, so NO trainingDataWarning — create returns
+// Fixture-mode news mutations: capture-only, so NO trainingDataWarning — create returns
 // a bare boolean, update/delete return the bare id. The demo working copy persists add/edit/delete
 // through the refetch and preserves the immutable publishedAt on edit.
 describe('API client (fixture mode — news-event mutations)', () => {

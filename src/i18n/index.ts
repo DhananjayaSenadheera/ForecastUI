@@ -1,12 +1,8 @@
-// AgriForecast i18n bootstrap (FE-2).
-// Trilingual from day one — Sinhala/Tamil are first-class, English is the fallback
-// (PRD §2.1: computer literacy skews to Sinhala/Tamil speakers). si/ta resources
-// are DRAFTS pending native-speaker review (see each locale file's _note).
-//
-// TEXT-EXPANSION RULE: Sinhala/Tamil labels run ~20–40% longer than English.
-// Components must let labels WRAP and grow in height — never a fixed-height
-// overflow:hidden box (clips Sinhala ascenders / Tamil vowel marks). Enforced in
-// base.css; documented here so it is not "styled away" later.
+// i18n bootstrap. Sinhala and Tamil are first-class and English is the fallback; the si/ta
+// resources are drafts pending native-speaker review (see each locale file's _note).
+// TEXT EXPANSION: Sinhala/Tamil labels run ~20–40% longer than English, so labels must be
+// allowed to wrap and grow in height — never a fixed-height overflow:hidden box, which
+// clips Sinhala ascenders and Tamil vowel marks.
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import en from './locales/en.json';
@@ -54,18 +50,13 @@ void i18n.use(initReactI18next).init({
 document.documentElement.lang = initialLang;
 
 /**
- * TRUE only when `key` exists in the ACTIVE locale's OWN resource bundle — i.e.
- * a real translation, not the English fallback.
- *
- * WHY THIS EXISTS: `i18n.exists()` and `t()` both walk `fallbackLng`, so an
- * English-only key reports as "existing" while the active language is Sinhala.
- * That is exactly how a Sinhala farmer ends up staring at an English paragraph.
- * Any string that is deliberately shipped en-first (long-form prose the owner
- * translates later) MUST be gated on this, so the UI can degrade to a shorter
- * rendering the locale really has, instead of leaking English.
- *
- * Empty strings count as MISSING on purpose: a blank key is a translation stub,
- * not a translation.
+ * TRUE only when `key` exists in the ACTIVE locale's OWN resource bundle — a real
+ * translation, not the English fallback.
+ * `i18n.exists()` and `t()` both walk fallbackLng, so an English-only key reports as
+ * "existing" while the active language is Sinhala, which is how a Sinhala farmer ends up
+ * reading an English paragraph. Any string shipped English-first MUST be gated on this so
+ * the UI can degrade to a rendering the locale really has.
+ * Empty strings count as MISSING on purpose: a blank key is a stub, not a translation.
  */
 export function ownTranslation(key: string, lng?: string): string | undefined {
   const lang = lng ?? i18n.resolvedLanguage ?? i18n.language;

@@ -1,19 +1,14 @@
-// Presentation logic for the admin News table: derive the farmer-facing category and
-// expected price direction from the PER-ARTICLE signals the Python scorer persists
-// (NewsArticles.Topics CSV + SentimentScore). The wire carries facts; everything here is
-// display derivation, deliberately deterministic and documented so it can be tuned without
-// touching the pipeline or a backfill.
-//
-// DIRECTION RULES (honest heuristics, not model output — the ⓘ explainer says so):
-//   1. Supply-shock topics (pest / flood / drought / import_ban) → BULLISH: harvest damage
-//      or blocked imports reduce supply, which usually pushes prices UP — regardless of the
-//      article's tone (a cheerful "floods receding" piece is still flood news).
-//   2. Input/policy topics (fertiliser / policy) → INVERSE of sentiment: bad news about
-//      inputs or policy (shortage, restriction; VADER ≤ -0.05) tightens supply → bullish;
-//      good news (subsidy released, shipment cleared; ≥ +0.05) eases it → bearish; the
-//      deadband in between is neutral.
-//   3. No topic fired ('' — general news) → NEUTRAL: no direct crop-price effect expected.
-//   4. Not scored yet (null topics) → null: the table shows an honest "—", never a guess.
+// Presentation logic for the admin News table: derive the farmer-facing category and the
+// expected price direction from the per-article signals the Python scorer persists
+// (Topics CSV + SentimentScore). Everything here is display derivation, not model output.
+// DIRECTION RULES (honest heuristics; the ⓘ explainer says so):
+//   1. Supply-shock topics (pest / flood / drought / import_ban) -> BULLISH whatever the
+//      article's tone: less supply usually means higher prices.
+//   2. Input/policy topics (fertiliser / policy) -> INVERSE of sentiment: bad news
+//      (VADER <= -0.05) tightens supply -> bullish; good news (>= +0.05) eases it ->
+//      bearish; in between is neutral.
+//   3. No topic fired ('' — general news) -> NEUTRAL.
+//   4. Not scored yet (null topics) -> null, and the table shows "—", never a guess.
 import { PolicyDirection } from '../api/types';
 
 // Stable priority for picking ONE primary topic when several fire: concrete supply shocks

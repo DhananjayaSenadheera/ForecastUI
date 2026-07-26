@@ -1,16 +1,7 @@
-// =============================================================================
-// Cache-provenance signal (FE-9). The service worker serves the LAST-KNOWN API
-// response from cache ONLY when the network is unreachable, and stamps that
-// response with two headers:
-//   X-SW-Cache: hit            -> this body came from the offline cache
-//   X-SW-Cached-At: <ISO>      -> when it was last fetched fresh
-// The typed api.* methods still return their plain JSON shape (contract intact);
-// this tiny observable lets the UI surface an honest "showing saved data" banner
-// WITHOUT threading a new field through every call site or breaking any test.
-//
-// FIXTURE MODE: request() is never called, so nothing ever reports here — the
-// state stays { fromCache: false } and the banner never renders (unchanged UX).
-// =============================================================================
+// Cache-provenance signal. The service worker serves the last-known API response when
+// the network is unreachable and stamps it with X-SW-Cache / X-SW-Cached-At. This tiny
+// observable lets the UI show an honest "showing saved data" banner without threading
+// a new field through every api.* call site.
 export interface CacheState {
   /** true when the most recent live response was served from the offline cache. */
   fromCache: boolean;
@@ -46,10 +37,7 @@ export function reportFresh(): void {
   }
 }
 
-/**
- * Inspect a live Response's headers and update the shared signal. Exposed as a
- * pure-ish function so it is unit-testable in jsdom without a real service worker.
- */
+/** Inspect a live Response's headers and update the shared signal. */
 export function reportFromHeaders(headers: Headers): void {
   const hit = headers.get('X-SW-Cache') === 'hit';
   if (hit) {

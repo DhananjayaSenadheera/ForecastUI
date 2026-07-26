@@ -107,10 +107,10 @@ describe('ForecastResult (FE-4)', () => {
   });
 });
 
-// The slot exists so the best-planting-window strip can sit UNDER the price range
-// (2026-07-25, ClickUp 86cawt9tr). It carries a control that re-runs this very
-// forecast, which is why it must survive every state: dropping it in the error or
-// loading branch would leave the farmer with no way to change the date that failed.
+// The slot exists so the planting-window strip can sit under the price range. It carries a
+// control that re-runs this very forecast, which is why it must survive every state:
+// dropping it in the error or loading branch would leave the farmer with no way to change
+// the date that failed.
 describe('ForecastResult — the window slot', () => {
   beforeEach(async () => {
     await i18n.changeLanguage('en');
@@ -144,11 +144,10 @@ describe('ForecastResult — the window slot', () => {
   });
 
   it('is the SAME DOM node across all three states — the strip must never remount', () => {
-    // Not cosmetic: the slot holds the window strip, a live control. Returning a
-    // structurally different tree per state made React tear it down on a failed
-    // re-fetch — focus fell off the tapped bar onto <body>, the roving tabindex
-    // reset, and the strip's horizontal scroll position was lost on a phone.
-    // Node identity across re-renders is the only way to pin that.
+    // Not cosmetic: the slot holds a live control. Returning a structurally different tree
+    // per state made React tear it down on a failed re-fetch — focus fell onto <body>, the
+    // roving tabindex reset and the strip's scroll position was lost. Node identity across
+    // re-renders is the only way to pin that.
     const { rerender } = renderResult({ windowSlot: slot });
     const node = screen.getByText('WINDOW SLOT');
     const props = {

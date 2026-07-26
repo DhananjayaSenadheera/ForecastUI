@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 // Structural sanity for the service worker source (a real SW can't run in jsdom).
-// Guards the FE-9 caching contract: versioned caches, an injectable precache
+// Guards the caching contract: versioned caches, an injectable precache
 // placeholder, and honest network-first API caching that stamps the staleness
 // header the app reads.
 const sw = readFileSync(resolve(__dirname, '../../public/sw.js'), 'utf8');

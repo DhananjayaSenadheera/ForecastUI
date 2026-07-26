@@ -12,9 +12,7 @@ import RegisterPage from './pages/RegisterPage';
 import RequireAuth from './auth/RequireAuth';
 import RequireAdmin from './admin/RequireAdmin';
 
-// Admin console (ADM-1..7) is LAZY / route-level code-split: none of it lands in the
-// farmer first-load bundle, so the 150KB gz budget stays untouched. Each page is its
-// own chunk; adminShared + admin.css ride along in the shared admin chunk.
+// Admin pages are lazy-loaded, so none of their code is in the farmer bundle.
 const PolicyFlagsPage = lazy(() => import('./admin/PolicyFlagsPage'));
 const MarketsPage = lazy(() => import('./admin/MarketsPage'));
 const UsersPage = lazy(() => import('./admin/UsersPage'));
@@ -22,14 +20,12 @@ const FestivalsPage = lazy(() => import('./admin/FestivalsPage'));
 const IndicatorsPage = lazy(() => import('./admin/IndicatorsPage'));
 const NewsPage = lazy(() => import('./admin/NewsPage'));
 const LogsPage = lazy(() => import('./admin/logs/LogsPage'));
-// Each Logs tab keeps its own lazy chunk — the Logs shell renders one into an
-// <Outlet/> on demand, so visiting a tab loads only that tab's code.
 const IngestionRunsPage = lazy(() => import('./admin/IngestionRunsPage'));
 const TrainingRunsPage = lazy(() => import('./admin/logs/TrainingRunsPage'));
 const UserActivityPage = lazy(() => import('./admin/logs/UserActivityPage'));
 const SystemErrorsPage = lazy(() => import('./admin/logs/SystemErrorsPage'));
 
-/** Subtle hold while an admin chunk loads (matches the auth boot shell). */
+/** Placeholder shown while an admin page chunk loads. */
 function AdminFallback() {
   return (
     <div className="boot" role="status" aria-live="polite">
@@ -40,7 +36,7 @@ function AdminFallback() {
 const lazyAdmin = (el: React.ReactNode) => <Suspense fallback={<AdminFallback />}>{el}</Suspense>;
 
 export default function App() {
-  // First-launch language gate (onboarding O1). Shown once until chosen/skipped.
+  // Shown once on first launch, until a language is chosen or skipped.
   const [gateDone, setGateDone] = useState(hasSeenLanguageGate);
 
   if (!gateDone) {
@@ -49,7 +45,7 @@ export default function App() {
 
   return (
     <Routes>
-      {/* Public auth routes — outside the shell + the guard (FE-17). */}
+      {/* Public auth routes — outside the shell and the guard. */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 
@@ -65,9 +61,9 @@ export default function App() {
           <Route path="/best-crops/compare" element={<CompareCropsPage />} />
           <Route path="/prices" element={<PricesPage />} />
 
-          {/* Admin console — role-gated by RequireAdmin (authenticated + role Admin).
-              Renders inside the shell so admins keep the nav; farmers who reach it
-              get an honest "no access" state, never a redirect loop. */}
+          {/* Admin console — role-gated by RequireAdmin. It renders inside the shell so
+              admins keep the nav, and a farmer who reaches it gets an honest "no access"
+              state rather than a redirect loop. */}
           <Route path="/admin" element={<RequireAdmin />}>
             <Route index element={<Navigate to="/admin/policy-flags" replace />} />
             <Route path="policy-flags" element={lazyAdmin(<PolicyFlagsPage />)} />

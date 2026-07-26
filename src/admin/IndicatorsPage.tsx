@@ -1,33 +1,9 @@
-// ADM-6 — Economic indicators browser (/admin/indicators). READ-ONLY. LIVE (API-11).
-// Owner directive 2026-07-12: USD/LKR is NOT shown here — the page presents the
-// Colombo Consumer Price Index only. NOTE the CCPI is a MONTHLY series (CBSL
-// publishes one value per month, ~3 weeks after month end) — a "daily CPI" does
-// not exist, so monthly is the honest cadence. It is vintage-aware: each value
-// carries TWO dates that must ALWAYS be shown together — referenceDate (the
-// period described) and publishedAt (when it became knowable). Never collapse
-// them. (The daily USD_LKR client method + fixtures remain in api/ for later.)
-// Owner redline 2026-07-12: NO data table — charts only. Two charts, each with one
-// message: LINE = the index level; GAUGE = the inflation pace. Rich aria-label
-// summaries stand in for the removed table.
-//
-// SERIES DISCOVERY (API-11): the page reads GET /api/indicators/catalog and only
-// fetches the macro series the catalog actually lists (no hardcoded assumption that a
-// series exists). It pins TWO series for its two visualisations:
-//   • CCPI_BASE2021 (index level)                 -> LINE chart.
-//   • CCPI_HEADLINE_YOY_BASE2021 (headline YoY %)  -> GAUGE (read DIRECTLY, no
-//     client-side derivation — the ready-made YoY series is the honest source).
-//
-// GAUGE ZONE MAPPING (owner-review flag): the gauge originally showed month-on-month
-// %/mo with owner-approved zones (<0 fall · 0–0.5 mild · 0.5–0.9 elev · >0.9 high).
-// Switching to the ready-made YoY series, those zones are re-expressed on a %/YEAR
-// scale using the owner's own annualised equivalents (0.5%/mo≈6%/yr, 0.9%/mo≈11%/yr):
-//   <0 falling (deflation) · 0–6 mild (≈ CBSL's ~5% target band) · 6–11 elevated ·
-//   >11 high. Colours are unchanged (CVD-safe). See ZONES below.
-//
-// MULTI-VINTAGE (leakage-honest): macro-series can return several vintages of the same
-// referenceDate (a later publishedAt revises an earlier estimate). For a single-value
-// display the LATEST publishedAt wins, but superseded rows are NOT silently dropped —
-// a revision note surfaces their count so the admin knows the figure was revised.
+// Admin page for economic indicators (/admin/indicators), read-only.
+// Shows the Colombo Consumer Price Index only: a line chart of the index level and a
+// gauge of the latest year-on-year inflation. CCPI is a MONTHLY series.
+// Each value carries two dates that must always be shown together: referenceDate (the
+// period described) and publishedAt (when it became knowable). The series are read
+// from the catalog endpoint rather than hardcoded.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
@@ -44,14 +20,8 @@ interface ChartPoint {
   value: number;
 }
 
-// ---------------------------------------------------------------------------
-// Inflation-pace gauge. Reads the ready-made headline YoY series DIRECTLY (no MoM
-// derivation). Shows the LATEST month's YoY % as a speedometer needle over four named
-// zones re-mapped from the owner's %/mo zones onto a %/YEAR scale (see file header):
-//   <0 falling · 0–6 mild (≈ target band) · 6–11 elevated · >11 high.
-// Context stats under the dial keep last/previous/12-month-average so the trend isn't
-// fully lost. Colours are the original CVD-safe zone classes (unchanged).
-// ---------------------------------------------------------------------------
+// Inflation gauge: the latest month's year-on-year %, over four zones
+// (<0 falling, 0-6 mild, 6-11 elevated, >11 high).
 const G = { cx: 150, cy: 150, r: 110, min: -5, max: 20, w: 18 };
 const ZONES = [
   { to: 0, cls: 'adm-gauge__zone--fall', labelKey: 'admin.indicators.zone.fall' },
@@ -78,9 +48,8 @@ function zoneLabelKey(v: number): string {
   return (ZONES.find((z) => v < z.to) ?? ZONES[ZONES.length - 1]).labelKey;
 }
 
-// Collapse vintages: keep the LATEST publishedAt per referenceDate (chronological by
-// referenceDate). `superseded` counts the older vintages that were revised away — the
-// UI surfaces that count rather than silently discarding them.
+// Keep the latest publishedAt per referenceDate; `superseded` counts the older
+// vintages so the UI can say the figure was revised instead of hiding it.
 function collapseVintages(points: MacroSeriesPoint[]): { points: MacroSeriesPoint[]; superseded: number } {
   const byRef = new Map<string, MacroSeriesPoint>();
   let superseded = 0;
@@ -138,8 +107,7 @@ export default function IndicatorsPage() {
     setLoading(true);
     setError(false);
     try {
-      // Discover which macro series actually exist before fetching (no hardcoded
-      // assumption a key is present); fetch only the pinned keys the catalog lists.
+      // Fetch only the series the catalog actually lists.
       const catalog = await api.getIndicatorCatalog();
       const macroKeys = new Set(catalog.filter((c) => c.kind === 'macro').map((c) => c.key));
       const [idx, y] = await Promise.all([
@@ -193,8 +161,7 @@ export default function IndicatorsPage() {
       <section className="panel adm" aria-label={t('admin.indicators.title')}>
         <DemoNote />
 
-        {/* The CCPI explainer lives on a ⓘ tooltip beside the section heading (owner
-            request 2026-07-22 — same treatment as the Logs tab tooltips, 💡 banner gone). */}
+        {/* The CCPI explainer is a ⓘ tooltip beside the section heading. */}
         <div className="adm-title-row">
           <h3 className="adm-title">{t('admin.indicators.ccpi')}</h3>
           <AdminHint hint={t('admin.indicators.explainer')} id="adm-ind-hint" />
@@ -261,8 +228,7 @@ export default function IndicatorsPage() {
   );
 }
 
-/** Speedometer-style dial for the latest month's YoY inflation pace (reads the ready-made
- *  headline YoY series directly). */
+/** Speedometer dial for the latest month's year-on-year inflation. */
 function InflationGauge({ values, nf }: { values: number[]; nf: Intl.NumberFormat }) {
   const { t } = useTranslation();
   const latest = values[values.length - 1];

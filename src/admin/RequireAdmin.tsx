@@ -1,12 +1,6 @@
-// Admin route guard (ADM-1). Wraps RequireAuth semantics AND a role check:
-//   - booting (live silent-renew in flight) -> hold a subtle shell, don't bounce.
-//   - not authenticated                     -> redirect to /login (existing flow),
-//                                               remembering where they were headed.
-//   - authenticated but role !== 'Admin'    -> honest "no access" state, NO redirect
-//                                               (a farmer who lands on /admin gets a
-//                                               plain explanation + a way back, never
-//                                               a redirect loop).
-//   - authenticated Admin                   -> render the admin section (<Outlet/>).
+// Route guard for /admin: hold while the session is still loading, redirect to /login
+// when signed out, and show a plain "no access" page (never a redirect) when a
+// signed-in non-Admin lands here.
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';

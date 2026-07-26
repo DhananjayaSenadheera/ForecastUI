@@ -1,13 +1,5 @@
-// =============================================================================
-// AgriForecast API client (FE-2). Single fetch wrapper — NO axios (platform fetch).
-// Anonymous read in R1 (owner decision #2): no auth headers are sent. An auth
-// hook point is left commented for R2 (JWT in memory, never localStorage).
-//
-// FIXTURE MODE: set VITE_API_MODE=fixtures to serve realistic fixture JSON for
-// every endpoint, so the UI can be built and demoed without a live backend. The
-// markets + price-history routes (formerly API gaps #1/#2) are now LIVE — backend
-// PR #24 (API-1/2), wired below and consumed verbatim.
-// =============================================================================
+// API client: one fetch wrapper, no axios. Set VITE_API_MODE=fixtures to serve fixture
+// JSON for every endpoint so the UI runs without a backend.
 import * as fx from './fixtures';
 import { reportFromHeaders } from './cacheSignal';
 import { ymdLocal } from '../lib/format';
@@ -58,13 +50,9 @@ export class ApiError extends Error {
   }
 }
 
-// --- auth (FE-17 / FE-21) -----------------------------------------------------
-// SECURITY: the JWT lives in MODULE MEMORY ONLY — never localStorage /
-// sessionStorage / cookies. FE-21 adds SILENT RENEW: the backend now issues an
-// httpOnly refresh cookie (`agriforecast_refresh`, sent on /api/auth/* only) the
-// JS can never read; a page reload restores the session by exchanging that cookie
-// for a fresh access token via POST /api/auth/refresh. The access token still
-// lives only here in memory.
+// The access token lives in MODULE MEMORY ONLY — never localStorage, sessionStorage or
+// cookies. A reload restores the session by exchanging the httpOnly refresh cookie
+// (`agriforecast_refresh`, sent on /api/auth/* only) for a fresh access token.
 let authToken: string | null = null;
 
 /** Set (or clear, with null) the in-memory bearer token. Called by AuthContext. */
@@ -76,11 +64,9 @@ function authHeaders(): Record<string, string> {
   return authToken ? { Authorization: `Bearer ${authToken}` } : {};
 }
 
-// --- 401 interceptor ----------------------------------------------------------
-// A single global handler the AuthContext registers to clear the session and
-// bounce to /login when the API rejects our token (expired / revoked). Auth
-// routes are EXEMPT: a 401 from /api/auth/login means "wrong credentials", not
-// "session expired", and must not trigger a logout/redirect loop.
+// A single global 401 handler (registered by AuthContext) clears the session and
+// bounces to /login. Auth routes are EXEMPT: a 401 from /api/auth/login means wrong
+// credentials, not an expired session, and must not start a redirect loop.
 let onUnauthorized: (() => void) | null = null;
 
 /** Register the session-expiry handler (AuthContext). Pass null to unregister. */
@@ -88,11 +74,9 @@ export function setUnauthorizedHandler(handler: (() => void) | null): void {
   onUnauthorized = handler;
 }
 
-// --- silent renew (FE-21) -----------------------------------------------------
-// AuthContext registers a refresh callback here. On the FIRST 401 from a data
-// route we call it once: if it renews the access token we retry the failed
-// request exactly once; only if renew ALSO fails do we fall to onUnauthorized
-// (the signed-out path). Returns true when a fresh token is in memory.
+// AuthContext registers a refresh callback. On the first 401 from a data route we call
+// it once and retry the request once; only if the renew also fails do we fall through
+// to onUnauthorized.
 let onRefresh: (() => Promise<boolean>) | null = null;
 
 /** Register the silent-renew callback (AuthContext). Pass null to unregister. */
@@ -110,10 +94,9 @@ async function request<T>(path: string, init?: RequestInit, allowRefresh = true)
   try {
     res = await fetch(`${BASE_URL}${path}`, {
       ...init,
-      // Auth routes are the ONLY calls that carry the httpOnly refresh cookie
-      // (login/register set it; refresh reads+rotates it; logout clears it). It
-      // is cross-origin (:4173 -> :5282), so credentials:'include' is required.
-      // Data routes stay Bearer-only — no ambient cookies app-wide.
+      // Auth routes are the only calls that carry the httpOnly refresh cookie, and they
+      // are cross-origin, so credentials:'include' is required. Data routes stay
+      // Bearer-only — no ambient cookies app-wide.
       ...(isAuthPath ? { credentials: 'include' as const } : {}),
       headers: {
         Accept: 'application/json',
@@ -127,18 +110,15 @@ async function request<T>(path: string, init?: RequestInit, allowRefresh = true)
     throw new ApiError('network', 0);
   }
 
-  // Cache-provenance signal (FE-9): the SW stamps X-SW-Cache on offline-served
-  // responses. Fresh network responses clear the flag. No-op when no SW (headers
-  // absent -> treated as fresh) and in fixture mode (request() is never reached).
+  // The service worker stamps X-SW-Cache on offline-served responses; a fresh network
+  // response clears the flag.
   reportFromHeaders(res.headers);
 
   if (!res.ok) {
-    // Session-expiry interceptor: a 401 on any NON-auth route means our access
-    // token is no longer accepted. Auth routes are exempt (there a 401 is a
-    // credentials error the login form surfaces itself).
+    // A 401 on a non-auth route means our access token is no longer accepted. Auth
+    // routes are exempt (there a 401 is a credentials error the login form shows).
     if (res.status === 401 && !isAuthPath) {
-      // Silent renew (FE-21): try ONE refresh + retry before giving up. Only if
-      // renew fails (or is unavailable) do we clear the session / redirect.
+      // Try ONE refresh + retry before giving up.
       if (allowRefresh && onRefresh) {
         let renewed = false;
         try {
@@ -164,35 +144,29 @@ async function request<T>(path: string, init?: RequestInit, allowRefresh = true)
   return (await res.json()) as T;
 }
 
-// Exported for the auth module (src/api/auth.ts) so login/register reuse the same
-// fetch pipeline: error-message parsing, network-error shaping, the 401 exemption.
+// Exported for src/api/auth.ts so login/register reuse the same fetch pipeline.
 export { request };
 
 const iso = (d: string | Date): string => (typeof d === 'string' ? d : ymdLocal(d));
 
-// Fixtures-mode working copy for the ADM-4 users demo CRUD (API-9 has no fixture
-// server): cloned lazily from the seed on first read so role edits + deletes
-// persist within a session with no backend. The exported seed (fx.fxAdminUsers)
-// is never mutated. Live mode never touches this.
+// Fixtures-mode working copy of the users list, cloned lazily from the seed so demo
+// edits and deletes survive the post-mutation refetch. The seed is never mutated.
 let fxUsersWorking: AdminUser[] | null = null;
 function fxUsers(): AdminUser[] {
   if (!fxUsersWorking) fxUsersWorking = fx.fxAdminUsers.map((u) => ({ ...u }));
   return fxUsersWorking;
 }
 
-// Fixtures-mode working copy for the ADM-2 policy-flag demo CRUD (API-13 has no
-// fixture server): cloned lazily from the seed so edits/deletes persist within a
-// session with no backend. The exported seed (fx.fxPolicyFlags) is never mutated.
+// Fixtures-mode working copy of the policy flags (same reason as the users copy).
 let fxPolicyWorking: PolicyFlag[] | null = null;
 function fxPolicy(): PolicyFlag[] {
   if (!fxPolicyWorking) fxPolicyWorking = fx.fxPolicyFlags.map((f) => ({ ...f }));
   return fxPolicyWorking;
 }
 
-// Demo mirror of PolicyFlagTrainingDataWarning.For (backend): a flag whose window
-// STARTS strictly before today (UTC calendar date) has already fed training, so the
-// mutation warns. Compares the max of the incoming + previous effectiveFrom. Returns
-// the same sentence the server sends so the amber banner is demo-able; null otherwise.
+// Demo mirror of the backend's policy-flag rule: a flag whose window starts before
+// today has already fed training, so the mutation warns. Returns the same sentence the
+// server sends so the amber banner is demoable.
 const FX_TRAINING_WARNING =
   "This policy flag's effective window falls (partly) in the past. Policy flags are as-of-joined " +
   "into the forecasting model's training data, so editing or removing a past-dated flag changes " +
@@ -203,19 +177,15 @@ function fxTrainingWarning(...effectiveFroms: (string | null | undefined)[]): st
   return touchesPast ? FX_TRAINING_WARNING : null;
 }
 
-// Fixtures-mode working copy for the ADM-5 festival-calendar demo CRUD (API-10, no fixture
-// server): cloned lazily from the seed so demo add/edit/delete persist through the
-// post-mutation refetch. The exported seed (fx.fxFestivals) is never mutated.
+// Fixtures-mode working copy of the festival calendar (same reason as above).
 let fxFestivalsWorking: FestivalEntry[] | null = null;
 function fxFestivals(): FestivalEntry[] {
   if (!fxFestivalsWorking) fxFestivalsWorking = fx.fxFestivals.map((f) => ({ ...f }));
   return fxFestivalsWorking;
 }
 
-// Demo mirror of FestivalCalendarTrainingDataWarning.For (backend): a festival whose Date
-// (incoming OR stored) is strictly before today (UTC calendar date) has already fed the
-// model's lead-up-window training features, so the mutation warns. Returns the same sentence
-// the server sends so the amber banner is demo-able; null for purely future-dated festivals.
+// Demo mirror of the backend's festival rule: a festival dated before today has
+// already fed the model's lead-up training features, so the mutation warns.
 const FX_FESTIVAL_WARNING =
   "This festival's date falls in the past. Festival dates are as-of-joined into the " +
   "forecasting model's training data (lead-up demand windows), so editing or removing a " +
@@ -226,20 +196,15 @@ function fxFestivalWarning(...dates: (string | null | undefined)[]): string | nu
   return touchesPast ? FX_FESTIVAL_WARNING : null;
 }
 
-// Fixtures-mode working copy for the ADM-7 news-events demo CRUD (API-12, no fixture server):
-// cloned lazily from the seed so demo add/edit/delete persist through the post-mutation refetch.
-// The exported seed (fx.fxNewsEvents) is never mutated. Live mode never touches this.
+// Fixtures-mode working copy of the news events (same reason as above).
 let fxNewsWorking: NewsEvent[] | null = null;
 function fxNews(): NewsEvent[] {
   if (!fxNewsWorking) fxNewsWorking = fx.fxNewsEvents.map((e) => ({ ...e }));
   return fxNewsWorking;
 }
 
-// =============================================================================
 // Public API surface. Each method has a fixture branch (VITE_API_MODE=fixtures).
-// =============================================================================
 export const api = {
-  // ---- LIVE endpoints (audited 2026-07-10) --------------------------------
   async getCrops(): Promise<Crop[]> {
     if (USE_FIXTURES) return fx.fxCrops;
     return request<Crop[]>('/api/crops/get/all');
@@ -268,9 +233,8 @@ export const api = {
     return request<CropTimeline>(`/api/forecast/crop/${cropId}/timeline?${q.toString()}`);
   },
 
-  // Best harvest window (2026-07-25). A rankable=false response is a normal 200,
-  // NOT an error — the panel renders an honest "we cannot rank dates for this
-  // crop yet" state from reasonCode. Only a thrown ApiError is a failure.
+  // A rankable=false response is a normal 200, not an error — the panel renders an
+  // honest "we cannot rank dates for this crop yet" state from reasonCode.
   async getHarvestWindow(cropId: string, horizonDays = 90, asOf?: string | Date): Promise<HarvestWindow> {
     if (USE_FIXTURES) return fx.fxHarvestWindowFor(cropId, horizonDays, asOf ? iso(asOf) : undefined);
     const q = new URLSearchParams({ horizonDays: String(horizonDays) });
@@ -283,39 +247,29 @@ export const api = {
     return request<BestCrop[]>(`/api/forecast/best-crops?lookbackMonths=${lookbackMonths}`);
   },
 
-  // Crop-status colouring (2026-07-22). Callers treat a failure as "readiness
-  // unknown" (no tint) — this is decoration, never a page-blocking dependency.
+  // A failure here just means "readiness unknown" (no tint); never page-blocking.
   async getCropReadiness(): Promise<CropReadiness> {
     if (USE_FIXTURES) return fx.fxCropReadiness;
     return request<CropReadiness>('/api/forecast/crop-readiness');
   },
 
-  // Landing-dashboard snapshot (FE-1). LIVE route being built against the API-7
-  // contract in parallel; consumed verbatim (camelCase). days defaults to 30.
+  // Landing-dashboard snapshot; days defaults to 30.
   async getMarketOverview(days = 30): Promise<MarketOverview> {
     if (USE_FIXTURES) return fx.fxMarketOverviewFor(days);
     return request<MarketOverview>(`/api/forecast/market-overview?days=${days}`);
   },
 
-  // ---- Markets + price history (API-1 / API-2 — LIVE, backend PR #24) ------
-  // GET /api/markets/get/all?hasPrices={bool} [Authorize] -> Market[] (camelCase,
-  // matches the Market interface exactly), ordered by name. The farmer Prices page
-  // charts prices, so it asks for the price-carrying SUBSET (hasPrices=true = the 10
-  // markets that actually have price rows; the full registry has 12 — see
-  // getAdminMarkets). Empty -> 200 [] (no 400-on-empty quirk here).
+  // getMarkets asks for the price-carrying subset (hasPrices=true, 10 of the 12
+  // markets); getAdminMarkets below fetches the full registry. Empty is 200 [].
   async getMarkets(): Promise<Market[]> {
     if (USE_FIXTURES) return fx.fxMarkets;
     return request<Market[]>('/api/markets/get/all?hasPrices=true');
   },
 
-  // GET /api/prices/crop/{cropId}/history?marketId={guid?}&days={int} [Authorize]
-  // -> PriceHistoryPoint[]: one row per calendar date, chronological (oldest first),
-  // consumed verbatim (no mapping layer). We pass an explicit days=90 so the FE owns
-  // its window rather than trusting the server default silently (server clamps days
-  // to [7,365]). Empty -> 200 [] (NOT the policy-flag 400-on-empty quirk).
-  // ⚠️ QUIRK: OMITTING marketId returns a CROSS-MARKET daily envelope (excluding the
-  // NationalAggregate pseudo-market), NOT a single default-market series. PricesPage
-  // always passes a marketId today, so the omitted-marketId envelope is unused.
+  // Price history: one row per calendar date, oldest first. We pass days=90 explicitly
+  // rather than trusting the server default (the server clamps days to 7..365).
+  // QUIRK: omitting marketId returns a CROSS-MARKET daily envelope, not one market's
+  // series. PricesPage always passes a marketId.
   async getPriceHistory(cropId: string, marketId?: string): Promise<PriceHistoryPoint[]> {
     if (USE_FIXTURES) return fx.fxPriceHistoryFor(cropId, marketId);
     const q = new URLSearchParams();
@@ -324,15 +278,12 @@ export const api = {
     return request<PriceHistoryPoint[]>(`/api/prices/crop/${cropId}/history?${q.toString()}`);
   },
 
-  // ---- ADMIN CONSOLE ------------------------------------------------------
-  // Policy flags (ADM-2). LIVE route exists: GET /api/policy-flag/get/all
-  // [Authorize]; optional ?asOfDate=YYYY-MM-DD returns only flags active that day.
-  // CONTRACT QUIRK: an EMPTY result comes back as HTTP 400 ("No policy flags
-  // found."), not 200 []. Callers treat a 400 on this route as the empty state.
+  // Policy flags: optional ?asOfDate=YYYY-MM-DD returns only flags active that day.
+  // CONTRACT QUIRK: an EMPTY result comes back as HTTP 400, not 200 [], so callers
+  // treat a 400 on this route as the empty state.
   async getPolicyFlags(asOfDate?: string): Promise<PolicyFlag[]> {
     if (USE_FIXTURES) {
-      // Read the working copy (not the static seed) so demo edits/deletes survive
-      // the post-mutation refetch. as-of filtering mirrors the backend GetActiveAsOf.
+      // Read the working copy, not the seed, so demo edits survive the refetch.
       const all = fxPolicy();
       if (!asOfDate) return all.map((f) => ({ ...f }));
       const d = asOfDate.slice(0, 10);
@@ -348,12 +299,8 @@ export const api = {
     return request<PolicyFlag[]>(`/api/policy-flag/get/all${q}`);
   },
 
-  // PUT /api/policy-flag/update [Admin-only, API-13]. Full-object update: the body
-  // WRAPS the dto under `policyFlagUpdateDto` (mirrors the crops createDto wrapper).
-  // -> 200 { id, trainingDataWarning }. Validation/guard failures arrive as the house
-  // error shape (HTTP 400) and are surfaced verbatim by the page. In FIXTURES mode the
-  // working copy is mutated in place and a demo warning is derived from the (old + new)
-  // effectiveFrom so the amber banner is demo-able with no backend.
+  // PUT /api/policy-flag/update: the body WRAPS the dto under `policyFlagUpdateDto`
+  // (same wrapper style as the crops createDto) and returns { id, trainingDataWarning }.
   async updatePolicyFlag(dto: PolicyFlagUpdateDto): Promise<PolicyFlagMutationResult> {
     if (USE_FIXTURES) {
       const list = fxPolicy();
@@ -376,9 +323,7 @@ export const api = {
     });
   },
 
-  // DELETE /api/policy-flag/delete/{id} [Admin-only, API-13] -> 200 { id,
-  // trainingDataWarning } (same past-window warning semantics as update). Fixtures:
-  // remove from the working copy; warn when the removed flag's window started in the past.
+  // Delete returns { id, trainingDataWarning } with the same past-window semantics.
   async deletePolicyFlag(id: string): Promise<PolicyFlagMutationResult> {
     if (USE_FIXTURES) {
       const list = fxPolicy();
@@ -391,40 +336,26 @@ export const api = {
     return request<PolicyFlagMutationResult>(`/api/policy-flag/delete/${id}`, { method: 'DELETE' });
   },
 
-  // Markets registry (ADM-3, API-1 — LIVE, backend PR #24). GET /api/markets/get/all
-  // [Authorize] with NO hasPrices flag = the full registry (all 12 markets, ordered
-  // by name). Distinct from getMarkets() (which passes hasPrices=true for the 10
-  // price-carrying markets the farmer Prices page can chart). Empty -> 200 [].
+  // The full markets registry (all 12), unlike getMarkets() which asks for the 10
+  // price-carrying ones.
   async getAdminMarkets(): Promise<Market[]> {
     if (USE_FIXTURES) return fx.fxAdminMarkets;
     return request<Market[]>('/api/markets/get/all');
   },
 
-  // ---- ADMIN CONSOLE — USERS (ADM-4 / API-9 — LIVE, backend PR #26) --------
-  // Role is a plain STRING on the wire ('Admin' | 'Farmer'), camelCase throughout.
-  // TWO account-creation paths exist, and they are NOT interchangeable: /register
-  // (anonymous, always role Farmer, issues a refresh cookie to the caller) and
-  // POST /api/users/create (Admin-only, role chosen, issues NOTHING). The admin
-  // console must only ever use the latter — see createUser below.
-  //
-  // GET /api/users/get/all?page=&pageSize= [Admin-only] -> flat AdminUser[],
-  // newest-first. Paging is OPTIONAL: the server clamps page>=1, pageSize in
-  // [1,500], default 500. The page paginates CLIENT-SIDE today, so we fetch with
-  // NO params — the default 500 covers current scale. ⚠️ CAP: past 500 accounts
-  // this silently truncates; wire server paging through before the user base grows.
+  // Users admin API. Role is a plain string on the wire ('Admin' | 'Farmer').
+  // GET /api/users/get/all is server-paged but we fetch with no params (server default
+  // 500) and paginate client-side. CAP: past 500 accounts this silently truncates —
+  // wire server paging through before the user base grows.
   async getAdminUsers(): Promise<AdminUser[]> {
     if (USE_FIXTURES) return fxUsers().map((u) => ({ ...u }));
     return request<AdminUser[]>('/api/users/get/all');
   },
 
-  // POST /api/users/create  body {username, email, password, role} [Admin-only]
-  // -> the created AdminUser. NEVER call auth register (src/api/auth.ts) from the
-  // admin console for this: that endpoint sets the httpOnly refresh cookie for the
-  // CALLER, so provisioning an account would swap the acting admin's refresh cookie
-  // for the new user's and hand their next silent renew the wrong identity. This
-  // route returns the row only — no token, no cookie, admin session untouched.
-  // Server guards arrive as the house error shape (400): "Username is already
-  // taken." / "Email is already registered." / "Invalid role." — surfaced verbatim.
+  // POST /api/users/create (Admin-only) returns the created row and nothing else.
+  // NEVER use auth register() for this: that endpoint sets the httpOnly refresh cookie
+  // for the CALLER, so provisioning an account would swap the acting admin's session.
+  // Server guards ("Username is already taken.") arrive as 400 and are shown verbatim.
   async createUser(input: CreateUserInput): Promise<AdminUser> {
     if (USE_FIXTURES) {
       const users = fxUsers();
@@ -451,13 +382,9 @@ export const api = {
     });
   },
 
-  // PUT /api/users/update-role  body {userId, role:'Admin'|'Farmer'} [Admin-only]
-  // -> the updated AdminUser. Any other role string -> 400. Load-bearing server
-  // guards arrive as the house error shape {errors:[{property:'User',message}]}
-  // (HTTP 400): "cannot demote the last remaining admin". request() extracts that
-  // message; the page surfaces it verbatim. STALE-SESSION NOTE: with stateless
-  // refresh tokens a demoted user's existing session survives up to ~60 min
-  // (access-token expiry); their next silent renew re-reads reality.
+  // PUT /api/users/update-role. The server's "cannot demote the last remaining admin"
+  // guard arrives as a 400 the page shows verbatim. A demoted user's existing access
+  // token still works until it expires (~60 min); their next renew re-reads reality.
   async updateUserRole(userId: string, role: 'Admin' | 'Farmer'): Promise<AdminUser> {
     if (USE_FIXTURES) {
       const u = fxUsers().find((x) => x.id === userId);
@@ -472,11 +399,9 @@ export const api = {
     });
   },
 
-  // DELETE /api/users/delete/{id} [Admin-only] -> 200 true. Server guards (400,
-  // house error shape): "cannot delete yourself" + "cannot delete the last
-  // remaining admin" — surfaced verbatim in the page. STALE-SESSION NOTE: a
-  // deleted user's in-flight session lingers up to ~60 min until access-token
-  // expiry, then their next refresh is rejected.
+  // DELETE /api/users/delete/{id}. Server guards ("cannot delete yourself", "cannot
+  // delete the last remaining admin") arrive as 400 and are shown verbatim. A deleted
+  // user's session also lingers until their access token expires (~60 min).
   async deleteUser(userId: string): Promise<boolean> {
     if (USE_FIXTURES) {
       const before = fxUsers().length;
@@ -486,55 +411,39 @@ export const api = {
     return request<boolean>(`/api/users/delete/${userId}`, { method: 'DELETE' });
   },
 
-  // ---- ADMIN CONSOLE — INDICATORS (ADM-6 / API-11 — LIVE, backend merged) --
-  // Three read-only routes over macro reference data, audited against
-  // IndicatorsController on 2026-07-16. All camelCase, consumed verbatim. Empty is a
-  // 200 [] (NOT a 404, NOT the policy-flag 400-on-empty quirk) -> pages render an
-  // honest empty state. Param names are LITERAL: daily uses `code`, macro uses `key`.
-  //
-  // GET /api/indicators/catalog -> SeriesCatalogEntry[] (kind: 'indicator'|'macro').
-  // The Indicators page discovers series from here instead of hardcoding keys.
+  // Indicators: three read-only routes. Empty is 200 [] (not the policy-flag 400 quirk).
+  // Param names are literal: the daily route takes `code`, the macro route takes `key`.
+  // GET /api/indicators/catalog lists the available series, so the Indicators page
+  // discovers keys instead of hardcoding them.
   async getIndicatorCatalog(): Promise<SeriesCatalogEntry[]> {
     if (USE_FIXTURES) return fx.fxIndicatorCatalog();
     return request<SeriesCatalogEntry[]>('/api/indicators/catalog');
   },
 
-  // GET /api/indicators?code={code} -> DailyIndicatorPoint[] (daily EconomicIndicators,
-  // e.g. USD_LKR). from/to optional (server default: last 365 days). We rely on the
-  // default window today; the code is the required selector.
+  // GET /api/indicators?code= -> daily points (e.g. USD_LKR). from/to are optional; the
+  // server defaults to the last 365 days.
   async getIndicatorDaily(code: string): Promise<DailyIndicatorPoint[]> {
     if (USE_FIXTURES) return fx.fxIndicatorDaily(code);
     return request<DailyIndicatorPoint[]>(`/api/indicators?code=${encodeURIComponent(code)}`);
   },
 
-  // GET /api/macro-series?key={seriesKey} -> MacroSeriesPoint[] (vintage-aware
-  // MacroSeriesPoints, e.g. CCPI). BOTH referenceDate + publishedAt arrive verbatim;
-  // multiple vintages of one referenceDate may appear (the page collapses to the latest
-  // publishedAt for display while surfacing that a revision exists). Default window is
-  // the server's last-365-days on referenceDate.
+  // GET /api/macro-series?key= -> vintage-aware points. Both referenceDate and
+  // publishedAt arrive verbatim, and one referenceDate can have several vintages.
   async getIndicatorMacro(seriesKey: string): Promise<MacroSeriesPoint[]> {
     if (USE_FIXTURES) return fx.fxIndicatorMacro(seriesKey);
     return request<MacroSeriesPoint[]>(`/api/macro-series?key=${encodeURIComponent(seriesKey)}`);
   },
 
-  // ---- ADMIN CONSOLE — FESTIVAL CALENDAR (ADM-5 / API-10 — LIVE, backend merged) ----
-  // Audited read-only against FestivalCalendarController on 2026-07-16. All camelCase,
-  // consumed verbatim. Empty -> 200 [] (NOT the policy-flag 400-on-empty quirk). Mutation
-  // bodies WRAP the dto (mirrors the crops createDto / policyFlagUpdateDto wrappers). Update
-  // + delete return { id, trainingDataWarning } (non-null when the festival Date — incoming or
-  // stored — is in the past; the mutation still SUCCEEDED, the warning is informational).
-  //
-  // GET /api/festival-calendar/get/all [Authorize] -> FestivalEntry[] ordered by date.
+  // Festival calendar. Empty is 200 []. Mutation bodies WRAP the dto, and update +
+  // delete return { id, trainingDataWarning } (non-null when the date is in the past —
+  // the mutation still succeeded).
   async getFestivals(): Promise<FestivalEntry[]> {
-    // Read the working copy (not the static seed) so demo add/edit/delete survive the
-    // post-mutation refetch. Live mode never touches this.
+    // Read the working copy, not the seed, so demo edits survive the refetch.
     if (USE_FIXTURES) return fxFestivals().map((f) => ({ ...f }));
     return request<FestivalEntry[]>('/api/festival-calendar/get/all');
   },
 
-  // POST /api/festival-calendar/create [Admin] body { festivalCalendarCreateDto } -> 200 true.
-  // Fixtures: append to the working copy (synthesise id + createdAtUtc) so the demo row
-  // survives the refetch; leadUpDays is stored VERBATIM (0 stays 0 — never coerced).
+  // Fixtures: append to the working copy; leadUpDays is stored verbatim (0 stays 0).
   async createFestival(dto: FestivalCreateDto): Promise<boolean> {
     if (USE_FIXTURES) {
       fxFestivals().push({
@@ -554,9 +463,7 @@ export const api = {
     });
   },
 
-  // PUT /api/festival-calendar/update [Admin] body { festivalCalendarUpdateDto } -> 200
-  // { id, trainingDataWarning }. Full-object update. Fixtures: mutate the working copy in
-  // place and derive the demo warning from the (old + new) Date so the amber banner is demo-able.
+  // Full-object update -> { id, trainingDataWarning }.
   async updateFestival(dto: FestivalUpdateDto): Promise<FestivalMutationResult> {
     if (USE_FIXTURES) {
       const list = fxFestivals();
@@ -576,9 +483,7 @@ export const api = {
     });
   },
 
-  // DELETE /api/festival-calendar/delete/{id} [Admin] -> 200 { id, trainingDataWarning }
-  // (same past-date warning semantics as update). Fixtures: warn when the removed festival's
-  // Date is in the past, then drop it from the working copy.
+  // Delete -> { id, trainingDataWarning } (same past-date semantics as update).
   async deleteFestival(id: string): Promise<FestivalMutationResult> {
     if (USE_FIXTURES) {
       const list = fxFestivals();
@@ -591,26 +496,17 @@ export const api = {
     return request<FestivalMutationResult>(`/api/festival-calendar/delete/${id}`, { method: 'DELETE' });
   },
 
-  // ---- ADMIN CONSOLE — NEWS EVENTS (ADM-7 / API-12 — LIVE, backend merged) ----
-  // Audited read-only against NewsEventController on 2026-07-16. All camelCase, enums as
-  // integers, consumed verbatim. Empty -> 200 [] (NOT the policy-flag 400-on-empty quirk).
-  // Mutation bodies WRAP the dto (mirrors the crops createDto / policyFlagUpdateDto wrappers).
-  //
-  // CAPTURE-ONLY divergence from API-10/13: news events are NOT yet ML feature inputs, so there
-  // is deliberately NO trainingDataWarning. Mutation returns are BARE — create -> boolean,
-  // update/delete -> the affected Guid (string), NOT the { id, trainingDataWarning } shape.
-  //
-  // GET /api/news-events/get/all [Authorize] -> NewsEvent[], newest publishedAt first.
+  // News events (the curated CRUD). Enums are integers on the wire and mutation bodies
+  // wrap the dto. Unlike the festival and policy routes these returns are BARE —
+  // create -> boolean, update/delete -> the affected id — because news events are not
+  // model inputs yet, so there is no trainingDataWarning.
   async getNewsEvents(): Promise<NewsEvent[]> {
-    // Read the working copy (not the static seed) so demo add/edit/delete survive the
-    // post-mutation refetch. Live mode never touches this.
+    // Read the working copy, not the seed, so demo edits survive the refetch.
     if (USE_FIXTURES) return fxNews().map((e) => ({ ...e }));
     return request<NewsEvent[]>('/api/news-events/get/all');
   },
 
-  // POST /api/news-events/create [Admin] body { newsEventCreateDto } -> 200 true (boolean).
-  // Fixtures: append to the working copy (synthesise id + createdAtUtc; affectedMarketIds
-  // defaults to [] since the FE has no market picker) so the demo row survives the refetch.
+  // Fixtures: append to the working copy so the demo row survives the refetch.
   async createNewsEvent(dto: NewsEventCreateDto): Promise<boolean> {
     if (USE_FIXTURES) {
       fxNews().push({
@@ -633,10 +529,8 @@ export const api = {
     });
   },
 
-  // PUT /api/news-events/update [Admin] body { newsEventUpdateDto } -> 200 Guid (string).
-  // Full-object update MINUS publishedAt (the vintage date is immutable by construction — the
-  // dto does not carry it). Fixtures: mutate the working copy in place, preserving the stored
-  // publishedAt untouched; return the affected id.
+  // Full-object update MINUS publishedAt — the vintage date is immutable, so the dto
+  // does not carry it.
   async updateNewsEvent(dto: NewsEventUpdateDto): Promise<string> {
     if (USE_FIXTURES) {
       const list = fxNews();
@@ -658,8 +552,7 @@ export const api = {
     });
   },
 
-  // DELETE /api/news-events/delete/{id} [Admin] -> 200 Guid (string). Fixtures: drop it from
-  // the working copy and return the id.
+  // Delete -> the affected id (a string, not the { id, trainingDataWarning } shape).
   async deleteNewsEvent(id: string): Promise<string> {
     if (USE_FIXTURES) {
       const list = fxNews();
@@ -671,31 +564,24 @@ export const api = {
     return request<string>(`/api/news-events/delete/${id}`, { method: 'DELETE' });
   },
 
-  // GET /api/news-articles/get/latest?take=50 [Authorize] -> NewsArticle[], newest first.
-  // Read-only feed of what the news INGESTION pipeline captured (Python-owned table) —
-  // distinct from the curated news-events CRUD above. Server clamps take (default 50,
-  // max 200) and returns 200 [] when ingestion has never run.
+  // GET /api/news-articles/get/latest: read-only feed of what the news INGESTION
+  // pipeline captured, distinct from the curated news-events CRUD above. The server
+  // clamps take (default 50, max 200).
   async getNewsArticles(take = 50): Promise<NewsArticle[]> {
     if (USE_FIXTURES) return fx.fxNewsArticles.slice(0, take);
     return request<NewsArticle[]>(`/api/news-articles/get/latest?take=${take}`);
   },
 
-  // ---- ADMIN CONSOLE — INGESTION RUNS (admin ingestion API — LIVE-verified) ----
-  // Two read-only routes behind an Admin JWT; a 401/403 flows through the existing
-  // global interceptor (silent renew then /login), so there is ZERO new auth code here.
-  //
-  // GET /api/admin/ingestion/status -> IngestionStatus: a pipeline snapshot (service
-  // state, last run + verification rollup, per-source health). Consumed verbatim.
+  // Ingestion runs: two read-only routes behind an Admin JWT.
+  // GET /api/admin/ingestion/status -> a pipeline snapshot, consumed verbatim.
   async getIngestionStatus(): Promise<IngestionStatus> {
     if (USE_FIXTURES) return fx.fxIngestionStatus();
     return request<IngestionStatus>('/api/admin/ingestion/status');
   },
 
-  // GET /api/admin/ingestion/runs?page=&pageSize=&source= -> IngestionRunPage. The
-  // API is SERVER-PAGED ({items,page,pageSize,total}) — the page passes page/pageSize
-  // straight through and NEVER client-slices. `source` is optional; an INVALID source
-  // key answers 400 (surfaced as the error state). run.verification.checksJson is a
-  // JSON STRING parsed defensively in the page (parseVerificationChecks).
+  // GET /api/admin/ingestion/runs is SERVER-PAGED ({items,page,pageSize,total}) — pass
+  // page/pageSize straight through, never client-slice. An invalid `source` answers 400.
+  // run.verification.checksJson is a JSON STRING, parsed defensively in the page.
   async getIngestionRuns(page = 1, pageSize = 20, source?: string): Promise<IngestionRunPage> {
     if (USE_FIXTURES) return fx.fxIngestionRuns(page, pageSize, source);
     const q = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
@@ -703,23 +589,19 @@ export const api = {
     return request<IngestionRunPage>(`/api/admin/ingestion/runs?${q.toString()}`);
   },
 
-  // ---- ADMIN CONSOLE — LOGS HUB Phase 2 (training + user activity — LIVE) ----
-  // Both routes behind an Admin JWT (401/403 through the existing interceptor); both
-  // return the server-paged {items,page,pageSize,total} envelope, consumed verbatim.
-  //
-  // GET /api/admin/logs/training?page=&pageSize= -> TrainingRunPage (ordered
-  // TrainedAtUtc DESC). No filter param — always the full history, server-paged.
+  // Logs hub: both routes are Admin-only and return the server-paged
+  // {items,page,pageSize,total} envelope.
+  // GET /api/admin/logs/training -> training runs, newest first. No filter param.
   async getTrainingRuns(page = 1, pageSize = 25): Promise<TrainingRunPage> {
     if (USE_FIXTURES) return fx.fxTrainingRuns(page, pageSize);
     const q = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     return request<TrainingRunPage>(`/api/admin/logs/training?${q.toString()}`);
   },
 
-  // GET /api/admin/logs/user-activity?page=&pageSize=&type=|&types= -> UserActivityPage
-  // (ordered OccurredUtc DESC). Two mutually-exclusive OPTIONAL filters, both built from
-  // KNOWN wire strings only (the server 400s anything else, so free text can never reach
-  // it): `type` = exactly one event type; `types` = a comma-separated OR-set (the System
-  // log tab's group filter). `type` wins if both are given — it is the narrower request.
+  // GET /api/admin/logs/user-activity. Two mutually exclusive OPTIONAL filters, both
+  // built from known wire strings only (the server 400s anything else): `type` is one
+  // event type, `types` is a comma-separated OR-set. Send one or the other, NEVER both
+  // — `type` wins because it is the narrower request.
   async getUserActivity(
     page = 1,
     pageSize = 25,
@@ -732,11 +614,8 @@ export const api = {
     return request<UserActivityPage>(`/api/admin/logs/user-activity?${q.toString()}`);
   },
 
-  // ---- ADMIN CONSOLE — LOGS HUB Phase 3 (system errors — LIVE) -------------
-  // GET /api/admin/logs/errors?page=&pageSize= -> SystemErrorPage (ordered
-  // OccurredUtc DESC). Same Admin-JWT + server-paged {items,page,pageSize,total}
-  // envelope as the sibling tabs; no filter param — always the full history,
-  // server-paged. Each row is one unhandled server exception (a 500).
+  // GET /api/admin/logs/errors -> unhandled server exceptions, newest first and
+  // server-paged. No filter param.
   async getSystemErrors(page = 1, pageSize = 25): Promise<SystemErrorPage> {
     if (USE_FIXTURES) return fx.fxSystemErrors(page, pageSize);
     const q = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });

@@ -1,11 +1,8 @@
-// Leading icons for the "Why this price?" factor rows — small inline SVGs
-// (Feather-style, stroke = currentColor), matching src/admin/icons.tsx so the app
-// has ONE icon language. No icon font, no emoji: emoji render differently on every
-// mid-range Android and carry an unwanted skin/culture tone.
-//
-// These are DECORATIVE ONLY (aria-hidden): the row's text is the causal sentence,
-// and an icon can never disambiguate "supply is plentiful" from "supply is short".
-// The icon is a scanning aid for a farmer skimming four rows, nothing more.
+// Leading icons for the "Why this price?" rows — small inline SVGs (stroke = currentColor)
+// matching src/admin/icons.tsx so the app has ONE icon language. No icon font and no emoji:
+// emoji render differently on every mid-range Android and carry an unwanted tone.
+// They are DECORATIVE ONLY (aria-hidden): the row's causal sentence is the text, and an
+// icon could never disambiguate "supply is plentiful" from "supply is short".
 import type { ReactElement, SVGProps } from 'react';
 
 const base: SVGProps<SVGSVGElement> = {

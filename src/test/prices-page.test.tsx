@@ -76,8 +76,8 @@ describe('PricesPage (FE-12)', () => {
   });
 
   it('treats a 501 as a real (retryable) error, not "coming soon" — the endpoint exists now', async () => {
-    // API-1/2 shipped (backend PR #24), so a 501 today means a deployment mismatch,
-    // NOT "coming soon". It must surface the honest error state with retry.
+    // The markets and history endpoints shipped, so a 501 today means a deployment
+    // mismatch, not "coming soon". It must surface the honest error state with retry.
     vi.spyOn(api, 'getMarkets').mockRejectedValueOnce(new ApiError('gap', 501));
     renderPage();
     expect(await screen.findByRole('alert')).toBeInTheDocument();

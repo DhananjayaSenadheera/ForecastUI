@@ -1,15 +1,9 @@
-// =============================================================================
-// Harvest-forecast presentation logic (FE-4). Pure, framework-free helpers so the
-// load-bearing bits (band geometry, honest low-trust trigger, verdict tone) are
-// unit-tested and the ForecastResult component stays presentational.
-//
-// HONEST-UNCERTAINTY RULES baked in here:
-//   - A range is NEVER a bare min–max: the centre is always marked. bandCentrePct
-//     gives the marked-centre position inside the P10–P90 band.
-//   - Low confidence OR an explicit lowTrust flag => amber "rough estimate" caution.
-//   - RED is reserved for the "Not recommended" verdict (FE-7). In FE-4 the verdict
-//     is a NEUTRAL hint, so a critical/red tone is clamped to neutral here.
-// =============================================================================
+// Harvest-forecast presentation logic. Pure helpers so band geometry, the low-trust
+// trigger and verdict tone are unit-tested and ForecastResult stays presentational.
+// A range is never a bare min–max: the centre is always marked. Low confidence or an
+// explicit lowTrust flag triggers the amber "rough estimate" caution. Red is reserved for
+// the "Not recommended" verdict on the best-crops screen, so a critical tone is clamped to
+// neutral here.
 import {
   RecommendationLevel,
   type ConfidenceString,
@@ -20,7 +14,7 @@ import {
 
 /**
  * Marked-centre position (0–100%) of the central estimate inside the P10–P90 band.
- * Degenerate/inverted bands collapse to the middle so the marker is never off-track.
+ * Degenerate or inverted bands collapse to the middle so the marker stays on the track.
  */
 export function bandCentrePct(lower: number, predicted: number, upper: number): number {
   const span = upper - lower;
@@ -30,9 +24,8 @@ export function bandCentrePct(lower: number, predicted: number, upper: number): 
 }
 
 /**
- * Honest low-trust trigger: show the amber "rough estimate" treatment when the API
- * flags stale/fallback data OR the frozen confidence string is "Low". Never dress a
- * fallback up as a precise prediction.
+ * Show the amber "rough estimate" treatment when the API flags stale/fallback data OR the
+ * frozen confidence string is "Low". Never dress a fallback up as a precise prediction.
  */
 export function isLowTrust(f: Pick<HarvestForecast, 'lowTrust' | 'confidence'>): boolean {
   return f.lowTrust === true || f.confidence === 'Low';
@@ -58,11 +51,8 @@ export function confidenceLabelKey(c: ConfidenceString): 'confidence.good' | 'co
   return c === 'High' ? 'confidence.good' : c === 'Medium' ? 'confidence.fair' : 'confidence.low';
 }
 
-// ---------------------------------------------------------------------------
-// FE-6 "Why this forecast?" factor breakdown (API-5, provisional). Pure helpers
-// so the shared-scale weight-bar geometry + direction/label mapping stay tested
-// and the WhyForecast component stays presentational.
-// ---------------------------------------------------------------------------
+// "Why this forecast?" factor breakdown. Pure helpers so the shared-scale weight-bar
+// geometry and the direction/label mapping stay tested.
 
 /** Direction glyph paired ALWAYS with a text word (never color/glyph-only). */
 export const factorGlyph: Record<FactorDirection, string> = {
@@ -82,13 +72,10 @@ export function factorLabelKey(code: string): string {
 }
 
 /**
- * i18n key for a factor's full CAUSAL SENTENCE (cause → everyday consequence →
- * direction), the primary text of a row: `factor.sentence.<code>.<up|down>`.
- *
- * `neutral` collapses to ONE generic key (`factor.sentenceNeutral`, interpolating
- * the factor label) because "this barely mattered" reads the same whatever the
- * factor is — and inventing six near-identical neutral sentences would give
- * translators twelve extra strings for no farmer benefit.
+ * i18n key for a factor's full causal sentence (cause -> everyday consequence ->
+ * direction): `factor.sentence.<code>.<up|down>`.
+ * `neutral` collapses to one generic key (`factor.sentenceNeutral`, interpolating the
+ * factor label) because "this barely mattered" reads the same whatever the factor is.
  */
 export function factorSentenceKey(code: string, direction: FactorDirection): string {
   return direction === 'neutral' ? 'factor.sentenceNeutral' : `factor.sentence.${code}.${direction}`;
@@ -98,12 +85,10 @@ export function factorSentenceKey(code: string, direction: FactorDirection): str
 export type FactorStrength = 'strong' | 'medium' | 'small';
 
 /**
- * Share-of-displayed-total cut-offs for the strength WORD. The API sends each
- * factor's share of total absolute attribution (serving/explain.py) and the panel
- * shows the top 4, so shares are re-normalised over what is actually on screen:
- * an even 4-way split is 25% each, so 40%+ is genuinely the dominant driver and
- * under 20% is a bit-part. Deliberately coarse — three buckets a farmer can act
- * on, not a false-precision percentage.
+ * Cut-offs for the strength WORD, as a share of the DISPLAYED total. The API sends each
+ * factor's share of total attribution and the panel shows the top 4, so shares are
+ * re-normalised over what is actually on screen: an even 4-way split is 25% each, so 40%+
+ * is the dominant driver and under 20% is a bit-part. Deliberately coarse.
  */
 export const FACTOR_STRENGTH_STRONG = 0.4;
 export const FACTOR_STRENGTH_MEDIUM = 0.2;
@@ -114,9 +99,8 @@ export function totalFactorWeight(factors: ForecastFactor[]): number {
 }
 
 /**
- * Strength word for one factor as a share of the displayed total. Returns null
- * when there is no honest basis for a word (weight missing/zero, or no positive
- * total) — the caption then names the factor without claiming a magnitude.
+ * Strength word for one factor as a share of the displayed total. Returns null when there
+ * is no honest basis for a word (weight missing or zero, or no positive total).
  */
 export function factorStrength(
   weight: number | undefined | null,
@@ -140,9 +124,8 @@ export function maxFactorWeight(factors: ForecastFactor[]): number {
 }
 
 /**
- * Weight bar length (0–100%) on the panel's SHARED scale. Returns null when there
- * is nothing honest to draw (no/zero weight, or no positive reference), so the row
- * simply omits the bar instead of showing a misleading empty/full one.
+ * Weight bar length (0–100%) on the panel's shared scale. Returns null when there is
+ * nothing honest to draw, so the row omits the bar instead of showing a misleading one.
  */
 export function factorWeightPct(weight: number | undefined | null, maxWeight: number): number | null {
   if (typeof weight !== 'number' || !(weight > 0) || !(maxWeight > 0)) return null;

@@ -1,10 +1,6 @@
-// =============================================================================
-// FIXTURE DATA — VITE_API_MODE=fixtures serves these instead of hitting the API.
-// Used for offline dev, tests, and not-yet-built endpoints (markets/prices = API
-// gaps #1/#2). This is DEMO data behind an env flag — it is fenced here and MUST
-// NOT be presented as real prices in production (VITE_API_MODE unset => live API).
-// Values are illustrative and mirror the design-sample numbers; NOT real HARTI data.
-// =============================================================================
+// FIXTURE DATA — served instead of the API when VITE_API_MODE=fixtures.
+// Demo values behind an env flag: illustrative, NOT real HARTI data, and never shown
+// in production (VITE_API_MODE unset = live API).
 import { ymdLocal } from '../lib/format';
 import {
   ForecastConfidenceCode,
@@ -44,11 +40,10 @@ import {
   type SystemErrorPage,
 } from './types';
 
-// NOTE (localized crop names): nameSi/nameTa below are DRAFT translations for
-// realistic dev + search exercise. They are pending native-speaker review (same
-// caveat as the locale files) and are NOT final agronomy copy. TODO native review.
+// nameSi/nameTa below are DRAFT translations for dev and search only — pending native
+// review, not final agronomy copy. TODO native review.
 // category.code follows the CropCategories contract: VEG (Vegetable) / FRT (Fruit).
-// growthDays are typical field values for dev only (not authoritative agronomy).
+// growthDays are typical dev values, not authoritative agronomy.
 const VEG = { code: 'VEG', name: 'Vegetable' };
 const FRT = { code: 'FRT', name: 'Fruit' };
 
@@ -68,20 +63,9 @@ export const fxCrops: Crop[] = [
   { id: 'c0000013-0000-0000-0000-000000000013', name: 'Papaya', nameSi: 'පැපොල්', nameTa: 'பப்பாளி', cropCode: 'FRT000004', category: FRT, growthDays: 270, externalProductId: 4, source: 'HARTI', createdAt: '2026-01-05T00:00:00Z', updatedAt: '2026-07-01T00:00:00Z' },
 ];
 
-// =============================================================================
-// FE-19 — PER-CROP REFERENCE PRICE (single source of truth).
-//
-// BUG FIXED: previously every crop WITHOUT a dedicated fixture fell back to
-// Capsicum's 552 reference (fxForecastFor/fxTimelineFor/fxPriceHistoryFor all
-// defaulted to Capsicum), so the Compare screen showed identical prices for most
-// crop pairs. Now EVERY fxCrops crop has a DISTINCT reference (Rs/kg wholesale
-// level) and the timeline / harvest / price-history / overview / compare surfaces
-// all derive from this ONE table, so they agree per crop and differ across crops.
-//
-// Values match fxBestCrops.averagePrice where those exist (Capsicum 552, Green
-// Chilli 430, Tomato 360, Beans 310, Carrot 280, Passion 240, Cabbage 95) and are
-// plausible distinct Sri Lanka wholesale levels for the remaining crops. DEMO data.
-// =============================================================================
+// Per-crop reference price (Rs/kg wholesale) — the single source of truth for the
+// generated fixtures. Timeline, harvest, price history, overview and compare all derive
+// from this one table, so they agree per crop and differ across crops.
 export const CROP_REFERENCE: Record<string, number> = {
   'c0000001-0000-0000-0000-000000000001': 552, // Capsicum
   'c0000005-0000-0000-0000-000000000005': 430, // Green Chilli
@@ -123,17 +107,11 @@ export const fxHarvestForecast: HarvestForecast = {
   upsidePct: 20,
   intervalWidthPct: 83,
   lowTrust: false,
-  // FE-6 structured factors (API-5). Codes match real model features (price
-  // lags/rolling means, festival calendar, seasonal supply, monsoon).
-  //
-  // WEIGHTS FOLLOW THE REAL CONTRACT (serving/explain.py `top_factor_codes`):
-  // each weight is that code's SHARE (0..1) of total absolute SHAP attribution
-  // across all mapped codes, so the top-4 shown here sum to <= 1 — they are not
-  // free-floating "relative magnitudes". A `neutral` direction is only emitted
-  // below a 1% share, so a neutral factor MUST carry a near-zero weight; giving
-  // one a fat weight would render "made little difference · medium effect".
-  // This row set deliberately spans up / down / neutral AND strong / medium /
-  // small so the whole panel is demoable from one crop. Demo values.
+  // Structured factors. Weights follow the real contract (serving/explain.py): each
+  // weight is that code's SHARE (0..1) of total absolute attribution, so the top 4 sum
+  // to <= 1. A `neutral` direction is only emitted below a 1% share, so a neutral factor
+  // must carry a near-zero weight. This set spans up/down/neutral and strong/medium/
+  // small so the whole panel is demoable from one crop.
   topFactors: [
     { code: 'recent_price_trend', direction: 'up', weight: 0.44 }, // strong
     { code: 'festival_demand', direction: 'up', weight: 0.24 }, // medium
@@ -195,13 +173,10 @@ export const fxHarvestForecastLow: HarvestForecast = {
   // WhyForecast panel must degrade to the free-text explanation + honest note.
 };
 
-// Per-crop forecast resolver for fixture mode: maps the crop id to its confidence
-// tier so every state is demo-able (Tomato/Capsicum=High, Beans=Medium, Passion=Low).
-// The requested plantDate is echoed back and harvestDate is derived from it +
-// growthPeriodDays, matching the server behaviour so the demo stays honest.
-// Hand-authored confidence-tier fixtures (High/Medium/Low) keep their PINNED
-// values so the tier showcase (Capsicum=High, Beans=Medium, Passion=Low) stays
-// demoable and stable. Every OTHER crop is generated from CROP_REFERENCE below.
+// Per-crop forecast resolver for fixture mode. The three hand-authored tier fixtures
+// (Capsicum=High, Beans=Medium, Passion=Low) keep their pinned values; every other crop
+// is generated from CROP_REFERENCE. plantDate is echoed back and harvestDate is derived
+// from it + growthPeriodDays, matching the server.
 const fxHarvestByCrop: Record<string, HarvestForecast> = {
   'c0000001-0000-0000-0000-000000000001': fxHarvestForecast, // Capsicum (High)
   'c0000002-0000-0000-0000-000000000002': fxHarvestForecastMedium, // Beans
@@ -216,13 +191,10 @@ function addDays(ymd: string, days: number | null): string | null {
   return ymdLocal(d);
 }
 
-// ---------------------------------------------------------------------------
-// FE-19 deterministic per-crop generator. From a crop's reference price + a
-// stable per-crop "shape" (amplitude / phase / trend seeded from the crop id) we
-// synthesise a 12-month history + a 3-point forecast that is REALISTIC, DISTINCT
-// per crop, and STABLE across runs (no Date.now / unseeded Math.random). The same
-// shape drives the harvest forecast so the hero, chart, prices and compare agree.
-// ---------------------------------------------------------------------------
+// Deterministic per-crop generator: from a crop's reference price and a stable shape
+// (amplitude / phase / trend seeded from the crop id) it synthesises a 12-month history
+// and a 3-point forecast that is distinct per crop and stable across runs (no Date.now,
+// no unseeded Math.random).
 const TIMELINE_MONTHS = [
   '2025-08', '2025-09', '2025-10', '2025-11', '2025-12', '2026-01',
   '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07',
@@ -245,13 +217,10 @@ interface CropShape {
   trend: number; // 12-month drift, fraction of reference
 }
 /**
- * `fxBestCrops` is the demo's DECLARED story about a crop — "Falling", "Not
- * recommended". The generators must not tell a different one: before this,
- * Cabbage was labelled Falling/Not recommended on the best-crops screen while
- * its generated series drifted UP (+3% on the harvest card), so the two screens
- * quietly contradicted each other. Deriving the drift from the declared trend
- * keeps one source of truth — and it is what makes the below-today state on the
- * best-window panel reachable at all in demo mode.
+ * The drift is derived from the crop's DECLARED trend in fxBestCrops so two screens
+ * cannot contradict each other (Cabbage was labelled Falling while its generated series
+ * drifted up). It is also what makes the below-today state on the best-window panel
+ * reachable in demo mode.
  */
 function cropFalls(cropId: string): boolean {
   return fxBestCrops.find((b) => b.cropId === cropId)?.trend === PriceTrend.Down;
@@ -364,24 +333,11 @@ function genHarvest(cropId: string, plantDate: string): HarvestForecast {
   };
 }
 
-// =============================================================================
-// THE PLANT-DATE INVARIANT (2026-07-25). Live, `/predict` and `/harvest-window`
-// build the SAME what-if row from the SAME anchor for a given planting date —
-// `TestForecastAgreement` pins that both return identical p10/p50/p90 and the
-// same harvest date. Until now the fixtures did NOT: every date returned the
-// same price and only harvestDate moved, which is a working replica of the very
-// production bug PR #58 fixed. Demo mode therefore taught the opposite of the
-// truth — tapping along the strip changed nothing but the date.
-//
-// So the fixture forecast now READS ITS NUMBERS FROM THE WINDOW: one source, one
-// definition of "what is this crop worth if planted on D", exactly as the server
-// routes both endpoints through `_whatif_rows()`.
-//
-// Dates OUTSIDE the sweep (back-dated, or a crop the window cannot rank) have no
-// window point to agree with, so they keep the hand-authored / generated tier
-// fixture. That is honest rather than convenient: there is nothing to be
-// consistent WITH, and the confidence-tier showcase stays pinned and stable.
-// =============================================================================
+// THE PLANT-DATE INVARIANT. Live, /predict and /harvest-window build the SAME what-if
+// row from the same anchor for a planting date (pinned by TestForecastAgreement), so the
+// fixture forecast READS ITS NUMBERS FROM THE WINDOW. Dates outside the sweep
+// (back-dated, or a crop the window cannot rank) have nothing to agree with, so they
+// keep the hand-authored / generated tier fixture.
 const FX_FORECAST_SWEEP = 90; // ≥ the 60 days the planting-date field allows
 
 /** The window's own row for one planting date, or null if it does not rank it. */
@@ -391,18 +347,15 @@ function fxWindowRowFor(cropId: string, plantDate: string) {
   const w = fxHarvestWindowFor(cropId, FX_FORECAST_SWEEP, ymdLocal(new Date()));
   if (!w.rankable) return null;
   const point = w.points.find((p) => p.plantDate === plantDate);
-  // growthPeriodDays travels WITH the point: harvestDate is derived from it, and a
-  // payload whose harvestDate does not equal plantDate + growthPeriodDays is a lie
-  // the share text would repeat.
+  // growthPeriodDays travels WITH the point: a payload whose harvestDate is not
+  // plantDate + growthPeriodDays would be a lie the share text repeats.
   return point ? { point, growthPeriodDays: w.growthPeriodDays } : null;
 }
 
 /**
- * The .NET verdict rule (GetHarvestForecastQueryHandler), mirrored so a fixture
- * cannot show a price that moved with the date beside a verdict that did not.
- * The verdict SHOULD change as the farmer taps along the strip — that is the
- * feature, and the −5% deadband between "below today" and "Not recommended" is
- * precisely what the panel's own loss warning has to cover.
+ * Mirrors the .NET verdict rule (GetHarvestForecastQueryHandler) so a fixture cannot
+ * show a price that moved with the date beside a verdict that did not. The −5% deadband
+ * between "below today" and "Not recommended" is what the panel's loss warning covers.
  */
 function fxVerdictFor(
   currentPrice: number,
@@ -529,9 +482,8 @@ export const fxTimelineMedium: CropTimeline = {
   ],
 };
 
-// LOW-tier / fallback (Passion Fruit): deliberately THIN history (4 months) + a
-// WIDE amber band so the low-trust chart treatment + short-history note are demo-able.
-// Honest by construction — we do not fabricate months that don't exist.
+// LOW tier / fallback (Passion Fruit): deliberately THIN history (4 months) plus a wide
+// amber band, so the low-trust treatment is demoable. We never fabricate months.
 export const fxTimelineLow: CropTimeline = {
   cropName: 'Passion Fruit',
   activePredictor: 'crop_mean_fallback',
@@ -552,7 +504,7 @@ export const fxTimelineLow: CropTimeline = {
 };
 
 // Per-crop timeline resolver for fixture mode — mirrors fxHarvestByCrop so the
-// chart's confidence story lines up with the FE-4 hero for the same crop.
+// chart's confidence story lines up with the harvest hero for the same crop.
 const fxTimelineByCrop: Record<string, CropTimeline> = {
   'c0000001-0000-0000-0000-000000000001': fxTimeline, // Capsicum (High, 12mo)
   'c0000002-0000-0000-0000-000000000002': fxTimelineMedium, // Beans (Medium)
@@ -565,12 +517,11 @@ export function fxTimelineFor(cropId: string): CropTimeline {
   return fxTimelineByCrop[cropId] ?? genTimeline(cropId);
 }
 
-// Full-spectrum ranked list so FE-7 exercises every honest state: two strong/High
-// rows, middling Medium rows, one LOW-confidence "Little data" caution row, and one
-// visible "Not recommended" (RED — the ONLY place red is allowed). Crop ids match
-// fxCrops so the row → My-Harvest cross-link (?crop=<id>) preselects the right crop.
-// seasonFit is PROVISIONAL demo data (API-3) present on two rows; the live route
-// omits it and the badge must degrade silently. Ranked high → low by design.
+// Full-spectrum ranked list so every honest state is exercised: High rows, Medium rows,
+// a Low-confidence "Little data" row and one "Not recommended" (the only place red is
+// allowed). Crop ids match fxCrops so the ?crop=<id> cross-link works. seasonFit is
+// provisional demo data on two rows; the live route omits it and the badge must degrade
+// silently. Ranked high to low by design.
 export const fxBestCrops: BestCrop[] = [
   { cropId: 'c0000001-0000-0000-0000-000000000001', cropName: 'Capsicum', cropCode: 'VEG000012', averagePrice: 552, trend: PriceTrend.Up, confidence: ForecastConfidenceCode.High, recommendationLevel: RecommendationLevel.StronglyRecommended, seasonFit: { inSeason: true, season: 'Yala' } },
   { cropId: 'c0000005-0000-0000-0000-000000000005', cropName: 'Green Chilli', cropCode: 'VEG000018', averagePrice: 430, trend: PriceTrend.Up, confidence: ForecastConfidenceCode.High, recommendationLevel: RecommendationLevel.Recommended },
@@ -581,13 +532,8 @@ export const fxBestCrops: BestCrop[] = [
   { cropId: 'c0000007-0000-0000-0000-000000000007', cropName: 'Cabbage', cropCode: 'VEG000022', averagePrice: 95, trend: PriceTrend.Down, confidence: ForecastConfidenceCode.Medium, recommendationLevel: RecommendationLevel.NotRecommended },
 ];
 
-// =============================================================================
-// Crop readiness (crop-status colouring, 2026-07-22). Mix mirrors the live
-// reality (model-served majors, thin-history fallback crops): the long-history
-// DEC vegetables are ready; the HARTI fruits (adopted 2026-03/HARTI onboarding)
-// and two newer vegetables are still collecting. Passion Fruit collecting +
-// Low confidence in fxBestCrops keeps the two signals coherent in demos.
-// =============================================================================
+// Crop readiness. The mix mirrors live reality: long-history DEC vegetables are ready,
+// the HARTI fruits and two newer vegetables are still collecting.
 export const fxCropReadiness: CropReadiness = {
   modelVersion: 'v17-fixture',
   minHistoryObs: 365,
@@ -610,19 +556,11 @@ export const fxCropReadiness: CropReadiness = {
   ],
 };
 
-// =============================================================================
-// Best harvest window (2026-07-25) — demo sweep for /my-harvest step 2.
-//
-// Mirrors the LIVE contract's two outcomes so BOTH panel states are demo-able:
-//   * a crop the model serves (ready in fxCropReadiness) gets a real-shaped curve
-//     — a seasonal sine over the swept horizon plus a festival-demand bump — and
-//     a best window picked the same way the server picks it (highest rolling mean).
-//   * a crop the model does NOT serve gets rankable=false / crop_not_model_served,
-//     which is the honest "we cannot rank dates for this crop yet" state.
-// The readiness split is reused deliberately: in production the same history gate
-// decides both, so the demo can never show a green crop tile with no window (or
-// the reverse) and mislead about how the two relate.
-// =============================================================================
+// Best harvest window demo sweep. Mirrors both live outcomes: a model-served crop (ready
+// in fxCropReadiness) gets a real-shaped curve and a best window picked the way the
+// server picks it (highest rolling mean); a crop the model does not serve gets
+// rankable=false / crop_not_model_served. The readiness split is reused deliberately, so
+// the demo can never show a green crop tile with no window.
 const FX_WINDOW_DAYS = 14;
 
 const round2 = (n: number): number => Math.round(n * 100) / 100;
@@ -632,30 +570,24 @@ function fxWindowPrice(anchor: number, dayIndex: number, falling: boolean): numb
   // window sits mid-strip rather than at an edge (the interesting demo case).
   const seasonal = Math.sin((2 * Math.PI * dayIndex) / 180) * anchor * 0.09;
   const bump = Math.exp(-(((dayIndex - 48) / 13) ** 2)) * anchor * 0.14;
-  // Both terms are non-negative across a 0–90 day sweep, so a rising crop's whole
-  // strip sits at or above its anchor. A FALLING crop gets the mirror image — a
-  // seasonal sag and a glut dip — which is what makes its best window the
-  // least-bad date rather than a gain.
+  // Both terms are non-negative across the 0–90 day sweep, so a rising crop's strip sits
+  // at or above its anchor. A falling crop gets the mirror image, which makes its best
+  // window the least-bad date rather than a gain.
   return falling ? anchor - seasonal - bump : anchor + seasonal + bump;
 }
 
-// horizonDays MUST be honoured (not hardcoded): the caller keeps the sweep length
-// equal to the planting-date field's own max, so a fixture that returned a longer
-// sweep would offer demo dates the field silently clamps on tap — the exact bug
-// the equal-horizons rule exists to prevent, hidden in demo mode only.
+// horizonDays MUST be honoured, not hardcoded: the caller keeps the sweep length equal
+// to the planting-date field's max, otherwise the demo offers dates the field silently
+// clamps on tap.
 export function fxHarvestWindowFor(cropId: string, horizonDays = 90, asOf?: string): HarvestWindow {
   const crop = fxCrops.find((c) => c.id === cropId);
   const readiness = fxCropReadiness.crops.find((c) => c.cropId === cropId);
-  // Today's price comes from the SAME place the harvest-forecast fixture takes it
-  // (last month of history), so demo mode cannot show the window panel and the
-  // forecast screen disagreeing about what "today" costs. fxTimelineFor, NOT
-  // genTimeline: three crops (Capsicum/Beans/Passion Fruit) have hand-authored
-  // timelines, and going straight to the generator gave Capsicum a Rs. 500 "today"
-  // on this panel while its forecast card said Rs. 460.
+  // Today's price comes from fxTimelineFor (NOT genTimeline) — the same place the harvest
+  // fixture takes it — so the window panel and the forecast screen cannot disagree about
+  // what today costs. Three crops have hand-authored timelines.
   const currentPrice = round2(fxTimelineFor(cropId).history.slice(-1)[0].avgPrice);
-  // Sweeps forward from the REQUESTED date (the caller passes today), not from
-  // the fixed demo price anchor other fixtures use. A forward-looking panel that
-  // opened on dates already in the past would misrepresent how live behaves.
+  // Sweeps forward from the REQUESTED date (the caller passes today), not from the fixed
+  // demo anchor: a forward-looking panel must not open on dates already past.
   const start = asOf ?? ymdLocal(new Date());
 
   // Not served by the model (or absent from the readiness map entirely) -> the
@@ -684,15 +616,11 @@ export function fxHarvestWindowFor(cropId: string, horizonDays = 90, asOf?: stri
   const ref = cropReferencePrice(cropId);
   const growthDays = crop?.growthDays ?? 90;
   const falling = cropFalls(cropId);
-  // A falling crop's sweep is anchored at the lower of its reference price and
-  // today's price, CARRIED FORWARD by one growth period of the crop's own declared
-  // 12-month drift — because the earliest harvest on this strip is a whole growth
-  // period away, by which time the decline the timeline already shows has had that
-  // long to run. Anchoring at today's price instead would put the first bar exactly
-  // ON today (the mirrored shape is 0 at day 0), and the panel's warning is gated
-  // on NO single date beating today, so it would never fire. Every term here is an
-  // existing fixture surface — reference price, today's price, the declared trend,
-  // the crop's growth period — so the demo still agrees with itself.
+  // A falling crop's sweep is anchored at the lower of its reference price and today's
+  // price, carried forward by one growth period of its declared 12-month drift, because
+  // the earliest harvest is a whole growth period away. Anchoring at today's price would
+  // put the first bar exactly ON today (the mirrored shape is 0 at day 0), and the panel's
+  // warning only fires when no date beats today, so it would never show.
   const anchor = falling
     ? Math.min(ref, currentPrice) * (1 + cropShape(cropId).trend * (growthDays / 365))
     : ref;
@@ -750,7 +678,6 @@ export function fxHarvestWindowFor(cropId: string, horizonDays = 90, asOf?: stri
   };
 }
 
-// ---- FIXTURE-ONLY (no live endpoint — API gaps #1 / #2) ----
 export const fxMarkets: Market[] = [
   { id: 'm0000001-0000-0000-0000-000000000001', name: 'Dambulla Dedicated Economic Centre', district: 'Matale', marketType: 1, isEconomicCenter: true, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
   { id: 'm0000002-0000-0000-0000-000000000002', name: 'Colombo (Pettah)', district: 'Colombo', marketType: 1, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
@@ -766,19 +693,10 @@ export const fxPriceHistory: PriceHistoryPoint[] = [
   { date: '2026-07-10', minPrice: 470, maxPrice: 552 },
 ];
 
-// ---------------------------------------------------------------------------
-// FE-12 prices browsing — per-market daily price history (API gap #2).
-//
-// CONTRACT NOTE (provisional): the eventual live route is
-//   GET /api/prices/crop/{cropId}/history?marketId=...  ->  PriceHistoryPoint[]
-// returning ONE market's daily low–high series. Until API-2 lands, fixtures
-// SYNTHESISE a plausible 14-day series per (crop, market) so the single-market
-// line AND the cross-market comparison are demo-able. Values are DEMO-ONLY
-// (illustrative Rs. levels consistent with the other fixtures), NOT real HARTI
-// data. Dambulla (the economic centre) reads cheapest; Colombo (Pettah) dearest;
-// Meegoda is deliberately THIN (3 days) so the "only N days" note is exercised.
-// The generator is deterministic so tests and the demo stay stable.
-// ---------------------------------------------------------------------------
+// Per-market daily price history. Fixtures synthesise a plausible 14-day series per
+// (crop, market): Dambulla (the economic centre) cheapest, Colombo (Pettah) dearest, and
+// Meegoda deliberately THIN (3 days) so the "only N days" note is exercised. Demo values,
+// deterministic so tests and the demo stay stable.
 const PRICE_ANCHOR = '2026-07-10'; // last day of the demo window (matches fixtures)
 const PRICE_WINDOW_DAYS = 14;
 
@@ -818,16 +736,10 @@ export function fxPriceHistoryFor(cropId: string, marketId?: string): PriceHisto
   return out;
 }
 
-// ---------------------------------------------------------------------------
-// FE-1 market overview (API-7). LIVE contract, but no live route yet, so fixtures
-// stand in for offline dev + tests. Values are CONSISTENT with the other fixtures:
-// - movers reuse the best-crops / forecast price levels (Capsicum in the 540s-550s,
-//   Green Chilli ~430, etc.) and carry a GENUINE spread of risers AND fallers.
-// - latestPrices + their sparklines are DERIVED from fxPriceHistoryFor so the "latest
-//   price" strip agrees with the Prices page for the same crop/market (Dambulla DEC =
-//   cheapest economic centre; Meegoda is deliberately THIN -> a 3-point SPARSE spark
-//   to exercise the thin-sparkline rendering). DEMO data behind the fixtures flag.
-// ---------------------------------------------------------------------------
+// Market overview fixtures. Values stay consistent with the rest: movers reuse the
+// best-crops / forecast price levels and include both risers and fallers; latestPrices
+// and their sparklines are derived from fxPriceHistoryFor so the strip agrees with the
+// Prices page (Meegoda is thin, giving a 3-point sparse spark).
 const DAMBULLA_ID = 'm0000001-0000-0000-0000-000000000001';
 const PETTAH_ID = 'm0000002-0000-0000-0000-000000000002';
 const MEEGODA_ID = 'm0000004-0000-0000-0000-000000000004';
@@ -899,12 +811,10 @@ const LATEST_PRICES: MarketLatestPrice[] = [
   latestPrice('c0000004-0000-0000-0000-000000000004', 'Passion Fruit', MEEGODA, MEEGODA_ID),
 ];
 
-// FE-15: the overview window selector (7 / 30 / 90 days) drives this. Fixtures VARY
-// by window so the control visibly changes the snapshot — a short 7-day window
-// surfaces fewer movers (3 up / 3 down) and slightly fewer crops/markets with data;
-// a long 90-day window a few more. windowDays always ECHOES the requested `days` so
-// the "based on the last N days" caption stays honest. asOf/latestPrices are stable
-// (the newest observed prices don't change with the summary window).
+// The overview window selector (7 / 30 / 90 days) drives this, and fixtures VARY by
+// window so the control visibly changes the snapshot. windowDays always echoes the
+// requested `days` so the "based on the last N days" caption stays honest. asOf and
+// latestPrices are stable (newest observed prices don't change with the window).
 export function fxMarketOverviewFor(days = 30): MarketOverview {
   const risers = ALL_MOVERS.filter((m) => m.direction === 'up');
   const fallers = ALL_MOVERS.filter((m) => m.direction === 'down');
@@ -933,13 +843,9 @@ export function fxMarketOverviewFor(days = 30): MarketOverview {
 
 export const fxMarketOverview: MarketOverview = fxMarketOverviewFor(30);
 
-// ===========================================================================
-// ADMIN CONSOLE fixtures (ADM-2 / ADM-3). DEMO data behind VITE_API_MODE=fixtures.
-// Policy flags mirror the REAL .NET HasData seed rows (a1f1c001-…) plus a few extra
-// rows so the admin table exercises every PolicyType, both non-neutral directions,
-// and all three derived statuses (Active / Scheduled / Expired). "today" for the
-// demo is ~2026-07-12. NOT authoritative policy data — illustrative for dev/tests.
-// ===========================================================================
+// ADMIN CONSOLE fixtures. Policy flags mirror the real .NET seed rows plus a few extra
+// rows so the table exercises every PolicyType, both non-neutral directions and all
+// three derived statuses. "Today" for the demo is ~2026-07-12.
 export const fxPolicyFlags: PolicyFlag[] = [
   {
     id: 'a1f1c001-0000-0000-0000-000000000001',
@@ -1020,7 +926,7 @@ export const fxPolicyFlags: PolicyFlag[] = [
     referenceUrl: null,
     createdAtUtc: '2026-07-01T00:00:00Z',
   },
-  // ---- extra demo rows to exercise Budget / ExportBan / PriceFloor + scheduled ----
+  // Extra demo rows to exercise Budget / ExportBan / PriceFloor and the scheduled status.
   {
     id: 'a1f1c001-0000-0000-0000-000000000007',
     policyType: PolicyType.Budget,
@@ -1075,20 +981,12 @@ export function fxPolicyFlagsFor(asOfDate?: string): PolicyFlag[] {
   });
 }
 
-// ---------------------------------------------------------------------------
-// ADMIN markets registry (ADM-3). Mirrors the REAL 12 seeded markets (verified
-// against AgriForecast.Infrastructure DbContext Market HasData, 2026-07-12): true
-// GUIDs, names, districts, MarketType, and IsEconomicCenter. Only Dambulla
-// (MKT00000001) carries IsEconomicCenter=true; note Keppetipola/Thambuttegama/etc.
-// are MarketType.DEC yet IsEconomicCenter=false (MarketType classifies the kind,
-// IsEconomicCenter flags the single feature-reference DEC). LIVE via GET
-// /api/markets/get/all (backend PR #24) — these fixtures mirror the wire shape 1:1.
-//
-// Monitoring fields exercise every UI state: most markets store fresh data and feed
-// training; Norochchole is deliberately STALER (freshness cue); and the CBSL
-// national-average placeholder stores NOTHING and never trains (hasStoredData=false,
-// lastStoredDate=null, isTrainingSource=false) — the honest "monitored but empty" row.
-// ---------------------------------------------------------------------------
+// ADMIN markets registry — mirrors the real 12 seeded markets (GUIDs, names, districts,
+// MarketType, IsEconomicCenter). Only Dambulla has IsEconomicCenter=true; several rows
+// are MarketType.DEC yet not the economic centre (MarketType classifies the kind,
+// IsEconomicCenter flags the single feature-reference DEC).
+// The monitoring fields exercise every UI state, including the CBSL national-average row
+// that stores nothing and never trains.
 export const fxAdminMarkets: Market[] = [
   { id: 'b2a20001-0000-0000-0000-000000000001', name: 'Dambulla Dedicated Economic Centre', district: 'Matale', marketType: MarketType.DEC, isEconomicCenter: true, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
   { id: 'b2a20001-0000-0000-0000-000000000002', name: 'Keppetipola Dedicated Economic Centre', district: 'Badulla', marketType: MarketType.DEC, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
@@ -1104,12 +1002,8 @@ export const fxAdminMarkets: Market[] = [
   { id: 'b2a20001-0000-0000-0000-000000000012', name: 'Veyangoda Dedicated Economic Centre', district: 'Gampaha', marketType: MarketType.DEC, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
 ];
 
-// ---------------------------------------------------------------------------
-// ADM-4 users (PROVISIONAL — no live endpoint). 13 demo accounts incl. the `admin`
-// account (used to simulate the admin role in fixtures login) and `claudetest` (the
-// real-data E2E test farmer). Mutations in the page operate on a COPY of this array
-// in component state — this seed is never mutated. DEMO data behind the fixtures flag.
-// ---------------------------------------------------------------------------
+// Admin users: 13 demo accounts including `admin` (which simulates the admin role in
+// fixtures login) and `claudetest`. The page mutates a copy; this seed is never mutated.
 export const fxAdminUsers: AdminUser[] = [
   { id: 'd0000001-0000-0000-0000-000000000001', username: 'admin', email: 'admin@agriforecast.lk', role: 'Admin', createdAt: '2026-01-02T08:00:00Z', updatedAt: '2026-06-30T10:00:00Z' },
   { id: 'd0000002-0000-0000-0000-000000000002', username: 'claudetest', email: 'claudetest@agriforecast.lk', role: 'Farmer', createdAt: '2026-07-12T06:00:00Z', updatedAt: '2026-07-12T06:00:00Z' },
@@ -1126,13 +1020,9 @@ export const fxAdminUsers: AdminUser[] = [
   { id: 'd0000013-0000-0000-0000-000000000013', username: 'dilani_seneviratne', email: 'dilani.seneviratne@example.lk', role: 'Farmer', createdAt: '2026-06-25T15:40:00Z', updatedAt: '2026-07-08T15:40:00Z' },
 ];
 
-// ---------------------------------------------------------------------------
-// ADM-5 festival calendar (PROVISIONAL). One row per occurrence-year — movable
-// festivals (Avurudu/Vesak/Thai Pongal/Deepavali) repeat annually with dates that
-// shift, so 2025 and 2026 are SEPARATE rows. 2026 poya/movable dates are marked
-// isProvisional until officially gazetted. This table feeds the forecasting model.
-// DEMO data behind the fixtures flag; dates are plausible, not the official gazette.
-// ---------------------------------------------------------------------------
+// Festival calendar: one row per occurrence-year, because movable festivals repeat
+// annually on shifting dates. 2026 dates are marked isProvisional until gazetted.
+// Plausible demo dates, not the official gazette.
 export const fxFestivals: FestivalEntry[] = [
   { id: 'f0000001-0000-0000-0000-000000000001', festivalKey: 'THAI_PONGAL', date: '2025-01-14', leadUpDays: 10, isProvisional: false, source: 'Public holidays gazette 2025', createdAtUtc: '2026-07-01T00:00:00Z' },
   { id: 'f0000002-0000-0000-0000-000000000002', festivalKey: 'AVURUDU', date: '2025-04-14', leadUpDays: 21, isProvisional: false, source: 'Public holidays gazette 2025', createdAtUtc: '2026-07-01T00:00:00Z' },
@@ -1146,13 +1036,9 @@ export const fxFestivals: FestivalEntry[] = [
   { id: 'f0000010-0000-0000-0000-000000000010', festivalKey: 'CHRISTMAS', date: '2026-12-25', leadUpDays: 21, isProvisional: false, source: 'Fixed date', createdAtUtc: '2026-07-01T00:00:00Z' },
 ];
 
-// ---------------------------------------------------------------------------
-// ADM-6 indicators (PROVISIONAL). Two series kinds:
-//  • daily USD_LKR — ~90 days ending at the price anchor, deterministic wave in the
-//    ~295–310 range (plausible 2026 level). NOT a real FX feed.
-//  • monthly CCPI (vintage-aware) — 12 months, each with a referenceDate (month end)
-//    AND a publishedAt ~3 weeks later (real release lag). Both dates always shown.
-// ---------------------------------------------------------------------------
+// Indicators: daily USD_LKR (~90 days, deterministic wave) and monthly CCPI, which
+// is vintage-aware — each month carries a referenceDate (month end) and a publishedAt
+// ~3 weeks later (the real release lag). Both dates are always shown.
 const USD_LKR_DAYS = 90;
 function genUsdLkr(): DailyIndicatorPoint[] {
   const out: DailyIndicatorPoint[] = [];
@@ -1181,11 +1067,9 @@ export const fxCcpi: MacroSeriesPoint[] = CCPI_MONTH_ENDS.map((refEnd, i) => ({
   source: 'DCS / CBSL (demo)',
 }));
 
-// Ready-made headline YoY inflation (%) — the series the gauge now reads directly
-// (no client-side MoM derivation). Plausible 2025-26 trajectory drifting up out of the
-// "mild" band into "elevated". The LATEST month carries TWO vintages of the SAME
-// referenceDate — a provisional 8.1% then a revised 8.3% — so the page's multi-vintage
-// handling (latest publishedAt wins, superseded row surfaced) is demo-able with no backend.
+// Ready-made headline YoY inflation (%), the series the gauge reads directly. The LATEST
+// month carries TWO vintages of the same referenceDate (provisional 8.1 then revised
+// 8.3) so the page's multi-vintage handling is demoable with no backend.
 const CCPI_YOY_VALUES = [2.1, 2.4, 2.8, 3.3, 3.9, 4.5, 5.2, 5.8, 6.4, 7.1, 7.8, 8.3] as const;
 export const fxCcpiYoy: MacroSeriesPoint[] = CCPI_MONTH_ENDS.flatMap((refEnd, i) => {
   const publishedAt = addDays(refEnd, 21) ?? refEnd;
@@ -1224,12 +1108,8 @@ export function fxIndicatorMacro(seriesKey: string): MacroSeriesPoint[] {
   return [];
 }
 
-// ---------------------------------------------------------------------------
-// ADM-7 structured news events (PROVISIONAL). 7 realistic events spanning fuel,
-// fertiliser, budget, import duty, export, weather. eventType reuses PolicyType and
-// direction reuses PolicyDirection (Bearish = -1). affectedCropIds reference fxCrops.
-// Mutations in the page operate on a COPY in component state; this seed is untouched.
-// ---------------------------------------------------------------------------
+// Structured news events: 7 demo events. eventType reuses PolicyType and direction
+// reuses PolicyDirection (Bearish = -1); affectedCropIds reference fxCrops.
 export const fxNewsEvents: NewsEvent[] = [
   { id: 'e0000001-0000-0000-0000-000000000001', eventType: PolicyType.FuelPriceChange, direction: PolicyDirection.Bullish, title: 'Diesel price raised by Rs. 25/litre', description: 'CPC monthly revision lifted auto-diesel; transport costs from farm to wholesale expected to rise.', publishedAt: '2026-07-01', sourceUrl: 'https://ceypetco.gov.lk/', affectedCropIds: [], affectedMarketIds: [], createdAtUtc: '2026-07-01T00:00:00Z' },
   { id: 'e0000002-0000-0000-0000-000000000002', eventType: PolicyType.FertiliserSubsidy, direction: PolicyDirection.Bearish, title: 'Second fertiliser subsidy tranche released', description: 'Ministry released the 2026 Yala fertiliser cash tranche to registered paddy and vegetable farmers.', publishedAt: '2026-06-12', sourceUrl: null, affectedCropIds: ['c0000002-0000-0000-0000-000000000002', 'c0000003-0000-0000-0000-000000000003'], affectedMarketIds: [], createdAtUtc: '2026-06-12T00:00:00Z' },
@@ -1240,12 +1120,9 @@ export const fxNewsEvents: NewsEvent[] = [
   { id: 'e0000007-0000-0000-0000-000000000007', eventType: PolicyType.PriceCeiling, direction: PolicyDirection.Bearish, title: 'Retail price cap reintroduced on selected vegetables', description: 'CAA set maximum retail prices on a few staple vegetables during a festival demand spike.', publishedAt: '2026-03-30', sourceUrl: null, affectedCropIds: ['c0000003-0000-0000-0000-000000000003'], affectedMarketIds: [], createdAtUtc: '2026-03-30T00:00:00Z' },
 ];
 
-// ---------------------------------------------------------------------------
-// Ingested news ARTICLES (read-only feed on the admin News page). Mirrors the
-// Python-owned NewsArticles capture table: naive-UTC timestamps (no Z), one row
-// with a null publish date (feed omitted it) and an HTML entity in the title so
-// the decode + fallback paths render in demo mode. Newest first, like the server.
-// ---------------------------------------------------------------------------
+// Ingested news ARTICLES (the read-only feed). Mirrors the Python-owned capture table:
+// naive-UTC timestamps (no Z), one row with a null publish date and an HTML entity in the
+// title, so the decode and fallback paths render in demo mode. Newest first.
 export const fxNewsArticles: NewsArticle[] = [
   // Supply-shock topic (flood) -> bullish regardless of tone.
   { url: 'https://example.lk/news/flood-damage', source: 'lbo', title: 'Floods damage vegetable fields in Ratnapura', summary: 'Heavy rain flooded low-lying vegetable plots; transport to economic centres disrupted.', publishedDateUtc: '2026-07-22T12:10:00', retrievedAtUtc: '2026-07-22T12:41:00', language: 'en', topics: 'flood', sentimentScore: -0.6 },
@@ -1257,13 +1134,9 @@ export const fxNewsArticles: NewsArticle[] = [
   { url: 'https://example.lk/news/monsoon-update', source: 'lbo', title: 'Monsoon rains ease across up-country growing areas', summary: 'Met Department reports rainfall easing over Nuwara Eliya and Badulla growing districts.', publishedDateUtc: null, retrievedAtUtc: '2026-07-20T08:41:42', language: 'en', topics: null, sentimentScore: null },
 ];
 
-// ---------------------------------------------------------------------------
-// ADMIN INGESTION RUNS fixtures (admin ingestion API). ONE batch of 7 source runs —
-// including a FAILED HARTI row (503) + a WARN verification on the DEC run with
-// real-looking checksJson that matches the locked contract shape. fxIngestionRuns()
-// simulates the server's paging + source filter so the page can be built/demoed with
-// no backend. NOT real HARTI data — illustrative, env-fenced (see file header).
-// ---------------------------------------------------------------------------
+// Ingestion runs: one batch of 7 source runs, including a FAILED HARTI row (503) and a
+// WARN verification on the DEC run with realistic checksJson. fxIngestionRuns() simulates
+// the server's paging and source filter.
 const FX_BATCH = 'b1000000-0000-0000-0000-000000000001';
 
 // checksJson is a JSON STRING on the wire — stringify a realistic VerificationCheck[].
@@ -1434,15 +1307,9 @@ export function fxIngestionStatus(): IngestionStatus {
   return fxIngestionStatusObj;
 }
 
-// ---------------------------------------------------------------------------
-// ADMIN LOGS Phase 2 — MODEL TRAINING fixtures (GET /api/admin/logs/training).
-// 17 runs (v17..v1), TrainedAtUtc DESC. v17 is the CURRENT LIVE model AND a MANUAL
-// OVERRIDE (promoted=true, decisionPromoted=false) — the honest edge case the UI must
-// surface: the gate DECLINED it (cross-frame guardrail) but it was promoted anyway,
-// with promotionDecision explaining why. Exactly ONE row has promoted=true. Some past
-// rows were promoted by the gate at the time (decisionPromoted=true) yet are no longer
-// live. NOT real metrics — illustrative, env-fenced (see file header).
-// ---------------------------------------------------------------------------
+// Model-training fixtures: 17 runs (v17..v1), newest first. v17 is the current live model
+// AND a manual override (promoted=true, decisionPromoted=false) — the edge case the UI
+// must surface honestly. Exactly one row has promoted=true.
 export const fxTrainingRunsAll: TrainingRun[] = [
   {
     version: 'v17',
@@ -1531,14 +1398,8 @@ export function fxTrainingRuns(page = 1, pageSize = 25): TrainingRunPage {
   return { items: fxTrainingRunsAll.slice(start, start + pageSize), page, pageSize, total };
 }
 
-// ---------------------------------------------------------------------------
-// ADMIN LOGS — SYSTEM LOG fixtures (GET /api/admin/logs/user-activity).
-// Covers every event type across all three groups (sign-ins, user management, content
-// changes), OccurredUtc DESC, INCLUDING a loginFailed row carrying usernameAttempted
-// (an unverified attempt — no actor) so the "quoted attempt" display is demo-able.
-// GUIDs are realistic so truncation + full-value titles are exercisable.
-// NOT real accounts or real edits — illustrative, env-fenced (see file header).
-// ---------------------------------------------------------------------------
+// System log fixtures: every event type across all three groups, newest first, including
+// a loginFailed row carrying usernameAttempted (an unverified attempt with no actor).
 const FX_ADMIN_ID = 'a1111111-1111-4111-8111-111111111111';
 const FX_FARMER_A = 'f2222222-2222-4222-8222-222222222222';
 const FX_FARMER_B = 'f3333333-3333-4333-8333-333333333333';
@@ -1581,13 +1442,9 @@ export function fxUserActivity(
   return { items: filtered.slice(start, start + pageSize), page, pageSize, total };
 }
 
-// ---------------------------------------------------------------------------
-// ADMIN LOGS Phase 3 — SYSTEM ERRORS fixtures (GET /api/admin/logs/errors).
-// A FEW rows, OccurredUtc DESC, exercising both drill-down states: one row carries a
-// long multi-line stackTrace, another has NULL message/stackTrace (the "no stack
-// trace" quiet note). Kept SMALL — this file is statically imported by client.ts.
-// NOT real errors — illustrative, env-fenced (see file header).
-// ---------------------------------------------------------------------------
+// System error fixtures: a few rows, newest first, exercising both drill-down states —
+// one long multi-line stackTrace and one with null message and stackTrace. Kept small
+// because this file is statically imported by client.ts.
 export const fxSystemErrorsAll: SystemError[] = [
   {
     id: 3,

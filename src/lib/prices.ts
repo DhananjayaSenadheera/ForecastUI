@@ -1,27 +1,17 @@
-// =============================================================================
-// Price-browsing geometry + market-comparison helpers (FE-12, prices page W5).
-// Pure, framework-free so the load-bearing bits (daily min–max envelope, nice
-// scale reuse, stable Okabe–Ito market-colour assignment, comparison bars) are
-// unit-tested and PricesPage stays presentational.
-//
-// REUSE, DON'T FORK: the y-axis scaling reuses `niceScale` from lib/timeline
-// verbatim. buildTimelineGeometry itself is month/forecast-shaped (CropTimeline)
-// and does not fit a daily min–max PriceHistoryPoint series, so the daily line
-// geometry is a focused sibling here that shares the same scale + x-thinning
-// idiom rather than duplicating the forecast-band cone logic.
-//
-// HONEST DISPLAY: a price history is OBSERVED daily low–high, NOT a forecast — it
-// is rendered as a shaded min–max envelope with a central (mid) line and labelled
-// as a range, never dressed up as a single precise number. Thin/empty series are
-// reported honestly by the component; these helpers only lay out what exists.
-// =============================================================================
+// Price-browsing geometry + market-comparison helpers. Pure, so the daily min–max
+// envelope, the shared nice scale, the stable market-colour assignment and the comparison
+// bars are unit-tested and PricesPage stays presentational.
+// The y-axis scaling reuses `niceScale` from lib/timeline verbatim. buildTimelineGeometry
+// itself is month/forecast-shaped and does not fit a daily min–max series, so the daily
+// line geometry is a focused sibling here rather than a fork.
+// A price history is OBSERVED daily low–high, not a forecast: it renders as a shaded
+// min–max envelope with a central line and is labelled as a range.
 import type { Market, PriceHistoryPoint } from '../api/types';
 import { niceScale } from './timeline';
 
 /** Below this many days, the chart shows an honest "only N days" note. */
 export const SHORT_PRICE_DAYS = 5;
 
-// ---- single-market daily line ----------------------------------------------
 export interface PricePoint {
   date: string;
   min: number;
@@ -78,9 +68,8 @@ export interface PriceLineOpts {
 }
 
 /**
- * Lay out a daily price history into SVG coordinates: a min–max envelope polygon
- * plus a central mid line, on a `niceScale` Rs. axis. Returns null when there is
- * nothing to draw (empty series) — the empty state is a component concern.
+ * Lay out a daily price history into SVG coordinates: a min–max envelope polygon plus a
+ * central mid line on a `niceScale` Rs. axis. Returns null for an empty series.
  */
 export function buildPriceLineGeometry(
   history: PriceHistoryPoint[],
@@ -138,13 +127,11 @@ export function buildPriceLineGeometry(
   };
 }
 
-// ---- multi-market overlay (FE-18) -------------------------------------------
-// Overlay up to 4 markets' daily MID price for one crop on ONE shared date x-axis
-// + ONE shared Rs. y-scale so the lines are directly comparable. Colours are the
-// SAME Okabe–Ito set assigned by stable market id (assignMarketColors), so a market
-// keeps its colour across the single-market key, the overlay and the bars. REUSES
-// niceScale + the daily {min,max,mid} idiom above — no forked scaling. Honest: a
-// market with a thin/short series simply draws a shorter line; nothing is padded.
+// Multi-market overlay: up to 4 markets' daily MID price for one crop on one shared date
+// axis and one shared Rs. scale, so the lines are directly comparable. Colours come from
+// the same Okabe–Ito set assigned by stable market id, so a market keeps its colour across
+// the single-market key, the overlay and the bars. A market with a short series simply
+// draws a shorter line; nothing is padded.
 export interface MarketOverlayInput {
   marketId: string;
   name: string;
@@ -258,12 +245,9 @@ export function buildMarketOverlayGeometry(
   return { dims: { width, height, plot }, domain: { min: niceMin, max: niceMax }, yTicks, xTicks, series };
 }
 
-// ---- sparkline (FE-1 overview latest-prices strip) --------------------------
-// A minimal single-series trend line: no axis, no band — just a shape that reads
-// at a glance in a table cell. Shares the {date, price} idiom and the same "lay out
-// only what exists / degrade honestly" contract as the fuller line above, so a
-// sparse or single-point series never fabricates a fake trend. The NUMBER stays the
-// product: the component always shows the price + an aria sentence, never spark-only.
+// Sparkline for the overview latest-prices strip: a single trend line, no axis and no
+// band. A sparse or single-point series never fabricates a trend, and the component always
+// shows the price plus an aria sentence — never spark-only.
 export interface SparkInput {
   date: string;
   price: number;
@@ -289,9 +273,8 @@ export interface SparkOpts {
 }
 
 /**
- * Lay out a short price series into a tiny SVG trend line. Returns null when there
- * is nothing to draw (empty series). A flat/degenerate range is centred vertically
- * so the line sits mid-cell instead of hugging an edge. Never invents points.
+ * Lay out a short price series into a tiny SVG trend line. Returns null for an empty
+ * series; a flat range is centred vertically. Never invents points.
  */
 export function buildSparkline(points: SparkInput[], opts: SparkOpts = {}): SparkGeometry | null {
   const n = points.length;
@@ -317,10 +300,8 @@ export function buildSparkline(points: SparkInput[], opts: SparkOpts = {}): Spar
   return { width, height, polyline, last, singlePoint: n === 1, min, max };
 }
 
-// ---- market comparison ------------------------------------------------------
-// Okabe–Ito categorical quartet (design-tokens 4b). Colours are assigned by
-// STABLE market-id order — never by price rank — so a given market keeps its
-// colour across every chart in the session.
+// Okabe–Ito categorical quartet. Colours are assigned by STABLE market-id order — never by
+// price rank — so a market keeps its colour across every chart in the session.
 const CAT_VARS = ['var(--cat-1)', 'var(--cat-2)', 'var(--cat-3)', 'var(--cat-4)'];
 
 export function marketColorVar(index: number): string {
@@ -348,9 +329,9 @@ export interface MarketSummary {
 }
 
 /**
- * Summarise each market's window for the comparison. Markets with NO data are
- * omitted (honestly excluded — the component notes them); colours stay stable
- * because they are assigned from the full market list, not the survivors.
+ * Summarise each market's window for the comparison. Markets with no data are omitted (the
+ * component notes them); colours stay stable because they are assigned from the full
+ * market list, not the survivors.
  */
 export function summarizeMarkets(
   markets: Market[],

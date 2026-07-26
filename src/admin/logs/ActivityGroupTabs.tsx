@@ -1,17 +1,8 @@
-// System log — sub-tab strip (All / Sign-ins / User management / Content changes).
-//
-// Same WAI-ARIA tabs pattern as the hub's LogsTabs (role=tablist/tab, MANUAL activation,
-// roving tabindex, Left/Right/Up/Down/Home/End move focus, Enter/Space activates) but a
-// LOCAL-STATE control, not a router: these tabs narrow WHICH EVENTS the one page shows,
-// they do not change route. The active group is mirrored into ?group= by the page so a
-// deep link and a reload land on the same view.
-//
-// The ids are deliberately namespaced `syslog-group-*` so they can NEVER collide with
-// logsTabId()'s route-segment ids (`logs-tab-user-activity`) — this strip renders INSIDE
-// the hub's tabpanel, so two tab strips share one document.
-//
-// Visually a segmented pill control, NOT the hub's underlined route tabs: two identical
-// looking strips stacked would read as "which page am I on?" twice. Pills say "filter".
+// Sub-tab strip for the System log page (All / Sign-ins / User management / Content
+// changes). Same WAI-ARIA tabs pattern as LogsTabs, but these filter which events the
+// page shows instead of changing route; the active group is mirrored into ?group=.
+// The ids are namespaced `syslog-group-*` so they cannot collide with logsTabId(),
+// because this strip renders inside the hub's tabpanel.
 import { useRef, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -28,8 +19,8 @@ export interface ActivityGroup {
   types: readonly string[] | null;
 }
 
-/** Group -> wire strings. `all` sends NO filter, so a future event type this build has
- *  never heard of still shows up under All instead of vanishing from the log. */
+/** Group -> wire strings. `all` sends NO filter (test-locked), so an event type this
+ *  build has never heard of still shows under All instead of vanishing from the log. */
 export const ACTIVITY_GROUPS: readonly ActivityGroup[] = [
   { id: 'all', labelKey: 'admin.logs.userActivity.groups.all', types: null },
   {
@@ -56,8 +47,7 @@ export function activityGroupTabId(id: string): string {
   return `syslog-group-tab-${id}`;
 }
 
-/** Resolve a raw ?group= value to a known group; anything unrecognised (typo, stale
- *  bookmark, removed group) falls back to All rather than showing an empty page. */
+/** Resolve a raw ?group= value; anything unrecognised falls back to All. */
 export function resolveActivityGroup(raw: string | null): ActivityGroup {
   return ACTIVITY_GROUPS.find((g) => g.id === raw) ?? ACTIVITY_GROUPS[0];
 }

@@ -6,10 +6,9 @@ import { loginErrorKey } from '../lib/authErrors';
 import { USE_FIXTURES } from '../api/client';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 
-// Login (FE-17). Farmer-friendly: big touch targets, minimal fields matching the
-// LoginDto EXACTLY (username + password — login is by USERNAME, not email), plain
-// inline validation, loading/disabled states. Return-to after login preserves the
-// route the guard interrupted (location.state.from).
+// Login. Big touch targets and minimal fields matching LoginDto exactly (username +
+// password — login is by USERNAME, not email), with inline validation. After login the
+// farmer returns to the route the guard interrupted (location.state.from).
 interface FromState {
   from?: { pathname?: string; search?: string };
   reason?: string;

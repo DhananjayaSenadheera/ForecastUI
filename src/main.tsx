@@ -33,8 +33,7 @@ createRoot(document.getElementById('root')!).render(
   </React.StrictMode>,
 );
 
-// PWA baseline (FE-2): register the app-shell service worker in production only.
-// Full offline UX (staleness banner, cached last-data) is FE-9.
+// Register the app-shell service worker in production only.
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
     void navigator.serviceWorker.register('/sw.js');

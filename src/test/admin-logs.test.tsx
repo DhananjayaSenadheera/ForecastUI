@@ -231,10 +231,9 @@ describe('Logs hub auth gate (Phase 1)', () => {
     }
   });
 
-  // Unlike renderLogsRoutes above, this mounts the subtree UNDER RequireAdmin — the
-  // same nesting App.tsx uses — so it locks the auth property for the new routes.
-  // Flow mirrors admin-guard.test.tsx: the guard bounces the visitor to /login,
-  // the stub logs in as a FARMER and returns to the intended route (state.from).
+  // Unlike renderLogsRoutes above, this mounts the subtree UNDER RequireAdmin — the same
+  // nesting App.tsx uses — so it locks the auth property for the new routes. The stub logs
+  // in as a FARMER and returns to the intended route.
   function FarmerLoginStub() {
     const { login } = useAuth();
     const location = useLocation();

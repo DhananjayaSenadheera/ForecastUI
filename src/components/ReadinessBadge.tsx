@@ -1,17 +1,11 @@
-// =============================================================================
-// ReadinessBadge — the crop-status colouring's glyph+label chip (2026-07-22).
-// Colour is NEVER the sole signal (tokens.css law): the tint always ships with
-// a glyph AND a word. `compact` keeps only the glyph visible (tight surfaces
-// like Compare chips). status=null renders NOTHING (readiness unknown -> no
-// claim). Green = model-served "good forecast"; amber = fallback-served
-// "collecting data" — red stays reserved for "Not recommended".
-//
-// `ariaHidden` (REQUIRED inside any named control): when the badge sits inside
-// a button/label, its text would otherwise JOIN the control's accessible name
-// ("Beans Collecting data") — the exact name-pollution the Logs tab tooltips
-// avoid. Callers hide the badge from the a11y tree and attach the status as the
-// control's DESCRIPTION via aria-describedby -> a sibling sr-only span instead.
-// =============================================================================
+// ReadinessBadge — the crop-status chip. Colour is never the sole signal: the tint always
+// ships with a glyph AND a word. `compact` keeps only the glyph (tight surfaces like the
+// Compare chips), and status=null renders NOTHING, because readiness unknown means no
+// claim. Green = model-served, amber = collecting data; red stays reserved for "Not
+// recommended".
+// `ariaHidden` is REQUIRED inside any named control: the badge text would otherwise join
+// the control's accessible name ("Beans Collecting data"). Callers hide it from the a11y
+// tree and attach the status as the control's DESCRIPTION via aria-describedby instead.
 import { useTranslation } from 'react-i18next';
 import { readinessLabelKey, type CropReadinessStatus } from '../lib/readiness';
 

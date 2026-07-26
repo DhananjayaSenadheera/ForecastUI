@@ -1,12 +1,8 @@
-// =============================================================================
-// Formatting + contract mapping (FE-2). This is where the load-bearing logic
-// lives (confidence mapping, price/date formatting) — covered by unit tests.
-// Presentation components stay dumb and call these.
-//
-// HONEST-UNCERTAINTY RULE: the "Low"/"Medium"/"High" API strings are FROZEN.
-// We NEVER remap the string — only choose a translated DISPLAY label + a semantic
-// tone. Low confidence is caution (amber), never dressed up as precise.
-// =============================================================================
+// Formatting + contract mapping. The load-bearing logic (confidence mapping, price and
+// date formatting) lives here and is unit-tested; components just call it.
+// The "Low"/"Medium"/"High" API strings are FROZEN: never remap the string, only pick a
+// translated display label and a tone. Low confidence is caution (amber), never dressed up
+// as precise.
 import {
   ForecastConfidenceCode,
   MarketType,
@@ -76,11 +72,8 @@ export function mapVerdict(level: RecommendationLevel): VerdictDisplay {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Numbers / currency / dates — locale-aware (Intl, no library).
-// LKR shown as "Rs." per design samples; farmers read the plain numeral (PRD:
-// non-literate users are numerate — the number is the hero, so no decimals on kg).
-// ---------------------------------------------------------------------------
+// Numbers / currency / dates — locale-aware via Intl, no library. LKR shows as "Rs." and
+// prices carry no decimals: the number is the hero.
 const localeFor: Record<string, string> = { si: 'si-LK', ta: 'ta-LK', en: 'en-LK' };
 
 function resolveLocale(lang: string): string {
@@ -127,11 +120,9 @@ export function formatDateTime(value: string, lang: string): string {
 }
 
 /**
- * Clamp a remembered "YYYY-MM-DD" planting date into the allowed window. Returns
- * the date when it is a valid ISO day AND within [min,max]; otherwise falls back
- * to `fallback` (today). Keeps a restored plant date honest — a stale value can
- * never leak an out-of-range date into the picker. (ISO YYYY-MM-DD strings sort
- * lexicographically, so string comparison is a correct range check.)
+ * Clamp a remembered "YYYY-MM-DD" planting date into the allowed window: the date when it
+ * is a valid ISO day within [min,max], otherwise `fallback` (today). ISO date strings sort
+ * lexicographically, so string comparison is a correct range check.
  */
 export function clampPlantDateToRange(
   date: string,
@@ -146,12 +137,9 @@ export function clampPlantDateToRange(
   return date;
 }
 
-// ===========================================================================
-// ADMIN CONSOLE mappers (ADM-2 / ADM-3). Int enum -> i18n label key, following the
-// existing confidence/verdict mapper pattern. UNKNOWN ints degrade to a muted raw
-// label ("#<n>") and NEVER crash — a future backend enum value must not blank the
-// admin table. `labelKey === null` signals the caller to render `fallback` muted.
-// ===========================================================================
+// Admin enum mappers: int -> i18n label key, the same idiom as the confidence mapper. An
+// UNKNOWN int degrades to a muted raw label ("#<n>") and never crashes the table;
+// labelKey === null tells the caller to render `fallback` muted.
 
 /** An enum display: i18n key when the int is known, else a muted raw fallback. */
 export interface EnumLabel {
@@ -179,9 +167,9 @@ export function mapPolicyType(type: number): EnumLabel {
   return { labelKey, fallback: `#${type}` };
 }
 
-/** Direction display: glyph + word, never colour-ONLY. Toned badges (owner request
- *  2026-07-12): bullish=green (--good), bearish=amber (--warn). RED stays reserved
- *  for the farmer "Not recommended" verdict, and green/amber survives red-green CVD. */
+/** Direction display: glyph + word, never colour alone. Bullish is green, bearish amber;
+ *  red stays reserved for the farmer "Not recommended" verdict, and green/amber survives
+ *  red-green colour blindness. */
 export interface DirectionLabel extends EnumLabel {
   /** Text glyph paired with the word (▲ Bullish / ▼ Bearish / – Neutral). */
   glyph: string;
@@ -217,12 +205,11 @@ export function mapMarketType(type: number): EnumLabel {
 }
 
 /**
- * Derive a policy flag's lifecycle status from its effective window, client-side:
+ * Derive a policy flag's lifecycle status from its effective window:
  *   Active    — effectiveFrom <= today <= (effectiveTo or open-ended)
- *   Scheduled — effectiveFrom > today (not started yet)
- *   Expired   — effectiveTo < today (window closed)
- * Compares calendar dates (YYYY-MM-DD) so a datetime's clock time never flips the
- * status; ISO date strings sort lexicographically, so string comparison is correct.
+ *   Scheduled — effectiveFrom > today
+ *   Expired   — effectiveTo < today
+ * Compares calendar dates, so a datetime's clock time never flips the status.
  */
 export function derivePolicyStatus(
   effectiveFrom: string,
@@ -248,16 +235,12 @@ export function ymdLocal(d: Date): string {
   return `${d.getFullYear()}-${m}-${day}`;
 }
 
-// ===========================================================================
-// ADMIN CONSOLE — INGESTION RUNS mappers (admin ingestion API). Same idiom as the
-// confidence/policy mappers: wire value -> { tone (CSS modifier), i18n labelKey }.
-// Tone drives colour AND a text label is ALWAYS shown alongside — never colour-only.
-// Unknown wire values degrade to a neutral tone rather than crashing the table.
-// ===========================================================================
+// Ingestion-run mappers: wire value -> { tone (CSS modifier), i18n labelKey }. A text label
+// is always shown alongside the tone — never colour only — and unknown wire values degrade
+// to a neutral tone rather than crashing the table.
 
-/** Ingestion run status -> badge tone + label. Tone maps to `.adm-status--<tone>`.
- *  Also accepts the status snapshot's last-run "partial" rollup (amber) so the run
- *  rows and the last-run badge share one mapper. Unknown -> neutral (never crashes). */
+/** Ingestion run status -> badge tone + label. Also accepts the status snapshot's last-run
+ *  "partial" rollup, so the run rows and the last-run badge share one mapper. */
 export function mapRunStatus(status: IngestionRunStatus | 'partial' | string): {
   tone: 'succeeded' | 'running' | 'failed' | 'skipped' | 'partial' | 'unknown';
   labelKey: string;
@@ -296,15 +279,11 @@ export function mapVerificationVerdict(v: string): {
   }
 }
 
-// ===========================================================================
-// ADMIN CONSOLE — LOGS HUB Phase 2 mappers (Model training + User activity).
-// Same idiom: wire value -> { tone (CSS modifier), i18n labelKey }, text label
-// ALWAYS shown alongside the colour. Unknown wire values degrade, never crash.
-// ===========================================================================
+// Logs-hub mappers (model training + user activity), same idiom: wire value -> tone + i18n
+// labelKey, with the text label always shown. Unknown values degrade, never crash.
 
-/** Model-training MAE -> a 2-decimal locale-aware string (null when the metric is
- *  absent). MAE is a raw model metric, NOT currency — no Rs. prefix, no rounding to
- *  whole units. Lower is better, but that context is copy, never a colour here. */
+/** Model-training MAE -> a 2-decimal locale-aware string (null when the metric is absent).
+ *  MAE is a raw metric, not currency: no Rs. prefix, no rounding, and never colour-coded. */
 export function formatMae(value: number | null | undefined, lang: string): string | null {
   if (value == null || Number.isNaN(value)) return null;
   return new Intl.NumberFormat(resolveLocale(lang), {
@@ -340,9 +319,8 @@ const USER_ACTIVITY_KEYS: Record<string, string> = {
 };
 
 /** User-activity event type -> label + badge tone. loginFailed is amber (a failed,
- *  unverified attempt); userRegistered is green (a new account); the rest are neutral.
- *  Unknown wire strings degrade to a muted raw fallback (labelKey null). RED is never
- *  used here — it stays reserved app-wide for the "Not recommended" verdict. */
+ *  unverified attempt), userRegistered green, the rest neutral. Unknown wire strings
+ *  degrade to a muted raw fallback (labelKey null). */
 export function mapUserActivityEvent(type: string): {
   labelKey: string | null;
   fallback: string;
@@ -389,10 +367,10 @@ export function mapCheckSeverity(sev: string): {
 }
 
 /**
- * Parse a run's `checksJson` STRING into a VerificationCheck[]. Returns null on ANY
- * failure — invalid JSON, non-array shape, or a non-object element — so the caller
- * renders a plain "checks unavailable" note instead of crashing. Malformed rows are
- * coerced to safe defaults (never throws), keeping one bad check from hiding the rest.
+ * Parse a run's `checksJson` STRING into VerificationCheck[]. Returns null on ANY failure —
+ * invalid JSON, a non-array, or a non-object element — so the caller renders a plain
+ * "checks unavailable" note instead of crashing. Malformed rows are coerced to safe
+ * defaults, keeping one bad check from hiding the rest.
  */
 export function parseVerificationChecks(checksJson: string | null | undefined): VerificationCheck[] | null {
   if (!checksJson) return null;

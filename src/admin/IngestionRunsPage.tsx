@@ -1,18 +1,6 @@
-// ADM-8 — Ingestion runs (/admin/ingestion). READ-ONLY admin observability over the
-// data pipeline (admin ingestion API — run tracking #43, verification CLI #44, admin
-// API #46). Two independent surfaces that FAIL INDEPENDENTLY:
-//   1. A status snapshot card — service state, last run + verification rollup, per-
-//      source health. POLLED every 30s while the tab is visible (paused on
-//      document.hidden, exponential backoff 30→60→120s on error, reset on success).
-//   2. A SERVER-PAGED runs table (desktop) / stacked cards (<600px) with a source
-//      filter, a manual refresh, and per-row expansion revealing the verification
-//      checks (parsed defensively from the checksJson STRING) + any error summary.
-//
-// AUTH: both routes sit behind an Admin JWT; a 401/403 flows through the existing
-// global client interceptor (silent renew → /login), so there is ZERO new auth code.
-// HONEST STATUS: the pulsing dot is aria-hidden decoration — the TEXTUAL state in an
-// aria-live region is the source of truth. Verdicts are never colour-only (text always
-// present). checksJson parse failure degrades to a plain note, never a crash.
+// Admin page for ingestion runs (/admin/ingestion), read-only. Two surfaces that fail
+// independently: a status card polled every 30s, and a server-paged runs table whose
+// rows expand to show the verification checks.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
@@ -46,13 +34,9 @@ const POLL_MAX_MS = 120_000;
 const RUNS_PAGE_SIZE = 25;
 const KNOWN_SOURCE_STATUS = new Set(['ok', 'disabled', 'failed']);
 
-// ---------------------------------------------------------------------------
-// Status polling hook. setTimeout-scheduled (NOT setInterval) so the backoff cadence
-// is exact and a tab-hidden pause simply stops rescheduling. Resumes with an immediate
-// poll on visibilitychange. Backoff sequence on consecutive errors: 30 → 60 → 120s
-// (capped); any success resets to 30s. A prior status is kept on a transient error
-// (the card shows a small "couldn't refresh" note instead of blanking).
-// ---------------------------------------------------------------------------
+// Status polling. Uses setTimeout (not setInterval) so the backoff cadence is exact and
+// a hidden tab simply stops rescheduling. Errors back off 30 -> 60 -> 120s; a success
+// resets to 30s. The previous status stays on screen during a transient error.
 function useIngestionStatus() {
   const [status, setStatus] = useState<IngestionStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -82,8 +66,7 @@ function useIngestionStatus() {
 
   const poll = useCallback(async () => {
     const id = ++reqId.current;
-    // A newer poll (manual retry / visibility resume) supersedes an in-flight one:
-    // drop the stale response so it can never overwrite fresher state or re-schedule.
+    // Only the newest poll may commit — drop a superseded response.
     const isStale = () => !mounted.current || id !== reqId.current;
     try {
       const s = await api.getIngestionStatus();
@@ -109,8 +92,7 @@ function useIngestionStatus() {
 
   useEffect(() => {
     mounted.current = true;
-    // Skip the immediate mount fetch when the tab is already hidden (a background
-    // tab) — the visibilitychange handler fires the first poll when it becomes visible.
+    // Don't fetch on mount while the tab is hidden; visibilitychange does the first poll.
     if (typeof document === 'undefined' || !document.hidden) {
       void pollRef.current();
     }
@@ -138,7 +120,7 @@ export default function IngestionRunsPage() {
 
   const { status, loading: statusLoading, error: statusError, retry: retryStatus } = useIngestionStatus();
 
-  // ---- runs list (server-paged; loads on mount / page / filter change + manual refresh)
+  // Runs list: server-paged, reloads on page/filter change and on manual refresh.
   const [runs, setRuns] = useState<IngestionRunPage | null>(null);
   const [runsLoading, setRunsLoading] = useState(true);
   const [runsError, setRunsError] = useState(false);
@@ -180,9 +162,8 @@ export default function IngestionRunsPage() {
 
   return (
     <>
-      {/* No page title here: this renders inside the Logs hub, under its H1 + tab strip.
-          The tab label ("Ingestion runs") is the heading; the explainer lives on the tab
-          itself as a hover/focus tooltip (mobile: the hub's ⓘ toggle). */}
+      {/* No page title here: this renders inside the Logs hub, under its H1 and tab strip.
+          The tab label is the heading, and the explainer lives on the tab as a tooltip. */}
 
       {/* Status snapshot — fails independently of the runs table below. */}
       <section className="panel adm" aria-label={t('admin.ingestion.statusTitle')}>
@@ -284,9 +265,6 @@ export default function IngestionRunsPage() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Status card.
-// ---------------------------------------------------------------------------
 function StatusCard({
   status,
   lang,
@@ -409,9 +387,7 @@ function VerdictBadge({ verdict }: { verdict: string }) {
   return <span className={`ing-verdict ing-verdict--${v.tone}`}>{t(v.labelKey)}</span>;
 }
 
-// ---------------------------------------------------------------------------
-// One run row (+ its expandable verification detail row).
-// ---------------------------------------------------------------------------
+// One run row plus its expandable verification detail row.
 function RunRow({ run, lang }: { run: IngestionRun; lang: string }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -436,8 +412,7 @@ function RunRow({ run, lang }: { run: IngestionRun; lang: string }) {
               type="button"
               className="ing-toggle"
               aria-expanded={open}
-              // aria-controls only references the detail row while it is actually in the
-              // DOM (rendered on expand) — a dangling reference is an a11y anti-pattern.
+              // Only reference the detail row while it is actually in the DOM.
               {...(open ? { 'aria-controls': detailId } : {})}
               onClick={() => setOpen((o) => !o)}
             >

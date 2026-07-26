@@ -75,7 +75,7 @@ describe('System log tab (Logs P2.7)', () => {
     vi.restoreAllMocks();
   });
 
-  // ---- four async states ---------------------------------------------------
+  // Four async states.
   it('loading: shows a skeleton while events are pending', () => {
     vi.spyOn(api, 'getUserActivity').mockImplementation(PENDING);
     renderPage();
@@ -108,7 +108,7 @@ describe('System log tab (Logs P2.7)', () => {
     expect(await table()).toBeInTheDocument();
   });
 
-  // ---- loginFailed: quoted, unverified attempt ----------------------------
+  // loginFailed: quoted, unverified attempt.
   it('renders the loginFailed username quoted and flagged as an unverified attempt', async () => {
     vi.spyOn(api, 'getUserActivity').mockResolvedValue(page([FAILED_ROW]));
     renderPage();
@@ -118,7 +118,7 @@ describe('System log tab (Logs P2.7)', () => {
     expect(within(t).getByText('(unverified attempt)')).toBeInTheDocument();
   });
 
-  // ---- GUID truncation with full value in the title -----------------------
+  // GUID truncation with the full value in the title.
   it('truncates GUIDs to the first 8 chars with the full value in the title', async () => {
     vi.spyOn(api, 'getUserActivity').mockResolvedValue(page([ROLE_ROW]));
     renderPage();
@@ -128,7 +128,7 @@ describe('System log tab (Logs P2.7)', () => {
     expect(truncated[0]).toHaveAttribute('title', LONG_GUID);
   });
 
-  // ---- type filter drives the query param + resets to page 1 --------------
+  // The type filter drives the query param and resets to page 1.
   it('passes the chosen event type to the API and resets to page 1', async () => {
     const spy = vi.spyOn(api, 'getUserActivity').mockResolvedValue(fxUserActivity(1, 25));
     renderPage();
@@ -154,7 +154,7 @@ describe('System log tab (Logs P2.7)', () => {
     await waitFor(() => expect(spy).toHaveBeenCalledWith(1, 25, { type: 'roleChanged' }));
   });
 
-  // ---- forward compatibility ----------------------------------------------
+  // Forward compatibility.
   // The server may log an event type this build has never heard of. A log that
   // silently drops rows is not a log: render it verbatim, in a neutral badge.
   it('renders an UNKNOWN event type verbatim in a neutral badge, under the All group', async () => {
@@ -211,10 +211,8 @@ describe('System log fixtures — filter semantics mirror the server', () => {
   });
 });
 
-// ===========================================================================
-// System log — group sub-tabs (All / Sign-ins / User management / Content changes).
-// A LOCAL-STATE tab strip inside the page, mirrored into ?group= so it deep-links.
-// ===========================================================================
+// System log group sub-tabs (All / Sign-ins / User management / Content changes): local
+// state inside the page, mirrored into ?group= so the view deep-links.
 describe('System log — group sub-tabs', () => {
   beforeEach(async () => {
     await i18n.changeLanguage('en');
@@ -224,7 +222,7 @@ describe('System log — group sub-tabs', () => {
     vi.restoreAllMocks();
   });
 
-  // ---- ARIA structure ------------------------------------------------------
+  // ARIA structure.
   it('is a tablist of four tabs with All selected by default', async () => {
     renderPage();
     await table();
@@ -260,7 +258,7 @@ describe('System log — group sub-tabs', () => {
     expect(groupTab('Content changes')).toHaveAttribute('tabindex', '-1');
   });
 
-  // ---- keyboard: MANUAL activation ----------------------------------------
+  // Keyboard: manual activation.
   it('arrow keys move focus (and wrap) without changing the selection', async () => {
     renderPage();
     await table();
@@ -289,7 +287,7 @@ describe('System log — group sub-tabs', () => {
     expect(document.activeElement).toBe(groupTab('All'));
   });
 
-  // ---- group -> API types= -------------------------------------------------
+  // Group -> the API `types` param.
   it('sends the group wire strings as types= and reflects the group in the URL', async () => {
     const spy = vi.mocked(api.getUserActivity);
     renderPage();
@@ -318,7 +316,7 @@ describe('System log — group sub-tabs', () => {
     expect(screen.getByTestId('search').textContent).toBe('');
   });
 
-  // ---- deep link -----------------------------------------------------------
+  // Deep link.
   it('deep-links: ?group=content-changes selects that group on FIRST load', async () => {
     const spy = vi.mocked(api.getUserActivity);
     renderPage('/admin/logs/user-activity?group=content-changes');
@@ -336,7 +334,7 @@ describe('System log — group sub-tabs', () => {
     expect(groupTab('All')).toHaveAttribute('aria-selected', 'true');
   });
 
-  // ---- the single-event dropdown is SCOPED to the group --------------------
+  // The single-event dropdown is SCOPED to the group.
   it('scopes the event dropdown to the active group', async () => {
     renderPage();
     await table();
@@ -388,7 +386,7 @@ describe('System log — group sub-tabs', () => {
     expect((screen.getByLabelText('Event') as HTMLSelectElement).value).toBe('loginFailed');
   });
 
-  // ---- paging cursor -------------------------------------------------------
+  // Paging cursor.
   it('resets to page 1 when the group changes after paging forward', async () => {
     const spy = vi
       .mocked(api.getUserActivity)
@@ -401,7 +399,7 @@ describe('System log — group sub-tabs', () => {
     await waitFor(() => expect(spy).toHaveBeenCalledWith(1, 25, { types: USER_MGMT_TYPES }));
   });
 
-  // ---- stale rows during a group refetch are MARKED, not silently left ------
+  // Stale rows during a group refetch are MARKED, not silently left.
   it('marks the previous rows busy + dimmed while the new group loads, without clearing them', async () => {
     let releaseSecond: (v: UserActivityPage) => void = () => {};
     vi.mocked(api.getUserActivity)
@@ -436,7 +434,7 @@ describe('System log — group sub-tabs', () => {
     expect(within(fresh).queryByText('Role changed')).toBeNull();
   });
 
-  // ---- honest empty state --------------------------------------------------
+  // Honest empty state.
   it('distinguishes "nothing recorded" from "nothing matches this filter"', async () => {
     vi.mocked(api.getUserActivity).mockResolvedValue(page([], 0));
     renderPage();

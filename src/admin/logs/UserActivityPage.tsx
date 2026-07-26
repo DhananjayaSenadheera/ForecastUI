@@ -1,28 +1,11 @@
-// SYSTEM LOG (/admin/logs/user-activity — route kept for legacy bookmarks). READ-ONLY
-// admin audit trail of everything the system and its users did: sign-ins, user changes
-// and admin content edits. A SERVER-PAGED table (desktop) / stacked cards (<600px),
-// mirroring the ingestion tab's four async states (loading skeleton / error + retry /
-// empty / data).
-//
-// TWO LEVELS OF FILTER, and they are not redundant:
-//   1. GROUP sub-tabs (All / Sign-ins / User management / Content changes) — the coarse
-//      cut most admins want; sends the group's wire strings as `types` (an OR-set).
-//   2. The single-event dropdown — the fine cut WITHIN the active group; sends `type`.
-// The dropdown is always SCOPED to the group, so it can never offer an option that would
-// return nothing, and switching group clears a selection the new group cannot show. The
-// active group lives in ?group= so the view deep-links and survives a reload.
-//
-// HONEST DISPLAY: each event is a LABELLED badge (never colour-only — a loginFailed is
-// amber, a registration green, the rest neutral, always with the text label). A
-// loginFailed carries usernameAttempted, shown QUOTED and marked as an UNVERIFIED
-// attempt so it is never mistaken for a real, authenticated identity. GUIDs are rendered
-// truncated (first 8 chars + …) with the full value in a title attribute. The filters
-// only ever send KNOWN wire strings (or omit them) — the server 400s anything else, so
-// free text can never reach it. An event type this build does not know still renders,
-// verbatim, in a neutral badge: a log that silently drops rows is not a log.
-//
-// AUTH: the route sits behind an Admin JWT; a 401/403 flows through the existing global
-// client interceptor, so there is ZERO new auth code here.
+// System log (/admin/logs/user-activity — route kept for old bookmarks). Read-only,
+// server-paged audit trail of sign-ins, user changes and admin content edits.
+// Two filters that are not redundant: the GROUP sub-tabs send the group's wire strings
+// as `types`, and the single-event dropdown sends `type`. The dropdown is always scoped
+// to the active group, and the group lives in ?group= so the view deep-links.
+// The filters only ever send known wire strings — the server 400s anything else. An
+// event type this build does not know still renders verbatim: a log that silently
+// drops rows is not a log.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -57,8 +40,7 @@ export default function UserActivityPage() {
   const lang = i18n.language;
 
   const [searchParams, setSearchParams] = useSearchParams();
-  // The URL is the single source of truth for the group, so Back/Forward and a pasted
-  // link all land on the same view. An unknown ?group= degrades to All.
+  // The URL is the source of truth for the group; an unknown ?group= falls back to All.
   const group = resolveActivityGroup(searchParams.get('group'));
   const groupTypes = group.types;
 
@@ -70,8 +52,8 @@ export default function UserActivityPage() {
   const { page, perPage, totalPages, setPage, setPerPage } = pager;
   const req = useRef(0); // stale-response guard for overlapping page/filter loads
 
-  // A selection the active group cannot show is ignored (belt-and-braces for Back/
-  // Forward, which changes the group without going through selectGroup).
+  // Ignore a selected type the active group cannot show (Back/Forward changes the group
+  // without going through selectGroup).
   const activeType = !type || !groupTypes || groupTypes.includes(type) ? type : '';
   const options = groupTypes ?? USER_ACTIVITY_EVENT_TYPES;
   const filtered = activeType !== '' || groupTypes !== null;
@@ -81,8 +63,8 @@ export default function UserActivityPage() {
     setLoading(true);
     setError(false);
     try {
-      // `type` is the narrower request and wins; otherwise the group's OR-set (All
-      // sends neither, i.e. no filter at all).
+      // `type` is the narrower request and wins; otherwise the group's set (All sends
+      // neither, i.e. no filter at all).
       const filter = activeType ? { type: activeType } : groupTypes ? { types: groupTypes } : {};
       const res = await api.getUserActivity(page, perPage, filter);
       if (id !== req.current) return; // a newer load superseded this one
@@ -101,8 +83,7 @@ export default function UserActivityPage() {
 
   function selectGroup(next: ActivityGroup) {
     const params = new URLSearchParams(searchParams);
-    // Default group = clean URL (no ?group=all noise). replace: not push — a filter is
-    // not a navigation step, and Back should leave the page, not walk the filters.
+    // Default group = clean URL. replace, not push: a filter is not a navigation step.
     if (next.id === ALL_GROUP.id) params.delete('group');
     else params.set('group', next.id);
     setSearchParams(params, { replace: true });
@@ -111,9 +92,8 @@ export default function UserActivityPage() {
   }
 
   const items = data?.items ?? [];
-  // A load with rows ALREADY on screen (group switch, event filter, page turn). Those
-  // rows are the PREVIOUS query's answer, so they must be visibly marked as stale
-  // rather than sitting there looking like the new group's result.
+  // A load with rows already on screen answers the PREVIOUS query, so those rows are
+  // marked stale rather than left looking like the new group's result.
   const refreshing = loading && data !== null;
 
   return (
@@ -131,11 +111,9 @@ export default function UserActivityPage() {
         role="tabpanel"
         id={ACTIVITY_GROUP_PANEL_ID}
         aria-labelledby={activityGroupTabId(group.id)}
-        // A refetch KEEPS the previous rows on screen (no clearing = no layout jump),
-        // which would otherwise leave stale rows sitting under a freshly-selected pill
-        // — a filter label that briefly lies about its own table. aria-busy says
-        // "these rows are being replaced" to assistive tech; the dimming below says it
-        // to everyone else.
+        // A refetch keeps the old rows (no layout jump) but must not let them look like
+        // the new filter's result: aria-busy says "being replaced" to assistive tech,
+        // the dimming says it to everyone else.
         aria-busy={loading}
       >
         <div className="adm-toolbar">
@@ -166,8 +144,8 @@ export default function UserActivityPage() {
         ) : data && items.length === 0 ? (
           <AdminEmpty
             title={t('admin.logs.userActivity.emptyTitle')}
-            // Honest empty state: "nothing has happened yet" and "nothing matches this
-            // filter" are different facts and must not share one sentence.
+            // "Nothing has happened yet" and "nothing matches this filter" are
+            // different facts and must not share one sentence.
             body={t(
               filtered
                 ? 'admin.logs.userActivity.emptyBodyFiltered'
@@ -253,8 +231,8 @@ function IdCell({ id, na }: { id: string | null; na: string }) {
   );
 }
 
-/** Details cell. On a loginFailed the usernameAttempted is shown QUOTED and flagged as
- *  an unverified attempt so it is never read as an authenticated identity. */
+/** Details cell. A loginFailed shows usernameAttempted quoted and flagged as an
+ *  unverified attempt, so it is never read as an authenticated identity. */
 function DetailsCell({ event, na }: { event: UserActivityEvent; na: string }) {
   const { t } = useTranslation();
   const isFailed = event.eventType === 'loginFailed';
