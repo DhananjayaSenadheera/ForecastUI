@@ -98,7 +98,7 @@ export default function CropPicker({
     );
   };
 
-  // ---- error ----------------------------------------------------------------
+  // Error state.
   if (error) {
     return (
       <div className="cp-state" role="alert">
@@ -111,7 +111,7 @@ export default function CropPicker({
     );
   }
 
-  // ---- loading skeleton -----------------------------------------------------
+  // Loading skeleton.
   if (loading) {
     return (
       <div className="cp" aria-busy="true">

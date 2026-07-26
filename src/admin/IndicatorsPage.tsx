@@ -161,8 +161,7 @@ export default function IndicatorsPage() {
       <section className="panel adm" aria-label={t('admin.indicators.title')}>
         <DemoNote />
 
-        {/* The CCPI explainer lives on a ⓘ tooltip beside the section heading (owner
-            request 2026-07-22 — same treatment as the Logs tab tooltips, 💡 banner gone). */}
+        {/* The CCPI explainer is a ⓘ tooltip beside the section heading. */}
         <div className="adm-title-row">
           <h3 className="adm-title">{t('admin.indicators.ccpi')}</h3>
           <AdminHint hint={t('admin.indicators.explainer')} id="adm-ind-hint" />

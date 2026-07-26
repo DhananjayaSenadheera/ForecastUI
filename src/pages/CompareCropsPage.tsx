@@ -34,7 +34,7 @@ export default function CompareCropsPage() {
   const rs = t('common.rs');
   const todayStr = useMemo(() => ymdLocal(new Date()), []);
 
-  // ---- crop list (names + selection universe) ----
+  // Crop list: names + the selection universe.
   const [crops, setCrops] = useState<Crop[]>([]);
   const [cropsLoading, setCropsLoading] = useState(true);
   const [cropsError, setCropsError] = useState(false);
@@ -72,7 +72,7 @@ export default function CompareCropsPage() {
     };
   }, []);
 
-  // ---- selection (source of truth = the ?crops= deep-link) ----
+  // Selection — the ?crops= deep-link is the source of truth.
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedIds = useMemo(
     () => parseCropIdList(searchParams.get('crops'), COMPARE_MAX),
@@ -100,7 +100,7 @@ export default function CompareCropsPage() {
     [selectedIds, searchParams, setSearchParams],
   );
 
-  // ---- per-crop timelines (parallel, fail-soft, cached by id) ----
+  // Per-crop timelines: parallel, fail-soft, cached by id.
   const [timelines, setTimelines] = useState<Record<string, TimelineState>>({});
   const requestedRef = useRef<Set<string>>(new Set());
   const [retryNonce, setRetryNonce] = useState(0);
@@ -134,7 +134,7 @@ export default function CompareCropsPage() {
     setRetryNonce((n) => n + 1);
   }, []);
 
-  // ---- names, colours, geometry ----
+  // Names, colours, geometry.
   const nameById = useMemo(() => {
     const m = new Map<string, string>();
     for (const c of crops) m.set(c.id, cropDisplayName(c, lang));
@@ -172,7 +172,7 @@ export default function CompareCropsPage() {
     [okSeries, monthLabel],
   );
 
-  // ---- FE-20 shared tooltip: nearest point across ALL overlaid crops. Past
+  // Shared tooltip: nearest point across ALL overlaid crops. Past points show crop +
   // points show crop + month + price; forecast points also show the "likely" band.
   const tipPoints: TooltipPoint[] = useMemo(() => {
     if (!geo) return [];
@@ -214,7 +214,7 @@ export default function CompareCropsPage() {
       </div>
       <p className="cmp-sub">{t('pages.compare.subtitle')}</p>
 
-      {/* ---- selection ---- */}
+      {/* selection */}
       <section className="panel cmp-pick" aria-label={t('pages.compare.pick')}>
         <h2 className="cmp-pick__title">{t('pages.compare.pick')}</h2>
         <p className="cmp-pick__hint">{t('pages.compare.pickHint', { max: COMPARE_MAX })}</p>
@@ -280,7 +280,7 @@ export default function CompareCropsPage() {
         )}
       </section>
 
-      {/* ---- chart / states ---- */}
+      {/* chart / states */}
       {selectedIds.length === 0 ? (
         <section className="panel cmp-empty" aria-label={t('pages.compare.chartHeading')}>
           <p className="cmp-empty__icon" aria-hidden="true">📊</p>

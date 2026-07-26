@@ -29,7 +29,6 @@ describe('Admin console pages', () => {
     vi.restoreAllMocks();
   });
 
-  // ---- ADM-2 policy flags -------------------------------------------------
   describe('PolicyFlagsPage (ADM-2)', () => {
     it('defaults to TODAY (active flags only), and "Show all flags" reveals the full register', async () => {
       renderPage(<PolicyFlagsPage />);
@@ -73,7 +72,7 @@ describe('Admin console pages', () => {
       await waitFor(() => expect(spy).toHaveBeenCalledWith('2021-06-01'));
     });
 
-    // ---- API-13 Edit / Delete / trainingDataWarning banner ----------------
+    // Edit / delete / trainingDataWarning banner.
     const FUEL = 'Monthly fuel price formula (CPC pricing formula)';
 
     it('opens a prefilled edit dialog and saves the edited flag (no banner when warning is null)', async () => {
@@ -163,7 +162,6 @@ describe('Admin console pages', () => {
     });
   });
 
-  // ---- ADM-3 markets ------------------------------------------------------
   describe('MarketsPage (ADM-3)', () => {
     it('paginates the 12 real markets at 10 per page with Dambulla as the economic centre', async () => {
       renderPage(<MarketsPage />);
@@ -212,7 +210,6 @@ describe('Admin console pages', () => {
     });
   });
 
-  // ---- ADM-4 users --------------------------------------------------------
   describe('UsersPage (ADM-4)', () => {
     it('renders users paged at 10 and deletes one from in-memory state', async () => {
       renderPage(<UsersPage />);
@@ -259,7 +256,6 @@ describe('Admin console pages', () => {
     });
   });
 
-  // ---- ADM-5 festivals (API-10 — LIVE) ------------------------------------
   describe('FestivalsPage (ADM-5)', () => {
     it('defaults the year filter to the current year and shows only that year, with the model warning', async () => {
       renderPage(<FestivalsPage />);
@@ -348,7 +344,6 @@ describe('Admin console pages', () => {
     });
   });
 
-  // ---- ADM-6 indicators (API-11 — LIVE) -----------------------------------
   describe('IndicatorsPage (ADM-6)', () => {
     it('shows the CCPI line chart + inflation-pace gauge side by side, no USD/LKR, no table', async () => {
       renderPage(<IndicatorsPage />);
@@ -409,7 +404,6 @@ describe('Admin console pages', () => {
     });
   });
 
-  // ---- ADM-7v2 news table (ingestion-fed, read-only; CRUD removed 2026-07-22) ----
   describe('NewsPage (ADM-7v2 — ingested table)', () => {
     it('defaults to Agriculture only: agri rows show, general and unscored rows are hidden', async () => {
       renderPage(<NewsPage />);
@@ -481,7 +475,6 @@ describe('Admin console pages', () => {
     });
   });
 
-  // ---- Page explainer ⓘ (the explainer is a tooltip, not a banner) ----------------
   describe('page explainer ⓘ tooltips (AdminHint)', () => {
     it('Indicators: the CCPI explainer describes the ⓘ (aria-describedby → role=tooltip) and is no longer a banner', async () => {
       renderPage(<IndicatorsPage />);

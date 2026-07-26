@@ -64,7 +64,7 @@ export default function PricesPage() {
   const [overlayIds, setOverlayIds] = useState<string[]>([]);
   const [capNote, setCapNote] = useState(false);
 
-  // ---- crops + markets (once) ----------------------------------------------
+  // Crops + markets, loaded once.
   const loadBase = useCallback(async () => {
     setLoading(true);
     setError(false);
@@ -109,7 +109,7 @@ export default function PricesPage() {
     };
   }, []);
 
-  // ---- price history for the selected crop across all markets ---------------
+  // Price history for the selected crop across all markets.
   const loadHistories = useCallback(async (cid: string, ms: Market[]) => {
     setError(false);
     try {
@@ -198,7 +198,7 @@ export default function PricesPage() {
           </div>
         ) : (
           <>
-            {/* ---- crop select (shared by both views) ---- */}
+            {/* crop select, shared by both views */}
             <div className="pr-controls">
               <label className="pr-field">
                 <span className="wrap-label">{t('pages.prices.cropLabel')}</span>
@@ -231,7 +231,7 @@ export default function PricesPage() {
               )}
             </div>
 
-            {/* ---- view toggle: one market / compare markets ---- */}
+            {/* view toggle: one market / compare markets */}
             <div className="pr-seg" role="group" aria-label={t('pages.prices.viewLabel')}>
               <button
                 type="button"
@@ -469,7 +469,7 @@ function MarketOverlayChart({ inputs, markets, overlayIds, marketColors, onToggl
 
   return (
     <div className="pr-chart">
-      {/* ---- market multi-select (max 4) ---- */}
+      {/* market multi-select (max 4) */}
       <p className="pr-chart__title">{t('pages.prices.overlayTitle', { crop: cropLabel })}</p>
       <p className="pr-mkts__hint">{t('pages.prices.marketsHint', { max: OVERLAY_MAX })}</p>
       <div className="pr-mkts" role="group" aria-label={t('pages.prices.marketsLabel')}>

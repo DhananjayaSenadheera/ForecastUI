@@ -63,7 +63,7 @@ describe('Ingestion runs page (ADM-8)', () => {
     setHidden(false);
   });
 
-  // ---- four async states: STATUS ------------------------------------------
+  // Four async states: status.
   describe('status card — four async states', () => {
     it('loading: shows a skeleton while the status is pending', async () => {
       vi.spyOn(api, 'getIngestionStatus').mockImplementation(PENDING);
@@ -94,7 +94,7 @@ describe('Ingestion runs page (ADM-8)', () => {
     // (unlike the runs list). The three states above are the meaningful set.
   });
 
-  // ---- four async states: RUNS --------------------------------------------
+  // Four async states: runs.
   describe('runs list — four async states', () => {
     it('loading: shows a skeleton while runs are pending', async () => {
       vi.spyOn(api, 'getIngestionStatus').mockResolvedValue(fxIngestionStatusObj);
@@ -129,7 +129,7 @@ describe('Ingestion runs page (ADM-8)', () => {
     });
   });
 
-  // ---- badge mapping -------------------------------------------------------
+  // Badge mapping.
   it('maps run status + verification verdict to labelled badges (never colour-only)', async () => {
     vi.spyOn(api, 'getIngestionStatus').mockResolvedValue(fxIngestionStatusObj);
     vi.spyOn(api, 'getIngestionRuns').mockResolvedValue(fxIngestionRuns(1, 25));
@@ -145,7 +145,7 @@ describe('Ingestion runs page (ADM-8)', () => {
     expect(screen.getByText('Partial')).toBeInTheDocument();
   });
 
-  // ---- expand / collapse ---------------------------------------------------
+  // Expand / collapse.
   it('toggles a run row open/closed via aria-expanded and reveals parsed checks', async () => {
     vi.spyOn(api, 'getIngestionStatus').mockResolvedValue(fxIngestionStatusObj);
     vi.spyOn(api, 'getIngestionRuns').mockResolvedValue(fxIngestionRuns(1, 25));
@@ -165,7 +165,7 @@ describe('Ingestion runs page (ADM-8)', () => {
     expect(toggle).not.toHaveAttribute('aria-controls'); // no dangling reference when collapsed
   });
 
-  // ---- checksJson parse failure -------------------------------------------
+  // checksJson parse failure.
   it('degrades to a plain note (no crash) when checksJson is not valid JSON', async () => {
     const badRun: IngestionRun = {
       ...fxIngestionRuns(1, 25).items[0],
@@ -189,7 +189,7 @@ describe('Ingestion runs page (ADM-8)', () => {
     expect(await screen.findByText(/Verification details are unavailable/i)).toBeInTheDocument();
   });
 
-  // ---- server paging -------------------------------------------------------
+  // Server paging.
   it('calls the API with server page params and re-fetches on next page', async () => {
     const spy = vi
       .spyOn(api, 'getIngestionRuns')
@@ -215,7 +215,7 @@ describe('Ingestion runs page (ADM-8)', () => {
     await waitFor(() => expect(spy).toHaveBeenCalledWith(1, 25, 'HARTI'));
   });
 
-  // ---- stale-response race (S1): a slow older load must not clobber newer data
+  // Stale-response race: a slow older load must not clobber newer data.
   it('drops a stale runs response when a newer load resolves first', async () => {
     const deferreds: Array<(v: IngestionRunPage) => void> = [];
     vi.spyOn(api, 'getIngestionStatus').mockResolvedValue(fxIngestionStatusObj);
@@ -244,7 +244,7 @@ describe('Ingestion runs page (ADM-8)', () => {
     expect(within(table).queryByText('DAMBULLA_DEC')).toBeNull();
   });
 
-  // ---- Nit 4: no immediate mount fetch while the tab starts hidden ----------
+  // No immediate fetch on mount while the tab starts hidden.
   it('skips the initial status poll when the tab starts hidden, and fires it on resume', async () => {
     setHidden(true);
     const spy = vi.spyOn(api, 'getIngestionStatus').mockResolvedValue(fxIngestionStatusObj);
@@ -260,7 +260,7 @@ describe('Ingestion runs page (ADM-8)', () => {
     expect(spy).toHaveBeenCalledTimes(1); // resume handler fired the first poll
   });
 
-  // ---- reduced-motion hook: the class the CSS disables is applied ----------
+  // Reduced-motion hook: the class the CSS disables is applied.
   it('applies the .ing-dot--running class (the reduced-motion CSS target) when running', async () => {
     vi.spyOn(api, 'getIngestionStatus').mockResolvedValue({ ...fxIngestionStatusObj, state: 'running' });
     vi.spyOn(api, 'getIngestionRuns').mockResolvedValue(fxIngestionRuns(1, 25));
@@ -269,7 +269,7 @@ describe('Ingestion runs page (ADM-8)', () => {
     expect(document.querySelector('.ing-dot--running')).not.toBeNull();
   });
 
-  // ---- polling: pause on hidden + exponential backoff on error -------------
+  // Polling: pause while hidden, exponential backoff on error.
   it('polls the status on a 30s cadence and pauses while the tab is hidden', async () => {
     vi.useFakeTimers();
     const spy = vi.spyOn(api, 'getIngestionStatus').mockResolvedValue(fxIngestionStatusObj);
@@ -310,7 +310,7 @@ describe('Ingestion runs page (ADM-8)', () => {
   });
 });
 
-// S2: the server-page cursor self-clamps when `total` shrinks under it.
+// The server-page cursor self-clamps when `total` shrinks under it.
 describe('useServerPagination — page clamp on shrinking total', () => {
   it('clamps a stale page cursor to the last available page', () => {
     const { result, rerender } = renderHook(({ total }) => useServerPagination(total, 25), {

@@ -68,7 +68,7 @@ export default function ForecastResult({
   const loStr = f ? formatPrice(f.lowerBound, lang, rs) : '';
   const hiStr = f ? formatPrice(f.upperBound, lang, rs) : '';
 
-  // ---- left column: whichever of the three states applies --------------------
+  // Left column: whichever of the three states applies.
   let stateContent: ReactNode;
   if (error) {
     stateContent = (
@@ -197,7 +197,7 @@ export default function ForecastResult({
     );
   }
 
-  // ---- right column: only exists when there is a result to describe ----------
+  // Right column: only exists when there is a result to describe.
   let side: ReactNode = null;
   if (f) {
     const conf = mapConfidenceString(f.confidence);
@@ -267,17 +267,16 @@ export default function ForecastResult({
       aria-busy={loading || undefined}
     >
       <div className="fc-layout">
-        {/* ---- LEFT: hero price + marked-centre band, or the state standing in
-             for them. The wrapper is always present so the slot below it keeps a
-             fixed position and is never remounted. ---- */}
+        {/* LEFT: hero price + marked-centre band, or the state standing in for them. The
+             wrapper is always present so the slot below keeps a fixed position and is
+             never remounted. */}
         <div className="fc-main">
           <div className="fc-result">{stateContent}</div>
 
-          {/* Best planting window (2026-07-25). Placed AFTER the range block and
-              its table alternative — the table is that block's text equivalent, so
-              nothing may come between them — and inside the left column, where the
-              hero price, the P10–P90 range and today's price give the min-max
-              scaled bars something to be judged against. */}
+          {/* Best planting window. Placed AFTER the range block and its table alternative
+              — the table is that block's text equivalent, so nothing may come between them
+              — and inside the left column, where the hero price, the P10–P90 range and
+              today's price give the min-max scaled bars something to be judged against. */}
           {windowSlot && <div className="fc-window">{windowSlot}</div>}
         </div>
 

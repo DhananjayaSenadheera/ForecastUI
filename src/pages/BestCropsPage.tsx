@@ -150,7 +150,7 @@ export default function BestCropsPage() {
           <span aria-hidden="true"> →</span>
         </Link>
 
-        {/* ---- error ---- */}
+        {/* error */}
         {error ? (
           <div className="bc-state" role="alert">
             <p className="bc-state__title">{t('common.errorTitle')}</p>
@@ -160,7 +160,7 @@ export default function BestCropsPage() {
             </button>
           </div>
         ) : loading ? (
-          /* ---- loading skeleton ---- */
+          /* loading skeleton */
           <div className="bc-skeleton" aria-busy="true">
             <p className="sr-only">{t('common.loading')}</p>
             {Array.from({ length: SKELETON_ROWS }).map((_, i) => (
@@ -171,13 +171,13 @@ export default function BestCropsPage() {
             ))}
           </div>
         ) : sorted.length === 0 ? (
-          /* ---- empty ---- */
+          /* empty */
           <div className="bc-state">
             <p className="bc-state__title">{t('pages.bestCrops.emptyTitle')}</p>
             <p className="bc-state__body">{t('pages.bestCrops.emptyBody')}</p>
           </div>
         ) : (
-          /* ---- success ---- */
+          /* success */
           <>
             <p className="bc-legend">{t('pages.bestCrops.scaleLegend', { max: axisMaxStr })}</p>
             <div className="bc-tablewrap">
@@ -306,7 +306,7 @@ export default function BestCropsPage() {
   );
 }
 
-// ---- sortable column header (button-in-th + aria-sort) ----------------------
+// Sortable column header (button in th + aria-sort).
 interface SortableThProps {
   col: BestCropSortKey;
   label: string;

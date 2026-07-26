@@ -45,7 +45,7 @@ export default function App() {
 
   return (
     <Routes>
-      {/* Public auth routes — outside the shell + the guard (FE-17). */}
+      {/* Public auth routes — outside the shell and the guard. */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 
@@ -61,9 +61,9 @@ export default function App() {
           <Route path="/best-crops/compare" element={<CompareCropsPage />} />
           <Route path="/prices" element={<PricesPage />} />
 
-          {/* Admin console — role-gated by RequireAdmin (authenticated + role Admin).
-              Renders inside the shell so admins keep the nav; farmers who reach it
-              get an honest "no access" state, never a redirect loop. */}
+          {/* Admin console — role-gated by RequireAdmin. It renders inside the shell so
+              admins keep the nav, and a farmer who reaches it gets an honest "no access"
+              state rather than a redirect loop. */}
           <Route path="/admin" element={<RequireAdmin />}>
             <Route index element={<Navigate to="/admin/policy-flags" replace />} />
             <Route path="policy-flags" element={lazyAdmin(<PolicyFlagsPage />)} />

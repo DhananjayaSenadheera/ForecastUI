@@ -127,7 +127,7 @@ describe('API client (live mode — markets + price history URLs)', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:5282/api/prices/crop/crop-1/history?days=90');
   });
 
-  // ---- ADM-4 users (API-9, backend PR #26) --------------------------------
+  // Users admin API.
   it('getAdminUsers hits /api/users/get/all with no paging params (default 500 cap)', async () => {
     const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes([]));
     vi.stubGlobal('fetch', fetchMock);
@@ -154,7 +154,7 @@ describe('API client (live mode — markets + price history URLs)', () => {
     expect(init.method).toBe('DELETE');
   });
 
-  // ---- ADM-6 indicators (API-11, backend merged) --------------------------
+  // Indicators.
   it('getIndicatorCatalog hits /api/indicators/catalog', async () => {
     const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes([]));
     vi.stubGlobal('fetch', fetchMock);
@@ -178,7 +178,7 @@ describe('API client (live mode — markets + price history URLs)', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:5282/api/indicators?code=USD_LKR');
   });
 
-  // ---- System log filters (GET /api/admin/logs/user-activity) -------------
+  // System log filters (GET /api/admin/logs/user-activity).
   // The page tests mock api.getUserActivity, so THIS is the only place the built query
   // string is exercised. `type` and `types` are mutually exclusive on the wire and the
   // server 400s an unknown value, so which param goes out is load-bearing, not cosmetic.
@@ -244,7 +244,7 @@ describe('API client (live mode — markets + price history URLs)', () => {
     expect(fetchMock.mock.calls[0][0]).toBe(`${UA_URL}?page=1&pageSize=25`);
   });
 
-  // ---- ADM-2 policy-flag mutations (API-13, backend merged) ---------------
+  // Policy-flag mutations.
   it('updatePolicyFlag PUTs /api/policy-flag/update with the dto WRAPPED under policyFlagUpdateDto', async () => {
     const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes({ id: 'pf-1', trainingDataWarning: null }));
     vi.stubGlobal('fetch', fetchMock);
@@ -276,7 +276,7 @@ describe('API client (live mode — markets + price history URLs)', () => {
     expect(init.method).toBe('DELETE');
   });
 
-  // ---- ADM-5 festival calendar (API-10, backend merged) -------------------
+  // Festival calendar.
   it('getFestivals hits /api/festival-calendar/get/all', async () => {
     const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes([]));
     vi.stubGlobal('fetch', fetchMock);
@@ -328,7 +328,7 @@ describe('API client (live mode — markets + price history URLs)', () => {
     expect(init.method).toBe('DELETE');
   });
 
-  // ---- ADM-7 news events (API-12, backend merged) -------------------------
+  // News events.
   it('getNewsEvents hits /api/news-events/get/all', async () => {
     const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes([]));
     vi.stubGlobal('fetch', fetchMock);

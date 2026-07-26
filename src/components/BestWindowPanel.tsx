@@ -181,7 +181,7 @@ export default function BestWindowPanel({
     [activeIdx, points.length],
   );
 
-  // ---- compact error note (fail-soft: the picker above still works) ----------
+  // Compact error note: fail-soft, the picker above still works.
   if (error) {
     return (
       <div className="bw-note bw-note--error" role="alert">
@@ -196,7 +196,7 @@ export default function BestWindowPanel({
     );
   }
 
-  // ---- loading skeleton (same height as the real strip — no layout shift) ----
+  // Loading skeleton, the same height as the real strip so there is no layout shift.
   if (loading || !win) {
     return (
       <div className="bw bw--skeleton" aria-busy="true">
@@ -210,7 +210,7 @@ export default function BestWindowPanel({
 
   const name = cropLabel ?? win.cropName ?? '';
 
-  // ---- honest not-rankable state --------------------------------------------
+  // Honest not-rankable state.
   // The reason CODE is what gets translated; the server's English `explanation` is only a
   // defaultValue, so an unknown code still says something true instead of a raw token.
   if (!win.rankable || points.length === 0 || !win.best) {
@@ -285,7 +285,7 @@ export default function BestWindowPanel({
       </p>
       <p className="bw__lead">{t('bestWindow.lead', { crop: name })}</p>
 
-      {/* ---- the verdict, in words. Never only in bar heights. ---- */}
+      {/* The verdict, in words. Never only in bar heights. */}
       <div className={`bw-verdict${belowToday ? ' is-below' : ''}`}>
         <div className="bw-verdict__leg">
           <span className="bw-verdict__cap">{t('bestWindow.plantCap')}</span>
@@ -334,7 +334,7 @@ export default function BestWindowPanel({
             : t('bestWindow.uplift', { pct: best.upliftPct.toFixed(1) })}
       </p>
 
-      {/* ---- the strip. Heights rank; they do not measure (see header). ---- */}
+      {/* The strip. Heights rank the dates, they do not measure (see the header). */}
       <div className="bw-stripwrap" ref={wrapRef}>
         <div
           className="bw-strip"

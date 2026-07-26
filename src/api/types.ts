@@ -50,7 +50,7 @@ export interface Crop {
   source: string | null;
   createdAt: string; // ISO datetime
   updatedAt: string;
-  // ---- API gap #3 (optional; present in fixtures, may be absent live) ----
+  // Optional below: present in fixtures, may be absent on a live payload.
   cropCode?: string | null; // VEG######/FRT###### — display only
   category?: CropCategoryRef | null; // grouping; absent -> single group
   growthDays?: number | null; // typical growth period (agronomy profile)
@@ -106,7 +106,7 @@ export interface HarvestForecast {
   upsidePct: number;
   intervalWidthPct: number;
   lowTrust: boolean; // true -> show "old data" notice with data age
-  // ---- API-5 (optional; absent on the live route today, present in fixtures) ----
+  // Optional: absent on the live route today, present in fixtures.
   topFactors?: ForecastFactor[] | null; // structured "why this forecast?" breakdown
 }
 

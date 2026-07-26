@@ -162,9 +162,8 @@ export default function IngestionRunsPage() {
 
   return (
     <>
-      {/* No page title here: this renders inside the Logs hub, under its H1 + tab strip.
-          The tab label ("Ingestion runs") is the heading; the explainer lives on the tab
-          itself as a hover/focus tooltip (mobile: the hub's ⓘ toggle). */}
+      {/* No page title here: this renders inside the Logs hub, under its H1 and tab strip.
+          The tab label is the heading, and the explainer lives on the tab as a tooltip. */}
 
       {/* Status snapshot — fails independently of the runs table below. */}
       <section className="panel adm" aria-label={t('admin.ingestion.statusTitle')}>

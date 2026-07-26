@@ -128,7 +128,7 @@ export function buildTimelineGeometry(timeline: CropTimeline, opts: TimelineGeom
   const xFor = (i: number): number =>
     total <= 1 ? plot.left : plot.left + (i / (total - 1)) * (plot.right - plot.left);
 
-  // ---- value domain: history prices + forecast band extremes -----------------
+  // Value domain: history prices + forecast band extremes.
   const values: number[] = [];
   for (const h of history) values.push(h.avgPrice);
   for (const f of forecast) values.push(f.lowerBound, f.upperBound, f.predictedPrice);
@@ -139,7 +139,7 @@ export function buildTimelineGeometry(timeline: CropTimeline, opts: TimelineGeom
   const yFor = (v: number): number =>
     plot.bottom - ((v - niceMin) / (niceMax - niceMin || 1)) * (plot.bottom - plot.top);
 
-  // ---- history points --------------------------------------------------------
+  // History points.
   const historyXY: XY[] = history.map((h, i) => ({ x: xFor(i), y: yFor(h.avgPrice), value: h.avgPrice }));
 
   // "today" = last history point; band + forecast line anchor here.
@@ -148,7 +148,7 @@ export function buildTimelineGeometry(timeline: CropTimeline, opts: TimelineGeom
   const todayValue = H > 0 ? history[H - 1].avgPrice : forecast[0]?.predictedPrice ?? niceMin;
   const todayY = yFor(todayValue);
 
-  // ---- forecast points -------------------------------------------------------
+  // Forecast points.
   const forecastXY: ForecastXY[] = forecast.map((f, i) => {
     const idx = H + i;
     return {
@@ -163,7 +163,7 @@ export function buildTimelineGeometry(timeline: CropTimeline, opts: TimelineGeom
     };
   });
 
-  // ---- harvest marker: snap to the nearest forecast point by date ------------
+  // Harvest marker: snap to the nearest forecast point by date.
   let harvest: TimelineGeometry['harvest'] = null;
   if (opts.harvestDate && F > 0) {
     const target = new Date(opts.harvestDate + 'T00:00:00');
@@ -182,7 +182,7 @@ export function buildTimelineGeometry(timeline: CropTimeline, opts: TimelineGeom
     }
   }
 
-  // ---- svg strings -----------------------------------------------------------
+  // SVG strings.
   const historyPolyline = historyXY.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
   const forecastPolyline = [
     `${todayX.toFixed(1)},${todayY.toFixed(1)}`,
@@ -193,10 +193,10 @@ export function buildTimelineGeometry(timeline: CropTimeline, opts: TimelineGeom
   const bandBottom = [...forecastXY.map((p) => `${p.x.toFixed(1)},${p.yLower.toFixed(1)}`).reverse(), `${todayX.toFixed(1)},${todayY.toFixed(1)}`];
   const bandPolygon = F > 0 ? [...bandTop, ...bandBottom].join(' ') : '';
 
-  // ---- y ticks (3–4 gridlines) ----------------------------------------------
+  // Y ticks (3–4 gridlines).
   const yTicks: AxisTick[] = ticks.map((v) => ({ value: v, y: yFor(v), label: String(v) }));
 
-  // ---- x ticks (thinned so labels stay readable at 360px) --------------------
+  // X ticks, thinned so labels stay readable at 360px.
   const harvestIndex = harvest?.index ?? -1;
   const step = Math.max(1, Math.ceil(total / maxXLabels));
   const xTicks: XTick[] = [];

@@ -82,7 +82,7 @@ export default function TimelineChart({ timeline, loading, error, onRetry, harve
   );
   const pager = usePagination(tableRows);
 
-  // ---- compact chart-error note (fail-soft: FE-4 hero already rendered) -------
+  // Compact chart-error note: fail-soft, the hero above already rendered.
   if (error) {
     return (
       <div className="tl-note tl-note--error" role="alert">
@@ -97,7 +97,7 @@ export default function TimelineChart({ timeline, loading, error, onRetry, harve
     );
   }
 
-  // ---- loading skeleton ------------------------------------------------------
+  // Loading skeleton.
   if (loading || !timeline) {
     return (
       <div className="tl tl--skeleton" aria-busy="true">
@@ -111,7 +111,7 @@ export default function TimelineChart({ timeline, loading, error, onRetry, harve
 
   const name = cropLabel ?? timeline.cropName ?? '';
 
-  // ---- honest empty state: no usable history --------------------------------
+  // Honest empty state: no usable history.
   if (!geo) {
     return (
       <div className="tl tl--empty">

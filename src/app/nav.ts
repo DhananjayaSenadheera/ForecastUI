@@ -4,7 +4,7 @@ export interface NavDest {
   to: string;
   labelKey: string; // i18n key under "nav.*"
   icon: string; // emoji placeholder — swapped for the commissioned SVG set later
-  soon?: boolean; // "coming soon" pill (Prices stub in R1, owner decision #2)
+  soon?: boolean; // "coming soon" pill
 }
 
 export const NAV_DESTINATIONS: NavDest[] = [

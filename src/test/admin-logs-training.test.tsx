@@ -51,7 +51,7 @@ describe('Model training tab (Logs P2.6)', () => {
     vi.restoreAllMocks();
   });
 
-  // ---- four async states ---------------------------------------------------
+  // Four async states.
   it('loading: shows a skeleton while runs are pending', () => {
     vi.spyOn(api, 'getTrainingRuns').mockImplementation(PENDING);
     renderPage();
@@ -91,7 +91,7 @@ describe('Model training tab (Logs P2.6)', () => {
     expect(await screen.findByRole('table', { name: 'Model training runs' })).toBeInTheDocument();
   });
 
-  // ---- the honest override edge case --------------------------------------
+  // The honest override edge case.
   it('shows Live AND "Failed quality check" together on a manual-override row', async () => {
     vi.spyOn(api, 'getTrainingRuns').mockResolvedValue(page([OVERRIDE_ROW]));
     renderPage();
@@ -132,7 +132,7 @@ describe('Model training tab (Logs P2.6)', () => {
     expect(within(row).queryByText('Live')).toBeNull();
   });
 
-  // ---- MAE formatting (2dp, not colour-coded) -----------------------------
+  // MAE formatting: 2dp, never colour-coded.
   it('formats MAE to 2 decimal places', async () => {
     vi.spyOn(api, 'getTrainingRuns').mockResolvedValue(page([OVERRIDE_ROW]));
     renderPage();
@@ -141,7 +141,7 @@ describe('Model training tab (Logs P2.6)', () => {
     expect(within(row).getByText('MAE 118.40')).toBeInTheDocument(); // trailing zero kept
   });
 
-  // ---- promotionDecision drill-down ---------------------------------------
+  // promotionDecision drill-down.
   it('expands a row to reveal the promotion decision text verbatim', async () => {
     vi.spyOn(api, 'getTrainingRuns').mockResolvedValue(page([OVERRIDE_ROW]));
     renderPage();
@@ -153,7 +153,7 @@ describe('Model training tab (Logs P2.6)', () => {
     expect(await screen.findByText(OVERRIDE_ROW.promotionDecision!)).toBeInTheDocument();
   });
 
-  // ---- server paging -------------------------------------------------------
+  // Server paging.
   it('calls the API server-paged and re-fetches on next page', async () => {
     const spy = vi
       .spyOn(api, 'getTrainingRuns')

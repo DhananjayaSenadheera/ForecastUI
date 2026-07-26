@@ -926,7 +926,7 @@ export const fxPolicyFlags: PolicyFlag[] = [
     referenceUrl: null,
     createdAtUtc: '2026-07-01T00:00:00Z',
   },
-  // ---- extra demo rows to exercise Budget / ExportBan / PriceFloor + scheduled ----
+  // Extra demo rows to exercise Budget / ExportBan / PriceFloor and the scheduled status.
   {
     id: 'a1f1c001-0000-0000-0000-000000000007',
     policyType: PolicyType.Budget,

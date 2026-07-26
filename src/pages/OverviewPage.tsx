@@ -38,7 +38,7 @@ export default function OverviewPage() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
 
-  // ---- source 1: market overview (KPIs + movers + latest prices) ----
+  // Source 1: market overview (KPIs + movers + latest prices).
   const [windowDays, setWindowDays] = useState<number>(DEFAULT_WINDOW);
   const [ov, setOv] = useState<MarketOverview | null>(null);
   const [ovLoading, setOvLoading] = useState(true); // initial-only full skeleton
@@ -85,7 +85,7 @@ export default function OverviewPage() {
     };
   }, []);
 
-  // ---- source 2: best-crops teaser (independent, fail-soft) ----
+  // Source 2: best-crops teaser (independent, fail-soft).
   const [teaser, setTeaser] = useState<BestCrop[]>([]);
   const [bcLoading, setBcLoading] = useState(true);
   const [bcError, setBcError] = useState(false);
