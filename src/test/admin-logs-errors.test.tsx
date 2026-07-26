@@ -88,9 +88,8 @@ describe('System errors tab (Logs P3.B)', () => {
   });
 
   it('renders rows newest-first (fixture OccurredUtc DESC order is load-bearing)', async () => {
-    // Fixture-order bugs have shipped before: the API contract is OccurredUtc DESC, and the
-    // fixtures must model it. Assert the RENDERED timestamps are monotonically non-increasing
-    // so a scrambled fxSystemErrorsAll can never pass green.
+    // Fixture-order bugs have shipped before: the contract is OccurredUtc DESC, so assert the
+    // RENDERED timestamps are non-increasing and a scrambled fixture cannot pass green.
     vi.spyOn(api, 'getSystemErrors').mockResolvedValue(fxSystemErrors(1, 25));
     renderPage();
     const t = await table();

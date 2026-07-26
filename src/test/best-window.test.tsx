@@ -1,20 +1,12 @@
-// =============================================================================
-// Best harvest window panel (2026-07-25).
-//
-// The tests that matter are the HONESTY ones. It is easy to write this feature so
-// that a crop with no usable signal still shows a confident-looking recommendation
-// — bars render, a window gets highlighted, and nobody notices the numbers were
-// noise. So the not-rankable state is pinned hard: no bars, no verdict, no
-// "expected price" anywhere on screen, just the reason.
-//
-// The other load-bearing test is tap-to-apply. Without it the panel is a poster:
-// the farmer reads a date and then types it into a field two panels down. With it
-// the panel is the control and the date input is the readout.
-//
-// Since the <details> table was removed (2026-07-25) the bars' aria-labels + the
-// roving tabindex ARE the text alternative, so the tests that pin them are no
-// longer "nice extra coverage" — they are the accessibility contract.
-// =============================================================================
+// Best harvest window panel.
+// The tests that matter are the HONESTY ones: it is easy to build this so that a crop with
+// no usable signal still shows a confident-looking recommendation, so the not-rankable
+// state is pinned hard — no bars, no verdict, no "expected price" anywhere, just the
+// reason.
+// The other load-bearing test is tap-to-apply: without it the panel is a poster rather than
+// a control. And since the <details> table was removed, the bars' aria-labels and the
+// roving tabindex ARE the text alternative, so the tests pinning them are the
+// accessibility contract.
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -90,9 +82,8 @@ function renderPanel(props: Partial<React.ComponentProps<typeof BestWindowPanel>
 
 beforeEach(async () => {
   await i18n.changeLanguage('en');
-  // A successful forecast now happens inside these tests (the strip only renders
-  // after one), and it writes the crop onto the Recent list — which would then be
-  // rendered a second time in the picker of the NEXT test.
+  // A successful forecast happens inside these tests and writes the crop onto the Recent
+  // list, which would then render a second time in the NEXT test's picker.
   localStorage.clear();
 });
 
@@ -199,10 +190,9 @@ describe('BestWindowPanel — the bar tooltip', () => {
   });
 
   it('anchors to the panel edges so it cannot hang off screen at 375px', () => {
-    // jsdom has no layout, so the geometry is stubbed: a 300px-wide strip with
-    // four 10px bars at 0 / 75 / 150 / 225. What is being pinned is the RULE —
-    // a card centred on a bar near either end would overflow the panel and give
-    // the whole page a horizontal scrollbar on a phone.
+    // jsdom has no layout, so the geometry is stubbed: a 300px strip with four 10px bars.
+    // The RULE being pinned is that a card centred on a bar near either end would overflow
+    // the panel and give the whole page a horizontal scrollbar on a phone.
     const rect = (left: number, width: number) =>
       ({ left, width, right: left + width, top: 0, bottom: 0, height: 0, x: left, y: 0, toJSON() {} }) as DOMRect;
     const spy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
@@ -301,11 +291,9 @@ describe('BestWindowPanel — best window still below today', () => {
   });
 
   it('stays silent when the window MEAN is below today but a single date still wins', () => {
-    // The gate is the top of the strip, never best.predictedPrice — that field is
-    // the rolling MEAN of the window's p50s, so a window straddling today has a
-    // mean below today while the strip still holds a date worth taking. Warning
-    // here would be literally false ("even at the best time") AND would contradict
-    // the forecast screen, which reports that date as a gain.
+    // The gate is the top of the strip, never best.predictedPrice: that field is the rolling
+    // MEAN of the window's p50s, so a window straddling today has a mean below today while
+    // the strip still holds a date worth taking. Warning here would be literally false.
     const STRADDLE = { ...RANKABLE, currentPrice: 248 }; // mean 245 < 248 < top bar 250
     renderPanel({ window: STRADDLE });
     expect(STRADDLE.best!.predictedPrice).toBeLessThan(STRADDLE.currentPrice); // the trap
@@ -330,10 +318,9 @@ describe('BestWindowPanel — best window still below today', () => {
 });
 
 describe('demo mode must be able to SHOW the below-today state', () => {
-  // Every fixture crop used to sweep above today's price (fxWindowPrice's seasonal
-  // and bump terms are both non-negative over a 0–90 day sweep), so the warning
-  // above could only ever be seen in this test file. Cabbage — the one crop the
-  // fixtures already label Falling / Not recommended — now carries it.
+  // Every fixture crop used to sweep above today's price, so this warning could only ever
+  // be seen in this test file. Cabbage — the crop the fixtures already label Falling / Not
+  // recommended — now carries it.
   const CABBAGE = fxCrops.find((c) => c.name === 'Cabbage')!;
   const cabbageWindow = () => fxHarvestWindowFor(CABBAGE.id, 60, '2026-07-25');
 
@@ -342,9 +329,8 @@ describe('demo mode must be able to SHOW the below-today state', () => {
     expect(w.rankable).toBe(true);
     expect(w.currentPrice).toBeGreaterThan(0);
     expect(w.best!.predictedPrice).toBeLessThan(w.currentPrice);
-    // Not just the best window — no date in the strip beats today. STRICTLY below:
-    // this is the exact property the panel gates on, so a fixture that merely ties
-    // today's price would silently stop demoing the warning.
+    // Not just the best window: no date in the strip beats today, STRICTLY below. A fixture
+    // that merely ties today's price would silently stop demoing the warning.
     expect(Math.max(...w.points.map((p) => p.predictedPrice))).toBeLessThan(w.currentPrice);
     // Big enough spread that the SOFTENED uplift copy renders rather than the
     // "difference is small" branch, so the demo shows the intended wording.
@@ -442,17 +428,15 @@ describe('BestWindowPanel — the honesty states', () => {
 });
 
 describe('BestWindowPanel — embedded in the forecast result', () => {
-  // The move (2026-07-25, ClickUp 86cawt9tr) put the strip inches from the forecast
-  // verdict. Two components now know the same thing about the same crop, so the
-  // question stops being "is it true?" and becomes "who says it".
+  // The strip now sits inches from the forecast verdict, so two components know the same
+  // thing about the same crop and the question becomes "who says it".
   const LOSS = { ...RANKABLE, currentPrice: 300 }; // every date loses against today
 
   it('KEEPS the loss sentence when embedded but nothing has proved a verdict says it', () => {
-    // The bug this pins: dropping the sentence on position alone. Embedded is not
-    // evidence that a "Not recommended" verdict is on screen — in the −5% deadband
-    // the same numbers render as "Little data", and in the error / first-load
-    // states there is no verdict at all. Silence there leaves the loss carried by
-    // a background tint: colour alone, WCAG 1.4.1.
+    // The bug this pins: dropping the sentence on position alone. Embedded is not evidence
+    // that a "Not recommended" verdict is on screen — in the −5% deadband the same numbers
+    // render as "Little data", and in the error / first-load states there is no verdict at
+    // all. Silence there leaves the loss carried by a tint alone (WCAG 1.4.1).
     renderPanel({ window: LOSS, embedded: true });
     expect(screen.getByText(/Even at the best time/)).toBeInTheDocument();
   });
@@ -463,9 +447,8 @@ describe('BestWindowPanel — embedded in the forecast result', () => {
   });
 
   it('keeps the loss STATE — tint and softened uplift, so it cannot read as a win', () => {
-    // Dropping the duplicate sentence must not quietly restore the good-news
-    // styling: the panel would then look like encouragement next to "Not
-    // recommended".
+    // Dropping the duplicate sentence must not quietly restore the good-news styling next
+    // to a "Not recommended" verdict.
     const { container } = renderPanel({
       window: LOSS,
       embedded: true,
@@ -498,9 +481,8 @@ describe('BestWindowPanel — embedded in the forecast result', () => {
 });
 
 describe('MyHarvestPage — the window strip lives inside the result', () => {
-  // WHY IT MOVED: not accuracy. The strip and /predict build the same what-if row
-  // from the same anchor, so the numbers are identical wherever it renders. It
-  // moved for context (min-max bars need a price beside them) and for flow.
+  // Why it moved: not accuracy — the strip and /predict build the same what-if row from the
+  // same anchor. It moved for context (min-max bars need a price beside them) and for flow.
   const BEANS = 'Beans';
   const BEANS_ID = 'c0000002-0000-0000-0000-000000000002';
 
@@ -558,9 +540,8 @@ describe('MyHarvestPage — the window strip lives inside the result', () => {
   });
 
   it('tapping a bar re-forecasts IN PLACE — new price, no unmount, no focus jump', async () => {
-    // Reads the REAL fixture: since the plant-date invariant landed, the fixture
-    // forecast for date D is the same row as the strip's bar for D, so this needs
-    // no mock to prove the price moved.
+    // Reads the REAL fixture: since the plant-date invariant landed, the fixture forecast
+    // for date D is the same row as the strip's bar for D, so no mock is needed here.
     const bars = await forecastBeans();
     const win = fxHarvestWindowFor(BEANS_ID, 60, shiftYmd(0));
     const result = screen.getByRole('region', { name: 'Expected at harvest' });
@@ -639,10 +620,9 @@ describe('MyHarvestPage — the window strip lives inside the result', () => {
     spy.mockRestore();
   });
 
-  // -- who says the loss out loud -------------------------------------------
-  // Cabbage is the fixture crop whose WHOLE sweep sits below today's price, so
-  // the panel's warn state is live in every test here; what varies is whether a
-  // verdict on screen is also stating it. If none is, the panel must.
+  // Cabbage is the fixture crop whose whole sweep sits below today's price, so the panel's
+  // warn state is live in every test here; what varies is whether a verdict on screen is
+  // also stating it. If none is, the panel must.
   describe('the loss sentence follows the verdict, not the position', () => {
     const CABBAGE = 'Cabbage';
     const LOSS_SENTENCE = /Even at the best time, the forecast is below today.s price/;
@@ -662,11 +642,9 @@ describe('MyHarvestPage — the window strip lives inside the result', () => {
     }
 
     it('SPEAKS in the −5% deadband, where the verdict only says "Little data"', async () => {
-      // The common case, not an edge: the panel warns when no single date beats
-      // today, the API only says "Not recommended" below −5% upside. A sweep
-      // sitting 0–5% under today therefore renders "Little data / roughly flat
-      // versus today" — which states no loss at all — while every date on the
-      // strip loses money. Without this the loss is carried by a tint alone.
+      // The common case, not an edge: the panel warns when no single date beats today while
+      // the API only says "Not recommended" below −5%. A sweep sitting 0–5% under today
+      // renders "roughly flat versus today" while every date on the strip loses money.
       const spy = mockVerdict(
         RecommendationLevel.RecommendedWithRisk,
         'Roughly flat versus today - limited upside.',
@@ -695,9 +673,8 @@ describe('MyHarvestPage — the window strip lives inside the result', () => {
     });
 
     it('SPEAKS on the error path, where no verdict exists at all', async () => {
-      // The window is fetched independently of the forecast, so it can be perfectly
-      // good while the forecast fails: strip fully painted, retry card beside it,
-      // nothing anywhere saying the dates lose money.
+      // The window is fetched independently of the forecast, so it can be perfectly good
+      // while the forecast fails: strip fully painted, retry card beside it, no verdict.
       const spy = vi.spyOn(api, 'getHarvestForecast').mockRejectedValue(new Error('boom'));
       await forecastCabbage();
 
@@ -721,11 +698,9 @@ describe('MyHarvestPage — the window strip lives inside the result', () => {
   });
 
   it('never offers a date the planting-date field would clamp away', async () => {
-    // Regression: the sweep horizon and the field's max must stay equal. When they
-    // drift, the late bars still render but tapping one silently rewrites the date
-    // to the field's max — the farmer gets a different date from the one they
-    // chose, and nothing on screen says so. Now that a tap also RE-FORECASTS, a
-    // drift would additionally price a date nobody asked for.
+    // Regression: the sweep horizon and the field's max must stay equal. When they drift the
+    // late bars still render but tapping one silently rewrites the date to the field's max —
+    // and now that a tap also re-forecasts, it would price a date nobody asked for.
     await forecastBeans();
 
     const field = screen.getByLabelText<HTMLInputElement>(/planting date/i);
@@ -744,9 +719,8 @@ describe('MyHarvestPage — the window strip lives inside the result', () => {
       expect(asDate.getTime()).toBeGreaterThanOrEqual(new Date(min).getTime());
       expect(asDate.getTime()).toBeLessThanOrEqual(new Date(max).getTime());
     }
-    // Stronger than "inside the range": the sweep must be exactly as long as the
-    // field allows AND end on its max — the only way the two horizons can be shown
-    // to be the same number rather than merely compatible.
+    // Stronger than "inside the range": the sweep must be exactly as long as the field
+    // allows AND end on its max, so the two horizons are provably the same number.
     expect(dates.length).toBe(HORIZON_DAYS + 1); // inclusive of today
     expect(dates[dates.length - 1]).toContain(formatDate(max, 'en'));
   });

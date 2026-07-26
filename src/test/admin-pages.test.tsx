@@ -481,8 +481,7 @@ describe('Admin console pages', () => {
     });
   });
 
-  // ---- Page explainer ⓘ (owner request 2026-07-22: the 💡 banners follow the Logs
-  // tabs onto tooltips — AdminHint in adminShared) --------------------------------
+  // ---- Page explainer ⓘ (the explainer is a tooltip, not a banner) ----------------
   describe('page explainer ⓘ tooltips (AdminHint)', () => {
     it('Indicators: the CCPI explainer describes the ⓘ (aria-describedby → role=tooltip) and is no longer a banner', async () => {
       renderPage(<IndicatorsPage />);

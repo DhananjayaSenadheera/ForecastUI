@@ -71,13 +71,10 @@ describe('FE-19 fixture realism — distinct per-crop series', () => {
     expect(fxTimelineFor('c0000003-0000-0000-0000-000000000003').history).toHaveLength(12);
   });
 
-  // The invariant PR #58 established in production, mirrored here: /predict and
-  // /harvest-window build the same what-if row from the same anchor, so for a given
-  // planting date they return identical p10/p50/p90 and the same harvest date
-  // (Python's TestForecastAgreement). The fixtures used to break it — every date
-  // returned one fixed price and only harvestDate moved — which made demo mode a
-  // working replica of the very bug that was fixed, and made "tap a bar to compare
-  // planting dates" look like it did nothing.
+  // The invariant from production, mirrored here: /predict and /harvest-window build the
+  // same what-if row from the same anchor, so for a given planting date they return
+  // identical p10/p50/p90 and the same harvest date. The fixtures used to break it — every
+  // date returned one fixed price and only harvestDate moved.
   describe('fixture forecast agrees with the window strip, date by date', () => {
     const today = ymdLocal(new Date());
     const rankable = ['c0000002-0000-0000-0000-000000000002', 'c0000007-0000-0000-0000-000000000007']; // Beans (rising), Cabbage (falling)

@@ -211,10 +211,8 @@ describe('System log fixtures — filter semantics mirror the server', () => {
   });
 });
 
-// ===========================================================================
-// System log — group sub-tabs (All / Sign-ins / User management / Content changes).
-// A LOCAL-STATE tab strip inside the page, mirrored into ?group= so it deep-links.
-// ===========================================================================
+// System log group sub-tabs (All / Sign-ins / User management / Content changes): local
+// state inside the page, mirrored into ?group= so the view deep-links.
 describe('System log — group sub-tabs', () => {
   beforeEach(async () => {
     await i18n.changeLanguage('en');

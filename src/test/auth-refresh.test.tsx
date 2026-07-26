@@ -35,9 +35,6 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-// -----------------------------------------------------------------------------
-// credentials:'include' — auth routes ONLY
-// -----------------------------------------------------------------------------
 describe('credentials:include is sent on auth routes only', () => {
   it.each(['/api/auth/refresh', '/api/auth/login', '/api/auth/logout'])(
     'sends credentials:include on %s',
@@ -63,9 +60,6 @@ describe('credentials:include is sent on auth routes only', () => {
   });
 });
 
-// -----------------------------------------------------------------------------
-// 401 -> silent renew -> retry-once
-// -----------------------------------------------------------------------------
 describe('data-route 401 -> silent renew -> retry once', () => {
   it('renews and retries the failed request exactly once on success', async () => {
     setRefreshHandler(async () => true);
@@ -118,9 +112,6 @@ describe('data-route 401 -> silent renew -> retry once', () => {
   });
 });
 
-// -----------------------------------------------------------------------------
-// logout — endpoint call + local clear resilient to network failure
-// -----------------------------------------------------------------------------
 describe('logout endpoint + resilience', () => {
   it('POSTs /api/auth/logout with credentials (via request pipeline)', async () => {
     const fetchMock = vi.fn(async () => fakeRes(204, undefined));
@@ -145,9 +136,7 @@ describe('logout endpoint + resilience', () => {
   });
 });
 
-// -----------------------------------------------------------------------------
 // Boot / reload — fixtures marker parity (offline stand-in for the refresh cookie)
-// -----------------------------------------------------------------------------
 function Probe() {
   const { isAuthenticated, session, logout } = useAuth();
   return (
@@ -208,9 +197,6 @@ describe('boot session restore (reload)', () => {
   });
 });
 
-// -----------------------------------------------------------------------------
-// Full interplay through the AuthContext-registered refresh handler
-// -----------------------------------------------------------------------------
 describe('AuthContext wires silent-renew into the client', () => {
   it('a data-route 401 is transparently renewed+retried, session survives', async () => {
     sessionStorage.setItem('fx-session', 'farmer1'); // apiRefresh (fixtures) can renew

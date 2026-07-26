@@ -239,9 +239,9 @@ describe('WhyForecast (FE-6)', () => {
     }
   });
 
-  // The whole point of the redesign: the LAST thing a farmer reads must be the
-  // consequence for THIS direction. A down-row that trails off on "demand is
-  // usually higher" re-creates the exact topic-vs-arrow collision this replaced.
+  // The whole point of the redesign: the LAST thing a farmer reads must be the consequence
+  // for THIS direction. A down-row trailing off on "demand is usually higher" re-creates
+  // the topic-vs-arrow collision this replaced.
   it('ends every sentence on a consequence that agrees with its own direction', () => {
     const UP_TAIL = /\b(lifts?|better|higher|stronger|up)\b[^.]*\.\s*$/i;
     const DOWN_TAIL = /\b(lowers?|weighs?|softer|easing|falling|down)\b[^.]*\.\s*$/i;

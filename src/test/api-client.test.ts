@@ -73,9 +73,9 @@ describe('API client (fixture mode)', () => {
   });
 });
 
-// The suite above runs in fixtures mode (vite.config test.env), so the live URL is
-// never exercised there. Here we re-import the client with VITE_API_MODE=live and a
-// stubbed fetch to pin the EXACT markets/price-history URLs (API-1/2, backend PR #24).
+// The suite above runs in fixtures mode, so the live URL is never exercised there. Here we
+// re-import the client with VITE_API_MODE=live and a stubbed fetch to pin the exact
+// markets / price-history URLs.
 describe('API client (live mode — markets + price history URLs)', () => {
   function fakeRes(body: unknown): Response {
     return {
@@ -179,10 +179,9 @@ describe('API client (live mode — markets + price history URLs)', () => {
   });
 
   // ---- System log filters (GET /api/admin/logs/user-activity) -------------
-  // The page tests mock api.getUserActivity, so THIS is the only place the built
-  // query string is exercised. `type` and `types` are mutually exclusive on the
-  // wire and the server 400s an unknown value, so which param goes out is
-  // load-bearing, not cosmetic.
+  // The page tests mock api.getUserActivity, so THIS is the only place the built query
+  // string is exercised. `type` and `types` are mutually exclusive on the wire and the
+  // server 400s an unknown value, so which param goes out is load-bearing, not cosmetic.
   const UA_URL = 'http://localhost:5282/api/admin/logs/user-activity';
   const uaPage = { items: [], page: 1, pageSize: 25, total: 0 };
 
