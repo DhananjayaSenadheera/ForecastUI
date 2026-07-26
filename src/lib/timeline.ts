@@ -259,7 +259,7 @@ export interface CompareSeriesGeometry {
   bandPolygon: string; // low-opacity P10–P90 band ("" when no forecast)
   end: { x: number; y: number } | null; // anchor for the direct end-label
   hasForecast: boolean;
-  // FE-20 hit targets for the shared tooltip (values also live in the table alt).
+  // Hit targets for the shared tooltip (the values also live in the table alternative).
   histPoints: CompareHistPoint[];
   fcPoints: CompareFcPoint[];
 }

@@ -18,7 +18,7 @@ function addDaysForTest(ymd: string, days: number): string {
   return ymdLocal(dt);
 }
 
-// FE-19: the compare/prices bug was that every crop without a dedicated fixture
+// The compare/prices bug was that every crop without a dedicated fixture
 // fell back to Capsicum's 552 reference, so most crop pairs read identical prices.
 // These tests lock in that EVERY crop now has a distinct, self-consistent series.
 const PLANT = '2026-07-10';

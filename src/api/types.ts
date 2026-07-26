@@ -437,7 +437,7 @@ export interface CreateUserInput {
   role: 'Farmer' | 'Admin';
 }
 
-// ADM-5 festival calendar (live). Consumed verbatim; empty -> 200 []:
+// Festival calendar (live). Consumed verbatim; empty -> 200 []:
 //   GET    /api/festival-calendar/get/all             -> FestivalEntry[]
 //   POST   /api/festival-calendar/create    [Admin]   body { festivalCalendarCreateDto }
 //   PUT    /api/festival-calendar/update    [Admin]   body { festivalCalendarUpdateDto }
@@ -514,7 +514,7 @@ export interface SeriesCatalogEntry {
 export const CCPI_INDEX_KEY = 'CCPI_BASE2021';
 export const CCPI_YOY_KEY = 'CCPI_HEADLINE_YOY_BASE2021';
 
-// ADM-7 structured news events (live). camelCase, enums as INTEGERS. eventType
+// Structured news events (live). camelCase, enums as INTEGERS. eventType
 // (NewsEventType 0..8) mirrors PolicyType member-for-member so the page reuses the
 // PolicyType label mapper; direction reuses PolicyDirection (Bearish = -1).
 //   GET    /api/news-events/get/all       [Authorize] -> NewsEvent[]

@@ -25,7 +25,7 @@ describe('AppShell', () => {
     expect(screen.getAllByText('My harvest').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Best crops').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Prices').length).toBeGreaterThan(0);
-    // FE-12 promoted Prices out of the stub — the "soon" pill is gone.
+    // Prices is a real page now — the "soon" pill is gone.
     expect(screen.queryByText('soon')).not.toBeInTheDocument();
   });
 

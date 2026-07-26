@@ -6,7 +6,7 @@ import { AuthProvider } from '../auth/AuthContext';
 import { api, ApiError } from '../api/client';
 import UsersPage from '../admin/UsersPage';
 
-// ADM-4 add-user dialog: the mirrored client-side rules save a round-trip, the server's
+// Add-user dialog: the mirrored client-side rules save a round-trip, the server's
 // uniqueness verdicts are shown verbatim without closing the form, and creation goes
 // through the Admin-only create route — never the anonymous register path, which would
 // re-cookie the acting admin. Runs in fixtures mode, so no network.

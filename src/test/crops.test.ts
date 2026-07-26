@@ -66,7 +66,7 @@ describe('groupCropsByCategory (graceful degradation)', () => {
     expect(groupCropsByCategory([])).toEqual([]);
   });
   it('merges VEG / VEG-UP / VEG-LOW into ONE Vegetables group (live 4-category data)', () => {
-    // API-3 sends sub-category codes verbatim; rollup is client-side. Without
+    // The API sends sub-category codes verbatim; rollup is client-side. Without
     // the display-bucket merge the picker renders three headings all reading
     // "Vegetables" (seen live 2026-07-16).
     const upCountry = crop({ id: '4', name: 'Beans', category: { code: 'VEG-UP', name: 'Up-country Vegetable' }, cropCode: 'VEG000003' });

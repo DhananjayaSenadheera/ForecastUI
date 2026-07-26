@@ -197,8 +197,8 @@ export default function BestCropsPage() {
                 </thead>
                 <tbody>
                   {pager.pageRows.map((c) => {
-                    // best-crops payload carries no localized names (API gap #3),
-                    // so the English cropName is shown — honest graceful fallback.
+                    // the best-crops payload carries no localized names, so the English
+                    // cropName is shown instead — an honest fallback.
                     const name = c.cropName;
                     const verdict = mapVerdict(c.recommendationLevel);
                     const conf = mapConfidenceCode(c.confidence);

@@ -504,7 +504,7 @@ export const fxTimelineLow: CropTimeline = {
 };
 
 // Per-crop timeline resolver for fixture mode — mirrors fxHarvestByCrop so the
-// chart's confidence story lines up with the FE-4 hero for the same crop.
+// chart's confidence story lines up with the harvest hero for the same crop.
 const fxTimelineByCrop: Record<string, CropTimeline> = {
   'c0000001-0000-0000-0000-000000000001': fxTimeline, // Capsicum (High, 12mo)
   'c0000002-0000-0000-0000-000000000002': fxTimelineMedium, // Beans (Medium)
@@ -1002,7 +1002,7 @@ export const fxAdminMarkets: Market[] = [
   { id: 'b2a20001-0000-0000-0000-000000000012', name: 'Veyangoda Dedicated Economic Centre', district: 'Gampaha', marketType: MarketType.DEC, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
 ];
 
-// ADM-4 users: 13 demo accounts including `admin` (which simulates the admin role in
+// Admin users: 13 demo accounts including `admin` (which simulates the admin role in
 // fixtures login) and `claudetest`. The page mutates a copy; this seed is never mutated.
 export const fxAdminUsers: AdminUser[] = [
   { id: 'd0000001-0000-0000-0000-000000000001', username: 'admin', email: 'admin@agriforecast.lk', role: 'Admin', createdAt: '2026-01-02T08:00:00Z', updatedAt: '2026-06-30T10:00:00Z' },
@@ -1020,7 +1020,7 @@ export const fxAdminUsers: AdminUser[] = [
   { id: 'd0000013-0000-0000-0000-000000000013', username: 'dilani_seneviratne', email: 'dilani.seneviratne@example.lk', role: 'Farmer', createdAt: '2026-06-25T15:40:00Z', updatedAt: '2026-07-08T15:40:00Z' },
 ];
 
-// ADM-5 festival calendar: one row per occurrence-year, because movable festivals repeat
+// Festival calendar: one row per occurrence-year, because movable festivals repeat
 // annually on shifting dates. 2026 dates are marked isProvisional until gazetted.
 // Plausible demo dates, not the official gazette.
 export const fxFestivals: FestivalEntry[] = [
@@ -1036,7 +1036,7 @@ export const fxFestivals: FestivalEntry[] = [
   { id: 'f0000010-0000-0000-0000-000000000010', festivalKey: 'CHRISTMAS', date: '2026-12-25', leadUpDays: 21, isProvisional: false, source: 'Fixed date', createdAtUtc: '2026-07-01T00:00:00Z' },
 ];
 
-// ADM-6 indicators: daily USD_LKR (~90 days, deterministic wave) and monthly CCPI, which
+// Indicators: daily USD_LKR (~90 days, deterministic wave) and monthly CCPI, which
 // is vintage-aware — each month carries a referenceDate (month end) and a publishedAt
 // ~3 weeks later (the real release lag). Both dates are always shown.
 const USD_LKR_DAYS = 90;
@@ -1108,7 +1108,7 @@ export function fxIndicatorMacro(seriesKey: string): MacroSeriesPoint[] {
   return [];
 }
 
-// ADM-7 structured news events: 7 demo events. eventType reuses PolicyType and direction
+// Structured news events: 7 demo events. eventType reuses PolicyType and direction
 // reuses PolicyDirection (Bearish = -1); affectedCropIds reference fxCrops.
 export const fxNewsEvents: NewsEvent[] = [
   { id: 'e0000001-0000-0000-0000-000000000001', eventType: PolicyType.FuelPriceChange, direction: PolicyDirection.Bullish, title: 'Diesel price raised by Rs. 25/litre', description: 'CPC monthly revision lifted auto-diesel; transport costs from farm to wholesale expected to rise.', publishedAt: '2026-07-01', sourceUrl: 'https://ceypetco.gov.lk/', affectedCropIds: [], affectedMarketIds: [], createdAtUtc: '2026-07-01T00:00:00Z' },

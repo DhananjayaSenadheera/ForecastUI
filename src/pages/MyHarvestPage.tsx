@@ -349,7 +349,7 @@ export default function MyHarvestPage() {
         </section>
       </div>
 
-      {/* Forecast result — the signature honest-uncertainty panel (FE-4). */}
+      {/* Forecast result — the signature honest-uncertainty panel. */}
       {submitted && selected && (
         <section
           className="panel hv-result"
@@ -385,7 +385,7 @@ export default function MyHarvestPage() {
             }
           />
 
-          {/* 12-month timeline (FE-5) — stacks under the hero; fail-soft on error. */}
+          {/* 12-month timeline — stacks under the hero; fail-soft on error. */}
           <div className="hv-timeline">
             <TimelineChart
               timeline={timeline}

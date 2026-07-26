@@ -230,19 +230,19 @@ export default function ForecastResult({
           {!lowTrust && f.explanation && <p className="fc-conf__reason">{f.explanation}</p>}
         </div>
 
-        {/* Neutral verdict hint (full verdict card = FE-7; never red here). */}
+        {/* Neutral verdict hint (the full verdict card lives on Best crops; never red). */}
         <div className={`fc-take fc-take--${verdictTone}`}>
           <p className="fc-take__label">{t('forecast.takeLabel')}</p>
           <p className="fc-take__verdict">{t(verdict.labelKey)}</p>
           {f.reason && <p className="fc-take__reason">{f.reason}</p>}
         </div>
 
-        {/* "Why this price?" factor breakdown (FE-6) — causal sentences when the
+        {/* "Why this price?" factor breakdown — causal sentences when the
             API-5 topFactors are present, honest degraded note otherwise. The crop
             name is interpolated into the price-trend sentence. */}
         <WhyForecast factors={f.topFactors} explanation={f.explanation} cropLabel={name} />
 
-        {/* Share this forecast as plain text (FE-11). Paused while a newer
+        {/* Share this forecast as plain text. Paused while a newer
             forecast is in flight: the composed message quotes a price for a
             planting date that is no longer the selected one, and it carries no
             staleness marker of its own once it is in WhatsApp. */}

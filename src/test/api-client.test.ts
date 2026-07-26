@@ -429,7 +429,7 @@ describe('API client (fixture mode — policy-flag mutation warnings)', () => {
   });
 });
 
-// Fixture-mode festival mutations (API-10): the demo working copy mirrors the server's
+// Fixture-mode festival mutations: the demo working copy mirrors the server's
 // past-date training-data warning + keeps leadUpDays=0 verbatim so the page is demo-able.
 describe('API client (fixture mode — festival-calendar mutations)', () => {
   const PAST_FESTIVAL = 'f0000007-0000-0000-0000-000000000007'; // AVURUDU 2026-04-14 (past, today = 2026-07-16)
@@ -484,7 +484,7 @@ describe('API client (fixture mode — festival-calendar mutations)', () => {
   });
 });
 
-// Fixture-mode news mutations (API-12): capture-only, so NO trainingDataWarning — create returns
+// Fixture-mode news mutations: capture-only, so NO trainingDataWarning — create returns
 // a bare boolean, update/delete return the bare id. The demo working copy persists add/edit/delete
 // through the refetch and preserves the immutable publishedAt on edit.
 describe('API client (fixture mode — news-event mutations)', () => {

@@ -347,7 +347,7 @@ describe('Admin console pages', () => {
   describe('IndicatorsPage (ADM-6)', () => {
     it('shows the CCPI line chart + inflation-pace gauge side by side, no USD/LKR, no table', async () => {
       renderPage(<IndicatorsPage />);
-      // CCPI renders directly (owner redlines: USD/LKR removed, no series picker)
+      // CCPI renders directly (USD/LKR removed, no series picker)
       await waitFor(() => expect(document.querySelector('.adm-line')).toBeInTheDocument());
       expect(document.querySelector('.adm-select')).toBeNull();
       expect(screen.queryByText(/USD/)).toBeNull();
@@ -358,7 +358,7 @@ describe('Admin console pages', () => {
       expect(screen.getByText('Last month')).toBeInTheDocument();
       expect(screen.getByText('12-month average')).toBeInTheDocument();
       expect(document.querySelector('.adm-bar')).toBeNull();
-      // no data table (owner redline) — charts instead; the plain-language explainer
+      // no data table — charts instead; the plain-language explainer
       // moved from a 💡 banner to the ⓘ tooltip (locked in its own describe below)
       expect(document.querySelector('.adm-table')).toBeNull();
     });
