@@ -19,6 +19,8 @@ import type {
   HarvestForecast,
   HarvestWindow,
   IngestionRunPage,
+  IngestionServiceStartResult,
+  IngestionServiceStopResult,
   IngestionStatus,
   MacroSeriesPoint,
   Market,
@@ -40,13 +42,18 @@ import type {
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5282';
 export const USE_FIXTURES = import.meta.env.VITE_API_MODE === 'fixtures';
 
-/** Thrown for non-2xx responses / network failures; carries a human message. */
+/** Thrown for non-2xx responses / network failures; carries a human message and, when
+ *  the server sent one, the machine-readable `error` code from the body (e.g. the
+ *  ingestion-service 409s). `code` is null whenever the body had no such string — a
+ *  caller must never branch on a code it did not actually receive. */
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  code: string | null;
+  constructor(message: string, status: number, code: string | null = null) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -131,13 +138,18 @@ async function request<T>(path: string, init?: RequestInit, allowRefresh = true)
       onUnauthorized?.();
     }
     let message = `HTTP ${res.status}`;
+    let code: string | null = null;
     try {
       const body = await res.json();
       message = body?.errors?.[0]?.message ?? message;
+      // Some routes answer a machine-readable code instead of the errors[] envelope
+      // (e.g. the ingestion-service 409s: { "error": "already_running" }). Keep it so
+      // the caller can tell "already running" apart from "the server broke".
+      if (typeof body?.error === 'string' && body.error) code = body.error;
     } catch {
       /* non-JSON error body — keep the status message */
     }
-    throw new ApiError(message, res.status);
+    throw new ApiError(message, res.status, code);
   }
 
   if (res.status === 204) return undefined as T;
@@ -587,6 +599,41 @@ export const api = {
     const q = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     if (source) q.set('source', source);
     return request<IngestionRunPage>(`/api/admin/ingestion/runs?${q.toString()}`);
+  },
+
+  // Ingestion service control (Admin JWT). Both are POSTs with NO body — the action is
+  // the route, there is nothing to wrap. Accepted answers are 202, not 200:
+  //   start -> 202 { batchId }        · 409 { error: "already_running" }
+  //   stop  -> 202 {}                 · 409 { error: "not_running" | "not_stoppable" }
+  // The 409s arrive as ApiError with `.code` set; a 409 always means the caller's
+  // status snapshot was wrong, so the caller must refetch the status either way.
+  // Start runs ONE INGESTION PASS only — verification, feature building and training
+  // stay with the nightly pipeline and are not triggered from here.
+  async startIngestionService(): Promise<IngestionServiceStartResult> {
+    if (USE_FIXTURES) {
+      // The fixture returns the refusal instead of throwing (fixtures.ts must not import
+      // this module), so the 409 is shaped HERE — identically to the live path, where
+      // the body carries no errors[] envelope and the message stays "HTTP 409".
+      const r = fx.fxStartIngestionService();
+      if (!r.ok) throw new ApiError('HTTP 409', 409, r.code);
+      return { batchId: r.batchId };
+    }
+    return request<IngestionServiceStartResult>('/api/admin/ingestion/service/start', {
+      method: 'POST',
+    });
+  },
+
+  // Stop can only cancel a pass this API hosts. A pass started by the scheduled worker
+  // answers 409 not_stoppable — the UI must say that, never silently no-op.
+  async stopIngestionService(): Promise<IngestionServiceStopResult> {
+    if (USE_FIXTURES) {
+      const r = fx.fxStopIngestionService();
+      if (!r.ok) throw new ApiError('HTTP 409', 409, r.code);
+      return {};
+    }
+    return request<IngestionServiceStopResult>('/api/admin/ingestion/service/stop', {
+      method: 'POST',
+    });
   },
 
   // Logs hub: both routes are Admin-only and return the server-paged

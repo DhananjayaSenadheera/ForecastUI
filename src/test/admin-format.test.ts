@@ -12,6 +12,7 @@ import {
 import {
   USER_ACTIVITY_CONTENT_EVENT_TYPES,
   USER_ACTIVITY_EVENT_TYPES,
+  USER_ACTIVITY_PIPELINE_EVENT_TYPES,
   USER_ACTIVITY_SIGN_IN_EVENT_TYPES,
   USER_ACTIVITY_USER_MGMT_EVENT_TYPES,
 } from '../api/types';
@@ -151,7 +152,12 @@ describe('Logs P2 mappers — user activity', () => {
       'cropChanged',
       'marketChanged',
     ]);
-    expect(USER_ACTIVITY_EVENT_TYPES).toHaveLength(10);
+    expect(USER_ACTIVITY_PIPELINE_EVENT_TYPES).toEqual([
+      'ingestionServiceStarted',
+      // "…StopRequested", never "…Stopped": the API only ASKS for a cancellation.
+      'ingestionServiceStopRequested',
+    ]);
+    expect(USER_ACTIVITY_EVENT_TYPES).toHaveLength(12);
     // Every known type has a label key — no badge can fall back to a raw wire string
     // for a type this build DOES know about.
     for (const ev of USER_ACTIVITY_EVENT_TYPES) {

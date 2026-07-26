@@ -625,6 +625,33 @@ export const INGESTION_SOURCES = [
 ] as const;
 export type IngestionSourceKey = (typeof INGESTION_SOURCES)[number];
 
+// ADMIN — ingestion service control. Two write routes behind an Admin JWT:
+// POST /api/admin/ingestion/service/start and .../service/stop. Both answer 202 on
+// acceptance and 409 with a machine-readable { error } code when the truth on the
+// server does not match what this screen believed.
+
+/** POST /api/admin/ingestion/service/start -> 202 { batchId }. The batch id ties the
+ *  pass to the rows that appear in the runs table. */
+export interface IngestionServiceStartResult {
+  batchId: string;
+}
+
+/** POST /api/admin/ingestion/service/stop -> 202 {} (an empty body, not 204). */
+export type IngestionServiceStopResult = Record<string, never>;
+
+/** The 409 `error` codes both control routes can answer with.
+ *  - already_running: a pass is in flight, so start was refused (not an error state).
+ *  - not_running:     nothing to stop; this screen's snapshot was stale.
+ *  - not_stoppable:   a pass IS running but the scheduled worker owns it, and the API
+ *                     cannot cancel that. Say so plainly instead of pretending. */
+export const INGESTION_SERVICE_ERRORS = ['already_running', 'not_running', 'not_stoppable'] as const;
+export type IngestionServiceErrorCode = (typeof INGESTION_SERVICE_ERRORS)[number];
+
+/** Narrow an ApiError.code to a known 409 code (anything else = an ordinary failure). */
+export function isIngestionServiceError(code: string | null | undefined): code is IngestionServiceErrorCode {
+  return !!code && (INGESTION_SERVICE_ERRORS as readonly string[]).includes(code);
+}
+
 /** One source's health row on the status snapshot. */
 export interface IngestionSourceHealth {
   source: string; // one of INGESTION_SOURCES (kept as string — never crash on a new key)
@@ -735,12 +762,21 @@ export const USER_ACTIVITY_CONTENT_EVENT_TYPES = [
   'cropChanged',
   'marketChanged',
 ] as const;
+/** Pipeline actions — an admin driving the ingestion service from the ingestion tab.
+ *  STOP is "…StopRequested", not "…Stopped": the API only ASKS for a cancellation, so
+ *  the event records the request, never a guaranteed halt. */
+export const USER_ACTIVITY_PIPELINE_EVENT_TYPES = [
+  'ingestionServiceStarted',
+  'ingestionServiceStopRequested',
+] as const;
 
-/** Every wire string the client knows about (sign-in + user management + content). */
+/** Every wire string the client knows about (sign-in + user management + content +
+ *  pipeline actions). */
 export const USER_ACTIVITY_EVENT_TYPES = [
   ...USER_ACTIVITY_SIGN_IN_EVENT_TYPES,
   ...USER_ACTIVITY_USER_MGMT_EVENT_TYPES,
   ...USER_ACTIVITY_CONTENT_EVENT_TYPES,
+  ...USER_ACTIVITY_PIPELINE_EVENT_TYPES,
 ] as const;
 export type UserActivityEventType = (typeof USER_ACTIVITY_EVENT_TYPES)[number];
 

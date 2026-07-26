@@ -826,6 +826,42 @@
   min-width: 0;
 }
 
+/* Service control + the state sentence share one wrapping row; any note the control
+   raises breaks onto its own full-width line rather than squeezing the sentence. */
+.ing-status__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.ing-status__line > .adm-note {
+  flex-basis: 100%;
+  margin: 0;
+}
+.ing-svc {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+/* 44px tall: this is a one-way action on a page an admin may use on a phone. */
+.ing-svcbtn {
+  min-height: var(--touch-min);
+  font-size: var(--fs-sm);
+}
+.ing-svcbtn--start {
+  color: var(--brand-dark);
+  border-color: var(--brand);
+}
+.ing-svcbtn--stop {
+  color: var(--critical-fg);
+  border-color: var(--critical-fg);
+}
+.ing-svc__hint {
+  font-size: var(--fs-xs);
+  max-width: 32ch;
+}
+
 /* Live status dot — decoration only (aria-hidden); the text is the source of truth. */
 .ing-dot {
   flex: none;

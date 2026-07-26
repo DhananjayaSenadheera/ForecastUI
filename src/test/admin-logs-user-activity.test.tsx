@@ -223,7 +223,7 @@ describe('System log — group sub-tabs', () => {
   });
 
   // ARIA structure.
-  it('is a tablist of four tabs with All selected by default', async () => {
+  it('is a tablist of five tabs with All selected by default', async () => {
     renderPage();
     await table();
     const tabs = within(groupTablist()).getAllByRole('tab');
@@ -232,6 +232,7 @@ describe('System log — group sub-tabs', () => {
       'Sign-ins',
       'User management',
       'Content changes',
+      'Pipeline actions',
     ]);
     expect(groupTab('All')).toHaveAttribute('aria-selected', 'true');
     expect(groupTab('Sign-ins')).toHaveAttribute('aria-selected', 'false');
@@ -274,7 +275,7 @@ describe('System log — group sub-tabs', () => {
     expect(document.activeElement).toBe(groupTab('All'));
     // Left from the first tab wraps to the last.
     fireEvent.keyDown(document.activeElement as Element, { key: 'ArrowLeft' });
-    expect(document.activeElement).toBe(groupTab('Content changes'));
+    expect(document.activeElement).toBe(groupTab('Pipeline actions'));
   });
 
   it('Home/End jump to the first and last tab', async () => {
@@ -282,7 +283,7 @@ describe('System log — group sub-tabs', () => {
     await table();
     groupTab('All').focus();
     fireEvent.keyDown(document.activeElement as Element, { key: 'End' });
-    expect(document.activeElement).toBe(groupTab('Content changes'));
+    expect(document.activeElement).toBe(groupTab('Pipeline actions'));
     fireEvent.keyDown(document.activeElement as Element, { key: 'Home' });
     expect(document.activeElement).toBe(groupTab('All'));
   });
@@ -340,7 +341,7 @@ describe('System log — group sub-tabs', () => {
     await table();
     const select = () => screen.getByLabelText('Event') as HTMLSelectElement;
     // All: every known event type is offered (+ the "All events" option).
-    expect(select().options).toHaveLength(11);
+    expect(select().options).toHaveLength(13);
 
     fireEvent.click(groupTab('Sign-ins'));
     await waitFor(() =>
