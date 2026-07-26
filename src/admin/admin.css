@@ -1445,6 +1445,22 @@
   box-shadow: var(--focus-ring);
 }
 
+/* Refetch with rows already on screen: keep them (no layout jump) but DIM them, so a
+   freshly-tapped group pill never sits above a table that still answers the previous
+   question. Pairs with aria-busy on the panel — this is the sighted half of the same
+   statement. Opacity only, so the row heights and the scroll position do not move. */
+.syslog-results {
+  transition: opacity var(--dur-fast) var(--ease);
+}
+.syslog-results.is-stale {
+  opacity: 0.5;
+}
+@media (prefers-reduced-motion: reduce) {
+  .syslog-results {
+    transition: none;
+  }
+}
+
 /* Logs Phase 2 — User activity cells (reuse .ing-table layout). -------------- */
 .ua-id {
   font-variant-numeric: var(--fvn-tabular);

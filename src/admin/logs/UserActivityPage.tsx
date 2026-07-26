@@ -111,6 +111,10 @@ export default function UserActivityPage() {
   }
 
   const items = data?.items ?? [];
+  // A load with rows ALREADY on screen (group switch, event filter, page turn). Those
+  // rows are the PREVIOUS query's answer, so they must be visibly marked as stale
+  // rather than sitting there looking like the new group's result.
+  const refreshing = loading && data !== null;
 
   return (
     <section className="panel adm" aria-label={t('admin.logs.userActivity.title')}>
@@ -127,6 +131,12 @@ export default function UserActivityPage() {
         role="tabpanel"
         id={ACTIVITY_GROUP_PANEL_ID}
         aria-labelledby={activityGroupTabId(group.id)}
+        // A refetch KEEPS the previous rows on screen (no clearing = no layout jump),
+        // which would otherwise leave stale rows sitting under a freshly-selected pill
+        // — a filter label that briefly lies about its own table. aria-busy says
+        // "these rows are being replaced" to assistive tech; the dimming below says it
+        // to everyone else.
+        aria-busy={loading}
       >
         <div className="adm-toolbar">
           <label className="adm-field ing-filter">
@@ -165,7 +175,7 @@ export default function UserActivityPage() {
             )}
           />
         ) : data ? (
-          <>
+          <div className={`syslog-results${refreshing ? ' is-stale' : ''}`}>
             {error && (
               <p className="adm-note adm-note--error" role="alert">
                 {t('common.errorBody')}
@@ -198,7 +208,7 @@ export default function UserActivityPage() {
               setPage={setPage}
               setPerPage={setPerPage}
             />
-          </>
+          </div>
         ) : null}
       </div>
     </section>

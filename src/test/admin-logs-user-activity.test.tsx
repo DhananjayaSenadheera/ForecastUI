@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import i18n from '../i18n';
 import { AuthProvider } from '../auth/AuthContext';
@@ -157,7 +157,7 @@ describe('System log tab (Logs P2.7)', () => {
   // ---- forward compatibility ----------------------------------------------
   // The server may log an event type this build has never heard of. A log that
   // silently drops rows is not a log: render it verbatim, in a neutral badge.
-  it('renders an UNKNOWN event type verbatim in a neutral badge', async () => {
+  it('renders an UNKNOWN event type verbatim in a neutral badge, under the All group', async () => {
     vi.spyOn(api, 'getUserActivity').mockResolvedValue(
       page([{ ...ROLE_ROW, eventType: 'somethingNobodyShippedYet' }]),
     );
@@ -165,6 +165,9 @@ describe('System log tab (Logs P2.7)', () => {
     const t = await table();
     const badge = within(t).getByText('somethingNobodyShippedYet');
     expect(badge).toHaveClass('adm-status--neutral');
+    // All is the ONLY group that can show it: All sends no filter, so a type this
+    // build has never heard of is still reachable instead of vanishing from the log.
+    expect(groupTab('All')).toHaveAttribute('aria-selected', 'true');
   });
 
   it('labels each of the five content-change event types', async () => {
@@ -396,6 +399,41 @@ describe('System log — group sub-tabs', () => {
     await waitFor(() => expect(spy).toHaveBeenCalledWith(2, 25, {}));
     fireEvent.click(groupTab('User management'));
     await waitFor(() => expect(spy).toHaveBeenCalledWith(1, 25, { types: USER_MGMT_TYPES }));
+  });
+
+  // ---- stale rows during a group refetch are MARKED, not silently left ------
+  it('marks the previous rows busy + dimmed while the new group loads, without clearing them', async () => {
+    let releaseSecond: (v: UserActivityPage) => void = () => {};
+    vi.mocked(api.getUserActivity)
+      .mockResolvedValueOnce(page([ROLE_ROW])) // All: one user-management row
+      .mockImplementationOnce(
+        () =>
+          new Promise<UserActivityPage>((resolve) => {
+            releaseSecond = resolve;
+          }),
+      );
+    renderPage();
+    const t = await table();
+    const panel = screen.getByRole('tabpanel');
+    expect(panel).toHaveAttribute('aria-busy', 'false');
+
+    fireEvent.click(groupTab('Content changes'));
+    await waitFor(() => expect(panel).toHaveAttribute('aria-busy', 'true'));
+    // The rows are KEPT (no clearing = no layout jump) but flagged stale both ways:
+    // aria-busy for assistive tech, the dimming class for everyone else.
+    expect(within(t).getByText('Role changed')).toBeInTheDocument();
+    expect(document.querySelector('.syslog-results')).toHaveClass('is-stale');
+
+    await act(async () => {
+      releaseSecond(page([{ ...ROLE_ROW, eventType: 'festivalChanged' }]));
+    });
+    await waitFor(() => expect(panel).toHaveAttribute('aria-busy', 'false'));
+    expect(document.querySelector('.syslog-results')).not.toHaveClass('is-stale');
+    // Scoped to the TABLE: the scoped dropdown now offers "Festival changed" as an
+    // option too, and an option is not a row.
+    const fresh = await table();
+    expect(within(fresh).getByText('Festival changed')).toBeInTheDocument();
+    expect(within(fresh).queryByText('Role changed')).toBeNull();
   });
 
   // ---- honest empty state --------------------------------------------------
