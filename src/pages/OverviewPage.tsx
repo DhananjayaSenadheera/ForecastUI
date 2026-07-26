@@ -1,20 +1,13 @@
-// =============================================================================
-// OverviewPage (FE-1, ClickUp Overview / dashboard sample A). The landing "market
-// overview" dashboard: KPI tiles answer "what changed?" in a glance, then a movers
-// panel (risers/fallers), a latest-prices strip with per-row sparklines, and a
-// best-crops teaser. Honest subset of sample A — we render ONLY what the API returns.
-//
-// DATA SOURCES (two parallel, independently-failing fetches):
-//   1. getMarketOverview(30) -> KPIs + movers + latest prices. Shares ONE loading/
-//      error/retry (it is one endpoint). asOf === null => honest "no data yet".
-//   2. getBestCrops(3)       -> best-crops teaser. FAIL-SOFT: its error shows a small
-//      inline note and must NOT sink the page (MyHarvestPage timeline pattern).
-//
-// HONEST-DISPLAY RULES: movers show direction as glyph + word in NEUTRAL colour (RED
-// stays reserved for the "Not recommended" verdict); every sparkline carries an aria
-// sentence + the panel ships a <details> numeric table alternative (the number is the
-// product, never chart-only); no fabricated values, no internal task IDs in copy.
-// =============================================================================
+// OverviewPage — the landing market-overview dashboard: KPI tiles answer "what changed?",
+// then movers (risers/fallers), a latest-prices strip with per-row sparklines, and a
+// best-crops teaser. We render only what the API returns.
+// Two parallel fetches that fail independently: getMarketOverview drives the KPIs, movers
+// and latest prices and shares one loading/error/retry (asOf === null means an honest "no
+// data yet"); getBestCrops feeds the teaser and is FAIL-SOFT — its error shows a small
+// inline note and must not sink the page.
+// Movers show direction as glyph + word in a neutral colour (red is reserved for the "Not
+// recommended" verdict), every sparkline carries an aria sentence, and the panel ships a
+// <details> numeric table alternative — never chart-only.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -190,9 +183,7 @@ export default function OverviewPage() {
 
 type TFn = (k: string, o?: Record<string, unknown>) => string;
 
-// ---------------------------------------------------------------------------
 // KPI row — as-of date, markets covered, crops covered, biggest mover.
-// ---------------------------------------------------------------------------
 function KpiRow({ ov, lang, t }: { ov: MarketOverview; lang: string; t: TFn }) {
   const top = useMemo(() => biggestMover(ov.movers), [ov.movers]);
   return (
@@ -233,10 +224,8 @@ function KpiRow({ ov, lang, t }: { ov: MarketOverview; lang: string; t: TFn }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Movers — risers then fallers. Direction = glyph + word, NEUTRAL colour (RED is
+// Movers — risers then fallers. Direction is glyph + word in a neutral colour (red is
 // reserved for the "Not recommended" verdict). Each row deep-links to My harvest.
-// ---------------------------------------------------------------------------
 function MoversPanel({ movers, lang, t }: { movers: MarketMover[]; lang: string; t: TFn }) {
   const { risers, fallers } = useMemo(() => partitionMovers(movers), [movers]);
   return (
@@ -326,16 +315,14 @@ function MoverList({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Latest prices — responsive table (cards <600px) with an inline sparkline per row.
-// Sparkline stroke is NEUTRAL teal (not direction-coloured); each carries an aria
-// sentence; the whole panel ships one <details> numeric table alternative (WCAG).
-// ---------------------------------------------------------------------------
+// Latest prices — a responsive table (cards under 600px) with an inline sparkline per row.
+// The sparkline stroke is neutral teal, each one carries an aria sentence, and the panel
+// ships one <details> numeric table alternative.
 function LatestPricesPanel({ prices, readiness, lang, t }: { prices: MarketLatestPrice[]; readiness: ReadinessMap | null; lang: string; t: TFn }) {
   const rs = t('common.rs');
-  // The contract caps latestPrices at 8 today, so the pager stays hidden — wired
-  // anyway (owner: pagination on ALL tables) so a future cap change pages cleanly.
-  // The WCAG numeric alternative below mirrors the SAME page slice.
+  // The contract caps latestPrices at 8 today, so the pager stays hidden — it is wired
+  // anyway so a future cap change pages cleanly, and the numeric alternative below mirrors
+  // the same page slice.
   const pager = usePagination(prices);
   return (
     <section className="panel ov-latest" aria-label={t('pages.overview.latestTitle')}>
@@ -459,10 +446,8 @@ function Sparkline({ row, lang, t }: { row: MarketLatestPrice; lang: string; t: 
   );
 }
 
-// ---------------------------------------------------------------------------
-// Best-crops teaser — top 3 from getBestCrops(3), reusing the FE-7 verdict idiom.
-// Fully independent + fail-soft: an error here shows a small note, page survives.
-// ---------------------------------------------------------------------------
+// Best-crops teaser — the top 3, reusing the verdict idiom. Fully independent and
+// fail-soft: an error here shows a small note and the page survives.
 function BestCropsTeaser({
   crops,
   loading,
@@ -519,9 +504,7 @@ function BestCropsTeaser({
   );
 }
 
-// ---------------------------------------------------------------------------
 // Loading skeleton for the market-overview group (KPI row + main panels).
-// ---------------------------------------------------------------------------
 function OverviewSkeleton({ t }: { t: TFn }) {
   return (
     <div aria-busy="true">

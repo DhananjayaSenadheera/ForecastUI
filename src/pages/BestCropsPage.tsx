@@ -1,18 +1,12 @@
-// =============================================================================
-// BestCropsPage (FE-7, ClickUp 86canmejh). "What should I plant?" — a ranked
-// decision view over GET /api/forecast/best-crops.
-//
-// A real, semantic <table> (headers + scope) that becomes a card list under 600px
-// via CSS (same data, no horizontal scroll). Each row surfaces uncertainty
-// HONESTLY: verdict badge (icon+label+semantic colour; RED only for Not
-// recommended), trend as an arrow GLYPH + text (never colour alone), confidence
-// as pictograph dots + word, the expected price, and a SHARED-SCALE bar so crops
-// are comparable at a glance (the endpoint gives only averagePrice — no fabricated
-// band). "Not recommended" and "Little data" rows stay VISIBLE with a plain
-// caveat. A Yala/Maha season badge renders only when the API exposes it (API-3);
-// live omission degrades silently. Each row links into the FE-4 My-Harvest flow.
-// Sort/scale/trend/caveat logic lives in lib/bestcrops — tested.
-// =============================================================================
+// BestCropsPage — "what should I plant?", a ranked decision view over
+// GET /api/forecast/best-crops.
+// A real semantic <table> that becomes a card list under 600px via CSS. Each row surfaces
+// uncertainty honestly: a verdict badge (icon + label + colour, red only for Not
+// recommended), trend as an arrow glyph + text, confidence as pictograph dots + a word, the
+// expected price, and a shared-scale bar so crops are comparable (the endpoint gives only
+// averagePrice, so no band is fabricated). "Not recommended" and "Little data" rows stay
+// visible with a plain caveat, and the season badge renders only when the API exposes it.
+// Sort, scale, trend and caveat logic live in lib/bestcrops.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';

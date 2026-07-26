@@ -6,17 +6,15 @@ import { registerErrorKey } from '../lib/authErrors';
 import { USE_FIXTURES } from '../api/client';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 
-// Register (FE-17). Fields match RegisterDto EXACTLY: username, email, password
-// (no invented fields). Client validation mirrors the RegisterCommandValidator
-// (username required <=50, email required+valid, password >=8) so most errors are
-// caught before a round-trip. Success auto-logs-in (the API returns a token).
+// Register. Fields match RegisterDto exactly: username, email, password. Client validation
+// mirrors RegisterCommandValidator (username <=50, valid email, password >=8) so most
+// errors are caught before a round-trip. Success auto-logs-in.
 interface FromState {
   from?: { pathname?: string; search?: string };
 }
 
-// Pragmatic email check — a "looks like an email" gate, not RFC 5322. The server
-// (EmailAddress validator) is the source of truth; this just spares an obvious
-// round-trip and gives an instant plain-language message.
+// Pragmatic "looks like an email" check, not RFC 5322. The server is the source of truth;
+// this only spares an obvious round-trip and gives an instant plain-language message.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function RegisterPage() {
