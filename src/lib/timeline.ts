@@ -1,16 +1,10 @@
-// =============================================================================
-// Timeline chart geometry (FE-5, ClickUp 86cacw5x5). Pure, framework-free so the
-// load-bearing bits (nice y-scale, band cone, today/harvest marker positions,
-// x-label thinning) are unit-tested and TimelineChart stays presentational.
-//
-// HONEST-UNCERTAINTY RULES baked in here (mirrors lib/forecast):
-//   - The forecast is a FILLED band (lower–upper) with a central line, never a
-//     bare line. The band pinches to a point at "today" and widens forward.
-//   - Band ALWAYS encloses the central line (yUpper <= yCentral <= yLower in SVG
-//     coords) — verified by test, so the chart can never draw a false-precise line.
-//   - We never fabricate history: short/empty series are reported honestly by the
-//     component; this module only lays out what is actually present.
-// =============================================================================
+// Timeline chart geometry. Pure helpers so the nice y-scale, the band cone, the today and
+// harvest marker positions and x-label thinning are unit-tested and TimelineChart stays
+// presentational.
+// The forecast is a FILLED band (lower–upper) with a central line, pinching to a point at
+// "today" and widening forward. The band always encloses the central line (verified by
+// test), so the chart can never draw a false-precise line. Short or empty series are
+// reported honestly by the component; this module lays out only what exists.
 import type { CropTimeline, TimelineForecastPoint, TimelineHistoryPoint } from '../api/types';
 
 /** Below this many history months, the chart shows an honest "only N months" note. */
@@ -66,7 +60,7 @@ export interface TimelineGeometry {
   bandPolygon: string;
 }
 
-// ---- nice y-scale (clean gridlines, 3–4 ticks max) --------------------------
+// Nice y-scale: clean gridlines, 3–4 ticks.
 function niceNum(range: number, round: boolean): number {
   if (!(range > 0)) return 1;
   const exp = Math.floor(Math.log10(range));
@@ -113,10 +107,10 @@ export function isShortHistory(history: TimelineHistoryPoint[]): boolean {
 }
 
 /**
- * Lay out a timeline into SVG coordinates. Combined x-axis = history months then
- * forecast months, evenly spaced; "today" sits at the last history point and the
- * forecast band cones out from it. Returns structured points AND ready-to-render
- * SVG strings. Caller guards history.length >= 1 (empty state is a component concern).
+ * Lay out a timeline into SVG coordinates. The combined x-axis is history months then
+ * forecast months, evenly spaced; "today" sits at the last history point and the forecast
+ * band cones out from it. Returns structured points and ready-to-render SVG strings.
+ * The caller guards history.length >= 1 (the empty state is a component concern).
  */
 export function buildTimelineGeometry(timeline: CropTimeline, opts: TimelineGeometryOpts = {}): TimelineGeometry {
   const width = opts.width ?? 640;
@@ -232,19 +226,12 @@ export function buildTimelineGeometry(timeline: CropTimeline, opts: TimelineGeom
   };
 }
 
-// =============================================================================
-// Multi-crop comparison geometry (FE-14, ClickUp 86canmejq). Lays 2–3 crops'
-// 12-month timelines onto ONE shared y-scale + ONE shared date x-axis so the
-// lines are directly comparable. REUSES niceScale + the month/forecast date
-// parsers above rather than forking a second scaling implementation.
-//
-// HONESTY: the y-domain and x-domain are computed from EVERY series' real points
-// (history avg + forecast lower/upper/predicted), so a crop with a thin history
-// (e.g. Passion) simply starts later and draws a shorter line — we never pad or
-// fabricate months to make series look uniform. Forecast bands are returned per
-// crop so the component can render them at low opacity (approximate ranges), and
-// the mandatory table alternative is built by the component from the same data.
-// =============================================================================
+// Multi-crop comparison geometry: 2–3 crops' 12-month timelines on one shared y-scale and
+// one shared date axis so the lines are directly comparable. Reuses niceScale and the
+// month/forecast date parsers above rather than forking a second implementation.
+// The domains are computed from every series' real points, so a crop with a thin history
+// simply starts later and draws a shorter line — we never pad months to make series look
+// uniform. Forecast bands are returned per crop for low-opacity rendering.
 export interface CompareSeriesInput {
   cropId: string;
   label: string;

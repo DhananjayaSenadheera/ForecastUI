@@ -1,5 +1,5 @@
-// Shared navigation model — one source of truth for sidebar (desktop) and the
-// bottom tab bar (mobile). PRD IA §4: exactly 4 destinations, depth <= 2.
+// Shared navigation model — one source of truth for the desktop sidebar and the mobile
+// tab bar. Exactly 4 farmer destinations.
 export interface NavDest {
   to: string;
   labelKey: string; // i18n key under "nav.*"
@@ -14,10 +14,8 @@ export const NAV_DESTINATIONS: NavDest[] = [
   { to: '/prices', labelKey: 'nav.prices', icon: '💰' },
 ];
 
-// Admin console destinations (ADM-1). Rendered in the shell nav ONLY when the
-// signed-in role is 'Admin' — farmers never see these, so the locked 4-tab farmer
-// IA is unchanged. This is an internal tool, so more than 4 entries is acceptable
-// for admins (unlike the farmer bottom tab bar).
+// Admin destinations, rendered in the shell nav ONLY for role 'Admin', so the farmer's
+// 4-tab IA is unchanged. More than 4 entries is fine here — it is an internal tool.
 export const ADMIN_NAV_DESTINATIONS: NavDest[] = [
   { to: '/admin/policy-flags', labelKey: 'nav.admin.policyFlags', icon: '🏳️' },
   { to: '/admin/markets', labelKey: 'nav.admin.markets', icon: '🏪' },

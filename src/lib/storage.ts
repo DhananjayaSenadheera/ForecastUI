@@ -1,12 +1,9 @@
-// =============================================================================
-// Namespaced localStorage helpers (FE-16). Every read/write is wrapped in
-// try/catch so private-mode / quota / disabled-storage failures degrade SILENTLY
-// to current behaviour — a storage error must never throw during render.
-//
-// PRIVACY: we persist ONLY crop ids + planting dates + a boolean UI preference.
-// Never any personal data. Shapes are versioned ({ v: N, … }) so a future change
-// can reject/ignore an old blob instead of mis-reading it.
-// =============================================================================
+// Namespaced localStorage helpers. Every read and write is wrapped in try/catch so private
+// mode, quota or disabled storage degrade silently — a storage error must never throw
+// during render.
+// We persist only crop ids, planting dates and a boolean UI preference, never personal
+// data. Shapes are versioned ({ v: N, … }) so an old blob can be ignored rather than
+// mis-read.
 
 export const STORAGE_KEYS = {
   lastHarvest: 'agriforecast.lastHarvest',
@@ -48,7 +45,6 @@ function writeJSON(key: string, value: unknown): void {
   }
 }
 
-// ---- last-forecast crop + planting date -------------------------------------
 const LAST_HARVEST_V = 1;
 export interface LastHarvest {
   cropId: string;
@@ -73,7 +69,7 @@ export function writeLastHarvest(cropId: string, plantDate: string): void {
   writeJSON(STORAGE_KEYS.lastHarvest, { v: LAST_HARVEST_V, cropId, plantDate });
 }
 
-// ---- recent crops (up to 3 distinct, most-recent first) ---------------------
+// Recent crops: up to 3 distinct ids, most recent first.
 const RECENT_V = 1;
 export const RECENT_MAX = 3;
 interface StoredRecent {
@@ -96,7 +92,7 @@ export function pushRecentCrop(cropId: string): string[] {
   return next;
 }
 
-// ---- large-text a11y preference ---------------------------------------------
+// Large-text accessibility preference.
 const TEXT_SIZE_V = 1;
 export const LARGE_TEXT_CLASS = 'a11y-large';
 interface StoredTextSize {
@@ -114,9 +110,9 @@ export function writeLargeText(large: boolean): void {
 }
 
 /**
- * Apply the persisted text-size class to <html> BEFORE first paint (called from
- * the main.tsx bootstrap, so there is no flash of small text). Guards a missing
- * `document` so it is harmless in a non-DOM (test/SSR-less) context.
+ * Apply the persisted text-size class to <html> BEFORE first paint (called from the
+ * main.tsx bootstrap) so there is no flash of small text. Guards a missing `document` so
+ * it is harmless outside a DOM.
  */
 export function applyStoredTextSize(): void {
   if (typeof document === 'undefined') return;

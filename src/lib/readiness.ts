@@ -1,17 +1,10 @@
-// =============================================================================
-// Crop forecast-readiness presentation logic (crop-status colouring, owner
-// request 2026-07-22). Pure, framework-free helpers so the honesty rules are
+// Crop forecast-readiness presentation logic. Pure helpers so the honesty rules are
 // unit-tested and the badge/tint components stay presentational.
-//
-// HONESTY RULES baked in here (mirrors api/types.ts CropReadiness contract):
-//   - modelActive=false OR a failed fetch => NULL map => no tint anywhere. We
-//     never paint every crop amber off a payload that can't support the claim.
-//   - With an active model, a crop ABSENT from the map is a brand-new crop =>
-//     'collecting' (same as an explicit ready=false).
-//   - GUID case is normalized (the model payload lowercases ids; UI ids vary).
-// COLOUR LAW (tokens.css): green/amber tints only — RED stays reserved for the
-// "Not recommended" verdict; the colour is ALWAYS paired with glyph + label.
-// =============================================================================
+// modelActive=false or a failed fetch gives a NULL map, which means no tint anywhere: we
+// never paint every crop amber off a payload that cannot support the claim. With an active
+// model, a crop absent from the map is brand new and reads as 'collecting'. GUID case is
+// normalised. Green/amber tints only — red stays reserved for "Not recommended" — and the
+// colour is always paired with a glyph and a label.
 import type { CropReadiness } from '../api/types';
 
 export type CropReadinessStatus = 'ready' | 'collecting';
@@ -19,8 +12,8 @@ export type CropReadinessStatus = 'ready' | 'collecting';
 export type ReadinessMap = Map<string, CropReadinessStatus>;
 
 /**
- * Build the per-crop status lookup, or null when readiness is unknowable
- * (failed fetch or inactive model) — null means "show no tint anywhere".
+ * Build the per-crop status lookup, or null when readiness is unknowable (failed fetch or
+ * inactive model). Null means "show no tint anywhere".
  */
 export function buildReadinessMap(r: CropReadiness | null): ReadinessMap | null {
   if (!r || !r.modelActive) return null;

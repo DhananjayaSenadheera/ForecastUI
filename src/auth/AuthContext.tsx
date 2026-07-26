@@ -1,16 +1,9 @@
-// =============================================================================
-// AuthContext (FE-17 / FE-21). Holds the in-memory session (access token + minimal
-// identity the API returns), exposes login/register/logout + isAuthenticated, and
-// wires the global 401 interceptor.
-//
-// SECURITY: the access token lives ONLY in this module's React state — never
-// localStorage/sessionStorage/cookies. FE-21 SILENT RENEW: on boot (live mode) we
-// exchange the httpOnly `agriforecast_refresh` cookie (which JS can never read) for
-// a fresh access token via POST /api/auth/refresh, so a page reload no longer signs
-// the farmer out. The refresh credential stays server-side in the cookie; only the
-// short-lived access token is ever held here. Fixtures mode simulates this with a
-// non-secret reload marker (see api/auth.ts) — never a token.
-// =============================================================================
+// Holds the in-memory session (access token + the minimal identity the API returns),
+// exposes login/register/logout + isAuthenticated, and wires the global 401 interceptor.
+// The access token lives ONLY in this module's React state — never localStorage,
+// sessionStorage or cookies. On boot (live mode) we exchange the httpOnly
+// `agriforecast_refresh` cookie for a fresh access token, so a reload no longer signs the
+// farmer out. Fixtures mode simulates that with a non-secret reload marker, never a token.
 import {
   createContext,
   useCallback,
@@ -44,9 +37,8 @@ interface AuthContextValue {
   clearExpired: () => void;
 }
 
-// Default value keeps components that read auth (e.g. AppShell footer) from
-// crashing when rendered outside a provider (unit tests, storybook): they simply
-// see an unauthenticated, no-op session.
+// The default value keeps components that read auth from crashing when rendered outside a
+// provider (unit tests): they see an unauthenticated, no-op session.
 const noop = () => undefined;
 const AuthContext = createContext<AuthContextValue>({
   session: null,
@@ -71,9 +63,8 @@ function clearAuthedDataCache(): void {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // Fixtures mode restores synchronously from the non-secret reload marker, so it
-  // is never "booting" and the guard never flashes /login on reload. Live mode
-  // must await the async /api/auth/refresh round-trip below before deciding.
+  // Fixtures mode restores synchronously from the reload marker, so it is never "booting"
+  // and the guard never flashes /login on reload. Live mode must await the refresh call.
   const [session, setSession] = useState<AuthSession | null>(() =>
     USE_FIXTURES ? fxRestoreSession() : null,
   );
@@ -86,10 +77,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSessionExpired(false);
   }, []);
 
-  // Boot-time silent renew (live only): try once to exchange the refresh cookie
-  // for an access token. 200 -> restore session silently; 401/network -> stay
-  // unauthenticated (normal login flow). Either way, clear the boot state so the
-  // guard can render (no login flash before this resolves).
+  // Boot-time silent renew (live only): try once to exchange the refresh cookie. On 401 or
+  // a network error stay unauthenticated. Either way clear the boot state so the guard can
+  // render without a login flash.
   useEffect(() => {
     if (USE_FIXTURES) return; // already restored synchronously above
     let cancelled = false;
@@ -125,10 +115,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(() => {
-    // Local clears run FIRST and synchronously, so logout always succeeds even if
-    // the network call below fails (offline). apiLogout is fire-and-forget: it
-    // clears the server refresh cookie (live) / reload marker (fixtures) and never
-    // throws, so an unresolved promise can't leave the farmer half-logged-out.
+    // Local clears run FIRST and synchronously, so logout always succeeds even offline.
+    // apiLogout is fire-and-forget and never throws.
     setAuthToken(null);
     setSession(null);
     setSessionExpired(false);
@@ -138,12 +126,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearExpired = useCallback(() => setSessionExpired(false), []);
 
-  // Register the 401 interceptor + the silent-renew callback:
-  //  - onRefresh: on a data-route 401, client.ts calls this ONCE to renew the
-  //    access token; success -> the failed request is retried transparently.
-  //  - onUnauthorized: only when renew ALSO fails does the session clear (guard
-  //    bounces to /login) with sessionExpired so the login page can explain why.
-  // Auth routes are exempt from both inside request().
+  // Register the 401 interceptor + the silent-renew callback: onRefresh renews the token
+  // once on a data-route 401 and the failed request is retried; onUnauthorized only fires
+  // when that renew ALSO fails, clearing the session with sessionExpired so the login page
+  // can explain why. Auth routes are exempt from both inside request().
   useEffect(() => {
     setRefreshHandler(async () => {
       try {

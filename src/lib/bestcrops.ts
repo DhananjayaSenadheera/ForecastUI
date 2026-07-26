@@ -1,18 +1,10 @@
-// =============================================================================
-// Best-crops presentation logic (FE-7, ClickUp 86canmejh). Pure, framework-free
-// helpers so the load-bearing bits (shared-scale geometry, sort order, trend +
-// caveat mapping) are unit-tested and BestCropsPage stays presentational.
-//
-// HONEST-UNCERTAINTY RULES baked in here:
-//   - The best-crops endpoint returns only `averagePrice` (no P10–P90 band), so
-//     the comparison is a SHARED-SCALE bar: every row sits on ONE Rs. 0–max axis
-//     (buildSharedScale) so bar lengths are directly comparable. We never invent
-//     an interval the API does not return.
-//   - Trend is encoded by an ARROW GLYPH + a text label (never colour alone).
-//   - "Not recommended" rows stay VISIBLE with a plain caveat; RED is reserved for
-//     exactly this verdict (mapVerdict → 'critical'). Low-confidence / little-data
-//     rows get an amber caveat + amber bar, never dressed up as precise.
-// =============================================================================
+// Best-crops presentation logic. Pure helpers so the load-bearing bits (shared-scale
+// geometry, sort order, trend and caveat mapping) are unit-tested and the page stays
+// presentational.
+// The endpoint returns only `averagePrice` (no P10–P90 band), so the comparison is a
+// shared-scale bar on one Rs. 0–max axis — we never invent an interval the API does not
+// return. Trend is an arrow glyph + text label, never colour alone, and "Not recommended"
+// rows stay visible with a plain caveat (red is reserved for that verdict).
 import { niceScale } from './timeline';
 import {
   ForecastConfidenceCode,
@@ -21,7 +13,6 @@ import {
   type BestCrop,
 } from '../api/types';
 
-// ---- shared-scale comparison geometry ---------------------------------------
 export interface ScaleRow {
   cropId: string;
   price: number;
@@ -37,15 +28,13 @@ export interface SharedScale {
 }
 
 /**
- * Lay every crop's expected price on ONE shared Rs. 0–axisMax scale so bar lengths
- * are comparable at a glance. axisMax is nice-rounded above the dearest crop; each
- * row's pct is price / axisMax, guaranteeing all rows share the same denominator.
+ * Lay every crop's expected price on ONE shared Rs. 0–axisMax scale so bar lengths are
+ * comparable. axisMax is nice-rounded above the dearest crop.
  */
 export function buildSharedScale(crops: Pick<BestCrop, 'cropId' | 'averagePrice'>[]): SharedScale {
   const max = crops.reduce((m, c) => Math.max(m, c.averagePrice), 0);
-  // Axis ceiling = the dearest crop, so its bar fills the track and every other
-  // row reads as a plain proportion of it (comparison at a glance). niceScale only
-  // supplies optional legend ticks.
+  // Axis ceiling = the dearest crop, so its bar fills the track and every other row reads
+  // as a proportion of it. niceScale only supplies optional legend ticks.
   const axisMax = max > 0 ? max : 1;
   const { ticks } = niceScale(0, axisMax, 4);
   const rows: ScaleRow[] = crops.map((c) => ({
@@ -56,14 +45,12 @@ export function buildSharedScale(crops: Pick<BestCrop, 'cropId' | 'averagePrice'
   return { axisMax, ticks, rows };
 }
 
-// ---- sorting ----------------------------------------------------------------
 export type BestCropSortKey = 'rank' | 'price' | 'confidence';
 export type SortDir = 'asc' | 'desc';
 
 /**
- * Sort a copy of the ranked list. 'rank' preserves the API order (desc) or reverses
- * it (asc) — the server's order IS the rank, so we never re-derive it. 'price' and
- * 'confidence' are stable (ties keep the incoming rank order).
+ * Sort a copy of the ranked list. 'rank' keeps the API order (desc) or reverses it (asc)
+ * — the server's order IS the rank. 'price' and 'confidence' are stable.
  */
 export function sortBestCrops(crops: BestCrop[], key: BestCropSortKey, dir: SortDir): BestCrop[] {
   if (key === 'rank') {
@@ -89,7 +76,7 @@ export function ariaSortFor(col: BestCropSortKey, active: BestCropSortKey, dir: 
   return dir === 'asc' ? 'ascending' : 'descending';
 }
 
-// ---- trend (arrow glyph + text label; never colour alone) -------------------
+// Trend is an arrow glyph paired with a text label — never colour alone.
 export type TrendTone = 'up' | 'flat' | 'down';
 export interface TrendMeta {
   arrow: '↑' | '→' | '↓';
@@ -109,16 +96,14 @@ export function trendMeta(trend: PriceTrend): TrendMeta {
   }
 }
 
-// ---- honest-row caveats -----------------------------------------------------
 /** A row is low-confidence (amber bar) when the frozen confidence code is Low. */
 export function isLowConfidenceRow(c: Pick<BestCrop, 'confidence'>): boolean {
   return c.confidence === ForecastConfidenceCode.Low;
 }
 
 /**
- * Plain-language caveat key for honest rows (derived from the enums the API DOES
- * return — never fabricated). Not-recommended and little-data/low-confidence rows
- * carry a farmer-facing reason; everything else returns null (no caveat).
+ * Plain-language caveat key, derived from the enums the API does return. Not-recommended
+ * and little-data rows carry a farmer-facing reason; everything else returns null.
  */
 export function bestCropCaveatKey(
   c: Pick<BestCrop, 'recommendationLevel' | 'confidence'>,

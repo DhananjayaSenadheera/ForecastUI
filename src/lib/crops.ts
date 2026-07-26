@@ -1,12 +1,7 @@
-// =============================================================================
-// Crop-picker logic (FE-3). Pure, framework-free helpers so the load-bearing
-// bits (localized display name, search filter, category grouping) are unit-tested
-// and the CropPicker component stays presentational.
-//
-// GRACEFUL DEGRADATION: crops may arrive from the live API WITHOUT category or
-// localized names (API gap #3). Display name falls back to the English `name`;
-// missing categories collapse into a single "All crops" group.
-// =============================================================================
+// Crop-picker logic. Pure helpers so the localized display name, search filter and
+// category grouping are unit-tested and CropPicker stays presentational.
+// Crops may arrive without a category or localized names, so the display name falls back
+// to the English `name` and missing categories collapse into one "All crops" group.
 import type { AppLanguage } from '../i18n';
 import type { Crop } from '../api/types';
 
@@ -26,9 +21,8 @@ function searchHaystack(crop: Crop): string {
 }
 
 /**
- * Filter crops by a free-text query. Matches across English + Sinhala + Tamil
- * names (and the code) so a farmer typing in any script still finds their crop.
- * Empty/whitespace query returns the list unchanged.
+ * Filter crops by free text, matching English + Sinhala + Tamil names (and the code) so a
+ * farmer typing in any script still finds their crop. An empty query returns the list.
  */
 export function filterCrops(crops: Crop[], query: string): Crop[] {
   const q = query.trim().toLowerCase();
@@ -45,15 +39,12 @@ export interface CropGroup {
 }
 
 /**
- * Group crops by DISPLAY category, preserving first-seen order. If NO crop
- * carries a category (live API gap #3), returns a single null-coded group so the
- * UI shows one flat "All crops" list instead of breaking.
- *
- * Sub-category rollup is client-side by contract (API-3 sends VEG / VEG-UP /
- * VEG-LOW verbatim): all codes that categoryLabelKey maps to the same label
- * share ONE group — otherwise the live 4-category data renders three separate
- * headings all reading "Vegetables". Unknown codes keep per-code groups so
- * their API-provided name still shows.
+ * Group crops by DISPLAY category, preserving first-seen order. If no crop carries a
+ * category, returns a single null-coded group so the UI shows one flat list.
+ * Sub-category rollup is client-side: the API sends VEG / VEG-UP / VEG-LOW verbatim, so
+ * every code whose categoryLabelKey maps to the same label shares ONE group — otherwise
+ * the picker renders three headings all reading "Vegetables". Unknown codes keep their own
+ * group so the API-provided name still shows.
  */
 export function groupCropsByCategory(crops: Crop[]): CropGroup[] {
   const anyCategory = crops.some((c) => c.category?.code);
@@ -76,9 +67,9 @@ export function groupCropsByCategory(crops: Crop[]): CropGroup[] {
 }
 
 /**
- * Parse a comma-separated crop-id list (the FE-14 compare deep-link `?crops=`).
- * Trims, drops empties, dedupes (first-seen order preserved), and caps at `max`.
- * Pure string handling — validity against the loaded crop list is the caller's job.
+ * Parse the comma-separated crop-id list from the compare deep-link (?crops=). Trims,
+ * drops empties, dedupes and caps at `max`. Checking the ids against the loaded crop list
+ * is the caller's job.
  */
 export function parseCropIdList(raw: string | null, max: number): string[] {
   if (!raw) return [];

@@ -1,20 +1,9 @@
-// =============================================================================
-// Shared chart tooltip (FE-20). ONE hover/tap/keyboard mechanism reused by every
-// SVG line chart: TimelineChart (my-harvest), the Prices page (single-market
-// envelope + multi-market overlay) and the CompareCrops overlay. No per-chart
-// forks.
-//
-// ENHANCEMENT, NOT SOLE ACCESS: every value a tooltip shows also lives in each
-// chart's mandatory <details> table, so the tooltip is progressive enhancement.
-// - Mouse: pointermove -> nearest data point by distance in viewBox coordinates.
-// - Touch: pointerdown/move do the same lookup (a tap reveals the nearest point).
-// - Keyboard: the SVG is focusable; ArrowLeft/Right step through points, Escape
-//   dismisses. Only KEYBOARD steps feed an aria-live region, so screen readers are
-//   not spammed by sighted-user pointer moves (they read the table / arrow-step).
-// Rendering: a positioned <div> overlay (NOT an SVG <title>), pointer-events:none,
-// design tokens, flips near the right edge. Values are pre-formatted by the caller
-// (locale-aware) so this module stays presentational + framework-light.
-// =============================================================================
+// Shared chart tooltip: one hover/tap/keyboard mechanism reused by every SVG line chart
+// (timeline, prices, compare) — no per-chart forks.
+// It is an ENHANCEMENT, not the only access: every value also lives in each chart's
+// <details> table. Pointer moves find the nearest point in viewBox coordinates; the SVG is
+// focusable and ArrowLeft/Right step through points, Escape dismisses. Only KEYBOARD steps
+// feed the aria-live region, so screen readers are not spammed by pointer movement.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
 
@@ -30,10 +19,7 @@ export interface TooltipPoint {
   announce: string; // full sentence for aria-live (keyboard only)
 }
 
-/**
- * Nearest point to (px,py) by squared Euclidean distance in viewBox coords.
- * Pure + exported for unit testing. Returns null for an empty set.
- */
+/** Nearest point to (px,py) by squared distance in viewBox coords; null for an empty set. */
 export function nearestPoint(points: TooltipPoint[], px: number, py: number): TooltipPoint | null {
   let best: TooltipPoint | null = null;
   let bestD = Infinity;
@@ -117,9 +103,9 @@ export function useChartTooltip(points: TooltipPoint[], viewW: number, viewH: nu
 }
 
 /**
- * Positioned tooltip overlay + an aria-live region. Render as a child of a
- * `position:relative` wrapper that also holds the <svg>; percentages map into the
- * same box because the svg fills the wrapper width and keeps its viewBox ratio.
+ * Positioned tooltip overlay + an aria-live region. Render it as a child of the
+ * `position:relative` wrapper that also holds the <svg>, so percentages map into the same
+ * box.
  */
 export function ChartTooltip({
   point,

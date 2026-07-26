@@ -1,18 +1,9 @@
-// =============================================================================
-// Market-overview presentation logic (FE-1 landing dashboard). Pure, framework-free
-// helpers so the load-bearing bits (mover partitioning, biggest-mover pick) are
-// unit-tested and OverviewPage stays presentational.
-//
-// HONEST-DISPLAY RULES baked in here:
-//   - The server sends movers as up-to-5 RISERS then up-to-5 FALLERS, already
-//     ordered. We PRESERVE that order — partitioning only splits by the frozen
-//     `direction` string, never re-sorts. The UI reflects what the server ranked.
-//   - `direction` ("up"/"down") is rendered as a glyph + word by the component and
-//     is NEVER colour-coded (RED is reserved app-wide for the "Not recommended"
-//     verdict). These helpers carry the neutral glyph, not a colour.
-//   - `hasData` reads the payload honestly: no asOf => no data, show the empty state
-//     rather than a fabricated snapshot.
-// =============================================================================
+// Market-overview presentation logic. Pure helpers so mover partitioning and the
+// biggest-mover pick are unit-tested and OverviewPage stays presentational.
+// The server sends up to 5 risers then up to 5 fallers, already ordered: partitioning only
+// splits by the frozen `direction` string and never re-sorts. Direction renders as glyph +
+// word and is never colour-coded. `hasData` reads the payload honestly — no asOf means no
+// data.
 import type { MarketMover, MarketOverview } from '../api/types';
 
 export interface MoverGroups {
@@ -21,8 +12,8 @@ export interface MoverGroups {
 }
 
 /**
- * Split movers into risers/fallers by the frozen `direction` string, PRESERVING the
- * server order within each group (the server's order is the ranking — never re-sort).
+ * Split movers into risers and fallers by the frozen `direction` string, preserving the
+ * server order within each group (that order IS the ranking).
  */
 export function partitionMovers(movers: MarketMover[]): MoverGroups {
   const risers: MarketMover[] = [];
@@ -35,8 +26,8 @@ export function partitionMovers(movers: MarketMover[]): MoverGroups {
 }
 
 /**
- * The single biggest mover by ABSOLUTE percent change (for the KPI tile). Ties keep
- * the earlier (higher-ranked) row. Returns null for an empty list.
+ * The single biggest mover by absolute percent change. Ties keep the higher-ranked row;
+ * returns null for an empty list.
  */
 export function biggestMover(movers: MarketMover[]): MarketMover | null {
   let best: MarketMover | null = null;
