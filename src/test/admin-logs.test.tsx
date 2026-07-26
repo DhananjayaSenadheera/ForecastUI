@@ -112,7 +112,7 @@ describe('Logs hub routing (Phase 1)', () => {
     expect(within(tablist).getAllByRole('tab')).toHaveLength(4);
     expect(within(tablist).getByRole('tab', { name: 'Ingestion runs', selected: true })).toBeInTheDocument();
     expect(within(tablist).getByRole('tab', { name: 'Model training', selected: false })).toBeInTheDocument();
-    expect(within(tablist).getByRole('tab', { name: 'User activity', selected: false })).toBeInTheDocument();
+    expect(within(tablist).getByRole('tab', { name: 'System log', selected: false })).toBeInTheDocument();
     expect(within(tablist).getByRole('tab', { name: 'System errors', selected: false })).toBeInTheDocument();
     expect(screen.getByText('INGESTION TAB CONTENT')).toBeInTheDocument();
   });
@@ -125,10 +125,10 @@ describe('Logs hub routing (Phase 1)', () => {
     expect(screen.getByText('TRAINING TAB CONTENT')).toBeInTheDocument();
   });
 
-  it('marks the User activity tab selected on its route (aria-selected tracks the route)', () => {
+  it('marks the System log tab selected on its route (aria-selected tracks the route)', () => {
     renderLogsRoutes('/admin/logs/user-activity');
     const tablist = screen.getByRole('tablist', { name: 'Logs' });
-    expect(within(tablist).getByRole('tab', { name: 'User activity', selected: true })).toBeInTheDocument();
+    expect(within(tablist).getByRole('tab', { name: 'System log', selected: true })).toBeInTheDocument();
     expect(within(tablist).getByRole('tab', { name: 'Ingestion runs', selected: false })).toBeInTheDocument();
     expect(screen.getByText('USER ACTIVITY TAB CONTENT')).toBeInTheDocument();
   });
@@ -175,7 +175,7 @@ describe('Logs tab explainers — tooltip + mobile ⓘ toggle', () => {
   const EXPLAINERS: Record<string, string> = {
     'Ingestion runs': 'admin.ingestion.explainer',
     'Model training': 'admin.logs.training.explainer',
-    'User activity': 'admin.logs.userActivity.explainer',
+    'System log': 'admin.logs.userActivity.explainer',
     'System errors': 'admin.logs.errors.explainer',
   };
 

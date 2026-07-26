@@ -9,6 +9,12 @@ import {
   mapUserActivityEvent,
   truncateId,
 } from '../lib/format';
+import {
+  USER_ACTIVITY_CONTENT_EVENT_TYPES,
+  USER_ACTIVITY_EVENT_TYPES,
+  USER_ACTIVITY_SIGN_IN_EVENT_TYPES,
+  USER_ACTIVITY_USER_MGMT_EVENT_TYPES,
+} from '../api/types';
 
 describe('admin enum mappers', () => {
   it('maps every known PolicyType int to a label key', () => {
@@ -116,6 +122,41 @@ describe('Logs P2 mappers — user activity', () => {
     expect(mapUserActivityEvent('userRegistered').tone).toBe('good'); // green, a new account
     expect(mapUserActivityEvent('roleChanged').tone).toBe('neutral');
     expect(mapUserActivityEvent('userDeleted').tone).toBe('neutral');
+  });
+
+  it('maps every content-change event type to a label key with a NEUTRAL tone', () => {
+    // An admin edit is neither good news nor a warning — it is a record of who did what.
+    for (const ev of USER_ACTIVITY_CONTENT_EVENT_TYPES) {
+      expect(mapUserActivityEvent(ev)).toMatchObject({
+        labelKey: `admin.logs.userActivity.event.${ev}`,
+        tone: 'neutral',
+      });
+    }
+  });
+
+  it('keeps the five ORIGINAL wire strings intact and first in the known set', () => {
+    // Frozen contract: the sign-in + user-management strings must never be renamed or
+    // reordered away — the server 400s anything it does not recognise.
+    expect([...USER_ACTIVITY_SIGN_IN_EVENT_TYPES, ...USER_ACTIVITY_USER_MGMT_EVENT_TYPES]).toEqual([
+      'loginSucceeded',
+      'loginFailed',
+      'userRegistered',
+      'roleChanged',
+      'userDeleted',
+    ]);
+    expect(USER_ACTIVITY_CONTENT_EVENT_TYPES).toEqual([
+      'policyFlagChanged',
+      'festivalChanged',
+      'newsEventChanged',
+      'cropChanged',
+      'marketChanged',
+    ]);
+    expect(USER_ACTIVITY_EVENT_TYPES).toHaveLength(10);
+    // Every known type has a label key — no badge can fall back to a raw wire string
+    // for a type this build DOES know about.
+    for (const ev of USER_ACTIVITY_EVENT_TYPES) {
+      expect(mapUserActivityEvent(ev).labelKey).not.toBeNull();
+    }
   });
 
   it('degrades an unknown event type to a muted raw fallback (never crashes)', () => {
