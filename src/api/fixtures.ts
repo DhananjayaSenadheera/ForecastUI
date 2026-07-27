@@ -39,6 +39,9 @@ import {
   type SeriesCatalogEntry,
   type SystemError,
   type SystemErrorPage,
+  type ForecastAccuracySummary,
+  type ForecastSnapshot,
+  type ForecastSnapshotPage,
 } from './types';
 
 // nameSi/nameTa below are DRAFT translations for dev and search only — pending native
@@ -1636,4 +1639,366 @@ export function fxSystemErrors(page = 1, pageSize = 25): SystemErrorPage {
   const total = fxSystemErrorsAll.length;
   const start = Math.max(0, (page - 1) * pageSize);
   return { items: fxSystemErrorsAll.slice(start, start + pageSize), page, pageSize, total };
+}
+
+// Forecast-accuracy fixtures. Deliberately small (this file is statically imported by
+// client.ts, so every fixture row lands in the farmer bundle) but complete: all four
+// maturity states, a model predictor AND a fallback predictor that must never be blended,
+// a row whose actual landed outside the p10–p90 band, and a group whose directional
+// accuracy is NOT computable (null, so the UI's no-data marker is demoable).
+// Illustrative demo values, not real HARTI data.
+export const fxForecastSnapshotsAll: ForecastSnapshot[] = [
+  {
+    id: 'f5000001-0000-0000-0000-000000000001',
+    cropId: 'c0000006-0000-0000-0000-000000000006',
+    cropName: 'Carrot',
+    cropCode: 'VEG000021',
+    snapshotDate: '2026-07-26',
+    harvestDate: '2026-10-24',
+    growthPeriodDays: 90,
+    predictedPrice: 402.0,
+    lowerBound: 331.0,
+    upperBound: 486.0,
+    referencePrice: 388.5,
+    confidence: 'Medium',
+    activePredictor: 'residual',
+    fallbackTier: null,
+    modelVersion: 'v17',
+    reasonCode: 'model_served',
+    maturityState: 'pending',
+    actualPrice: null,
+    actualObservedDate: null,
+    signedError: null,
+    absoluteError: null,
+    percentageError: null,
+    withinInterval: null,
+    createdAtUtc: '2026-07-26T21:06:11Z',
+    maturedAtUtc: null,
+  },
+  {
+    id: 'f5000002-0000-0000-0000-000000000002',
+    cropId: 'c0000012-0000-0000-0000-000000000012',
+    cropName: 'Banana',
+    cropCode: 'FRT000002',
+    snapshotDate: '2026-07-26',
+    // No growth period could be resolved, so no harvest date exists to mature against.
+    harvestDate: null,
+    growthPeriodDays: null,
+    predictedPrice: 168.0,
+    lowerBound: 121.0,
+    upperBound: 233.0,
+    referencePrice: 171.25,
+    confidence: 'Low',
+    activePredictor: 'crop_mean_fallback',
+    fallbackTier: 'crop_mean',
+    modelVersion: null,
+    reasonCode: 'growth_period_unresolved',
+    maturityState: 'not_maturable',
+    actualPrice: null,
+    actualObservedDate: null,
+    signedError: null,
+    absoluteError: null,
+    percentageError: null,
+    withinInterval: null,
+    createdAtUtc: '2026-07-26T21:06:12Z',
+    maturedAtUtc: null,
+  },
+  {
+    id: 'f5000003-0000-0000-0000-000000000003',
+    cropId: 'c0000002-0000-0000-0000-000000000002',
+    cropName: 'Beans',
+    cropCode: 'VEG000007',
+    snapshotDate: '2026-05-12',
+    harvestDate: '2026-07-16',
+    growthPeriodDays: 65,
+    predictedPrice: 310.0,
+    lowerBound: 210.0,
+    upperBound: 430.0,
+    // No price was known for this crop on the snapshot day, so there is no baseline to
+    // judge the DIRECTION against: this row is scored for error but excluded from
+    // directional accuracy. That exclusion is the only way a row drops out (there is no
+    // "too small a move" rule).
+    referencePrice: null,
+    confidence: 'Low',
+    activePredictor: 'crop_mean_fallback',
+    fallbackTier: 'crop_mean',
+    modelVersion: 'v17',
+    reasonCode: 'insufficient_history',
+    maturityState: 'matured',
+    actualPrice: 388.5,
+    actualObservedDate: '2026-07-16',
+    signedError: -78.5,
+    absoluteError: 78.5,
+    percentageError: -20.21,
+    withinInterval: true,
+    createdAtUtc: '2026-05-12T21:05:44Z',
+    maturedAtUtc: '2026-07-17T21:07:02Z',
+  },
+  {
+    id: 'f5000004-0000-0000-0000-000000000004',
+    cropId: 'c0000007-0000-0000-0000-000000000007',
+    cropName: 'Cabbage',
+    cropCode: 'VEG000022',
+    snapshotDate: '2026-04-20',
+    harvestDate: '2026-07-19',
+    growthPeriodDays: 90,
+    predictedPrice: 180.0,
+    lowerBound: 150.0,
+    upperBound: 220.0,
+    referencePrice: 174.0,
+    confidence: 'High',
+    activePredictor: 'residual',
+    fallbackTier: null,
+    modelVersion: 'v17',
+    reasonCode: 'model_served',
+    maturityState: 'matured',
+    actualPrice: 176.0,
+    actualObservedDate: '2026-07-19',
+    signedError: 4.0,
+    absoluteError: 4.0,
+    percentageError: 2.27,
+    withinInterval: true,
+    createdAtUtc: '2026-04-20T21:05:12Z',
+    maturedAtUtc: '2026-07-20T21:07:01Z',
+  },
+  {
+    id: 'f5000005-0000-0000-0000-000000000005',
+    cropId: 'c0000003-0000-0000-0000-000000000003',
+    cropName: 'Tomato',
+    cropCode: 'VEG000003',
+    snapshotDate: '2026-04-14',
+    harvestDate: '2026-07-18',
+    growthPeriodDays: 95,
+    predictedPrice: 240.0,
+    lowerBound: 205.0,
+    upperBound: 280.0,
+    referencePrice: 232.5,
+    confidence: 'Medium',
+    activePredictor: 'residual',
+    fallbackTier: null,
+    modelVersion: 'v17',
+    reasonCode: 'model_served',
+    maturityState: 'matured',
+    // The actual landed ABOVE the p90 — the band missed, and the row says so.
+    actualPrice: 305.0,
+    actualObservedDate: '2026-07-17',
+    signedError: -65.0,
+    absoluteError: 65.0,
+    percentageError: -21.31,
+    withinInterval: false,
+    createdAtUtc: '2026-04-14T21:05:31Z',
+    maturedAtUtc: '2026-07-19T21:07:03Z',
+  },
+  {
+    id: 'f5000006-0000-0000-0000-000000000006',
+    cropId: 'c0000001-0000-0000-0000-000000000001',
+    cropName: 'Capsicum',
+    cropCode: 'VEG000012',
+    snapshotDate: '2026-04-08',
+    harvestDate: '2026-07-14',
+    growthPeriodDays: 97,
+    predictedPrice: 552.0,
+    lowerBound: 470.0,
+    upperBound: 640.0,
+    referencePrice: 540.0,
+    confidence: 'High',
+    activePredictor: 'residual',
+    fallbackTier: null,
+    modelVersion: 'v17',
+    reasonCode: 'model_served',
+    maturityState: 'matured',
+    actualPrice: 528.75,
+    actualObservedDate: '2026-07-13',
+    signedError: 23.25,
+    absoluteError: 23.25,
+    percentageError: 4.4,
+    withinInterval: true,
+    createdAtUtc: '2026-04-08T21:05:09Z',
+    maturedAtUtc: '2026-07-15T21:07:04Z',
+  },
+  {
+    // An older snapshot, taken before the serving version was stamped on the row: it
+    // matured normally, and its accuracy is reported under "no version recorded".
+    id: 'f5000008-0000-0000-0000-000000000008',
+    cropId: 'c0000011-0000-0000-0000-000000000011',
+    cropName: 'Beetroot',
+    cropCode: 'VEG000031',
+    snapshotDate: '2026-03-02',
+    harvestDate: '2026-05-31',
+    growthPeriodDays: 90,
+    predictedPrice: 190.0,
+    lowerBound: 130.0,
+    upperBound: 265.0,
+    referencePrice: 196.0,
+    confidence: 'Low',
+    activePredictor: 'crop_mean_fallback',
+    fallbackTier: 'crop_mean',
+    modelVersion: null,
+    reasonCode: 'insufficient_history',
+    maturityState: 'matured',
+    // Forecast said down from Rs 196, the market went up: scored, and the direction was
+    // called wrong.
+    actualPrice: 208.0,
+    actualObservedDate: '2026-05-29',
+    signedError: -18.0,
+    absoluteError: 18.0,
+    percentageError: -8.65,
+    withinInterval: true,
+    createdAtUtc: '2026-03-02T21:05:00Z',
+    maturedAtUtc: '2026-06-01T21:07:00Z',
+  },
+  {
+    id: 'f5000007-0000-0000-0000-000000000007',
+    cropId: 'c0000013-0000-0000-0000-000000000013',
+    cropName: 'Papaya',
+    cropCode: 'FRT000004',
+    snapshotDate: '2025-10-24',
+    harvestDate: '2026-07-21',
+    growthPeriodDays: 270,
+    predictedPrice: 214.0,
+    lowerBound: 152.0,
+    upperBound: 291.0,
+    referencePrice: 208.0,
+    confidence: 'Low',
+    activePredictor: 'crop_mean_fallback',
+    fallbackTier: 'crop_mean',
+    modelVersion: 'v17',
+    reasonCode: 'insufficient_history',
+    // No traded price was published for the harvest day inside the carry window.
+    maturityState: 'actual_unavailable',
+    actualPrice: null,
+    actualObservedDate: null,
+    signedError: null,
+    absoluteError: null,
+    percentageError: null,
+    withinInterval: null,
+    createdAtUtc: '2025-10-24T21:05:02Z',
+    maturedAtUtc: null,
+  },
+];
+
+// Metrics computed from the rows above and kept SPLIT by predictor exactly as the API
+// serves them: the residual (model) rows score far better than the fallback ones, and
+// averaging the two would erase precisely that fact.
+// Units follow the wire: mape/medianApe are percent numbers, signedBias is Rs/kg (the
+// mean of the SIGNED RUPEE errors, not of the percentages), coverage/direction are
+// fractions.
+
+// Cabbage +4.00, Tomato -65.00, Capsicum +23.25 (Rs/kg); APEs 2.27 / 21.31 / 4.40 %.
+const FX_RESIDUAL_METRICS = {
+  maturedCount: 3,
+  scoredCount: 3,
+  mape: 9.33, // mean(2.27, 21.31, 4.40)
+  medianApe: 4.4, // middle of the three
+  signedBias: -12.58, // mean(+4.00, -65.00, +23.25) Rs/kg
+  intervalScoredCount: 3,
+  withinIntervalCount: 2, // the Tomato row landed outside the band
+  intervalCoverage: 0.6667,
+  nominalIntervalCoverage: 0.8,
+  intervalCoverageGap: -0.1333,
+  // Cabbage and Tomato moved the way the forecast said; Capsicum did not.
+  directionalAccuracy: 0.6667,
+  directionalScored: 3,
+  directionalExcluded: 0,
+};
+
+// The two matured fallback rows: Beans -78.50 (APE 20.21%) and Beetroot -18.00 (8.65%).
+const FX_FALLBACK_METRICS = {
+  maturedCount: 2,
+  scoredCount: 2,
+  mape: 14.43, // mean(20.21, 8.65)
+  medianApe: 14.43, // with two rows the median IS the mean
+  signedBias: -48.25, // mean(-78.50, -18.00) Rs/kg
+  intervalScoredCount: 2,
+  withinIntervalCount: 2,
+  intervalCoverage: 1.0,
+  nominalIntervalCoverage: 0.8,
+  intervalCoverageGap: 0.2,
+  // Beans had no reference price, so it cannot be judged for direction at all; Beetroot
+  // could be, and got it wrong. A real 0 — not a null, and not "no verdict".
+  directionalAccuracy: 0.0,
+  directionalScored: 1,
+  directionalExcluded: 1,
+};
+
+// Per-version groups are built from MATURED rows only, so each of these has real rows
+// behind it — the two fallback rows split across the version that stamped them and the
+// older one that did not.
+const FX_V17_FALLBACK_METRICS = {
+  maturedCount: 1,
+  scoredCount: 1,
+  mape: 20.21,
+  medianApe: 20.21,
+  signedBias: -78.5,
+  intervalScoredCount: 1,
+  withinIntervalCount: 1,
+  intervalCoverage: 1.0,
+  nominalIntervalCoverage: 0.8,
+  intervalCoverageGap: 0.2,
+  // The Beans row has no reference price, so direction is not computable for this group.
+  // Null, never 0 — "no verdict" is not "always wrong".
+  directionalAccuracy: null,
+  directionalScored: 0,
+  directionalExcluded: 1,
+};
+
+const FX_NO_VERSION_FALLBACK_METRICS = {
+  maturedCount: 1,
+  scoredCount: 1,
+  mape: 8.65,
+  medianApe: 8.65,
+  signedBias: -18.0,
+  intervalScoredCount: 1,
+  withinIntervalCount: 1,
+  intervalCoverage: 1.0,
+  nominalIntervalCoverage: 0.8,
+  intervalCoverageGap: 0.2,
+  directionalAccuracy: 0.0, // the one scored row called the direction wrong
+  directionalScored: 1,
+  directionalExcluded: 0,
+};
+
+export function fxForecastAccuracySummary(): ForecastAccuracySummary {
+  return {
+    generatedAtUtc: '2026-07-27T17:08:20Z',
+    windowDays: 365,
+    latestSnapshotDate: '2026-07-26',
+    // Counts are an all-time census of the ledger (8 rows), not a window.
+    counts: { total: 8, pending: 1, matured: 5, actualUnavailable: 1, notMaturable: 1 },
+    byActivePredictor: [
+      { activePredictor: 'residual', metrics: { ...FX_RESIDUAL_METRICS } },
+      { activePredictor: 'crop_mean_fallback', metrics: { ...FX_FALLBACK_METRICS } },
+    ],
+    // Deliberately NOT in version order — ordering these is the UI's job.
+    byModelVersion: [
+      {
+        modelVersion: 'v17',
+        activePredictor: 'crop_mean_fallback',
+        metrics: { ...FX_V17_FALLBACK_METRICS },
+      },
+      {
+        // The Beetroot row: matured and scored, but taken before versions were stamped.
+        modelVersion: null,
+        activePredictor: 'crop_mean_fallback',
+        metrics: { ...FX_NO_VERSION_FALLBACK_METRICS },
+      },
+      { modelVersion: 'v17', activePredictor: 'residual', metrics: { ...FX_RESIDUAL_METRICS } },
+    ],
+  };
+}
+
+/** Simulate the SERVER's paging + optional filters (never client-sliced by the page).
+ *  Order is SnapshotDate DESC (as seeded). */
+export function fxForecastSnapshots(
+  page = 1,
+  pageSize = 25,
+  filter: { cropId?: string; modelVersion?: string; maturedOnly?: boolean } = {},
+): ForecastSnapshotPage {
+  let rows = fxForecastSnapshotsAll;
+  if (filter.cropId) rows = rows.filter((s) => s.cropId === filter.cropId);
+  if (filter.modelVersion) rows = rows.filter((s) => s.modelVersion === filter.modelVersion);
+  if (filter.maturedOnly) rows = rows.filter((s) => s.maturityState === 'matured');
+  const total = rows.length;
+  const start = Math.max(0, (page - 1) * pageSize);
+  return { items: rows.slice(start, start + pageSize), page, pageSize, total };
 }

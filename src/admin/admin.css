@@ -1678,3 +1678,121 @@
   cursor: pointer;
   border-radius: var(--r-sm);
 }
+
+/* Forecast accuracy tab ------------------------------------------------------
+   Numbers-first monitoring surface, not a dashboard: no gauges, no colour-coded
+   metrics. Every figure sits under a label that states its scope, and the
+   no-data marker is styled as absence, never as a value. */
+.fa-scope {
+  margin: var(--sp-1) 0 var(--sp-2);
+}
+.fa-subhead {
+  margin: var(--sp-5) 0 var(--sp-2);
+  font-size: var(--fs-title);
+  font-weight: var(--fw-medium);
+  color: var(--text);
+}
+.fa-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin: 0 0 var(--sp-4);
+}
+.fa-count {
+  flex: 1 1 8rem;
+  min-width: 8rem;
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-3);
+}
+.fa-count dt {
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+}
+.fa-count dd {
+  margin: var(--sp-1) 0 0;
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: var(--fvn-tabular);
+}
+.fa-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+}
+.fa-card {
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.fa-card__head {
+  margin: 0;
+  font-size: var(--fs-body);
+  font-weight: var(--fw-medium);
+}
+/* Predictor names are wire strings (crop_mean_fallback) — let them wrap rather than
+   widen the card. */
+.fa-card__predictor,
+.fa-predictor {
+  word-break: break-word;
+}
+.fa-headline {
+  margin: var(--sp-2) 0 var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.fa-headline__value {
+  font-size: var(--fs-price-sm);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: var(--fvn-tabular);
+  color: var(--text);
+}
+.fa-headline__label {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+.fa-metrics {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.fa-metric dt {
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+}
+.fa-metric__value {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  font-variant-numeric: var(--fvn-tabular);
+}
+.fa-metric__hint {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+.fa-stack,
+.fa-crop,
+.fa-pred {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.fa-stack__sub,
+.fa-crop__code,
+.fa-pred__band {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+.fa-pred__p50 {
+  font-variant-numeric: var(--fvn-tabular);
+  font-weight: var(--fw-medium);
+}
+.fa-nodata {
+  font-variant-numeric: var(--fvn-tabular);
+}
