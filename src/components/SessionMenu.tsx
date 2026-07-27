@@ -1,10 +1,13 @@
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthContext';
 
 // Logged-in identity + logout, in the sidebar footer on desktop and the mobile top bar.
 // Logout clears the in-memory session and the service-worker data cache, then routes to
 // /login. Renders nothing when unauthenticated, so it is inert on the auth pages.
+// It also carries the "My crops" entry point: the portfolio is a personal, signed-in
+// surface and has no nav tab (the 4-tab IA is locked), so it belongs next to the identity
+// rather than beside the four public destinations.
 export default function SessionMenu({ variant }: { variant: 'sidebar' | 'mobile' }) {
   const { t } = useTranslation();
   const { session, isAuthenticated, logout } = useAuth();
@@ -26,6 +29,10 @@ export default function SessionMenu({ variant }: { variant: 'sidebar' | 'mobile'
           {session.simulated && <span className="session__demo">{t('auth.demoMode')}</span>}
         </span>
       </span>
+      <Link className="session__mycrops" to="/portfolio">
+        <span aria-hidden="true">🧺</span>
+        <span className="wrap-label">{t('nav.portfolio')}</span>
+      </Link>
       <button
         type="button"
         className="session__logout"

@@ -12,6 +12,13 @@ import RegisterPage from './pages/RegisterPage';
 import RequireAuth from './auth/RequireAuth';
 import RequireAdmin from './admin/RequireAdmin';
 
+// Portfolio ("My crops") is lazy-loaded too: it is a NON-tab destination reached from the
+// Overview card and the session menu, so its code must not sit in the first paint of the
+// four tabs every farmer does use. Same chunking precedent as the admin console.
+const PortfolioPage = lazy(() => import('./pages/PortfolioPage'));
+const PortfolioSettingsPage = lazy(() => import('./pages/PortfolioSettingsPage'));
+const PortfolioCropPage = lazy(() => import('./pages/PortfolioCropPage'));
+
 // Admin pages are lazy-loaded, so none of their code is in the farmer bundle.
 const AdminLayout = lazy(() => import('./admin/AdminLayout'));
 const PolicyFlagsPage = lazy(() => import('./admin/PolicyFlagsPage'));
@@ -27,7 +34,7 @@ const UserActivityPage = lazy(() => import('./admin/logs/UserActivityPage'));
 const SystemErrorsPage = lazy(() => import('./admin/logs/SystemErrorsPage'));
 const ForecastAccuracyPage = lazy(() => import('./admin/logs/ForecastAccuracyPage'));
 
-/** Placeholder shown while an admin page chunk loads. */
+/** Placeholder shown while a lazy page chunk loads. */
 function AdminFallback() {
   return (
     <div className="boot" role="status" aria-live="polite">
@@ -36,6 +43,8 @@ function AdminFallback() {
   );
 }
 const lazyAdmin = (el: React.ReactNode) => <Suspense fallback={<AdminFallback />}>{el}</Suspense>;
+/** Same wrapper for the farmer-facing lazy routes — named apart so the two stay legible. */
+const lazyPage = lazyAdmin;
 
 export default function App() {
   // Shown once on first launch, until a language is chosen or skipped.
@@ -62,6 +71,12 @@ export default function App() {
           {/* Non-tab child route — keeps the 4-tab IA; Best-crops nav stays active. */}
           <Route path="/best-crops/compare" element={<CompareCropsPage />} />
           <Route path="/prices" element={<PricesPage />} />
+
+          {/* "My crops" — NON-tab routes (the 4-tab IA is locked). Entry points are the
+              Overview card and the session menu, not the nav. */}
+          <Route path="/portfolio" element={lazyPage(<PortfolioPage />)} />
+          <Route path="/portfolio/settings" element={lazyPage(<PortfolioSettingsPage />)} />
+          <Route path="/portfolio/crop/:cropId" element={lazyPage(<PortfolioCropPage />)} />
 
           {/* Admin console — role-gated by RequireAdmin. It renders inside the shell so
               admins keep the nav, and a farmer who reaches it gets an honest "no access"

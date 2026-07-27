@@ -363,3 +363,47 @@
   /* The alternative numeric table keeps a plain stacked layout too. */
   .ov-table--alt td { justify-content: space-between; }
 }
+
+/* ---- "My crops" entry card (portfolio, PRD §5.1) ---------------------------
+   The portfolio has NO nav tab, so this card is one of only two ways in. It sits
+   above the market-wide KPIs because a farmer's own crops outrank the average.
+   It is a whole-card link: the tap target is the card, not a small "go" glyph. */
+.ov-mycrops {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-4);
+  padding: var(--sp-4);
+  min-height: var(--touch-hero);
+  background: var(--brand-tint);
+  border: 1px solid var(--teal-200);
+  color: var(--text);
+  text-decoration: none;
+}
+.ov-mycrops:hover {
+  background: var(--brand-tint-2);
+}
+.ov-mycrops__icon {
+  font-size: 28px;
+  line-height: 1;
+}
+.ov-mycrops__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ov-mycrops__title {
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--brand-dark);
+}
+.ov-mycrops__body {
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+.ov-mycrops__go {
+  margin-left: auto;
+  font-size: var(--fs-h2);
+  color: var(--brand-strong);
+}

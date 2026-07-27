@@ -22,6 +22,11 @@ export interface CropPickerProps {
   error: boolean;
   onRetry: () => void;
   selectedId: string | null;
+  /** MULTI-SELECT mode (portfolio settings). When provided it REPLACES `selectedId` as the
+   *  source of selection, and `onSelect` becomes a toggle — the cards are already
+   *  aria-pressed toggle buttons, so the only thing that changes is which ids read as
+   *  pressed. Absent = the original single-select behaviour, unchanged. */
+  selectedIds?: string[];
   onSelect: (crop: Crop) => void;
   /** Recently-picked crop ids (FE-16). Pinned in a "Recent" group when not searching. */
   recentIds?: string[];
@@ -38,6 +43,7 @@ export default function CropPicker({
   error,
   onRetry,
   selectedId,
+  selectedIds,
   onSelect,
   recentIds,
   readiness = null,
@@ -61,7 +67,7 @@ export default function CropPicker({
   // One card renderer shared by the Recent group and the category groups. `idPrefix` keeps
   // the readiness-description ids unique when the SAME crop renders twice.
   const renderCard = (crop: Crop, idPrefix: string) => {
-    const selected = crop.id === selectedId;
+    const selected = selectedIds ? selectedIds.includes(crop.id) : crop.id === selectedId;
     // Crop-status colouring: tint + glyph/word badge; a null status makes no claim. The
     // badge is aria-hidden and the status is the button's DESCRIPTION (aria-describedby ->
     // sr-only sibling) so it never joins the accessible NAME.

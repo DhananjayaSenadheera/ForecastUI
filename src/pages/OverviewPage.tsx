@@ -123,6 +123,18 @@ export default function OverviewPage() {
       </div>
       <p className="ov-sub">{t('pages.overview.subtitle')}</p>
 
+      {/* "My crops" entry point. The portfolio has NO nav tab (the 4-tab IA is locked), so
+          this card and the session menu are how a farmer reaches it. It sits above the
+          market-wide numbers on purpose: their own crops outrank the market average. */}
+      <Link className="panel ov-mycrops" to="/portfolio">
+        <span className="ov-mycrops__icon" aria-hidden="true">🧺</span>
+        <span className="ov-mycrops__text">
+          <span className="ov-mycrops__title">{t('pages.overview.myCropsTitle')}</span>
+          <span className="ov-mycrops__body">{t('pages.overview.myCropsBody')}</span>
+        </span>
+        <span className="ov-mycrops__go" aria-hidden="true">›</span>
+      </Link>
+
       {/* Window selector — 7 / 30 / 90 days. Drives the market-overview refetch;
           the caption + KPIs follow the SERVED windowDays, never this local pick. */}
       <div className="ov-winsel" role="group" aria-label={t('pages.overview.windowLabel')}>

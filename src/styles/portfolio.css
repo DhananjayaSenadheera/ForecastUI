@@ -1,0 +1,411 @@
+/* =============================================================================
+   Farmer portfolio ("My crops") — PRD Phases 1–3, Phase 1 surface.
+   Imported by the portfolio pages only, so it travels in the lazy chunk and never
+   weighs on the four tabs.
+
+   Rules this file obeys (they are laws, not preferences):
+   - NO RED anywhere. Red is reserved app-wide for the "Not recommended" verdict; a
+     falling price and a swinging price are facts, not failures.
+   - Colour never carries meaning alone — every tinted thing here also ships a glyph
+     and a word from the component.
+   - No fixed-height text boxes: Sinhala ascenders and Tamil vowel marks get clipped.
+   - >=44px touch targets, single column below 600px.
+   ============================================================================= */
+
+.pf-sub {
+  margin: 0 0 var(--sp-4);
+  color: var(--text-2);
+}
+
+/* ---- Home-market banner --------------------------------------------------- */
+.pf-hmb {
+  margin: 0 0 var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--brand-tint);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.pf-hmb--none {
+  background: var(--surface-3);
+}
+.pf-hmb__line {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.pf-hmb__label {
+  color: var(--text-2);
+}
+.pf-hmb__link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-height: var(--touch-min);
+  padding: var(--sp-1) var(--sp-2);
+  color: var(--brand-strong);
+  font-weight: var(--fw-medium);
+}
+.pf-hmb__note {
+  margin: var(--sp-1) 0 0;
+  color: var(--text-3);
+  font-size: var(--fs-sm);
+}
+
+/* ---- Watchlist grid ------------------------------------------------------- */
+.pf-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--sp-4);
+  grid-template-columns: 1fr;
+}
+@media (min-width: 700px) {
+  .pf-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
+}
+
+.pf-card__inner {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--e-1);
+}
+.pf-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.pf-card__title {
+  margin: 0;
+  font-size: var(--fs-h3);
+  line-height: var(--lh-heading);
+}
+.pf-card__more {
+  margin: auto 0 0;
+  padding-top: var(--sp-2);
+}
+.pf-card__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-min);
+  color: var(--brand-strong);
+  font-weight: var(--fw-medium);
+}
+
+/* ---- Price block ---------------------------------------------------------- */
+.pf-price {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.pf-price__value {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+.pf-price__num {
+  font-size: var(--fs-price-sm);
+  font-weight: var(--fw-black);
+  color: var(--price-fg);
+  font-variant-numeric: var(--fvn-tabular);
+}
+.pf-price__unit {
+  color: var(--text-2);
+}
+.pf-price__meta {
+  margin: 0;
+  color: var(--text-3);
+  font-size: var(--fs-sm);
+}
+.pf-price__age {
+  color: var(--warn-fg); /* caution, never alarm — and the words say it too */
+}
+
+/* Trend: neutral tints only. "Down" is amber-free and red-free on purpose. */
+.pf-trend {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+.pf-trend__glyph {
+  font-size: var(--fs-body);
+}
+.pf-trend--up {
+  color: var(--good-fg);
+}
+.pf-trend--down,
+.pf-trend--steady {
+  color: var(--neutral-fg);
+}
+.pf-trend--none {
+  color: var(--text-3);
+}
+
+/* ---- Notes / no-data ------------------------------------------------------ */
+.pf-note {
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-sm);
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+}
+.pf-note--fallback {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+.pf-note--nodata {
+  margin-bottom: var(--sp-4);
+}
+.pf-nodata {
+  margin: 0;
+  color: var(--text-2);
+}
+
+/* ---- Price swing badge ---------------------------------------------------- */
+.pf-swing {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--r-pill);
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+  font-size: var(--fs-sm);
+}
+.pf-swing__glyph {
+  letter-spacing: 1px;
+}
+/* Intensity reads from the block count and the word; the tint only reinforces it and
+   stays inside the neutral/brand family. */
+.pf-swing--steady {
+  background: var(--surface-3);
+}
+.pf-swing--big {
+  background: var(--brand-tint-2);
+  color: var(--brand-dark);
+}
+
+/* ---- Prediction ----------------------------------------------------------- */
+.pf-pred {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--line);
+}
+.pf-pred__chip {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-md);
+  font-weight: var(--fw-medium);
+}
+.pf-pred__chip--good {
+  background: var(--conf-good-bg);
+  color: var(--conf-good-fg);
+}
+.pf-pred__chip--fair {
+  background: var(--conf-fair-bg);
+  color: var(--conf-fair-fg);
+}
+.pf-pred__chip--low {
+  background: var(--conf-low-bg);
+  color: var(--conf-low-fg);
+}
+.pf-pred__conf {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-regular);
+}
+.pf-pred__band,
+.pf-pred__when {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+.pf-pred__tags {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.pf-pred__tags:empty {
+  display: none;
+}
+.pf-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-xs);
+}
+.pf-tag--national {
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+}
+.pf-tag--derated {
+  background: var(--lowtrust-bg);
+  color: var(--lowtrust-fg);
+  border: 1px solid var(--lowtrust-border);
+}
+.pf-pred__derated-body {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--warn-fg);
+}
+
+/* ---- States --------------------------------------------------------------- */
+.pf-state {
+  text-align: center;
+  padding: var(--sp-6) var(--sp-4);
+}
+.pf-state__icon {
+  margin: 0;
+  font-size: 40px;
+  line-height: 1.2;
+}
+.pf-state__title {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-medium);
+}
+.pf-state__body {
+  margin: var(--sp-2) 0 var(--sp-4);
+  color: var(--text-2);
+}
+.pf-state__cta,
+.pf-state__retry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch-primary);
+}
+.pf-manage {
+  margin: var(--sp-5) 0 0;
+}
+.pf-manage .btn-ghost {
+  min-height: var(--touch-min);
+}
+
+/* Skeletons — shapes only, never a fake number. */
+.pf-skel {
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.pf-skel--banner {
+  height: 56px;
+  margin-bottom: var(--sp-4);
+}
+.pf-skel--card {
+  min-height: 180px;
+}
+
+/* ---- Settings ------------------------------------------------------------- */
+.pf-set + .pf-set {
+  margin-top: var(--sp-5);
+}
+.pf-set__title {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-h2);
+  line-height: var(--lh-heading);
+}
+.pf-set__hint {
+  margin: 0 0 var(--sp-4);
+  color: var(--text-2);
+}
+.pf-set__note {
+  margin: var(--sp-2) 0 0;
+  color: var(--text-3);
+  font-size: var(--fs-sm);
+}
+.pf-set__status {
+  margin: var(--sp-2) 0 0;
+  color: var(--good-fg);
+}
+.pf-set__status:empty {
+  display: none;
+}
+.pf-set__error {
+  margin: var(--sp-2) 0 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+.pf-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  max-width: 460px;
+}
+.pf-select {
+  min-height: var(--touch-primary);
+  padding: var(--sp-2) var(--sp-3);
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+}
+.pf-select:disabled {
+  background: var(--surface-3);
+  color: var(--text-3);
+}
+
+.pf-save {
+  margin-top: var(--sp-5);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.pf-save__count {
+  margin: 0;
+  color: var(--text-2);
+}
+.pf-save__btn {
+  min-height: var(--touch-primary);
+  margin-left: auto;
+}
+.pf-save__btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ---- Crop detail ---------------------------------------------------------- */
+.pf-detail + .pf-detail {
+  margin-top: var(--sp-5);
+}
+.pf-detail__cta {
+  margin: var(--sp-4) 0 0;
+}
+.pf-detail__cta .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch-primary);
+}
+.pf-prov {
+  margin: var(--sp-3) 0 0;
+}
+.pf-back {
+  color: var(--brand-strong);
+  font-weight: var(--fw-medium);
+}
