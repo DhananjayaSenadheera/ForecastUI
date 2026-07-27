@@ -13,6 +13,7 @@ import RequireAuth from './auth/RequireAuth';
 import RequireAdmin from './admin/RequireAdmin';
 
 // Admin pages are lazy-loaded, so none of their code is in the farmer bundle.
+const AdminLayout = lazy(() => import('./admin/AdminLayout'));
 const PolicyFlagsPage = lazy(() => import('./admin/PolicyFlagsPage'));
 const MarketsPage = lazy(() => import('./admin/MarketsPage'));
 const UsersPage = lazy(() => import('./admin/UsersPage'));
@@ -66,19 +67,25 @@ export default function App() {
               state rather than a redirect loop. */}
           <Route path="/admin" element={<RequireAdmin />}>
             <Route index element={<Navigate to="/admin/policy-flags" replace />} />
-            <Route path="policy-flags" element={lazyAdmin(<PolicyFlagsPage />)} />
-            <Route path="markets" element={lazyAdmin(<MarketsPage />)} />
-            <Route path="users" element={lazyAdmin(<UsersPage />)} />
-            <Route path="festivals" element={lazyAdmin(<FestivalsPage />)} />
-            <Route path="indicators" element={lazyAdmin(<IndicatorsPage />)} />
-            <Route path="news" element={lazyAdmin(<NewsPage />)} />
-            {/* Logs hub — tabbed shell; child routes are each their own lazy chunk. */}
-            <Route path="logs" element={lazyAdmin(<LogsPage />)}>
-              <Route index element={<Navigate to="/admin/logs/ingestion" replace />} />
-              <Route path="ingestion" element={lazyAdmin(<IngestionRunsPage />)} />
-              <Route path="training" element={lazyAdmin(<TrainingRunsPage />)} />
-              <Route path="user-activity" element={lazyAdmin(<UserActivityPage />)} />
-              <Route path="errors" element={lazyAdmin(<SystemErrorsPage />)} />
+            {/* Pathless layout route: every real admin page renders inside AdminLayout, so
+                the pipeline-health banner mounts once per visit to the console instead of
+                once per page. The redirect routes stay OUTSIDE it — a redirect must not
+                wait for a chunk to download. */}
+            <Route element={lazyAdmin(<AdminLayout />)}>
+              <Route path="policy-flags" element={lazyAdmin(<PolicyFlagsPage />)} />
+              <Route path="markets" element={lazyAdmin(<MarketsPage />)} />
+              <Route path="users" element={lazyAdmin(<UsersPage />)} />
+              <Route path="festivals" element={lazyAdmin(<FestivalsPage />)} />
+              <Route path="indicators" element={lazyAdmin(<IndicatorsPage />)} />
+              <Route path="news" element={lazyAdmin(<NewsPage />)} />
+              {/* Logs hub — tabbed shell; child routes are each their own lazy chunk. */}
+              <Route path="logs" element={lazyAdmin(<LogsPage />)}>
+                <Route index element={<Navigate to="/admin/logs/ingestion" replace />} />
+                <Route path="ingestion" element={lazyAdmin(<IngestionRunsPage />)} />
+                <Route path="training" element={lazyAdmin(<TrainingRunsPage />)} />
+                <Route path="user-activity" element={lazyAdmin(<UserActivityPage />)} />
+                <Route path="errors" element={lazyAdmin(<SystemErrorsPage />)} />
+              </Route>
             </Route>
             {/* Legacy bookmark: the old standalone /admin/ingestion now lives in Logs. */}
             <Route path="ingestion" element={<Navigate to="/admin/logs/ingestion" replace />} />

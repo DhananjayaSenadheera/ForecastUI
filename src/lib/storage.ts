@@ -9,6 +9,7 @@ export const STORAGE_KEYS = {
   lastHarvest: 'agriforecast.lastHarvest',
   recentCrops: 'agriforecast.recentCrops',
   textSize: 'agriforecast.textSize',
+  pipelineHealthDismissed: 'agriforecast.pipelineHealthDismissed',
 } as const;
 
 function readRaw(key: string): string | null {
@@ -24,6 +25,14 @@ function writeRaw(key: string, value: string): void {
     localStorage.setItem(key, value);
   } catch {
     /* private mode / quota / disabled — non-fatal, the value just won't persist */
+  }
+}
+
+function removeRaw(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    /* private mode / disabled — non-fatal, there was nothing to forget anyway */
   }
 }
 
@@ -107,6 +116,33 @@ export function readLargeText(): boolean {
 
 export function writeLargeText(large: boolean): void {
   writeJSON(STORAGE_KEYS.textSize, { v: TEXT_SIZE_V, large });
+}
+
+// Admin pipeline-health banner: which notice the admin last dismissed, as the
+// "state|expectedForDate" identity (see pipelineHealthDismissKey). ONE key is stored, not
+// a history: the banner shows one notice at a time, and remembering old dismissals would
+// only risk hiding a notice that came back.
+const PIPELINE_DISMISS_V = 1;
+interface StoredPipelineDismiss {
+  v: number;
+  key: string;
+}
+
+export function readPipelineHealthDismissed(): string | null {
+  const s = readJSON<StoredPipelineDismiss>(STORAGE_KEYS.pipelineHealthDismissed);
+  if (!s || s.v !== PIPELINE_DISMISS_V || typeof s.key !== 'string' || !s.key) return null;
+  return s.key;
+}
+
+export function writePipelineHealthDismissed(key: string): void {
+  if (!key) return;
+  writeJSON(STORAGE_KEYS.pipelineHealthDismissed, { v: PIPELINE_DISMISS_V, key });
+}
+
+/** Forget the dismissal entirely. Called when the pipeline goes quiet again, so a
+ *  dismissal can never outlive the notice it was aimed at (see PipelineHealthBanner). */
+export function clearPipelineHealthDismissed(): void {
+  removeRaw(STORAGE_KEYS.pipelineHealthDismissed);
 }
 
 /**

@@ -29,6 +29,7 @@ import type {
   NewsEvent,
   NewsEventCreateDto,
   NewsEventUpdateDto,
+  PipelineHealth,
   PolicyFlag,
   PolicyFlagMutationResult,
   PolicyFlagUpdateDto,
@@ -634,6 +635,15 @@ export const api = {
     return request<IngestionServiceStopResult>('/api/admin/ingestion/service/stop', {
       method: 'POST',
     });
+  },
+
+  // GET /api/admin/pipeline/health (Admin JWT) -> the nightly pipeline rollup behind the
+  // admin-wide health banner. Consumed verbatim; `state` is NOT narrowed here, because a
+  // state this build has never heard of must reach the UI as itself and be ignored there,
+  // not be rewritten into a state we do recognise.
+  async getPipelineHealth(): Promise<PipelineHealth> {
+    if (USE_FIXTURES) return fx.fxPipelineHealth();
+    return request<PipelineHealth>('/api/admin/pipeline/health');
   },
 
   // Logs hub: both routes are Admin-only and return the server-paged
