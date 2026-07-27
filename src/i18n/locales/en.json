@@ -786,7 +786,7 @@
       },
       "failed": {
         "title": "Last night's data update failed",
-        "body": "The run for {{date}} stopped with an error, so no new data was added. Prices, forecasts and recommendations are still built from older data."
+        "body": "The run for {{date}} stopped with an error, so the day's data may be incomplete or unchecked. Check the run details before trusting today's numbers."
       },
       "gateBlocked": {
         "title": "Last night's data update was blocked at the quality check",
