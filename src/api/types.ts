@@ -1025,3 +1025,105 @@ export interface ForecastSnapshotPage {
   pageSize: number;
   total: number;
 }
+
+// =============================================================================
+// Farmer portfolio (PRD Phases 1–3) — api/portfolio/*, plain [Authorize].
+// Shapes mirror the .NET DTOs verbatim; nothing here is derived or renamed.
+// =============================================================================
+
+/** One crop on the caller's watchlist. `preferredMarketId` null means "no market chosen",
+ *  which the dashboard reads as the national / economic-centre default — NOT missing data. */
+export interface WatchlistItem {
+  cropId: string;
+  cropName: string;
+  cropCode: string | null; // VEG######/FRT###### — display only, never a join key
+  preferredMarketId: string | null;
+  preferredMarketName: string | null;
+  createdAtUtc: string; // ISO Z
+}
+
+/** POST /api/portfolio/watchlist. Adding is IDEMPOTENT set-membership: a repeat add is a
+ *  200 with alreadyPresent=true, never a 409, so a double-tap is not an error. */
+export interface WatchlistAddResult {
+  item: WatchlistItem;
+  alreadyPresent: boolean;
+}
+
+/** PUT /api/portfolio/watchlist/{cropId}. The route names ONE crop but the home market is
+ *  a per-farmer setting: `appliedToCropCount` is how many watchlist rows now carry it. */
+export interface WatchlistMarketUpdateResult {
+  cropId: string;
+  preferredMarketId: string | null;
+  preferredMarketName: string | null;
+  appliedToCropCount: number;
+}
+
+/** DELETE /api/portfolio/watchlist/{cropId}. A miss is a 404 with code
+ *  "watchlist_entry_not_found", so a 200 always means a row really went away. */
+export interface WatchlistRemoveResult {
+  cropId: string;
+  removed: boolean;
+}
+
+/** Observed-price trend versus the immediately previous observation at the SAME market.
+ *  NULL (the field, not a member of this union) means "no comparable earlier quote within
+ *  30 days" — it is NEVER "steady" and never says the price beside it is unreliable. */
+export type PortfolioPriceDirection = 'up' | 'down' | 'steady';
+
+/** The one market the dashboard's prices are shown for. `isEconomicCenter: false` is
+ *  LOAD-BEARING: predictions are Dambulla-anchored and national, so any prediction shown
+ *  under a non-economic-centre home market must carry the "National forecast" label. */
+export interface PortfolioHomeMarket {
+  marketId: string;
+  name: string;
+  isEconomicCenter: boolean;
+  isDefault: boolean; // true = the farmer chose nothing and the centre is standing in
+}
+
+/** A real published price, never a forecast. There is NO staleness cutoff: this is the
+ *  freshest observation that EXISTS for this crop, so `observedDate` can be months old and
+ *  the UI must show the date rather than hide the price. */
+export interface PortfolioPrice {
+  price: number;
+  observedDate: string; // yyyy-MM-dd
+  marketId: string; // the market that actually served it — not necessarily the home one
+  marketName: string;
+  isFallbackMarket: boolean; // true = home market had nothing, economic centre served it
+  direction: PortfolioPriceDirection | null;
+  // Signed percent number, 1 decimal place. Null exactly when `direction` is null — the
+  // two, plus previousPrice/previousObservedDate, are all null together or all present.
+  changePct: number | null;
+  previousPrice: number | null;
+  previousObservedDate: string | null;
+}
+
+/** The newest frozen ForecastSnapshots row, read verbatim: what the model said, not how it
+ *  scored. A Low-confidence fallback stays Low and is shown de-rated, never upgraded. */
+export interface PortfolioPrediction {
+  predictedPrice: number;
+  lowerBound: number;
+  upperBound: number;
+  confidence: ConfidenceString; // FROZEN string — translate the label only
+  activePredictor: string; // "residual" / "crop_mean_fallback" / …
+  modelVersion: string | null;
+  snapshotDate: string; // yyyy-MM-dd — the plant date the forecast assumed
+  harvestDate: string | null; // null when the growth period could not be resolved
+}
+
+/** One watched crop. Both legs are fail-soft decoration: the crop always appears, and a
+ *  missing leg is null WITH a reason code rather than a fabricated number. */
+export interface PortfolioDashboardItem {
+  cropId: string;
+  cropName: string;
+  cropCode: string | null;
+  price: PortfolioPrice | null;
+  priceUnavailableReason: 'no_recent_price' | null;
+  prediction: PortfolioPrediction | null;
+  predictionUnavailableReason: 'no_snapshot' | null;
+}
+
+/** GET /api/portfolio/dashboard. An empty watchlist is a 200 with items: [], never a 404. */
+export interface PortfolioDashboard {
+  homeMarket: PortfolioHomeMarket | null;
+  items: PortfolioDashboardItem[];
+}

@@ -66,7 +66,8 @@
       "news": "News",
       "ingestion": "Ingestion runs",
       "logs": "Logs"
-    }
+    },
+    "portfolio": "My crops"
   },
   "audio": {
     "listen": "Listen to this page"
@@ -318,7 +319,9 @@
       "teaserEmpty": "No crop suggestions yet.",
       "emptyTitle": "No market data yet",
       "emptyBody": "We don't have recent market prices to show yet. Please check back soon.",
-      "pending": "Not available yet"
+      "pending": "Not available yet",
+      "myCropsTitle": "My crops",
+      "myCropsBody": "See prices and forecasts for the crops you grow."
     },
     "myHarvest": {
       "title": "My harvest forecast",
@@ -423,6 +426,69 @@
       "tableHigh": "High",
       "tableMarket": "Market",
       "tableAvg": "Average"
+    },
+    "portfolio": {
+      "title": "My crops",
+      "subtitle": "Today’s price and the forecast for the crops you grow.",
+      "pricesShownFor": "Prices shown for:",
+      "changeMarketAria": "Change your market. Now showing {{market}}.",
+      "homeMarketDefault": "You have not chosen a market yet, so we show the main economic centre.",
+      "noHomeMarket": "No market chosen.",
+      "chooseMarket": "Choose your market",
+      "chooseMarketAria": "Choose the market your prices come from",
+      "emptyTitle": "You have not added any crops yet",
+      "emptyBody": "Add the crops you grow and we will show their price and forecast here.",
+      "addCrops": "Add crops",
+      "manage": "Add or remove crops",
+      "noDataYet": "No prices for your crops yet. We will show them as soon as the markets report.",
+      "noPrice": "No price for this crop yet.",
+      "noPrediction": "No forecast for this crop yet.",
+      "observedOn": "Price from {{date}}",
+      "priceAge_one": "{{count}} day old",
+      "priceAge_other": "{{count}} days old",
+      "fallbackMarket": "Your market had no price for this crop, so this is from {{market}}.",
+      "trendUp": "Up",
+      "trendDown": "Down",
+      "trendSteady": "Same",
+      "trendLine": "{{dir}} {{pct}}% from {{prev}} on {{date}}",
+      "noTrend": "No earlier price to compare with.",
+      "predAbout": "About {{price}} at harvest",
+      "nationalForecast": "National forecast",
+      "openCrop": "See details",
+      "openCropAria": "See details for {{crop}}"
+    },
+    "portfolioSettings": {
+      "title": "My crops — settings",
+      "backToPortfolio": "Back to my crops",
+      "marketHeading": "Your market",
+      "marketHint": "One market for all your crops. Prices below are shown for this market.",
+      "marketLabel": "Show prices from",
+      "marketNone": "No market — show national prices",
+      "marketNeedsCrop": "Add a crop first, then choose your market.",
+      "marketSaved_one": "Saved. Your {{count}} crop now shows prices from {{market}}.",
+      "marketSaved_other": "Saved. All {{count}} of your crops now show prices from {{market}}.",
+      "marketCleared_one": "Saved. Your {{count}} crop now shows national prices.",
+      "marketCleared_other": "Saved. All {{count}} of your crops now show national prices.",
+      "cropsHeading": "Your crops",
+      "cropsHint": "Tap a crop to add it. Tap it again to remove it. Then tap Save.",
+      "selected_one": "{{count}} crop chosen.",
+      "selected_other": "{{count}} crops chosen.",
+      "pending": "To save: {{add}} to add, {{remove}} to remove.",
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Saved. {{add}} added, {{remove}} removed.",
+      "saveFailed": "We could not save all your changes. Your crops below are what we have now — please try again."
+    },
+    "portfolioCrop": {
+      "title": "My crop",
+      "backToPortfolio": "Back to my crops",
+      "todayHeading": "Price now",
+      "forecastHeading": "Forecast at harvest",
+      "historyHeading": "Recent prices",
+      "openHarvest": "See the full forecast",
+      "openHarvestAria": "See the full forecast for {{crop}}",
+      "notWatchedTitle": "This crop is not in your crops",
+      "notWatchedBody": "Add it to your crops to see its price and forecast here."
     }
   },
   "admin": {
@@ -992,5 +1058,16 @@
     "prev": "Previous page",
     "next": "Next page",
     "last": "Last page"
+  },
+  "portfolio": {
+    "_note": "Price swing is derived in the app from the observed price history of the market shown — it is NOT the model’s prediction interval. Levels are neutral; never red.",
+    "swing": {
+      "summary": "Price movement: {{level}}",
+      "steady": "steady",
+      "moderate": "moves a little",
+      "big": "moves a lot",
+      "basis_one": "Based on {{count}} day of prices at this market.",
+      "basis_other": "Based on {{count}} days of prices at this market."
+    }
   }
 }

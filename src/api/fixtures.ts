@@ -42,6 +42,13 @@ import {
   type ForecastAccuracySummary,
   type ForecastSnapshot,
   type ForecastSnapshotPage,
+  type PortfolioDashboard,
+  type PortfolioDashboardItem,
+  type PortfolioPriceDirection,
+  type WatchlistAddResult,
+  type WatchlistItem,
+  type WatchlistMarketUpdateResult,
+  type WatchlistRemoveResult,
 } from './types';
 
 // nameSi/nameTa below are DRAFT translations for dev and search only — pending native
@@ -2001,4 +2008,161 @@ export function fxForecastSnapshots(
   const total = rows.length;
   const start = Math.max(0, (page - 1) * pageSize);
   return { items: rows.slice(start, start + pageSize), page, pageSize, total };
+}
+
+// =============================================================================
+// Farmer portfolio fixtures (PRD Phase 1). DEMO DATA — fixtures mode only, never
+// shipped as live content. The watchlist is an in-memory working copy so adds,
+// removes and market changes survive the post-mutation refetch inside one session;
+// a reload starts from the seed again.
+// The dashboard is DERIVED from the existing per-crop fixtures (fxPriceHistoryFor +
+// fxForecastFor) rather than hand-written, so the demo cannot drift away from the
+// numbers the Prices and My-harvest pages show for the same crop.
+// =============================================================================
+
+const FX_WATCHLIST_SEED: ReadonlyArray<{ cropId: string; marketId: string | null }> = [
+  { cropId: 'c0000003-0000-0000-0000-000000000003', marketId: DAMBULLA_ID }, // Tomato
+  { cropId: 'c0000002-0000-0000-0000-000000000002', marketId: DAMBULLA_ID }, // Beans
+];
+
+let fxWatchlistWorking: WatchlistItem[] | null = null;
+
+function fxWatchlistRow(cropId: string, marketId: string | null): WatchlistItem {
+  const crop = fxCrops.find((c) => c.id === cropId);
+  const market = marketId ? fxMarkets.find((m) => m.id === marketId) ?? null : null;
+  return {
+    cropId,
+    cropName: crop?.name ?? cropId,
+    cropCode: crop?.cropCode ?? null,
+    preferredMarketId: market?.id ?? null,
+    preferredMarketName: market?.name ?? null,
+    createdAtUtc: '2026-07-20T06:30:00Z',
+  };
+}
+
+/** Ordered by crop name, exactly as the server orders it. */
+function fxWatchlistRows(): WatchlistItem[] {
+  if (!fxWatchlistWorking) {
+    fxWatchlistWorking = FX_WATCHLIST_SEED.map((s) => fxWatchlistRow(s.cropId, s.marketId));
+  }
+  return fxWatchlistWorking;
+}
+
+function fxSortWatchlist(rows: WatchlistItem[]): WatchlistItem[] {
+  return [...rows].sort((a, b) => a.cropName.localeCompare(b.cropName));
+}
+
+export function fxWatchlist(): WatchlistItem[] {
+  return fxSortWatchlist(fxWatchlistRows()).map((r) => ({ ...r }));
+}
+
+/** Idempotent add. A null/absent marketId INHERITS the current home market, matching the
+ *  server: an add never clears a market the farmer already chose. */
+export function fxAddWatchlist(cropId: string, preferredMarketId?: string | null): WatchlistAddResult {
+  const rows = fxWatchlistRows();
+  const existing = rows.find((r) => r.cropId === cropId);
+  if (existing) return { item: { ...existing }, alreadyPresent: true };
+  const inherited = preferredMarketId ?? rows[0]?.preferredMarketId ?? null;
+  const row = fxWatchlistRow(cropId, inherited);
+  rows.push(row);
+  return { item: { ...row }, alreadyPresent: false };
+}
+
+/** One home market per farmer: the update lands on EVERY row, not just the named crop. */
+export function fxUpdateWatchlistMarket(
+  cropId: string,
+  preferredMarketId: string | null,
+): WatchlistMarketUpdateResult {
+  const rows = fxWatchlistRows();
+  if (!rows.some((r) => r.cropId === cropId)) {
+    throw new Error('watchlist_entry_not_found');
+  }
+  const market = preferredMarketId ? fxMarkets.find((m) => m.id === preferredMarketId) ?? null : null;
+  for (const r of rows) {
+    r.preferredMarketId = market?.id ?? null;
+    r.preferredMarketName = market?.name ?? null;
+  }
+  return {
+    cropId,
+    preferredMarketId: market?.id ?? null,
+    preferredMarketName: market?.name ?? null,
+    appliedToCropCount: rows.length,
+  };
+}
+
+export function fxRemoveWatchlist(cropId: string): WatchlistRemoveResult {
+  const rows = fxWatchlistRows();
+  const i = rows.findIndex((r) => r.cropId === cropId);
+  if (i < 0) throw new Error('watchlist_entry_not_found');
+  rows.splice(i, 1);
+  return { cropId, removed: true };
+}
+
+function fxDashboardItem(row: WatchlistItem, marketId: string | null): PortfolioDashboardItem {
+  const servedBy = marketId ?? DAMBULLA_ID;
+  const history = fxPriceHistoryFor(row.cropId, servedBy);
+  const last = history[history.length - 1];
+  const prev = history[history.length - 2];
+  const market = fxMarkets.find((m) => m.id === servedBy);
+  const mid = (p: PriceHistoryPoint) => Math.round((p.minPrice + p.maxPrice) / 2);
+
+  let direction: PortfolioPriceDirection | null = null;
+  let changePct: number | null = null;
+  if (last && prev) {
+    const delta = mid(last) - mid(prev);
+    direction = delta > 0 ? 'up' : delta < 0 ? 'down' : 'steady';
+    changePct = Math.round((delta / mid(prev)) * 1000) / 10;
+  }
+
+  // The prediction leg reuses the crop's own forecast fixture so the demo agrees with
+  // My harvest for the same crop; harvestDate comes from the crop's growth period.
+  const forecast = fxForecastFor(row.cropId, ymdLocal(new Date()));
+
+  return {
+    cropId: row.cropId,
+    cropName: row.cropName,
+    cropCode: row.cropCode,
+    price: last
+      ? {
+          price: mid(last),
+          observedDate: last.date,
+          marketId: servedBy,
+          marketName: market?.name ?? '',
+          isFallbackMarket: marketId !== null && marketId !== servedBy,
+          direction,
+          changePct,
+          previousPrice: prev ? mid(prev) : null,
+          previousObservedDate: prev ? prev.date : null,
+        }
+      : null,
+    priceUnavailableReason: last ? null : 'no_recent_price',
+    prediction: {
+      predictedPrice: forecast.predictedPrice,
+      lowerBound: forecast.lowerBound,
+      upperBound: forecast.upperBound,
+      confidence: forecast.confidence,
+      activePredictor: forecast.activePredictor,
+      modelVersion: forecast.modelVersion,
+      snapshotDate: ymdLocal(new Date()),
+      harvestDate: forecast.harvestDate,
+    },
+    predictionUnavailableReason: null,
+  };
+}
+
+export function fxPortfolioDashboard(): PortfolioDashboard {
+  const rows = fxSortWatchlist(fxWatchlistRows());
+  const chosenId = rows[0]?.preferredMarketId ?? null;
+  const market = fxMarkets.find((m) => m.id === (chosenId ?? DAMBULLA_ID));
+  return {
+    homeMarket: market
+      ? {
+          marketId: market.id,
+          name: market.name,
+          isEconomicCenter: market.isEconomicCenter,
+          isDefault: chosenId === null,
+        }
+      : null,
+    items: rows.map((r) => fxDashboardItem(r, chosenId)),
+  };
 }

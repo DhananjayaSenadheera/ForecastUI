@@ -35,11 +35,16 @@ import type {
   PolicyFlag,
   PolicyFlagMutationResult,
   PolicyFlagUpdateDto,
+  PortfolioDashboard,
   PriceHistoryPoint,
   SeriesCatalogEntry,
   SystemErrorPage,
   TrainingRunPage,
   UserActivityPage,
+  WatchlistAddResult,
+  WatchlistItem,
+  WatchlistMarketUpdateResult,
+  WatchlistRemoveResult,
 } from './types';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5282';
@@ -706,6 +711,67 @@ export const api = {
     if (filter.modelVersion) q.set('modelVersion', filter.modelVersion);
     if (filter.maturedOnly) q.set('maturedOnly', 'true');
     return request<ForecastSnapshotPage>(`/api/admin/forecast-accuracy/snapshots?${q.toString()}`);
+  },
+
+  // ---------------------------------------------------------------------------
+  // Farmer portfolio (PRD Phase 1). Every route is owner-scoped by the JWT alone —
+  // there is no user id in any path, body or query, which is the whole of the
+  // cross-user isolation story. Nothing here is admin-gated.
+  // ---------------------------------------------------------------------------
+
+  // GET /api/portfolio/watchlist -> the caller's watched crops, ordered by crop name.
+  // A farmer who has added nothing gets 200 [], never a 404: "empty" is a UI state.
+  async getWatchlist(): Promise<WatchlistItem[]> {
+    if (USE_FIXTURES) return fx.fxWatchlist();
+    return request<WatchlistItem[]>('/api/portfolio/watchlist');
+  },
+
+  // POST /api/portfolio/watchlist -> { item, alreadyPresent }. IDEMPOTENT: re-adding a
+  // watched crop is a 200 with alreadyPresent=true, not an error, so a double-tap on a
+  // slow connection is harmless. Omitting preferredMarketId INHERITS the farmer's current
+  // home market — passing null here would NOT clear it, and we never send it for that.
+  async addWatchlistCrop(cropId: string, preferredMarketId?: string | null): Promise<WatchlistAddResult> {
+    if (USE_FIXTURES) return fx.fxAddWatchlist(cropId, preferredMarketId ?? null);
+    const body: { cropId: string; preferredMarketId?: string } = { cropId };
+    if (preferredMarketId) body.preferredMarketId = preferredMarketId;
+    return request<WatchlistAddResult>('/api/portfolio/watchlist', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  // PUT /api/portfolio/watchlist/{cropId} -> sets the home market on EVERY crop the caller
+  // watches (one home market per farmer), and says so via appliedToCropCount. The cropId is
+  // just a row the caller must own; a crop they do not watch is a 404
+  // { error: "watchlist_entry_not_found" }.
+  // A null preferredMarketId is MEANINGFUL here: it clears the market back to national.
+  async updateWatchlistMarket(
+    cropId: string,
+    preferredMarketId: string | null,
+  ): Promise<WatchlistMarketUpdateResult> {
+    if (USE_FIXTURES) return fx.fxUpdateWatchlistMarket(cropId, preferredMarketId);
+    return request<WatchlistMarketUpdateResult>(`/api/portfolio/watchlist/${cropId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ preferredMarketId }),
+    });
+  },
+
+  // DELETE /api/portfolio/watchlist/{cropId} -> { cropId, removed: true }. 404 with code
+  // "watchlist_entry_not_found" when the caller does not watch it.
+  async removeWatchlistCrop(cropId: string): Promise<WatchlistRemoveResult> {
+    if (USE_FIXTURES) return fx.fxRemoveWatchlist(cropId);
+    return request<WatchlistRemoveResult>(`/api/portfolio/watchlist/${cropId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // GET /api/portfolio/dashboard -> home market + one item per watched crop. Both legs are
+  // fail-soft: a missing price/prediction is null WITH a reason code, and the crop still
+  // appears. The price carries NO staleness cutoff — a months-old observedDate is a fact
+  // about the market's publishing, not a reason to hide the number.
+  async getPortfolioDashboard(): Promise<PortfolioDashboard> {
+    if (USE_FIXTURES) return fx.fxPortfolioDashboard();
+    return request<PortfolioDashboard>('/api/portfolio/dashboard');
   },
 };
 
