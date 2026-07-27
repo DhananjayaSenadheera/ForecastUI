@@ -4,7 +4,11 @@ import { MemoryRouter } from 'react-router-dom';
 import i18n from '../i18n';
 import { AuthProvider } from '../auth/AuthContext';
 import { api, ApiError } from '../api/client';
-import { fxForecastAccuracySummary, fxForecastSnapshots } from '../api/fixtures';
+import {
+  fxForecastAccuracySummary,
+  fxForecastSnapshots,
+  fxForecastSnapshotsAll,
+} from '../api/fixtures';
 import type {
   ForecastAccuracyMetrics,
   ForecastAccuracySummary,
@@ -68,6 +72,16 @@ function mockBoth(
 
 async function summaryPanel(): Promise<HTMLElement> {
   return await screen.findByRole('region', { name: 'Accuracy summary' });
+}
+
+/** One named metric inside a card: `.fa-metric` keyed by its <dt> label, so two metrics
+ *  that happen to share a value (coverage 66.7% and direction 66.7%) never collide. */
+function metric(card: HTMLElement, label: string): { value: string; hint: string } {
+  const wrap = within(card).getByText(label).closest('.fa-metric') as HTMLElement;
+  return {
+    value: (wrap.querySelector('.fa-metric__value')?.textContent ?? '').trim(),
+    hint: (wrap.querySelector('.fa-metric__hint')?.textContent ?? '').trim(),
+  };
 }
 
 /** The per-predictor card for one predictor. Scoped to the CARD GRID on purpose: the
@@ -157,7 +171,10 @@ describe('Forecast accuracy tab — the model/fallback split law (PRD §3.4)', (
 
     // The headline number of each card is that predictor's OWN median error.
     expect(modelCard.querySelector('.fa-headline__value')).toHaveTextContent('4.40%');
-    expect(fallbackCard.querySelector('.fa-headline__value')).toHaveTextContent('20.21%');
+    expect(fallbackCard.querySelector('.fa-headline__value')).toHaveTextContent('14.43%');
+    // ...and each card's bias is its own, in RUPEES per kilo (not a percentage).
+    expect(metric(modelCard, 'Bias (Rs/kg)').value).toBe('-Rs. 12.58');
+    expect(metric(fallbackCard, 'Bias (Rs/kg)').value).toBe('-Rs. 48.25');
     expect(within(modelCard).queryByText('20.21%')).toBeNull();
     expect(within(fallbackCard).queryByText('4.40%')).toBeNull();
 
@@ -165,10 +182,23 @@ describe('Forecast accuracy tab — the model/fallback split law (PRD §3.4)', (
     expect(within(modelCard).getByText('Model')).toBeInTheDocument();
     expect(within(fallbackCard).getByText('Fallback')).toBeInTheDocument();
 
-    // THE LAW: no averaged/summed figure of the two anywhere on the page. mean(4.40,
-    // 20.21) = 12.31 (medianAPE), mean(9.33, 20.21) = 14.77 (MAPE), and the summed row
-    // counts 4/4 would all be honest-looking lies.
-    for (const blended of ['12.31%', '12.30%', '14.77%', '-12.55%', '-25.09%']) {
+    // THE LAW: no averaged or summed figure of the two anywhere on the page. Each string
+    // below is a plausible blend of the fixture's two groups, and every one of them is a
+    // lie about accuracy:
+    //   11.37%      - MAPE recomputed across all 5 scored rows
+    //   11.88%      - mean of the two groups' MAPEs
+    //   9.42%       - mean of the two groups' median errors
+    //   -Rs. 26.85  - bias across all 5 scored rows
+    //   -Rs. 30.42  - mean of the two groups' biases
+    //   -Rs. 60.83  - the two biases summed
+    for (const blended of [
+      '11.37%',
+      '11.88%',
+      '9.42%',
+      '-Rs. 26.85',
+      '-Rs. 30.42',
+      '-Rs. 60.83',
+    ]) {
       expect(screen.queryByText(blended)).toBeNull();
     }
     expect(within(panel).getByText('Model forecasts and fallback forecasts are counted separately and never combined. A fallback is a crop average rather than a prediction, so a single blended number would hide which of the two you are looking at.')).toBeInTheDocument();
@@ -194,35 +224,47 @@ describe('Forecast accuracy tab — the model/fallback split law (PRD §3.4)', (
     renderPage();
     const table = await screen.findByRole('table', { name: 'Accuracy by model version' });
     const rows = within(table).getAllByRole('row').slice(1); // drop the header row
-    expect(rows).toHaveLength(3); // v17/residual, v17/crop_mean_fallback, (no version)/fallback
+    expect(rows).toHaveLength(3); // v17/crop_mean_fallback, v17/residual, (no version)/fallback
 
     const v17Rows = rows.filter((r) => within(r).queryByText('v17') !== null);
     expect(v17Rows).toHaveLength(2); // the same version appears twice, once per predictor
-    expect(within(v17Rows[0]).getByText('residual')).toBeInTheDocument();
-    expect(within(v17Rows[1]).getByText('crop_mean_fallback')).toBeInTheDocument();
-    // A row that recorded no version says so rather than borrowing one.
-    expect(within(table).getByText('Not recorded')).toBeInTheDocument();
+    // Within one version the server's own order is preserved — only the VERSION order is
+    // ours to set, so the two predictors are never reshuffled into a ranking.
+    expect(within(v17Rows[0]).getByText('crop_mean_fallback')).toBeInTheDocument();
+    expect(within(v17Rows[1]).getByText('residual')).toBeInTheDocument();
+    // A row that recorded no version says so rather than borrowing one, and sorts last.
+    expect(within(rows[2]).getByText('Not recorded')).toBeInTheDocument();
+    // Each version row carries its OWN bias in Rs/kg, never the other group's.
+    expect(within(v17Rows[0]).getByText('-Rs. 78.50')).toBeInTheDocument();
+    expect(within(v17Rows[1]).getByText('-Rs. 12.58')).toBeInTheDocument();
+    expect(within(rows[2]).getByText('-Rs. 18.00')).toBeInTheDocument();
   });
 
   it('shows the direction score with its denominators wherever it appears', async () => {
     mockBoth();
     renderPage();
     const modelCard = await predictorCard('residual');
-    expect(within(modelCard).getByText('33.3%')).toBeInTheDocument();
-    expect(within(modelCard).getByText('3 scored · 0 not counted')).toBeInTheDocument();
-    // The fallback group could not score a direction at all: no rate, but the
-    // denominators still show, so "no verdict" never reads as "always wrong".
+    const model = metric(modelCard, 'Direction called right');
+    expect(model.value).toBe('66.7%');
+    expect(model.hint).toBe('3 scored · 0 not counted');
+    // The fallback group scored ONE row (the other had no reference price to judge
+    // against) and called it wrong: a real 0.0%, with the denominators next to it so it
+    // is never read as "wrong 100 times".
     const fallbackCard = await predictorCard('crop_mean_fallback');
-    expect(within(fallbackCard).getByText('0 scored · 1 not counted')).toBeInTheDocument();
+    const fallback = metric(fallbackCard, 'Direction called right');
+    expect(fallback.value).toBe('0.0%');
+    expect(fallback.hint).toBe('1 scored · 1 not counted');
   });
 
   it('reports band coverage against the nominal target with the gap in plain words', async () => {
     mockBoth();
     renderPage();
     const modelCard = await predictorCard('residual');
-    expect(within(modelCard).getByText(/Target 80%/)).toBeInTheDocument();
-    expect(within(modelCard).getByText(/13\.3 points below/)).toBeInTheDocument();
-    expect(within(modelCard).getByText(/band is too narrow/)).toBeInTheDocument();
+    const coverage = metric(modelCard, 'Actual price inside the band');
+    expect(coverage.value).toBe('66.7%');
+    expect(coverage.hint).toMatch(/Target 80%/);
+    expect(coverage.hint).toMatch(/13\.3 points below/);
+    expect(coverage.hint).toMatch(/band is too narrow/);
   });
 });
 
@@ -234,6 +276,8 @@ describe('Forecast accuracy tab — null metrics are never zero', () => {
     vi.restoreAllMocks();
   });
 
+  // Defensive: the contract declares EVERY metric nullable, so the UI must survive a
+  // group where nothing at all was computable, whatever the server's grouping rules.
   it('renders an em-dash + "No data yet" for every uncomputable metric, and no 0', async () => {
     mockBoth(
       {
@@ -320,9 +364,24 @@ describe('Forecast accuracy tab — the snapshot ledger', () => {
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(await screen.findByText('model_served')).toBeInTheDocument();
+    expect(screen.getByText('95 days')).toBeInTheDocument();
     // The band missed on this row, and the drill-down says so in words.
     expect(screen.getByText('The actual price fell outside the band')).toBeInTheDocument();
     expect(within(row).getByRole('button', { name: 'Hide details for Tomato' })).toBeInTheDocument();
+  });
+
+  it('says "1 day" rather than "1 days" for a one-day growth period', async () => {
+    mockBoth(
+      fxForecastAccuracySummary(),
+      snapshotPage([
+        { ...fxForecastSnapshotsAll[0], id: 'one-day', cropName: 'Mukunuwenna', growthPeriodDays: 1 },
+      ]),
+    );
+    renderPage();
+    const table = await screen.findByRole('table', { name: 'Recorded forecasts' });
+    const row = within(table).getByText('Mukunuwenna').closest('tr') as HTMLElement;
+    fireEvent.click(within(row).getByRole('button', { name: 'Show details for Mukunuwenna' }));
+    expect(await screen.findByText('1 day')).toBeInTheDocument();
   });
 
   it('calls the ledger server-paged and re-fetches on the next page', async () => {
@@ -346,12 +405,13 @@ describe('Forecast accuracy tab — filters', () => {
     vi.restoreAllMocks();
   });
 
-  it('sends modelVersion as a query filter and offers only versions the server reported', async () => {
+  it('sends modelVersion as a query filter, offering the versions actually in play', async () => {
     const { snapshotSpy } = mockBoth();
     renderPage();
     const select = await screen.findByRole('combobox', { name: 'Model version' });
-    // Options come from the summary's own version groups; the null-version group is
-    // dropped because it is not something the server can be asked to filter on.
+    // The vocabulary is the union of the summary's groups and the loaded ledger page.
+    // The null version is dropped from BOTH: "no version recorded" is not something the
+    // server can be asked to filter on.
     const options = within(select).getAllByRole('option').map((o) => o.textContent);
     expect(options).toEqual(['All versions', 'v17']);
 
@@ -398,6 +458,87 @@ describe('Forecast accuracy tab — filters', () => {
     expect(
       await screen.findByText(/No recorded forecast matches these filters/),
     ).toBeInTheDocument();
+  });
+});
+
+describe('Forecast accuracy tab — model-version ordering and vocabulary', () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage('en');
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const BASE_ROW = fxForecastSnapshotsAll[0];
+
+  it('orders versions numerically in BOTH the filter and the breakdown table (v17 over v9)', async () => {
+    const base = fxForecastAccuracySummary();
+    mockBoth({
+      ...base,
+      // Served in an order that plain string sorting would get wrong ("v9" > "v17").
+      byModelVersion: [
+        { modelVersion: 'v9', activePredictor: 'residual', metrics: base.byModelVersion[2].metrics },
+        { modelVersion: 'v17', activePredictor: 'residual', metrics: base.byModelVersion[2].metrics },
+      ],
+    });
+    renderPage();
+
+    const table = await screen.findByRole('table', { name: 'Accuracy by model version' });
+    const rows = within(table).getAllByRole('row').slice(1);
+    expect(within(rows[0]).getByText('v17')).toBeInTheDocument();
+    expect(within(rows[1]).getByText('v9')).toBeInTheDocument();
+
+    const select = screen.getByRole('combobox', { name: 'Model version' });
+    expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual([
+      'All versions',
+      'v17',
+      'v9',
+    ]);
+  });
+
+  it('offers a version that only exists on the ledger page (pending rows are filterable)', async () => {
+    // A freshly promoted version has no matured rows yet, so the summary knows nothing
+    // about it — but its pending snapshots are right there in the ledger.
+    mockBoth(
+      fxForecastAccuracySummary(),
+      snapshotPage([{ ...BASE_ROW, id: 'v18-row', modelVersion: 'v18' }]),
+    );
+    renderPage();
+    const select = await screen.findByRole('combobox', { name: 'Model version' });
+    expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual([
+      'All versions',
+      'v18',
+      'v17',
+    ]);
+  });
+
+  it('keeps the SELECTED version in the list when the loaded page holds none of its rows', async () => {
+    const snapshotSpy = vi
+      .spyOn(api, 'getForecastSnapshots')
+      .mockResolvedValueOnce(snapshotPage([{ ...BASE_ROW, id: 'a', modelVersion: 'v18' }], 45))
+      .mockResolvedValue(snapshotPage([{ ...BASE_ROW, id: 'b', modelVersion: 'v17' }], 45));
+    vi.spyOn(api, 'getForecastAccuracySummary').mockResolvedValue(fxForecastAccuracySummary());
+    renderPage();
+
+    const select = await screen.findByRole('combobox', { name: 'Model version' });
+    fireEvent.change(select, { target: { value: 'v18' } });
+    await waitFor(() => expect(snapshotSpy).toHaveBeenCalledWith(1, 25, { modelVersion: 'v18' }));
+
+    // The refetch came back with no v18 rows; the filter must not drop the option the
+    // user is currently filtering by, or the select would silently reset itself.
+    expect(within(select).getAllByRole('option').map((o) => o.textContent)).toContain('v18');
+    expect((select as HTMLSelectElement).value).toBe('v18');
+  });
+
+  it('renders a row whose crop has no code without leaving an empty code line', async () => {
+    mockBoth(
+      fxForecastAccuracySummary(),
+      snapshotPage([{ ...BASE_ROW, id: 'nocode', cropName: 'Ash Plantain', cropCode: null }]),
+    );
+    renderPage();
+    const table = await screen.findByRole('table', { name: 'Recorded forecasts' });
+    const row = within(table).getByText('Ash Plantain').closest('tr') as HTMLElement;
+    expect(row.querySelector('.fa-crop__code')).toBeNull();
   });
 });
 

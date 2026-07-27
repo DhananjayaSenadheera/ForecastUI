@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  compareModelVersionsDesc,
   derivePolicyStatus,
   formatCount,
   formatMae,
@@ -9,6 +10,7 @@ import {
   formatRange,
   formatRatePercent,
   formatSignedPercentNumber,
+  formatSignedPrice,
   mapMaturityState,
   mapGateOutcome,
   mapMarketType,
@@ -204,9 +206,22 @@ describe('forecast-accuracy formatters', () => {
     expect(formatRatePercent(0.8, 'en', 0)).toBe('80%'); // the nominal band target
   });
 
-  it('shows the sign on bias / row error, because the direction is the point', () => {
+  it('shows the sign on a row percentage error, because the direction is the point', () => {
     expect(formatSignedPercentNumber(3.21, 'en')).toBe('+3.21%');
     expect(formatSignedPercentNumber(-20.21, 'en')).toBe('-20.21%');
+  });
+
+  // signedBias is MONEY (mean of predicted − actual in Rs/kg). Formatting it as a
+  // percentage would turn a Rs 12.58/kg bias into "-12.58%" — a different, wrong claim.
+  it('formats signedBias as signed rupees, never as a percentage', () => {
+    expect(formatSignedPrice(-12.58, 'en', 'Rs.')).toBe('-Rs. 12.58');
+    expect(formatSignedPrice(23.25, 'en', 'Rs.')).toBe('+Rs. 23.25');
+    // an exact zero bias carries no direction, so it carries no sign
+    expect(formatSignedPrice(0, 'en', 'Rs.')).toBe('Rs. 0.00');
+    // decimals survive: rounding an error figure away is how Rs 0.49/kg becomes "Rs 0"
+    expect(formatSignedPrice(-0.49, 'en', 'Rs.')).toBe('-Rs. 0.49');
+    expect(formatSignedPrice(null, 'en', 'Rs.')).toBeNull();
+    expect(formatSignedPrice(-78.5, 'en', 'රු.')).toBe('-රු. 78.50');
   });
 
   it('renders a coverage gap as unsigned percentage points (the word carries direction)', () => {
@@ -224,6 +239,17 @@ describe('forecast-accuracy formatters', () => {
     // ...and a real zero is still a real number, not a no-data marker.
     expect(formatCount(0, 'en')).toBe('0');
     expect(formatPercentNumber(0, 'en')).toBe('0.00%');
+  });
+
+  it('orders model versions numerically, newest first, with no-version last', () => {
+    // The whole point: lexically "v9" > "v17", which would rank a year-old model top.
+    expect(['v17', 'v9', 'v2'].sort(compareModelVersionsDesc)).toEqual(['v17', 'v9', 'v2']);
+    expect(['v2', 'v9', 'v17'].sort(compareModelVersionsDesc)).toEqual(['v17', 'v9', 'v2']);
+    expect(compareModelVersionsDesc('v17', 'v9')).toBeLessThan(0);
+    // A row with no recorded version is the oldest thing there is — it sorts last.
+    expect(compareModelVersionsDesc(null, 'v1')).toBeGreaterThan(0);
+    expect(compareModelVersionsDesc('v1', null)).toBeLessThan(0);
+    expect(compareModelVersionsDesc(null, null)).toBe(0);
   });
 
   it('splits predictors into model vs fallback by name, defaulting unknown ones to model', () => {

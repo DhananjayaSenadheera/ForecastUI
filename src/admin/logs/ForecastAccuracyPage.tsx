@@ -26,6 +26,7 @@ import type {
   ForecastSnapshotPage,
 } from '../../api/types';
 import {
+  compareModelVersionsDesc,
   formatCount,
   formatDate,
   formatDateTime,
@@ -35,6 +36,7 @@ import {
   formatRange,
   formatRatePercent,
   formatSignedPercentNumber,
+  formatSignedPrice,
   mapConfidenceString,
   mapMaturityState,
   predictorKind,
@@ -125,16 +127,23 @@ export default function ForecastAccuracyPage() {
     void loadSnapshots();
   }, [loadSnapshots]);
 
-  // Filter options come from the summary's own version groups, so the dropdown can only
-  // offer versions the server actually has. Nulls are dropped: "no version recorded" is
-  // not something you can ask the server to filter on.
+  // Filter vocabulary = the versions the SUMMARY scored ∪ the versions on the loaded
+  // ledger page ∪ whatever is selected right now. The summary alone is not enough: its
+  // groups only cover matured rows, so a freshly promoted version whose snapshots are
+  // all still pending would be unfilterable for months. Keeping the current selection in
+  // the set stops the chosen option vanishing when a page happens to hold no rows of
+  // that version. Nulls are dropped — "no version recorded" is not a filterable value.
   const versionOptions = useMemo(() => {
     const seen = new Set<string>();
     for (const group of summary?.byModelVersion ?? []) {
       if (group.modelVersion) seen.add(group.modelVersion);
     }
-    return [...seen];
-  }, [summary]);
+    for (const snapshot of snapshots?.items ?? []) {
+      if (snapshot.modelVersion) seen.add(snapshot.modelVersion);
+    }
+    if (modelVersion) seen.add(modelVersion);
+    return [...seen].sort(compareModelVersionsDesc);
+  }, [summary, snapshots, modelVersion]);
 
   const items = snapshots?.items ?? [];
   const filtered = modelVersion !== '' || maturedOnly;
@@ -375,16 +384,20 @@ function SummaryBody({
               <tbody>
                 {/* One row per (version, predictor) group EXACTLY as served — two rows
                     sharing a version are never merged, because merging them is the same
-                    mistake as averaging a model with a fallback. */}
-                {summary.byModelVersion.map((group) => (
-                  <VersionRow
-                    key={`${group.modelVersion ?? 'none'}-${group.activePredictor}`}
-                    modelVersion={group.modelVersion}
-                    activePredictor={group.activePredictor}
-                    metrics={group.metrics}
-                    lang={lang}
-                  />
-                ))}
+                    mistake as averaging a model with a fallback. Only the ORDER is ours
+                    to choose (the server leaves it to the UI): newest version first,
+                    compared numerically so v9 cannot outrank v17. */}
+                {[...summary.byModelVersion]
+                  .sort((a, b) => compareModelVersionsDesc(a.modelVersion, b.modelVersion))
+                  .map((group) => (
+                    <VersionRow
+                      key={`${group.modelVersion ?? 'none'}-${group.activePredictor}`}
+                      modelVersion={group.modelVersion}
+                      activePredictor={group.activePredictor}
+                      metrics={group.metrics}
+                      lang={lang}
+                    />
+                  ))}
               </tbody>
             </table>
           </div>
@@ -427,7 +440,7 @@ function PredictorCard({
     <section className="fa-card" aria-labelledby={headId}>
       <h4 className="fa-card__head" id={headId}>
         <span className="fa-card__predictor">{activePredictor}</span>{' '}
-        <span className={`adm-status adm-status--${kind === 'model' ? 'live' : 'neutral'}`}>
+        <span className={`adm-status adm-status--${kind === 'model' ? 'good' : 'neutral'}`}>
           {t(
             kind === 'model'
               ? 'admin.forecastAccuracy.kind.model'
@@ -462,7 +475,8 @@ function PredictorCard({
         />
         <Metric
           label={t('admin.forecastAccuracy.signedBias')}
-          value={formatSignedPercentNumber(metrics.signedBias, lang)}
+          // Money, not a percentage: the mean of (predicted − actual) in Rs/kg.
+          value={formatSignedPrice(metrics.signedBias, lang, t('common.rs'))}
           hint={t('admin.forecastAccuracy.signedBiasHint')}
         />
         <Metric
@@ -549,7 +563,7 @@ function VersionRow({
       </td>
       <td data-label={t('admin.forecastAccuracy.colPredictor')}>
         <span className="fa-predictor">{activePredictor}</span>{' '}
-        <span className={`adm-status adm-status--${kind === 'model' ? 'live' : 'neutral'}`}>
+        <span className={`adm-status adm-status--${kind === 'model' ? 'good' : 'neutral'}`}>
           {t(
             kind === 'model'
               ? 'admin.forecastAccuracy.kind.model'
@@ -570,7 +584,8 @@ function VersionRow({
         <Value text={formatPercentNumber(metrics.mape, lang)} />
       </td>
       <td data-label={t('admin.forecastAccuracy.colBias')}>
-        <Value text={formatSignedPercentNumber(metrics.signedBias, lang)} />
+        {/* Rs/kg, never a percentage — see ForecastAccuracyMetrics. */}
+        <Value text={formatSignedPrice(metrics.signedBias, lang, t('common.rs'))} />
       </td>
       <td data-label={t('admin.forecastAccuracy.colCoverage')}>
         <span className="fa-stack">
@@ -643,7 +658,10 @@ function SnapshotRow({ snapshot, lang }: { snapshot: ForecastSnapshot; lang: str
         <td data-label={t('admin.forecastAccuracy.colCrop')}>
           <span className="fa-crop">
             <span className="fa-crop__name">{snapshot.cropName}</span>
-            <span className="fa-crop__code adm-muted">{snapshot.cropCode}</span>
+            {/* cropCode is nullable on the wire — no empty muted line when it is absent. */}
+            {snapshot.cropCode && (
+              <span className="fa-crop__code adm-muted">{snapshot.cropCode}</span>
+            )}
           </span>
         </td>
         <td data-label={t('admin.forecastAccuracy.colHarvestDate')}>
@@ -751,9 +769,10 @@ function SnapshotRow({ snapshot, lang }: { snapshot: ForecastSnapshot; lang: str
                   <Metric
                     label={t('admin.forecastAccuracy.signedError')}
                     value={
+                      // Same quantity class as the bias: signed money in Rs/kg.
                       snapshot.signedError === null
                         ? null
-                        : formatPrice(snapshot.signedError, lang, rs, 2)
+                        : formatSignedPrice(snapshot.signedError, lang, rs)
                     }
                   />
                   <Metric

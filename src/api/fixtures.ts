@@ -1714,7 +1714,11 @@ export const fxForecastSnapshotsAll: ForecastSnapshot[] = [
     predictedPrice: 310.0,
     lowerBound: 210.0,
     upperBound: 430.0,
-    referencePrice: 322.0,
+    // No price was known for this crop on the snapshot day, so there is no baseline to
+    // judge the DIRECTION against: this row is scored for error but excluded from
+    // directional accuracy. That exclusion is the only way a row drops out (there is no
+    // "too small a move" rule).
+    referencePrice: null,
     confidence: 'Low',
     activePredictor: 'crop_mean_fallback',
     fallbackTier: 'crop_mean',
@@ -1813,6 +1817,37 @@ export const fxForecastSnapshotsAll: ForecastSnapshot[] = [
     maturedAtUtc: '2026-07-15T21:07:04Z',
   },
   {
+    // An older snapshot, taken before the serving version was stamped on the row: it
+    // matured normally, and its accuracy is reported under "no version recorded".
+    id: 'f5000008-0000-0000-0000-000000000008',
+    cropId: 'c0000011-0000-0000-0000-000000000011',
+    cropName: 'Beetroot',
+    cropCode: 'VEG000031',
+    snapshotDate: '2026-03-02',
+    harvestDate: '2026-05-31',
+    growthPeriodDays: 90,
+    predictedPrice: 190.0,
+    lowerBound: 130.0,
+    upperBound: 265.0,
+    referencePrice: 196.0,
+    confidence: 'Low',
+    activePredictor: 'crop_mean_fallback',
+    fallbackTier: 'crop_mean',
+    modelVersion: null,
+    reasonCode: 'insufficient_history',
+    maturityState: 'matured',
+    // Forecast said down from Rs 196, the market went up: scored, and the direction was
+    // called wrong.
+    actualPrice: 208.0,
+    actualObservedDate: '2026-05-29',
+    signedError: -18.0,
+    absoluteError: 18.0,
+    percentageError: -8.65,
+    withinInterval: true,
+    createdAtUtc: '2026-03-02T21:05:00Z',
+    maturedAtUtc: '2026-06-01T21:07:00Z',
+  },
+  {
     id: 'f5000007-0000-0000-0000-000000000007',
     cropId: 'c0000013-0000-0000-0000-000000000013',
     cropName: 'Papaya',
@@ -1842,41 +1877,85 @@ export const fxForecastSnapshotsAll: ForecastSnapshot[] = [
   },
 ];
 
-// Metrics consistent with the rows above, kept SPLIT by predictor exactly as the API
-// serves them: the residual (model) rows score far better than the single fallback row,
-// and averaging the two would erase precisely that fact.
+// Metrics computed from the rows above and kept SPLIT by predictor exactly as the API
+// serves them: the residual (model) rows score far better than the fallback ones, and
+// averaging the two would erase precisely that fact.
+// Units follow the wire: mape/medianApe are percent numbers, signedBias is Rs/kg (the
+// mean of the SIGNED RUPEE errors, not of the percentages), coverage/direction are
+// fractions.
+
+// Cabbage +4.00, Tomato -65.00, Capsicum +23.25 (Rs/kg); APEs 2.27 / 21.31 / 4.40 %.
 const FX_RESIDUAL_METRICS = {
   maturedCount: 3,
   scoredCount: 3,
-  mape: 9.33, // mean(|+4.40|, |-21.31|, |+2.27|)
-  medianApe: 4.4,
-  signedBias: -4.88,
+  mape: 9.33, // mean(2.27, 21.31, 4.40)
+  medianApe: 4.4, // middle of the three
+  signedBias: -12.58, // mean(+4.00, -65.00, +23.25) Rs/kg
   intervalScoredCount: 3,
   withinIntervalCount: 2, // the Tomato row landed outside the band
   intervalCoverage: 0.6667,
   nominalIntervalCoverage: 0.8,
   intervalCoverageGap: -0.1333,
-  directionalAccuracy: 0.3333, // 1 of the 3 scored rows moved the way the forecast said
+  // Cabbage and Tomato moved the way the forecast said; Capsicum did not.
+  directionalAccuracy: 0.6667,
   directionalScored: 3,
   directionalExcluded: 0,
 };
 
+// The two matured fallback rows: Beans -78.50 (APE 20.21%) and Beetroot -18.00 (8.65%).
 const FX_FALLBACK_METRICS = {
+  maturedCount: 2,
+  scoredCount: 2,
+  mape: 14.43, // mean(20.21, 8.65)
+  medianApe: 14.43, // with two rows the median IS the mean
+  signedBias: -48.25, // mean(-78.50, -18.00) Rs/kg
+  intervalScoredCount: 2,
+  withinIntervalCount: 2,
+  intervalCoverage: 1.0,
+  nominalIntervalCoverage: 0.8,
+  intervalCoverageGap: 0.2,
+  // Beans had no reference price, so it cannot be judged for direction at all; Beetroot
+  // could be, and got it wrong. A real 0 — not a null, and not "no verdict".
+  directionalAccuracy: 0.0,
+  directionalScored: 1,
+  directionalExcluded: 1,
+};
+
+// Per-version groups are built from MATURED rows only, so each of these has real rows
+// behind it — the two fallback rows split across the version that stamped them and the
+// older one that did not.
+const FX_V17_FALLBACK_METRICS = {
   maturedCount: 1,
   scoredCount: 1,
   mape: 20.21,
   medianApe: 20.21,
-  signedBias: -20.21,
+  signedBias: -78.5,
   intervalScoredCount: 1,
   withinIntervalCount: 1,
   intervalCoverage: 1.0,
   nominalIntervalCoverage: 0.8,
   intervalCoverageGap: 0.2,
-  // Not computable: the one matured fallback row moved less than the direction test's
-  // threshold, so it was excluded. Null, never 0 — "no verdict" is not "always wrong".
+  // The Beans row has no reference price, so direction is not computable for this group.
+  // Null, never 0 — "no verdict" is not "always wrong".
   directionalAccuracy: null,
   directionalScored: 0,
   directionalExcluded: 1,
+};
+
+const FX_NO_VERSION_FALLBACK_METRICS = {
+  maturedCount: 1,
+  scoredCount: 1,
+  mape: 8.65,
+  medianApe: 8.65,
+  signedBias: -18.0,
+  intervalScoredCount: 1,
+  withinIntervalCount: 1,
+  intervalCoverage: 1.0,
+  nominalIntervalCoverage: 0.8,
+  intervalCoverageGap: 0.2,
+  directionalAccuracy: 0.0, // the one scored row called the direction wrong
+  directionalScored: 1,
+  directionalExcluded: 0,
 };
 
 export function fxForecastAccuracySummary(): ForecastAccuracySummary {
@@ -1884,39 +1963,26 @@ export function fxForecastAccuracySummary(): ForecastAccuracySummary {
     generatedAtUtc: '2026-07-27T17:08:20Z',
     windowDays: 365,
     latestSnapshotDate: '2026-07-26',
-    // Counts are an all-time census of the ledger (7 rows), not a window.
-    counts: { total: 7, pending: 1, matured: 4, actualUnavailable: 1, notMaturable: 1 },
+    // Counts are an all-time census of the ledger (8 rows), not a window.
+    counts: { total: 8, pending: 1, matured: 5, actualUnavailable: 1, notMaturable: 1 },
     byActivePredictor: [
       { activePredictor: 'residual', metrics: { ...FX_RESIDUAL_METRICS } },
       { activePredictor: 'crop_mean_fallback', metrics: { ...FX_FALLBACK_METRICS } },
     ],
+    // Deliberately NOT in version order — ordering these is the UI's job.
     byModelVersion: [
-      { modelVersion: 'v17', activePredictor: 'residual', metrics: { ...FX_RESIDUAL_METRICS } },
       {
         modelVersion: 'v17',
         activePredictor: 'crop_mean_fallback',
-        metrics: { ...FX_FALLBACK_METRICS },
+        metrics: { ...FX_V17_FALLBACK_METRICS },
       },
       {
-        // The not_maturable Banana row: recorded under no version and never scorable.
+        // The Beetroot row: matured and scored, but taken before versions were stamped.
         modelVersion: null,
         activePredictor: 'crop_mean_fallback',
-        metrics: {
-          maturedCount: 0,
-          scoredCount: 0,
-          mape: null,
-          medianApe: null,
-          signedBias: null,
-          intervalScoredCount: 0,
-          withinIntervalCount: 0,
-          intervalCoverage: null,
-          nominalIntervalCoverage: 0.8,
-          intervalCoverageGap: null,
-          directionalAccuracy: null,
-          directionalScored: 0,
-          directionalExcluded: 0,
-        },
+        metrics: { ...FX_NO_VERSION_FALLBACK_METRICS },
       },
+      { modelVersion: 'v17', activePredictor: 'residual', metrics: { ...FX_RESIDUAL_METRICS } },
     ],
   };
 }

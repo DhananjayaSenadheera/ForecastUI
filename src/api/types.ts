@@ -899,8 +899,10 @@ export interface VerificationCheck {
  *  modelVersion). EVERY field is nullable: null means "not computable yet" and MUST be
  *  rendered as a no-data marker, never as 0.
  *
- *  Two different units live in here and must never be mixed:
- *  - `mape` / `medianApe` / `signedBias` are PERCENT NUMBERS at 2dp (12.34 = 12.34%).
+ *  THREE different units live in here and must never be mixed:
+ *  - `mape` / `medianApe` are PERCENT NUMBERS at 2dp (12.34 = 12.34%).
+ *  - `signedBias` is RUPEES PER KILO at 2dp — the mean of (predicted − actual) in money,
+ *    NOT a percentage (−12.58 means the forecasts ran Rs 12.58/kg low on average).
  *  - `intervalCoverage` / `nominalIntervalCoverage` / `intervalCoverageGap` /
  *    `directionalAccuracy` are FRACTIONS at 4dp (0.7500 = 75%).
  *  `nominalIntervalCoverage` is the band's nominal 0.80; the gap is coverage − nominal
@@ -930,7 +932,10 @@ export interface ForecastAccuracyPredictorGroup {
 }
 
 /** Accuracy for one (modelVersion, activePredictor) pair, exactly as grouped by the
- *  server. `modelVersion` is null for rows that recorded no version. */
+ *  server. `modelVersion` is null for rows that recorded no version. Groups are built
+ *  from MATURED rows, so a version whose snapshots are all still pending has no group
+ *  here yet — which is why the version filter widens its vocabulary with the versions on
+ *  the loaded ledger page. ORDER IS THE UI'S JOB: the server does not sort these. */
 export interface ForecastAccuracyVersionGroup {
   modelVersion: string | null;
   activePredictor: string;
@@ -983,13 +988,13 @@ export type ForecastMaturityStateWire = ForecastMaturityState | (string & {});
 /** One nightly forecast snapshot — GET /api/admin/forecast-accuracy/snapshots, newest
  *  first. The prediction columns are FROZEN at snapshot time; maturing only adds the
  *  actual/error columns, so a row is a permanent record of what was actually served.
- *  `percentageError` is a SIGNED PERCENT NUMBER (4.21 = 4.21%), matching the summary's
- *  percent-number convention. */
+ *  `signedError` / `absoluteError` are RUPEES PER KILO; `percentageError` is a SIGNED
+ *  PERCENT NUMBER (4.21 = 4.21%). */
 export interface ForecastSnapshot {
   id: string;
   cropId: string;
   cropName: string;
-  cropCode: string;
+  cropCode: string | null;
   snapshotDate: string; // yyyy-MM-dd — the as-of day, also the assumed planting day
   harvestDate: string | null; // null when the growth period was unresolvable
   growthPeriodDays: number | null;
@@ -1005,9 +1010,9 @@ export interface ForecastSnapshot {
   maturityState: ForecastMaturityStateWire;
   actualPrice: number | null;
   actualObservedDate: string | null; // the trading day actually used for the actual
-  signedError: number | null; // predicted − actual
-  absoluteError: number | null;
-  percentageError: number | null; // signed percent number
+  signedError: number | null; // predicted − actual, in Rs/kg
+  absoluteError: number | null; // Rs/kg
+  percentageError: number | null; // signed percent number (4.21 = 4.21%)
   withinInterval: boolean | null; // p10 <= actual <= p90
   createdAtUtc: string; // ISO Z
   maturedAtUtc: string | null; // ISO Z

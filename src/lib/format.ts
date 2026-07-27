@@ -367,10 +367,12 @@ export function splitExceptionType(type: string): { namespace: string; name: str
   return { namespace: type.slice(0, i + 1), name: type.slice(i + 1) };
 }
 
-// Forecast-accuracy formatters (admin accuracy tab). The wire carries TWO units and
-// mixing them would misreport accuracy by two orders of magnitude, so each gets its own
-// function: PERCENT NUMBERS (mape/medianApe/signedBias/percentageError: 12.34 = 12.34%)
-// and FRACTION RATES (intervalCoverage/directionalAccuracy: 0.7500 = 75%).
+// Forecast-accuracy formatters (admin accuracy tab). The wire carries THREE units on one
+// response and printing one as another misreports accuracy outright, so each gets its own
+// function:
+//   PERCENT NUMBERS  mape / medianApe / percentageError  (12.34 = 12.34%)
+//   RUPEES PER KILO  signedBias                          (-12.58 = Rs 12.58/kg too high)
+//   FRACTION RATES   intervalCoverage / directionalAccuracy (0.7500 = 75%)
 // Every one returns null for a null/absent metric — the caller renders a no-data marker.
 // A metric that is not computable yet is NEVER printed as 0.
 
@@ -389,8 +391,9 @@ export function formatPercentNumber(
 }
 
 /** Signed percent NUMBER -> locale percent string with an explicit sign ("+3.21%").
- *  Used for signedBias and a row's percentageError, where the DIRECTION is the point:
- *  positive means the forecast came in above the actual price. */
+ *  Used for a row's percentageError, where the DIRECTION is the point: positive means
+ *  the forecast came in above the actual price. NOT for signedBias, which is money —
+ *  see formatSignedPrice. */
 export function formatSignedPercentNumber(
   value: number | null | undefined,
   lang: string,
@@ -403,6 +406,26 @@ export function formatSignedPercentNumber(
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   }).format(value / 100);
+}
+
+/** A signed MONEY amount with the sign in front of the currency ("-Rs. 12.58"), for
+ *  signedBias — the mean of (predicted − actual) in RUPEES PER KILO, not a percentage.
+ *  The sign carries the whole meaning (above zero = forecasts ran high), so it is always
+ *  shown except on an exact zero. Decimals are kept: this is an error figure, and
+ *  rounding an error away is how a Rs 0.49/kg bias becomes "Rs 0". */
+export function formatSignedPrice(
+  value: number | null | undefined,
+  lang: string,
+  rsLabel = 'Rs.',
+  digits = 2,
+): string | null {
+  if (value == null || Number.isNaN(value)) return null;
+  const sign = value > 0 ? '+' : value < 0 ? '-' : '';
+  const n = new Intl.NumberFormat(resolveLocale(lang), {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(Math.abs(value));
+  return `${sign}${rsLabel} ${n}`;
 }
 
 /** FRACTION rate -> locale percent string (0.75 -> "75.0%"). */
@@ -438,6 +461,20 @@ export function formatPointsAbs(
 export function formatCount(value: number | null | undefined, lang: string): string | null {
   if (value == null || Number.isNaN(value)) return null;
   return new Intl.NumberFormat(resolveLocale(lang), { maximumFractionDigits: 0 }).format(value);
+}
+
+// Model versions are strings ("v17"), and the backend deliberately leaves their ORDER to
+// the UI. Plain string order is wrong for them: "v9" > "v17" lexically, which would put
+// a year-old model above the current one in both the filter and the breakdown table.
+const versionCollator = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
+
+/** Newest model version first, comparing embedded numbers numerically (v17 before v9).
+ *  A row with no recorded version sorts last — it is the oldest thing there is. */
+export function compareModelVersionsDesc(a: string | null, b: string | null): number {
+  if (a === b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  return versionCollator.compare(b, a);
 }
 
 /** Is this predictor a MODEL prediction or a FALLBACK? The two are never blended
