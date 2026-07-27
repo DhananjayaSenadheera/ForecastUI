@@ -1090,7 +1090,9 @@ export interface PortfolioPrice {
   marketName: string;
   isFallbackMarket: boolean; // true = home market had nothing, economic centre served it
   direction: PortfolioPriceDirection | null;
-  changePct: number | null; // signed percent number, 1dp; null exactly when direction is
+  // Signed percent number, 1 decimal place. Null exactly when `direction` is null — the
+  // two, plus previousPrice/previousObservedDate, are all null together or all present.
+  changePct: number | null;
   previousPrice: number | null;
   previousObservedDate: string | null;
 }

@@ -25,6 +25,9 @@ export default function PortfolioCropPage() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const { cropId = '' } = useParams();
+  // Recomputed per render (same convention as PortfolioPage): one cheap string, and never
+  // pinned to mount time on a phone left open across midnight. ymdLocal, never
+  // toISOString().slice() — at UTC+5:30 the ISO form is yesterday until 05:30 local.
   const todayYmd = ymdLocal(new Date());
 
   const [dashboard, setDashboard] = useState<PortfolioDashboard | null>(null);
@@ -56,7 +59,16 @@ export default function PortfolioCropPage() {
   const [history, setHistory] = useState<PriceHistoryPoint[] | null>(null);
   const [swing, setSwing] = useState<PriceSwing | null>(null);
   useEffect(() => {
-    if (!item || !chartMarketId) return;
+    if (!item) return;
+    // No market to chart (no price served AND no home market — both reachable). There is
+    // nothing to wait for, so resolve to an EMPTY history: leaving `history` null would
+    // park the region on a skeleton with aria-busy="true" and an sr-only "Loading…"
+    // forever, announcing work that will never happen. An empty history renders the
+    // chart's honest "no recent price data" state instead.
+    if (!chartMarketId) {
+      setHistory([]);
+      return;
+    }
     let cancelled = false;
     api
       .getPriceHistory(item.cropId, chartMarketId)

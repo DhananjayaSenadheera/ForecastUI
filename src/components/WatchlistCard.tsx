@@ -14,6 +14,12 @@
 //    de-rated (never hidden), and under a non-economic-centre home market it carries the
 //    "National forecast" label, because the model has only ever served one national price.
 //  - Nothing here is red. Red is reserved app-wide for the "Not recommended" verdict.
+//
+// Both blocks branch on the PRESENCE of the leg, not on `priceUnavailableReason` /
+// `predictionUnavailableReason`. That is deliberate while each field has exactly one code
+// ("no_recent_price" / "no_snapshot"): switching on a one-member set buys nothing and
+// would silently drop an unknown future code into a blank space. When a second code
+// appears, branch here — the reason is already carried through in the types.
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { PortfolioDashboardItem, PortfolioHomeMarket } from '../api/types';

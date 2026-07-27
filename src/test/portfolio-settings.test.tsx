@@ -104,14 +104,20 @@ describe('PortfolioSettingsPage — crop selection writes only the difference', 
     expect(screen.getByText('1 crop chosen.')).toBeInTheDocument();
   });
 
-  it('POSTs only the added crop and DELETEs only the removed one', async () => {
+  it('POSTs only the added crop and DELETEs only the removed one, ADDS FIRST', async () => {
+    // The order is load-bearing, not cosmetic: the home market lives on the watchlist rows,
+    // so emptying the list forgets it. On this full swap, removing first would wipe the
+    // market before the new crop could inherit it. Assert the real call sequence.
+    const calls: string[] = [];
     const listSpy = mockBase([watched('c1', 'Tomato', 'm1')]);
-    const add = vi
-      .spyOn(api, 'addWatchlistCrop')
-      .mockResolvedValue({ item: watched('c2', 'Beans', 'm1'), alreadyPresent: false });
-    const remove = vi
-      .spyOn(api, 'removeWatchlistCrop')
-      .mockResolvedValue({ cropId: 'c1', removed: true });
+    const add = vi.spyOn(api, 'addWatchlistCrop').mockImplementation(async (id) => {
+      calls.push(`add:${id}`);
+      return { item: watched('c2', 'Beans', 'm1'), alreadyPresent: false };
+    });
+    const remove = vi.spyOn(api, 'removeWatchlistCrop').mockImplementation(async (id) => {
+      calls.push(`remove:${id}`);
+      return { cropId: id, removed: true };
+    });
     renderPage();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Beans' }));
@@ -126,6 +132,8 @@ describe('PortfolioSettingsPage — crop selection writes only the difference', 
     expect(add).toHaveBeenCalledWith('c2');
     expect(remove).toHaveBeenCalledTimes(1);
     expect(remove).toHaveBeenCalledWith('c1');
+    // Every add lands before any remove, so a row always survives to carry the market.
+    expect(calls).toEqual(['add:c2', 'remove:c1']);
     // The list is re-read, so the screen shows what really landed.
     expect(listSpy).toHaveBeenCalledTimes(2);
     await waitFor(() =>

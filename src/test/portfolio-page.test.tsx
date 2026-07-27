@@ -256,6 +256,26 @@ describe('PortfolioPage — honest labelling', () => {
     expect(screen.getByText(/\(Confidence: Low\)/)).toBeInTheDocument();
   });
 
+  it('de-rates a predictor name this build does not know, rather than trusting it', async () => {
+    mockDashboard({
+      homeMarket: DAMBULLA,
+      items: [
+        tomato({
+          prediction: {
+            ...tomato().prediction!,
+            // Carries no "fallback" substring: a denylist would render this at full model
+            // trust. The farmer must see the caution, not inherit confidence by accident.
+            activePredictor: 'category_mean',
+          },
+        }),
+      ],
+    });
+    renderPage();
+
+    await screen.findByText(/Rough estimate only/);
+    expect(screen.getByText('About Rs. 240 at harvest')).toBeInTheDocument();
+  });
+
   it('says how old a stale price is, and still shows the price', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 6, 27)); // 27 Jul 2026, local

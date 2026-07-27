@@ -18,7 +18,6 @@ import type {
   PortfolioPriceDirection,
   WatchlistItem,
 } from '../api/types';
-import { predictorKind } from './format';
 
 /** Trend glyph — paired ALWAYS with a word by the component (colour is never the sole
  *  signal, and none of these three is red). */
@@ -53,13 +52,27 @@ export function showsNationalLabel(homeMarket: PortfolioHomeMarket | null): bool
   return homeMarket !== null && !homeMarket.isEconomicCenter;
 }
 
+/** The predictors a farmer may see at FULL model trust. An ALLOWLIST on purpose, mirroring
+ *  the serving side's `_SERVABLE_ML_KINDS` (serving/predict.py): anything else — including a
+ *  rung this build has never heard of — is de-rated. */
+const FULL_TRUST_PREDICTORS = ['model', 'residual'];
+
 /**
- * Is this prediction a FALLBACK rather than a model prediction? Fallback-served crops are
- * shown visibly de-rated (PRD §5.2) — the number stays, the claim shrinks. Delegates to
- * the app-wide `predictorKind` so "fallback" is decided in exactly one place.
+ * Should this prediction be shown DE-RATED (PRD §5.2)? The number stays, the claim shrinks.
+ *
+ * ALLOWLIST, NOT a substring test on "fallback". The failure modes are not symmetric: a
+ * model prediction shown cautiously costs a little confidence, whereas a fallback shown at
+ * full trust is exactly the dishonesty the PRD forbids. New predictor names get minted
+ * without a UI change ("unavailable" already exists on the harvest-window route, and a
+ * future "category_mean" rung would carry no "fallback" substring), so an unknown name must
+ * fall on the cautious side rather than silently inherit model trust.
+ *
+ * Deliberately NOT `predictorKind` from lib/format: that denylist stays as it is for the
+ * admin surfaces, where loose grouping of a long tail of predictor names is what is wanted.
  */
 export function isDeratedPrediction(p: PortfolioPrediction | null): boolean {
-  return p !== null && predictorKind(p.activePredictor) === 'fallback';
+  if (p === null) return false;
+  return !FULL_TRUST_PREDICTORS.includes((p.activePredictor ?? '').toLowerCase());
 }
 
 /** Which of the two distinct empty states (PRD §5.2) the dashboard is in.

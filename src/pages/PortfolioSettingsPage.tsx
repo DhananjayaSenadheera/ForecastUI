@@ -89,6 +89,12 @@ export default function PortfolioSettingsPage() {
     try {
       // Sequential, not parallel: a rural connection copes better with one request at a
       // time, and a mid-way failure leaves a state the farmer can simply save again.
+      //
+      // ADDS BEFORE REMOVES IS LOAD-BEARING, not tidiness. The home market lives on the
+      // watchlist ROWS, so an empty watchlist forgets it. On a full swap (remove every
+      // current crop, add different ones) doing removes first would empty the list and
+      // silently reset the farmer's market to the national default; adding first means a
+      // row always survives, and each add inherits the market from it. Do not reorder.
       for (const id of diff.added) await api.addWatchlistCrop(id);
       for (const id of diff.removed) await api.removeWatchlistCrop(id);
       const fresh = await api.getWatchlist();

@@ -117,6 +117,23 @@ describe('PortfolioCropPage', () => {
     await screen.findByRole('heading', { name: 'Tomato', level: 1 });
   });
 
+  it('settles on the empty-chart state when there is no market to chart at all', async () => {
+    // No price served AND no home market: nothing to fetch. The region must resolve to the
+    // honest empty chart, NOT sit on a skeleton announcing aria-busy work that never comes.
+    mockDashboard({
+      homeMarket: null,
+      items: [tomato({ price: null, priceUnavailableReason: 'no_recent_price' })],
+    });
+    renderPage();
+
+    await screen.findByText('No recent price data for this crop at this market yet.');
+    expect(api.getPriceHistory).not.toHaveBeenCalled();
+    expect(document.querySelector('[aria-busy="true"]')).toBeNull();
+    expect(screen.queryByText('Loading…')).toBeNull();
+    // The prediction beside it is untouched by the missing price.
+    expect(screen.getByText('About Rs. 240 at harvest')).toBeInTheDocument();
+  });
+
   it('is an honest dead end for a crop that is not on the watchlist', async () => {
     mockDashboard({ homeMarket: DAMBULLA, items: [] });
     renderPage('c9');

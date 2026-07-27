@@ -76,14 +76,26 @@ describe('lib/portfolio — national-forecast labelling (PRD §3.6)', () => {
   });
 });
 
-describe('lib/portfolio — fallback predictions are de-rated, never hidden', () => {
-  it('treats any predictor whose name carries "fallback" as a fallback', () => {
+describe('lib/portfolio — only a known model predictor earns full trust', () => {
+  it('shows full trust for exactly the servable model kinds, case-insensitively', () => {
+    expect(isDeratedPrediction(prediction('model'))).toBe(false);
+    expect(isDeratedPrediction(prediction('residual'))).toBe(false);
+    expect(isDeratedPrediction(prediction('Residual'))).toBe(false);
+  });
+
+  it('de-rates every named fallback', () => {
     expect(isDeratedPrediction(prediction('crop_mean_fallback'))).toBe(true);
     expect(isDeratedPrediction(prediction('global_median_fallback'))).toBe(true);
   });
 
-  it('treats a model predictor as a model prediction', () => {
-    expect(isDeratedPrediction(prediction('residual'))).toBe(false);
+  it('de-rates a predictor this build has never heard of (allowlist, not a substring test)', () => {
+    // None of these carries "fallback", and a denylist would render them at full model
+    // trust. "unavailable" already exists on the harvest-window route; the others are the
+    // shape a future rung would take. Unknown must fall on the cautious side.
+    expect(isDeratedPrediction(prediction('unavailable'))).toBe(true);
+    expect(isDeratedPrediction(prediction('category_mean'))).toBe(true);
+    expect(isDeratedPrediction(prediction('seasonal_naive'))).toBe(true);
+    expect(isDeratedPrediction(prediction(''))).toBe(true);
   });
 
   it('has nothing to de-rate when there is no prediction at all', () => {

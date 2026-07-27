@@ -15,7 +15,7 @@
 // The two empty states are deliberately different (PRD §5.2): "you have not added any
 // crops" is an invitation, "we have nothing for your crops yet" is an admission. Neither
 // one ever shows a placeholder number.
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
@@ -35,7 +35,10 @@ export default function PortfolioPage() {
   const lang = i18n.language;
   // ymdLocal, never toISOString().slice(): at UTC+5:30 the ISO form is yesterday until
   // 05:30 local, which would silently age every price by a day.
-  const todayYmd = useMemo(() => ymdLocal(new Date()), []);
+  // Recomputed per render, not memoised on []: it is one cheap string, and a memo would
+  // pin "today" to mount time on a phone left open across midnight. Same convention on
+  // PortfolioCropPage.
+  const todayYmd = ymdLocal(new Date());
 
   const [dashboard, setDashboard] = useState<PortfolioDashboard | null>(null);
   const [loading, setLoading] = useState(true);
