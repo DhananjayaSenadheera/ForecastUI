@@ -29,6 +29,10 @@ function renderLogsRoutes(start: string) {
             <Route path="training" element={<div>TRAINING TAB CONTENT</div>} />
             <Route path="user-activity" element={<div>USER ACTIVITY TAB CONTENT</div>} />
             <Route path="errors" element={<div>SYSTEM ERRORS TAB CONTENT</div>} />
+            <Route
+              path="forecast-accuracy"
+              element={<div>FORECAST ACCURACY TAB CONTENT</div>}
+            />
           </Route>
           <Route path="ingestion" element={<Navigate to="/admin/logs/ingestion" replace />} />
         </Route>
@@ -105,15 +109,16 @@ describe('Logs hub routing (Phase 1)', () => {
     await i18n.changeLanguage('en');
   });
 
-  it('renders the Logs shell (H1 + tab strip) with all four tabs, ingestion selected', () => {
+  it('renders the Logs shell (H1 + tab strip) with all five tabs, ingestion selected', () => {
     renderLogsRoutes('/admin/logs/ingestion');
     expect(screen.getByRole('heading', { level: 1, name: 'Logs' })).toBeInTheDocument();
     const tablist = screen.getByRole('tablist', { name: 'Logs' });
-    expect(within(tablist).getAllByRole('tab')).toHaveLength(4);
+    expect(within(tablist).getAllByRole('tab')).toHaveLength(5);
     expect(within(tablist).getByRole('tab', { name: 'Ingestion runs', selected: true })).toBeInTheDocument();
     expect(within(tablist).getByRole('tab', { name: 'Model training', selected: false })).toBeInTheDocument();
     expect(within(tablist).getByRole('tab', { name: 'System log', selected: false })).toBeInTheDocument();
     expect(within(tablist).getByRole('tab', { name: 'System errors', selected: false })).toBeInTheDocument();
+    expect(within(tablist).getByRole('tab', { name: 'Forecast accuracy', selected: false })).toBeInTheDocument();
     expect(screen.getByText('INGESTION TAB CONTENT')).toBeInTheDocument();
   });
 
@@ -139,6 +144,14 @@ describe('Logs hub routing (Phase 1)', () => {
     expect(within(tablist).getByRole('tab', { name: 'System errors', selected: true })).toBeInTheDocument();
     expect(within(tablist).getByRole('tab', { name: 'Ingestion runs', selected: false })).toBeInTheDocument();
     expect(screen.getByText('SYSTEM ERRORS TAB CONTENT')).toBeInTheDocument();
+  });
+
+  it('marks the Forecast accuracy tab selected on its route (aria-selected tracks the route)', () => {
+    renderLogsRoutes('/admin/logs/forecast-accuracy');
+    const tablist = screen.getByRole('tablist', { name: 'Logs' });
+    expect(within(tablist).getByRole('tab', { name: 'Forecast accuracy', selected: true })).toBeInTheDocument();
+    expect(within(tablist).getByRole('tab', { name: 'Ingestion runs', selected: false })).toBeInTheDocument();
+    expect(screen.getByText('FORECAST ACCURACY TAB CONTENT')).toBeInTheDocument();
   });
 
   it('links the tab to the content region (tabpanel labelled by the selected tab)', () => {
@@ -177,6 +190,7 @@ describe('Logs tab explainers — tooltip + mobile ⓘ toggle', () => {
     'Model training': 'admin.logs.training.explainer',
     'System log': 'admin.logs.userActivity.explainer',
     'System errors': 'admin.logs.errors.explainer',
+    'Forecast accuracy': 'admin.forecastAccuracy.explainer',
   };
 
   it('every tab is described by its explainer tooltip (aria-describedby → role=tooltip)', () => {
@@ -264,6 +278,10 @@ describe('Logs hub auth gate (Phase 1)', () => {
                 <Route path="training" element={<div>TRAINING TAB CONTENT</div>} />
                 <Route path="user-activity" element={<div>USER ACTIVITY TAB CONTENT</div>} />
                 <Route path="errors" element={<div>SYSTEM ERRORS TAB CONTENT</div>} />
+                <Route
+                  path="forecast-accuracy"
+                  element={<div>FORECAST ACCURACY TAB CONTENT</div>}
+                />
               </Route>
               <Route path="ingestion" element={<Navigate to="/admin/logs/ingestion" replace />} />
             </Route>
@@ -300,6 +318,10 @@ describe('Logs hub auth gate (Phase 1)', () => {
 
   it('blocks a logged-in FARMER from /admin/logs/errors (no tab content rendered)', async () => {
     await expectFarmerBlocked('/admin/logs/errors', 'SYSTEM ERRORS TAB CONTENT');
+  });
+
+  it('blocks a logged-in FARMER from /admin/logs/forecast-accuracy (no tab content rendered)', async () => {
+    await expectFarmerBlocked('/admin/logs/forecast-accuracy', 'FORECAST ACCURACY TAB CONTENT');
   });
 });
 

@@ -1,15 +1,25 @@
 import { describe, it, expect } from 'vitest';
 import {
   derivePolicyStatus,
+  formatCount,
   formatMae,
+  formatPercentNumber,
+  formatPointsAbs,
+  formatPrice,
+  formatRange,
+  formatRatePercent,
+  formatSignedPercentNumber,
+  mapMaturityState,
   mapGateOutcome,
   mapMarketType,
   mapPolicyDirection,
   mapPolicyType,
   mapUserActivityEvent,
+  predictorKind,
   truncateId,
 } from '../lib/format';
 import {
+  FORECAST_MATURITY_STATES,
   USER_ACTIVITY_CONTENT_EVENT_TYPES,
   USER_ACTIVITY_EVENT_TYPES,
   USER_ACTIVITY_PIPELINE_EVENT_TYPES,
@@ -177,5 +187,78 @@ describe('Logs P2 mappers — user activity', () => {
     expect(truncateId('abc')).toBe('abc');
     expect(truncateId(null)).toBe('');
     expect(truncateId(undefined)).toBe('');
+  });
+});
+
+// Forecast-accuracy formatters. The unit split is the whole point: percent NUMBERS
+// (12.34 = 12.34%) and fraction RATES (0.75 = 75%) arrive on the same response, and
+// formatting one as the other misreports accuracy by two orders of magnitude.
+describe('forecast-accuracy formatters', () => {
+  it('formats a percent NUMBER as a percentage (12.34 -> "12.34%"), not as 1234%', () => {
+    expect(formatPercentNumber(12.34, 'en')).toBe('12.34%');
+    expect(formatPercentNumber(8.1, 'en')).toBe('8.10%'); // trailing zero kept at 2dp
+  });
+
+  it('formats a FRACTION rate as a percentage (0.6667 -> "66.7%")', () => {
+    expect(formatRatePercent(0.6667, 'en')).toBe('66.7%');
+    expect(formatRatePercent(0.8, 'en', 0)).toBe('80%'); // the nominal band target
+  });
+
+  it('shows the sign on bias / row error, because the direction is the point', () => {
+    expect(formatSignedPercentNumber(3.21, 'en')).toBe('+3.21%');
+    expect(formatSignedPercentNumber(-20.21, 'en')).toBe('-20.21%');
+  });
+
+  it('renders a coverage gap as unsigned percentage points (the word carries direction)', () => {
+    expect(formatPointsAbs(-0.1333, 'en')).toBe('13.3');
+    expect(formatPointsAbs(0.2, 'en')).toBe('20.0');
+  });
+
+  it('returns null (never 0) for every metric the server could not compute', () => {
+    for (const fn of [formatPercentNumber, formatSignedPercentNumber, formatRatePercent, formatPointsAbs]) {
+      expect(fn(null, 'en')).toBeNull();
+      expect(fn(undefined, 'en')).toBeNull();
+      expect(fn(Number.NaN, 'en')).toBeNull();
+    }
+    expect(formatCount(null, 'en')).toBeNull();
+    // ...and a real zero is still a real number, not a no-data marker.
+    expect(formatCount(0, 'en')).toBe('0');
+    expect(formatPercentNumber(0, 'en')).toBe('0.00%');
+  });
+
+  it('splits predictors into model vs fallback by name, defaulting unknown ones to model', () => {
+    expect(predictorKind('residual')).toBe('model');
+    expect(predictorKind('hybrid')).toBe('model');
+    expect(predictorKind('crop_mean_fallback')).toBe('fallback');
+    expect(predictorKind('CATEGORY_MEAN_FALLBACK')).toBe('fallback');
+    expect(predictorKind('some_new_predictor')).toBe('model');
+  });
+
+  it('maps every maturity state to a glyph AND a word, with no state coloured red', () => {
+    for (const state of FORECAST_MATURITY_STATES) {
+      const display = mapMaturityState(state);
+      expect(display.labelKey).not.toBeNull();
+      expect(display.glyph.length).toBeGreaterThan(0);
+      // red is reserved app-wide for "Not recommended" — an unscorable row is a fact.
+      expect(['good', 'neutral', 'skipped']).toContain(display.tone);
+    }
+    expect(mapMaturityState('matured').labelKey).toBe('admin.forecastAccuracy.state.matured');
+    expect(mapMaturityState('actual_unavailable').labelKey).toBe(
+      'admin.forecastAccuracy.state.actualUnavailable',
+    );
+  });
+
+  it('degrades an unknown maturity state to the raw string (never crashes the table)', () => {
+    const unknown = mapMaturityState('teleported');
+    expect(unknown.labelKey).toBeNull();
+    expect(unknown.fallback).toBe('teleported');
+    expect(unknown.tone).toBe('unknown');
+  });
+
+  it('keeps exact decimals on an accuracy price, where rounding would misstate the error', () => {
+    expect(formatPrice(27.5, 'en', 'Rs.', 2)).toBe('Rs. 27.50');
+    expect(formatRange(205, 280.5, 'en', 'Rs.', 2)).toBe('Rs. 205.00 – 280.50');
+    // the default stays whole-rupee for the farmer surfaces
+    expect(formatPrice(27.5, 'en', 'Rs.')).toBe('Rs. 28');
   });
 });

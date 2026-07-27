@@ -80,18 +80,32 @@ function resolveLocale(lang: string): string {
   return localeFor[lang] ?? 'en-LK';
 }
 
-/** Whole-rupee price. rsLabel comes from i18n (t('common.rs')) so it translates. */
-export function formatPrice(value: number, lang: string, rsLabel = 'Rs.'): string {
+/** Whole-rupee price. rsLabel comes from i18n (t('common.rs')) so it translates.
+ *  `digits` > 0 keeps the exact decimals instead of rounding — used only where the
+ *  rounding itself would be dishonest (the admin accuracy tab reports the error of the
+ *  very number it prints, so a rounded Rs. 28 for a served 27.50 would misstate it). */
+export function formatPrice(value: number, lang: string, rsLabel = 'Rs.', digits = 0): string {
   const n = new Intl.NumberFormat(resolveLocale(lang), {
-    maximumFractionDigits: 0,
-  }).format(Math.round(value));
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(digits === 0 ? Math.round(value) : value);
   return `${rsLabel} ${n}`;
 }
 
 /** A P10–P90 band as a labelled range — never a bare single number. */
-export function formatRange(low: number, high: number, lang: string, rsLabel = 'Rs.'): string {
-  const nf = new Intl.NumberFormat(resolveLocale(lang), { maximumFractionDigits: 0 });
-  return `${rsLabel} ${nf.format(Math.round(low))} – ${nf.format(Math.round(high))}`;
+export function formatRange(
+  low: number,
+  high: number,
+  lang: string,
+  rsLabel = 'Rs.',
+  digits = 0,
+): string {
+  const nf = new Intl.NumberFormat(resolveLocale(lang), {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+  const round = (v: number) => (digits === 0 ? Math.round(v) : v);
+  return `${rsLabel} ${nf.format(round(low))} – ${nf.format(round(high))}`;
 }
 
 /** Locale-aware date. Accepts "YYYY-MM-DD" or Date; safe on bad input. */
@@ -351,6 +365,132 @@ export function splitExceptionType(type: string): { namespace: string; name: str
   const i = (type ?? '').lastIndexOf('.');
   if (i < 0) return { namespace: '', name: type ?? '' };
   return { namespace: type.slice(0, i + 1), name: type.slice(i + 1) };
+}
+
+// Forecast-accuracy formatters (admin accuracy tab). The wire carries TWO units and
+// mixing them would misreport accuracy by two orders of magnitude, so each gets its own
+// function: PERCENT NUMBERS (mape/medianApe/signedBias/percentageError: 12.34 = 12.34%)
+// and FRACTION RATES (intervalCoverage/directionalAccuracy: 0.7500 = 75%).
+// Every one returns null for a null/absent metric — the caller renders a no-data marker.
+// A metric that is not computable yet is NEVER printed as 0.
+
+/** Percent NUMBER -> locale percent string ("12.34%"). */
+export function formatPercentNumber(
+  value: number | null | undefined,
+  lang: string,
+  digits = 2,
+): string | null {
+  if (value == null || Number.isNaN(value)) return null;
+  return new Intl.NumberFormat(resolveLocale(lang), {
+    style: 'percent',
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(value / 100);
+}
+
+/** Signed percent NUMBER -> locale percent string with an explicit sign ("+3.21%").
+ *  Used for signedBias and a row's percentageError, where the DIRECTION is the point:
+ *  positive means the forecast came in above the actual price. */
+export function formatSignedPercentNumber(
+  value: number | null | undefined,
+  lang: string,
+  digits = 2,
+): string | null {
+  if (value == null || Number.isNaN(value)) return null;
+  return new Intl.NumberFormat(resolveLocale(lang), {
+    style: 'percent',
+    signDisplay: 'exceptZero',
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(value / 100);
+}
+
+/** FRACTION rate -> locale percent string (0.75 -> "75.0%"). */
+export function formatRatePercent(
+  value: number | null | undefined,
+  lang: string,
+  digits = 1,
+): string | null {
+  if (value == null || Number.isNaN(value)) return null;
+  return new Intl.NumberFormat(resolveLocale(lang), {
+    style: 'percent',
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(value);
+}
+
+/** A coverage GAP fraction -> its size in percentage points, unsigned (-0.05 -> "5.0").
+ *  The direction is carried by a WORD ("below"/"above" nominal), never by the sign
+ *  alone, so the sentence still reads correctly out loud. */
+export function formatPointsAbs(
+  value: number | null | undefined,
+  lang: string,
+  digits = 1,
+): string | null {
+  if (value == null || Number.isNaN(value)) return null;
+  return new Intl.NumberFormat(resolveLocale(lang), {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(Math.abs(value) * 100);
+}
+
+/** Plain integer count (null -> null, so the caller shows a no-data marker). */
+export function formatCount(value: number | null | undefined, lang: string): string | null {
+  if (value == null || Number.isNaN(value)) return null;
+  return new Intl.NumberFormat(resolveLocale(lang), { maximumFractionDigits: 0 }).format(value);
+}
+
+/** Is this predictor a MODEL prediction or a FALLBACK? The two are never blended
+ *  (PRD §3.4), so the split has to be visible on the surface as well as in the data.
+ *  Anything whose name carries "fallback" is a fallback; every other predictor is
+ *  treated as a model, which keeps a predictor this build has never heard of honest
+ *  (it shows under its own verbatim name either way). */
+export function predictorKind(activePredictor: string): 'model' | 'fallback' {
+  return (activePredictor ?? '').toLowerCase().includes('fallback') ? 'fallback' : 'model';
+}
+
+/** Snapshot maturity state -> glyph + label + badge tone. Glyph AND word always ship
+ *  together (colour is never the sole signal), and no state is red: `actual_unavailable`
+ *  and `not_maturable` are neutral facts about the data, not errors. Unknown wire values
+ *  degrade to the raw string in a neutral badge. */
+export function mapMaturityState(state: string): {
+  labelKey: string | null;
+  fallback: string;
+  glyph: string;
+  tone: 'good' | 'neutral' | 'skipped' | 'unknown';
+} {
+  switch (state) {
+    case 'matured':
+      return {
+        labelKey: 'admin.forecastAccuracy.state.matured',
+        fallback: state,
+        glyph: '✓',
+        tone: 'good',
+      };
+    case 'pending':
+      return {
+        labelKey: 'admin.forecastAccuracy.state.pending',
+        fallback: state,
+        glyph: '…',
+        tone: 'neutral',
+      };
+    case 'actual_unavailable':
+      return {
+        labelKey: 'admin.forecastAccuracy.state.actualUnavailable',
+        fallback: state,
+        glyph: '?',
+        tone: 'skipped',
+      };
+    case 'not_maturable':
+      return {
+        labelKey: 'admin.forecastAccuracy.state.notMaturable',
+        fallback: state,
+        glyph: '–',
+        tone: 'skipped',
+      };
+    default:
+      return { labelKey: null, fallback: state, glyph: '•', tone: 'unknown' };
+  }
 }
 
 /** Individual check severity (PASS/WARN/FAIL inside checksJson) -> tone + label. */

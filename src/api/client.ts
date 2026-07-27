@@ -16,6 +16,8 @@ import type {
   FestivalEntry,
   FestivalMutationResult,
   FestivalUpdateDto,
+  ForecastAccuracySummary,
+  ForecastSnapshotPage,
   HarvestForecast,
   HarvestWindow,
   IngestionRunPage,
@@ -677,6 +679,33 @@ export const api = {
     if (USE_FIXTURES) return fx.fxSystemErrors(page, pageSize);
     const q = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     return request<SystemErrorPage>(`/api/admin/logs/errors?${q.toString()}`);
+  },
+
+  // Forecast accuracy (Admin-only). Both routes are consumed VERBATIM: the metric groups
+  // are rendered exactly as the server grouped them, because re-grouping them client-side
+  // is how a model number and a fallback number end up averaged together.
+  // GET /api/admin/forecast-accuracy/summary -> counts + per-predictor / per-version
+  // aggregates. No params.
+  async getForecastAccuracySummary(): Promise<ForecastAccuracySummary> {
+    if (USE_FIXTURES) return fx.fxForecastAccuracySummary();
+    return request<ForecastAccuracySummary>('/api/admin/forecast-accuracy/summary');
+  },
+
+  // GET /api/admin/forecast-accuracy/snapshots -> the snapshot ledger, newest first and
+  // server-paged. All three filters are OPTIONAL and are omitted entirely when unset —
+  // `maturedOnly` is sent only when it is actually on, so the default request carries no
+  // filter at all.
+  async getForecastSnapshots(
+    page = 1,
+    pageSize = 25,
+    filter: { cropId?: string; modelVersion?: string; maturedOnly?: boolean } = {},
+  ): Promise<ForecastSnapshotPage> {
+    if (USE_FIXTURES) return fx.fxForecastSnapshots(page, pageSize, filter);
+    const q = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (filter.cropId) q.set('cropId', filter.cropId);
+    if (filter.modelVersion) q.set('modelVersion', filter.modelVersion);
+    if (filter.maturedOnly) q.set('maturedOnly', 'true');
+    return request<ForecastSnapshotPage>(`/api/admin/forecast-accuracy/snapshots?${q.toString()}`);
   },
 };
 

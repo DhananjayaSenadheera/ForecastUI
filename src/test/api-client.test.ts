@@ -277,6 +277,49 @@ describe('API client (live mode — markets + price history URLs)', () => {
     expect(fetchMock.mock.calls[0][0]).toBe(`${UA_URL}?page=1&pageSize=25`);
   });
 
+  // Forecast accuracy (GET /api/admin/forecast-accuracy/*). The tab tests mock the api
+  // methods, so this is the only place the built query string is exercised — and an
+  // accidental `maturedOnly=false` would silently change which rows the admin is
+  // looking at.
+  const FA_URL = 'http://localhost:5282/api/admin/forecast-accuracy';
+  const faPage = { items: [], page: 1, pageSize: 25, total: 0 };
+
+  it('getForecastAccuracySummary hits /summary with no params', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes({}));
+    vi.stubGlobal('fetch', fetchMock);
+    await (await liveApi()).getForecastAccuracySummary();
+    expect(fetchMock.mock.calls[0][0]).toBe(`${FA_URL}/summary`);
+  });
+
+  it('getForecastSnapshots sends paging only when no filter is set', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes(faPage));
+    vi.stubGlobal('fetch', fetchMock);
+    await (await liveApi()).getForecastSnapshots();
+    expect(fetchMock.mock.calls[0][0]).toBe(`${FA_URL}/snapshots?page=1&pageSize=25`);
+  });
+
+  it('getForecastSnapshots appends cropId / modelVersion / maturedOnly when given', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes(faPage));
+    vi.stubGlobal('fetch', fetchMock);
+    await (await liveApi()).getForecastSnapshots(2, 50, {
+      cropId: 'c0000001-0000-0000-0000-000000000001',
+      modelVersion: 'v17',
+      maturedOnly: true,
+    });
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      `${FA_URL}/snapshots?page=2&pageSize=50&cropId=c0000001-0000-0000-0000-000000000001&modelVersion=v17&maturedOnly=true`,
+    );
+  });
+
+  it('getForecastSnapshots omits maturedOnly entirely when it is off (never =false)', async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes(faPage));
+    vi.stubGlobal('fetch', fetchMock);
+    await (await liveApi()).getForecastSnapshots(1, 25, { maturedOnly: false });
+    const url = fetchMock.mock.calls[0][0] as string;
+    expect(url).toBe(`${FA_URL}/snapshots?page=1&pageSize=25`);
+    expect(url).not.toContain('maturedOnly');
+  });
+
   // Policy-flag mutations.
   it('updatePolicyFlag PUTs /api/policy-flag/update with the dto WRAPPED under policyFlagUpdateDto', async () => {
     const fetchMock = vi.fn(async (..._args: unknown[]) => fakeRes({ id: 'pf-1', trainingDataWarning: null }));

@@ -25,6 +25,7 @@ const IngestionRunsPage = lazy(() => import('./admin/IngestionRunsPage'));
 const TrainingRunsPage = lazy(() => import('./admin/logs/TrainingRunsPage'));
 const UserActivityPage = lazy(() => import('./admin/logs/UserActivityPage'));
 const SystemErrorsPage = lazy(() => import('./admin/logs/SystemErrorsPage'));
+const ForecastAccuracyPage = lazy(() => import('./admin/logs/ForecastAccuracyPage'));
 
 /** Placeholder shown while an admin page chunk loads. */
 function AdminFallback() {
@@ -85,6 +86,10 @@ export default function App() {
                 <Route path="training" element={lazyAdmin(<TrainingRunsPage />)} />
                 <Route path="user-activity" element={lazyAdmin(<UserActivityPage />)} />
                 <Route path="errors" element={lazyAdmin(<SystemErrorsPage />)} />
+                <Route
+                  path="forecast-accuracy"
+                  element={lazyAdmin(<ForecastAccuracyPage />)}
+                />
               </Route>
             </Route>
             {/* Legacy bookmark: the old standalone /admin/ingestion now lives in Logs. */}

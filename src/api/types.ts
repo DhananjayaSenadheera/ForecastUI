@@ -890,3 +890,133 @@ export interface VerificationCheck {
   message: string;
   counts?: Record<string, unknown>;
 }
+
+// ADMIN — forecast accuracy (nightly forecast snapshots). Two Admin-only routes under
+// api/admin/forecast-accuracy: /summary and the server-paged /snapshots. Dates are
+// "yyyy-MM-dd" calendar days; instants are Z-suffixed UTC.
+
+/** Aggregate accuracy for ONE group (an activePredictor, optionally within a
+ *  modelVersion). EVERY field is nullable: null means "not computable yet" and MUST be
+ *  rendered as a no-data marker, never as 0.
+ *
+ *  Two different units live in here and must never be mixed:
+ *  - `mape` / `medianApe` / `signedBias` are PERCENT NUMBERS at 2dp (12.34 = 12.34%).
+ *  - `intervalCoverage` / `nominalIntervalCoverage` / `intervalCoverageGap` /
+ *    `directionalAccuracy` are FRACTIONS at 4dp (0.7500 = 75%).
+ *  `nominalIntervalCoverage` is the band's nominal 0.80; the gap is coverage − nominal
+ *  (negative = the p10–p90 band is too narrow, positive = too wide). */
+export interface ForecastAccuracyMetrics {
+  maturedCount: number | null;
+  scoredCount: number | null;
+  mape: number | null;
+  medianApe: number | null;
+  signedBias: number | null;
+  intervalScoredCount: number | null;
+  withinIntervalCount: number | null;
+  intervalCoverage: number | null;
+  nominalIntervalCoverage: number | null;
+  intervalCoverageGap: number | null;
+  directionalAccuracy: number | null;
+  directionalScored: number | null;
+  directionalExcluded: number | null;
+}
+
+/** Accuracy for one activePredictor. The predictor string is served verbatim (e.g.
+ *  "residual", "crop_mean_fallback") and is NEVER merged with another predictor's
+ *  numbers — model and fallback accuracy are separate facts (PRD §3.4). */
+export interface ForecastAccuracyPredictorGroup {
+  activePredictor: string;
+  metrics: ForecastAccuracyMetrics;
+}
+
+/** Accuracy for one (modelVersion, activePredictor) pair, exactly as grouped by the
+ *  server. `modelVersion` is null for rows that recorded no version. */
+export interface ForecastAccuracyVersionGroup {
+  modelVersion: string | null;
+  activePredictor: string;
+  metrics: ForecastAccuracyMetrics;
+}
+
+/** Snapshot row counts by maturity state. These are an ALL-TIME census of the ledger —
+ *  unlike the metrics, they are NOT limited to the summary's window, and they are the
+ *  only figures on this surface that span predictors (they are row counts, not
+ *  accuracy). */
+export interface ForecastAccuracyCounts {
+  total: number;
+  pending: number;
+  matured: number;
+  actualUnavailable: number;
+  notMaturable: number;
+}
+
+/** GET /api/admin/forecast-accuracy/summary.
+ *  TWO DIFFERENT SCOPES live in this one response and the UI must label them apart:
+ *  `counts` is an ALL-TIME census of the ledger, while every `metrics` block is computed
+ *  over the last `windowDays` days only. `byActivePredictor` additionally blends ALL
+ *  model versions inside one predictor, so it may never be presented as the current
+ *  version's accuracy — `byModelVersion` is where version-specific numbers live. */
+export interface ForecastAccuracySummary {
+  generatedAtUtc: string; // ISO Z — when the server computed this, not when the job ran
+  /** Rolling window (days, default 365) the metrics are computed over. */
+  windowDays: number;
+  latestSnapshotDate: string | null; // yyyy-MM-dd; null before the first nightly pass
+  counts: ForecastAccuracyCounts;
+  byActivePredictor: ForecastAccuracyPredictorGroup[];
+  byModelVersion: ForecastAccuracyVersionGroup[];
+}
+
+/** The maturity states a snapshot row can hold. `actual_unavailable` (no market price
+ *  found for the harvest day within the carry window) and `not_maturable` (no growth
+ *  period, so a harvest date was never resolvable) are NEUTRAL FACTS, not failures. */
+export const FORECAST_MATURITY_STATES = [
+  'pending',
+  'matured',
+  'actual_unavailable',
+  'not_maturable',
+] as const;
+export type ForecastMaturityState = (typeof FORECAST_MATURITY_STATES)[number];
+
+/** FORWARD-COMPAT: a state this build has never heard of renders verbatim in a neutral
+ *  badge rather than breaking the table. */
+export type ForecastMaturityStateWire = ForecastMaturityState | (string & {});
+
+/** One nightly forecast snapshot — GET /api/admin/forecast-accuracy/snapshots, newest
+ *  first. The prediction columns are FROZEN at snapshot time; maturing only adds the
+ *  actual/error columns, so a row is a permanent record of what was actually served.
+ *  `percentageError` is a SIGNED PERCENT NUMBER (4.21 = 4.21%), matching the summary's
+ *  percent-number convention. */
+export interface ForecastSnapshot {
+  id: string;
+  cropId: string;
+  cropName: string;
+  cropCode: string;
+  snapshotDate: string; // yyyy-MM-dd — the as-of day, also the assumed planting day
+  harvestDate: string | null; // null when the growth period was unresolvable
+  growthPeriodDays: number | null;
+  predictedPrice: number; // p50
+  lowerBound: number; // p10
+  upperBound: number; // p90
+  referencePrice: number | null; // price known at snapshot time (directional baseline)
+  confidence: ConfidenceString; // FROZEN string — translate the label only
+  activePredictor: string;
+  fallbackTier: string | null;
+  modelVersion: string | null;
+  reasonCode: string | null;
+  maturityState: ForecastMaturityStateWire;
+  actualPrice: number | null;
+  actualObservedDate: string | null; // the trading day actually used for the actual
+  signedError: number | null; // predicted − actual
+  absoluteError: number | null;
+  percentageError: number | null; // signed percent number
+  withinInterval: boolean | null; // p10 <= actual <= p90
+  createdAtUtc: string; // ISO Z
+  maturedAtUtc: string | null; // ISO Z
+}
+
+/** GET /api/admin/forecast-accuracy/snapshots — server-paged envelope. */
+export interface ForecastSnapshotPage {
+  items: ForecastSnapshot[];
+  page: number;
+  pageSize: number;
+  total: number;
+}

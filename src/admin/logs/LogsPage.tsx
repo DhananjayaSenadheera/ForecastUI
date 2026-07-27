@@ -13,6 +13,11 @@ const LOGS_TABS: LogsTab[] = [
   { to: '/admin/logs/training', labelKey: 'admin.logs.tabs.training', hintKey: 'admin.logs.training.explainer' },
   { to: '/admin/logs/user-activity', labelKey: 'admin.logs.tabs.userActivity', hintKey: 'admin.logs.userActivity.explainer' },
   { to: '/admin/logs/errors', labelKey: 'admin.logs.tabs.errors', hintKey: 'admin.logs.errors.explainer' },
+  {
+    to: '/admin/logs/forecast-accuracy',
+    labelKey: 'admin.logs.tabs.forecastAccuracy',
+    hintKey: 'admin.forecastAccuracy.explainer',
+  },
 ];
 
 const LOGS_HINT_ID = 'logs-hint';

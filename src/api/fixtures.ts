@@ -39,6 +39,9 @@ import {
   type SeriesCatalogEntry,
   type SystemError,
   type SystemErrorPage,
+  type ForecastAccuracySummary,
+  type ForecastSnapshot,
+  type ForecastSnapshotPage,
 } from './types';
 
 // nameSi/nameTa below are DRAFT translations for dev and search only — pending native
@@ -1636,4 +1639,300 @@ export function fxSystemErrors(page = 1, pageSize = 25): SystemErrorPage {
   const total = fxSystemErrorsAll.length;
   const start = Math.max(0, (page - 1) * pageSize);
   return { items: fxSystemErrorsAll.slice(start, start + pageSize), page, pageSize, total };
+}
+
+// Forecast-accuracy fixtures. Deliberately small (this file is statically imported by
+// client.ts, so every fixture row lands in the farmer bundle) but complete: all four
+// maturity states, a model predictor AND a fallback predictor that must never be blended,
+// a row whose actual landed outside the p10–p90 band, and a group whose directional
+// accuracy is NOT computable (null, so the UI's no-data marker is demoable).
+// Illustrative demo values, not real HARTI data.
+export const fxForecastSnapshotsAll: ForecastSnapshot[] = [
+  {
+    id: 'f5000001-0000-0000-0000-000000000001',
+    cropId: 'c0000006-0000-0000-0000-000000000006',
+    cropName: 'Carrot',
+    cropCode: 'VEG000021',
+    snapshotDate: '2026-07-26',
+    harvestDate: '2026-10-24',
+    growthPeriodDays: 90,
+    predictedPrice: 402.0,
+    lowerBound: 331.0,
+    upperBound: 486.0,
+    referencePrice: 388.5,
+    confidence: 'Medium',
+    activePredictor: 'residual',
+    fallbackTier: null,
+    modelVersion: 'v17',
+    reasonCode: 'model_served',
+    maturityState: 'pending',
+    actualPrice: null,
+    actualObservedDate: null,
+    signedError: null,
+    absoluteError: null,
+    percentageError: null,
+    withinInterval: null,
+    createdAtUtc: '2026-07-26T21:06:11Z',
+    maturedAtUtc: null,
+  },
+  {
+    id: 'f5000002-0000-0000-0000-000000000002',
+    cropId: 'c0000012-0000-0000-0000-000000000012',
+    cropName: 'Banana',
+    cropCode: 'FRT000002',
+    snapshotDate: '2026-07-26',
+    // No growth period could be resolved, so no harvest date exists to mature against.
+    harvestDate: null,
+    growthPeriodDays: null,
+    predictedPrice: 168.0,
+    lowerBound: 121.0,
+    upperBound: 233.0,
+    referencePrice: 171.25,
+    confidence: 'Low',
+    activePredictor: 'crop_mean_fallback',
+    fallbackTier: 'crop_mean',
+    modelVersion: null,
+    reasonCode: 'growth_period_unresolved',
+    maturityState: 'not_maturable',
+    actualPrice: null,
+    actualObservedDate: null,
+    signedError: null,
+    absoluteError: null,
+    percentageError: null,
+    withinInterval: null,
+    createdAtUtc: '2026-07-26T21:06:12Z',
+    maturedAtUtc: null,
+  },
+  {
+    id: 'f5000003-0000-0000-0000-000000000003',
+    cropId: 'c0000002-0000-0000-0000-000000000002',
+    cropName: 'Beans',
+    cropCode: 'VEG000007',
+    snapshotDate: '2026-05-12',
+    harvestDate: '2026-07-16',
+    growthPeriodDays: 65,
+    predictedPrice: 310.0,
+    lowerBound: 210.0,
+    upperBound: 430.0,
+    referencePrice: 322.0,
+    confidence: 'Low',
+    activePredictor: 'crop_mean_fallback',
+    fallbackTier: 'crop_mean',
+    modelVersion: 'v17',
+    reasonCode: 'insufficient_history',
+    maturityState: 'matured',
+    actualPrice: 388.5,
+    actualObservedDate: '2026-07-16',
+    signedError: -78.5,
+    absoluteError: 78.5,
+    percentageError: -20.21,
+    withinInterval: true,
+    createdAtUtc: '2026-05-12T21:05:44Z',
+    maturedAtUtc: '2026-07-17T21:07:02Z',
+  },
+  {
+    id: 'f5000004-0000-0000-0000-000000000004',
+    cropId: 'c0000007-0000-0000-0000-000000000007',
+    cropName: 'Cabbage',
+    cropCode: 'VEG000022',
+    snapshotDate: '2026-04-20',
+    harvestDate: '2026-07-19',
+    growthPeriodDays: 90,
+    predictedPrice: 180.0,
+    lowerBound: 150.0,
+    upperBound: 220.0,
+    referencePrice: 174.0,
+    confidence: 'High',
+    activePredictor: 'residual',
+    fallbackTier: null,
+    modelVersion: 'v17',
+    reasonCode: 'model_served',
+    maturityState: 'matured',
+    actualPrice: 176.0,
+    actualObservedDate: '2026-07-19',
+    signedError: 4.0,
+    absoluteError: 4.0,
+    percentageError: 2.27,
+    withinInterval: true,
+    createdAtUtc: '2026-04-20T21:05:12Z',
+    maturedAtUtc: '2026-07-20T21:07:01Z',
+  },
+  {
+    id: 'f5000005-0000-0000-0000-000000000005',
+    cropId: 'c0000003-0000-0000-0000-000000000003',
+    cropName: 'Tomato',
+    cropCode: 'VEG000003',
+    snapshotDate: '2026-04-14',
+    harvestDate: '2026-07-18',
+    growthPeriodDays: 95,
+    predictedPrice: 240.0,
+    lowerBound: 205.0,
+    upperBound: 280.0,
+    referencePrice: 232.5,
+    confidence: 'Medium',
+    activePredictor: 'residual',
+    fallbackTier: null,
+    modelVersion: 'v17',
+    reasonCode: 'model_served',
+    maturityState: 'matured',
+    // The actual landed ABOVE the p90 — the band missed, and the row says so.
+    actualPrice: 305.0,
+    actualObservedDate: '2026-07-17',
+    signedError: -65.0,
+    absoluteError: 65.0,
+    percentageError: -21.31,
+    withinInterval: false,
+    createdAtUtc: '2026-04-14T21:05:31Z',
+    maturedAtUtc: '2026-07-19T21:07:03Z',
+  },
+  {
+    id: 'f5000006-0000-0000-0000-000000000006',
+    cropId: 'c0000001-0000-0000-0000-000000000001',
+    cropName: 'Capsicum',
+    cropCode: 'VEG000012',
+    snapshotDate: '2026-04-08',
+    harvestDate: '2026-07-14',
+    growthPeriodDays: 97,
+    predictedPrice: 552.0,
+    lowerBound: 470.0,
+    upperBound: 640.0,
+    referencePrice: 540.0,
+    confidence: 'High',
+    activePredictor: 'residual',
+    fallbackTier: null,
+    modelVersion: 'v17',
+    reasonCode: 'model_served',
+    maturityState: 'matured',
+    actualPrice: 528.75,
+    actualObservedDate: '2026-07-13',
+    signedError: 23.25,
+    absoluteError: 23.25,
+    percentageError: 4.4,
+    withinInterval: true,
+    createdAtUtc: '2026-04-08T21:05:09Z',
+    maturedAtUtc: '2026-07-15T21:07:04Z',
+  },
+  {
+    id: 'f5000007-0000-0000-0000-000000000007',
+    cropId: 'c0000013-0000-0000-0000-000000000013',
+    cropName: 'Papaya',
+    cropCode: 'FRT000004',
+    snapshotDate: '2025-10-24',
+    harvestDate: '2026-07-21',
+    growthPeriodDays: 270,
+    predictedPrice: 214.0,
+    lowerBound: 152.0,
+    upperBound: 291.0,
+    referencePrice: 208.0,
+    confidence: 'Low',
+    activePredictor: 'crop_mean_fallback',
+    fallbackTier: 'crop_mean',
+    modelVersion: 'v17',
+    reasonCode: 'insufficient_history',
+    // No traded price was published for the harvest day inside the carry window.
+    maturityState: 'actual_unavailable',
+    actualPrice: null,
+    actualObservedDate: null,
+    signedError: null,
+    absoluteError: null,
+    percentageError: null,
+    withinInterval: null,
+    createdAtUtc: '2025-10-24T21:05:02Z',
+    maturedAtUtc: null,
+  },
+];
+
+// Metrics consistent with the rows above, kept SPLIT by predictor exactly as the API
+// serves them: the residual (model) rows score far better than the single fallback row,
+// and averaging the two would erase precisely that fact.
+const FX_RESIDUAL_METRICS = {
+  maturedCount: 3,
+  scoredCount: 3,
+  mape: 9.33, // mean(|+4.40|, |-21.31|, |+2.27|)
+  medianApe: 4.4,
+  signedBias: -4.88,
+  intervalScoredCount: 3,
+  withinIntervalCount: 2, // the Tomato row landed outside the band
+  intervalCoverage: 0.6667,
+  nominalIntervalCoverage: 0.8,
+  intervalCoverageGap: -0.1333,
+  directionalAccuracy: 0.3333, // 1 of the 3 scored rows moved the way the forecast said
+  directionalScored: 3,
+  directionalExcluded: 0,
+};
+
+const FX_FALLBACK_METRICS = {
+  maturedCount: 1,
+  scoredCount: 1,
+  mape: 20.21,
+  medianApe: 20.21,
+  signedBias: -20.21,
+  intervalScoredCount: 1,
+  withinIntervalCount: 1,
+  intervalCoverage: 1.0,
+  nominalIntervalCoverage: 0.8,
+  intervalCoverageGap: 0.2,
+  // Not computable: the one matured fallback row moved less than the direction test's
+  // threshold, so it was excluded. Null, never 0 — "no verdict" is not "always wrong".
+  directionalAccuracy: null,
+  directionalScored: 0,
+  directionalExcluded: 1,
+};
+
+export function fxForecastAccuracySummary(): ForecastAccuracySummary {
+  return {
+    generatedAtUtc: '2026-07-27T17:08:20Z',
+    windowDays: 365,
+    latestSnapshotDate: '2026-07-26',
+    // Counts are an all-time census of the ledger (7 rows), not a window.
+    counts: { total: 7, pending: 1, matured: 4, actualUnavailable: 1, notMaturable: 1 },
+    byActivePredictor: [
+      { activePredictor: 'residual', metrics: { ...FX_RESIDUAL_METRICS } },
+      { activePredictor: 'crop_mean_fallback', metrics: { ...FX_FALLBACK_METRICS } },
+    ],
+    byModelVersion: [
+      { modelVersion: 'v17', activePredictor: 'residual', metrics: { ...FX_RESIDUAL_METRICS } },
+      {
+        modelVersion: 'v17',
+        activePredictor: 'crop_mean_fallback',
+        metrics: { ...FX_FALLBACK_METRICS },
+      },
+      {
+        // The not_maturable Banana row: recorded under no version and never scorable.
+        modelVersion: null,
+        activePredictor: 'crop_mean_fallback',
+        metrics: {
+          maturedCount: 0,
+          scoredCount: 0,
+          mape: null,
+          medianApe: null,
+          signedBias: null,
+          intervalScoredCount: 0,
+          withinIntervalCount: 0,
+          intervalCoverage: null,
+          nominalIntervalCoverage: 0.8,
+          intervalCoverageGap: null,
+          directionalAccuracy: null,
+          directionalScored: 0,
+          directionalExcluded: 0,
+        },
+      },
+    ],
+  };
+}
+
+/** Simulate the SERVER's paging + optional filters (never client-sliced by the page).
+ *  Order is SnapshotDate DESC (as seeded). */
+export function fxForecastSnapshots(
+  page = 1,
+  pageSize = 25,
+  filter: { cropId?: string; modelVersion?: string; maturedOnly?: boolean } = {},
+): ForecastSnapshotPage {
+  let rows = fxForecastSnapshotsAll;
+  if (filter.cropId) rows = rows.filter((s) => s.cropId === filter.cropId);
+  if (filter.modelVersion) rows = rows.filter((s) => s.modelVersion === filter.modelVersion);
+  if (filter.maturedOnly) rows = rows.filter((s) => s.maturityState === 'matured');
+  const total = rows.length;
+  const start = Math.max(0, (page - 1) * pageSize);
+  return { items: rows.slice(start, start + pageSize), page, pageSize, total };
 }
