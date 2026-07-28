@@ -2,9 +2,10 @@
 // route and a deep link or refresh lands on the right tab. WAI-ARIA tabs pattern with
 // manual activation: roving tabindex (only the selected tab is tabbable), arrows/Home/
 // End move focus, Enter/Space follows the link.
-import { forwardRef, useRef, type KeyboardEvent } from 'react';
+import { forwardRef } from 'react';
 import { NavLink, useMatch } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useRovingTabs } from '../../lib/tabs';
 
 export interface LogsTab {
   to: string;
@@ -59,41 +60,7 @@ const LogsTabLink = forwardRef<HTMLAnchorElement, { tab: LogsTab; label: string;
 
 export default function LogsTabs({ tabs, ariaLabel }: { tabs: LogsTab[]; ariaLabel: string }) {
   const { t } = useTranslation();
-  const refs = useRef<Array<HTMLAnchorElement | null>>([]);
-
-  function focusTab(index: number) {
-    const n = tabs.length;
-    if (n === 0) return;
-    const wrapped = ((index % n) + n) % n; // wrap both ends
-    refs.current[wrapped]?.focus();
-  }
-
-  function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
-    const current = refs.current.findIndex((el) => el === document.activeElement);
-    if (current === -1) return;
-    switch (e.key) {
-      case 'ArrowRight':
-      case 'ArrowDown':
-        e.preventDefault();
-        focusTab(current + 1);
-        break;
-      case 'ArrowLeft':
-      case 'ArrowUp':
-        e.preventDefault();
-        focusTab(current - 1);
-        break;
-      case 'Home':
-        e.preventDefault();
-        focusTab(0);
-        break;
-      case 'End':
-        e.preventDefault();
-        focusTab(tabs.length - 1);
-        break;
-      default:
-        break;
-    }
-  }
+  const { refs, onKeyDown } = useRovingTabs<HTMLAnchorElement>(tabs.length);
 
   return (
     <div className="logs-tabs" role="tablist" aria-label={ariaLabel} onKeyDown={onKeyDown}>

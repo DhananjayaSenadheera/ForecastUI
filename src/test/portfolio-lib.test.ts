@@ -16,10 +16,12 @@ import {
   economicCenterIdSet,
   harvestLinkFor,
   isDeratedPrediction,
+  marketCodeLabel,
   orderMarketsForPicker,
   priceAgeDays,
   primaryMarket,
   sameMarketSet,
+  selectedMarketFor,
   showsNationalLabel,
   toggleMarketSelection,
   trendGlyph,
@@ -78,9 +80,12 @@ function prediction(activePredictor: string): PortfolioPrediction {
   };
 }
 
-const mk = (id: string, name: string, ec: boolean): Market => ({
+// Real seeded short codes (Markets.ShortCode) — never a name-derived stand-in, so a test
+// can never bless a code the registry does not actually serve.
+const mk = (id: string, name: string, shortCode: string, ec: boolean): Market => ({
   id,
   name,
+  shortCode,
   district: null,
   marketType: 1,
   isEconomicCenter: ec,
@@ -103,7 +108,7 @@ describe('lib/portfolio — the card leads with markets[0]', () => {
 });
 
 describe('lib/portfolio — national-forecast labelling (PRD §3.6)', () => {
-  const centres = economicCenterIdSet([mk('m1', 'Dambulla', true), mk('m3', 'Kandy', false)]);
+  const centres = economicCenterIdSet([mk('m1', 'Dambulla', 'DEC', true), mk('m3', 'Kandy', 'KAN', false)]);
 
   it('labels predictions as national beside a market that is NOT the anchor', () => {
     expect(showsNationalLabel(block({ marketId: 'm3', name: 'Kandy' }), centres)).toBe(true);
@@ -114,7 +119,7 @@ describe('lib/portfolio — national-forecast labelling (PRD §3.6)', () => {
   });
 
   it('matches economic-centre ids case-insensitively (GUIDs travel in mixed case)', () => {
-    const mixed = economicCenterIdSet([mk('M1-AAAA', 'Dambulla', true)]);
+    const mixed = economicCenterIdSet([mk('M1-AAAA', 'Dambulla', 'DEC', true)]);
     expect(showsNationalLabel(block({ marketId: 'm1-aaaa' }), mixed)).toBe(false);
   });
 
@@ -288,9 +293,9 @@ describe('lib/portfolio — every refusal keeps its own sentence', () => {
 describe('lib/portfolio — market helpers', () => {
   it('offers the economic centre first, then the rest by name', () => {
     const ordered = orderMarketsForPicker([
-      mk('m3', 'Kandy', false),
-      mk('m2', 'Colombo', false),
-      mk('m1', 'Dambulla', true),
+      mk('m3', 'Kandy', 'KAN', false),
+      mk('m2', 'Colombo', 'PET', false),
+      mk('m1', 'Dambulla', 'DEC', true),
     ]);
     expect(ordered.map((m) => m.name)).toEqual(['Dambulla', 'Colombo', 'Kandy']);
   });
@@ -303,6 +308,59 @@ describe('lib/portfolio — market helpers', () => {
   it('has nothing to chart without an item or a market', () => {
     expect(chartMarketIdFor(null)).toBeNull();
     expect(chartMarketIdFor(item({ markets: [] }))).toBeNull();
+  });
+
+  it('charts the SELECTED market once a surface lets the farmer switch (step 6 tabs)', () => {
+    const kandy = block({ marketId: 'm3', name: 'Kandy', shortCode: 'KAN' });
+    const both = item({ markets: [kandy, block()] });
+    // The card's chart follows its tab; a page with no switcher passes nothing and keeps
+    // markets[0]. One function, two callers — never two notions of "the chart's market".
+    expect(chartMarketIdFor(both, 'm1')).toBe('m1');
+    expect(chartMarketIdFor(both, null)).toBe('m3');
+  });
+});
+
+describe('lib/portfolio — selectedMarketFor (one market for every market-scoped thing)', () => {
+  const kandy = block({ marketId: 'm3', name: 'Kandy', shortCode: 'KAN' });
+  const dambulla = block();
+
+  it('returns the selected block when the id names one of the crop’s markets', () => {
+    expect(selectedMarketFor(item({ markets: [kandy, dambulla] }), 'm1')?.name).toBe(
+      'Dambulla Dedicated Economic Centre',
+    );
+  });
+
+  it('matches the id case-insensitively (GUIDs travel in mixed case)', () => {
+    const upper = block({ marketId: 'M1-AAAA' });
+    expect(selectedMarketFor(item({ markets: [kandy, upper] }), 'm1-aaaa')?.marketId).toBe(
+      'M1-AAAA',
+    );
+  });
+
+  it('falls back to markets[0] with no selection, and for a market the crop no longer has', () => {
+    const both = item({ markets: [kandy, dambulla] });
+    expect(selectedMarketFor(both, null)?.marketId).toBe('m3');
+    // The regression this guards: dropping a watched market while its tab was open must
+    // fall back to the card's lead market, never blank the whole card.
+    expect(selectedMarketFor(both, 'm999')?.marketId).toBe('m3');
+  });
+
+  it('has no market for a null item or a (contract-forbidden) empty list', () => {
+    expect(selectedMarketFor(null, 'm1')).toBeNull();
+    expect(selectedMarketFor(item({ markets: [] }), 'm1')).toBeNull();
+  });
+});
+
+describe('lib/portfolio — marketCodeLabel (a chip is never blank)', () => {
+  it('shows the registry’s own short code', () => {
+    expect(marketCodeLabel({ shortCode: 'KEP', name: 'Keppetipola' })).toBe('KEP');
+  });
+
+  it('falls back to the FULL NAME when the wire carries no code, never to an invented one', () => {
+    // shortCode may be empty by contract. A name-derived stand-in would teach the farmer a
+    // code that does not exist; a blank chip would be a control with no visible label.
+    expect(marketCodeLabel({ shortCode: '', name: 'Keppetipola' })).toBe('Keppetipola');
+    expect(marketCodeLabel({ shortCode: '   ', name: 'Keppetipola' })).toBe('Keppetipola');
   });
 });
 

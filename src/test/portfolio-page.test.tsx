@@ -98,6 +98,7 @@ const MARKETS: Market[] = [
   {
     id: 'm3',
     name: 'Kandy',
+    shortCode: 'KAN',
     district: 'Kandy',
     marketType: 1,
     isEconomicCenter: false,
@@ -108,6 +109,7 @@ const MARKETS: Market[] = [
   {
     id: 'm1',
     name: 'Dambulla Dedicated Economic Centre',
+    shortCode: 'DEC',
     district: 'Matale',
     marketType: 1,
     isEconomicCenter: true,
@@ -126,7 +128,7 @@ function watched(cropId: string, cropName: string, marketIds: string[]): Watchli
     markets: marketIds.map((id) => ({
       marketId: id,
       name: MARKETS.find((m) => m.id === id)?.name ?? id,
-      shortCode: id === 'm1' ? 'DEC' : 'KAN',
+      shortCode: MARKETS.find((m) => m.id === id)?.shortCode ?? '',
     })),
     createdAtUtc: '2026-07-20T00:00:00Z',
   };
@@ -191,7 +193,7 @@ describe('PortfolioPage — the four async states', () => {
     await waitFor(() => expect(document.querySelector('.pf-skeleton')).toBeNull());
   });
 
-  it('renders a watched crop: price, observed date, trend and prediction band', async () => {
+  it('renders a watched crop: its market code, price, observed date and trend', async () => {
     mockPage({ items: [tomato()] }, [watched('c1', 'Tomato', ['m1'])]);
     renderPage();
 
@@ -200,10 +202,6 @@ describe('PortfolioPage — the four async states', () => {
     expect(screen.getByText(/Price from Jul 25, 2026/)).toBeInTheDocument();
     // Trend is a WORD plus a percentage, not a colour.
     expect(screen.getByText(/Up 4\.2% from Rs\. 201 on Jul 21, 2026/)).toBeInTheDocument();
-    // The prediction is a point AND its band — the band is never dropped.
-    expect(screen.getByText('About Rs. 240 at harvest')).toBeInTheDocument();
-    expect(screen.getByText(/Likely price range: Rs\. 190 – 300/)).toBeInTheDocument();
-    expect(screen.getByText(/\(Confidence: Good\)/)).toBeInTheDocument();
   });
 
   it('shows an error with a retry, and recovers on retry', async () => {
@@ -265,6 +263,10 @@ describe('PortfolioPage — markets[0] drives the card', () => {
     const note = await screen.findByText('No price data for this market yet.');
     expect(note).toBeInTheDocument();
     expect(screen.queryByText(/recent|stale|out of date/i)).toBeNull();
+    // And no chart is drawn or even fetched: a market with no price has no series, so a
+    // second empty state under the sentence above would just say it again, differently.
+    expect(document.querySelector('.pf-card__chart')).toBeNull();
+    expect(api.getPriceHistory).not.toHaveBeenCalled();
   });
 
   it('names the economic-centre default as a default, not as a failed substitution', async () => {
@@ -325,7 +327,6 @@ describe('PortfolioPage — the two distinct empty states (PRD §5.2)', () => {
 
     await screen.findByText(/No prices for your crops yet/);
     expect(screen.getByText('No price data for this market yet.')).toBeInTheDocument();
-    expect(screen.getByText('No forecast for this crop yet.')).toBeInTheDocument();
     expect(screen.queryByText(/Rs\./)).toBeNull();
     // It is NOT the "add crops" invitation — the farmer did add crops.
     expect(screen.queryByText('You have not added any crops yet')).toBeNull();
@@ -360,64 +361,6 @@ describe('PortfolioPage — honest labelling', () => {
     await screen.findByText('No earlier price to compare with.');
     expect(screen.getByText('Rs. 210')).toBeInTheDocument();
     expect(screen.queryByText(/Same/)).toBeNull();
-  });
-
-  it('labels the prediction "National forecast" beside a market that is not the anchor', async () => {
-    mockPage({ items: [tomato({ markets: [KANDY_BLOCK] })] }, [watched('c1', 'Tomato', ['m3'])]);
-    renderPage();
-    await screen.findByText('National forecast');
-  });
-
-  it('omits the national label at the economic centre (the anchor itself)', async () => {
-    mockPage({ items: [tomato()] }, [watched('c1', 'Tomato', ['m1'])]);
-    renderPage();
-    await screen.findByRole('heading', { name: 'Tomato', level: 3 });
-    expect(screen.queryByText('National forecast')).toBeNull();
-  });
-
-  it('de-rates a fallback-served prediction visibly instead of hiding it', async () => {
-    mockPage(
-      {
-        items: [
-          tomato({
-            prediction: {
-              ...tomato().prediction!,
-              confidence: 'Low',
-              activePredictor: 'crop_mean_fallback',
-            },
-          }),
-        ],
-      },
-      [watched('c1', 'Tomato', ['m1'])],
-    );
-    renderPage();
-
-    await screen.findByText(/Rough estimate only/);
-    // The number is still there — de-rated, not withheld.
-    expect(screen.getByText('About Rs. 240 at harvest')).toBeInTheDocument();
-    expect(screen.getByText(/\(Confidence: Low\)/)).toBeInTheDocument();
-  });
-
-  it('de-rates a predictor name this build does not know, rather than trusting it', async () => {
-    mockPage(
-      {
-        items: [
-          tomato({
-            prediction: {
-              // Carries no "fallback" substring: a denylist would render this at full model
-              // trust. The farmer must see the caution, not inherit confidence by accident.
-              ...tomato().prediction!,
-              activePredictor: 'category_mean',
-            },
-          }),
-        ],
-      },
-      [watched('c1', 'Tomato', ['m1'])],
-    );
-    renderPage();
-
-    await screen.findByText(/Rough estimate only/);
-    expect(screen.getByText('About Rs. 240 at harvest')).toBeInTheDocument();
   });
 
   it('says how old a stale price is, and still shows the price', async () => {

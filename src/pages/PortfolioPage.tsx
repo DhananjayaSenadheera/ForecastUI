@@ -4,7 +4,8 @@
 // and wanted to act on it, and a separate settings screen made them leave and come back.
 //
 // What the page owns:
-//   • the cards — one per watched crop, reading markets[0] (market tabs are step 6);
+//   • the cards — one per watched crop; each card owns which of its markets it is showing
+//     (the short-code tabs) and fetches that market's history for itself;
 //   • the "Watching X/10" counter, so the cap is visible BEFORE it is hit;
 //   • remove-by-ticking — tick any number of cards, one action removes them all, with a
 //     confirm step because a removal is not undoable from here;
@@ -15,16 +16,17 @@
 //   • dashboard + crops + markets + watchlist — the page. Failure is the page's error state.
 //   • readiness — decoration. Failure means "readiness unknown": no badge, no claim, no
 //     error surface (the existing fail-soft idiom).
-//   • price history per crop — feeds ONLY the FE-derived price-swing badge, one call per
-//     crop against the market that card leads with. Failure or thin data means the badge
-//     simply does not appear. Fetched AFTER the dashboard paints, so a farmer on a rural
-//     connection reads their prices without waiting on decoration.
+//   • price history — NOT this page's job any more (step 6). Each card fetches the series for
+//     the market its tab is on, caches it per market and derives both its chart and its swing
+//     pill from that ONE response. The page used to fetch a history per crop for the swing
+//     alone; keeping that would have meant two calls for the same series the moment the card
+//     drew a chart.
 //
 // The two empty states are deliberately different (PRD §5.2): "you have not added any
 // crops" is an invitation, "we have nothing for your crops yet" is an admission. Neither
 // one ever shows a placeholder number. The table stays on screen for both — with an empty
 // watchlist it IS the next step.
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, ApiError } from '../api/client';
 import type { Crop, Market, PortfolioDashboard, WatchlistItem } from '../api/types';
@@ -33,12 +35,9 @@ import WatchlistCard from '../components/WatchlistCard';
 import {
   MAX_WATCHED_CROPS,
   dashboardEmptyState,
-  economicCenterIdSet,
-  primaryMarket,
   watchlistErrorKey,
   watchlistErrorParams,
 } from '../lib/portfolio';
-import { classifyPriceSwing, type PriceSwing } from '../lib/priceSwing';
 import { buildReadinessMap, readinessFor, type ReadinessMap } from '../lib/readiness';
 import { ymdLocal } from '../lib/format';
 import '../styles/portfolio.css';
@@ -112,31 +111,6 @@ export default function PortfolioPage() {
       cancelled = true;
     };
   }, []);
-
-  // Decoration 2 — price swing, one history call per crop against the market the card leads
-  // with (measuring a different market from the one displayed would describe another series).
-  // requestedRef survives StrictMode's dev double-mount, so no `cancelled` flag here: a
-  // first-pass cancel would leave the badge permanently absent.
-  const [swings, setSwings] = useState<Record<string, PriceSwing | null>>({});
-  const requestedRef = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    if (!dashboard) return;
-    for (const item of dashboard.items) {
-      const marketId = primaryMarket(item)?.marketId;
-      if (!marketId) continue;
-      const key = `${item.cropId}:${marketId}`;
-      if (requestedRef.current.has(key)) continue;
-      requestedRef.current.add(key);
-      api
-        .getPriceHistory(item.cropId, marketId)
-        .then((history) => {
-          setSwings((prev) => ({ ...prev, [item.cropId]: classifyPriceSwing(history) }));
-        })
-        .catch(() => {
-          requestedRef.current.delete(key); // allow a later attempt; badge stays absent
-        });
-    }
-  }, [dashboard]);
 
   // ---- Writes ----------------------------------------------------------------------
   const [busy, setBusy] = useState(false);
@@ -319,7 +293,6 @@ export default function PortfolioPage() {
     setPendingFocus('status');
   }, [selected, runWrites]);
 
-  const economicCenterIds = useMemo(() => economicCenterIdSet(markets), [markets]);
   const emptyState = dashboard ? dashboardEmptyState(dashboard) : null;
 
   return (
@@ -387,10 +360,8 @@ export default function PortfolioPage() {
                       key={item.cropId}
                       item={item}
                       readiness={readinessFor(readiness, item.cropId)}
-                      swing={swings[item.cropId] ?? null}
                       lang={lang}
                       todayYmd={todayYmd}
-                      economicCenterIds={economicCenterIds}
                       selected={selected.includes(item.cropId)}
                       onToggleSelect={toggleSelect}
                     />

@@ -14,8 +14,9 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import type { PortfolioDashboard, PortfolioDashboardItem, PriceHistoryPoint } from '../api/types';
 import PriceLineChart from '../components/PriceLineChart';
+import PredictionBlock from '../components/PredictionBlock';
 import PriceSwingBadge from '../components/PriceSwingBadge';
-import { PredictionBlock, PriceBlock } from '../components/WatchlistCard';
+import { PriceBlock } from '../components/WatchlistCard';
 import { chartMarketIdFor, harvestLinkFor, primaryMarket } from '../lib/portfolio';
 import { classifyPriceSwing, type PriceSwing } from '../lib/priceSwing';
 import { ymdLocal } from '../lib/format';
@@ -52,8 +53,9 @@ export default function PortfolioCropPage() {
   // Case-insensitive id match: GUIDs travel in mixed case between the route and the wire.
   const item: PortfolioDashboardItem | null =
     dashboard?.items.find((i) => i.cropId.toLowerCase() === cropId.toLowerCase()) ?? null;
-  // markets[0] — the same block the card leads with, so the two screens can never print
-  // different numbers for the same crop. Market tabs arrive in step 6.
+  // markets[0] — the market the card's first tab leads with, so the two screens open on the
+  // same numbers for the same crop. This page has no market switcher of its own: it is the
+  // "one crop in detail" view and the forecast beside it is national either way.
   const market = item ? primaryMarket(item) : null;
   const chartMarketId = chartMarketIdFor(item);
 

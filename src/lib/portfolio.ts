@@ -58,6 +58,37 @@ export function primaryMarket(item: PortfolioDashboardItem): PortfolioDashboardM
 }
 
 /**
+ * The market block whose numbers are ON SCREEN right now: the selected tab when the crop
+ * carries several markets, `markets[0]` otherwise (and whenever the id no longer names one
+ * of this crop's markets — after a market is dropped, the stale selection must fall back
+ * rather than blank the card).
+ *
+ * Every market-scoped thing on a card — price, observed date, trend, swing, chart — reads
+ * from THIS one function. Two of them resolving the market separately is how a card ends up
+ * charting Kandy under a Dambulla price.
+ */
+export function selectedMarketFor(
+  item: PortfolioDashboardItem | null,
+  selectedMarketId: string | null,
+): PortfolioDashboardMarket | null {
+  if (!item) return null;
+  if (selectedMarketId) {
+    const hit = item.markets.find(
+      (m) => m.marketId.toLowerCase() === selectedMarketId.toLowerCase(),
+    );
+    if (hit) return hit;
+  }
+  return primaryMarket(item);
+}
+
+/** The chip label for a market: its short code, or its full name when the code is empty.
+ *  The contract allows an empty `shortCode`, and a blank chip is a control with no name. */
+export function marketCodeLabel(market: { shortCode: string; name: string }): string {
+  const code = (market.shortCode ?? '').trim();
+  return code.length > 0 ? code : market.name;
+}
+
+/**
  * Does a prediction shown beside this market need the "National forecast" label?
  *
  * The model serves ONE Dambulla-anchored national price per crop, so a forecast sitting next
@@ -248,8 +279,12 @@ export function harvestLinkFor(cropId: string): string {
 }
 
 /** The market a crop's price chart should be drawn for: the one whose number is printed
- *  above it, i.e. the block the card leads with. Charting a different market next to a
- *  price would quietly contradict the number. */
-export function chartMarketIdFor(item: PortfolioDashboardItem | null): string | null {
-  return item ? (primaryMarket(item)?.marketId ?? null) : null;
+ *  above it. That is the SELECTED market where the surface lets the farmer switch (the card's
+ *  short-code tabs), and `markets[0]` where it does not (the crop detail page). Charting a
+ *  different market next to a price would quietly contradict the number. */
+export function chartMarketIdFor(
+  item: PortfolioDashboardItem | null,
+  selectedMarketId: string | null = null,
+): string | null {
+  return selectedMarketFor(item, selectedMarketId)?.marketId ?? null;
 }

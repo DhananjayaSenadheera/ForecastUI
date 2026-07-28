@@ -71,6 +71,11 @@
   border-color: var(--brand);
   box-shadow: 0 0 0 2px var(--brand-tint);
 }
+.pf-card__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
 .pf-card__market {
   margin: 0;
   font-size: var(--fs-sm);
@@ -84,6 +89,124 @@
   margin: 0;
   font-size: var(--fs-sm);
   color: var(--text-3);
+}
+
+/* ---- Market short codes: tabs (2–3 markets) or one chip -------------------
+   Same visual idiom as the admin Logs tab strip (a rule under the row, the active tab
+   sitting on a brand underline, an explainer that appears on hover/focus) — but its own
+   classes: admin.css never ships to a farmer, and a card tab is a smaller thing than a
+   page tab. The keyboard behaviour IS shared, in lib/tabs.ts.
+   Codes are short and uppercase, so they get letter-spacing and tabular figures rather
+   than a smaller size — three letters at 12px in sunlight are unreadable. */
+.pf-mtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+  margin: 0 0 var(--sp-1);
+  border-bottom: 1px solid var(--line);
+}
+.pf-mtab-wrap {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+.pf-mtab,
+.pf-mcode {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch-min);
+  min-width: var(--touch-min);
+  padding: var(--sp-2) var(--sp-3);
+  border: 0;
+  background: none;
+  color: var(--text-2);
+  font: inherit;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+.pf-mtab {
+  border-bottom: 3px solid transparent;
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+}
+.pf-mtab:hover {
+  background: var(--brand-tint);
+}
+/* The selected tab is NOT signalled by colour alone: aria-selected carries it for assistive
+   tech, and the underline + weight + tint carry it visually. */
+.pf-mtab.is-active {
+  color: var(--brand-strong);
+  border-bottom-color: var(--brand);
+  background: var(--brand-tint);
+}
+.pf-mtab:focus-visible,
+.pf-mcode:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-sm);
+}
+/* One market: a chip, not a strip. It reads as a label, so it carries the tint rather than
+   an underline that would imply a second tab is hiding somewhere. */
+.pf-mcode-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.pf-mcode {
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--r-pill);
+  background: var(--brand-tint);
+  color: var(--brand-strong);
+}
+.pf-mcode__note {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+
+/* The full market name on hover/focus. Purely visual — the same text is already the
+   control's accessible name, so it is aria-hidden and never announced twice.
+   pointer-events: none so it cannot steal its own hover. */
+.pf-mtab-tip {
+  position: absolute;
+  top: calc(100% + var(--sp-1));
+  left: 0;
+  z-index: 6;
+  width: max-content;
+  max-width: min(260px, 70vw);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface);
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--e-2);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-regular);
+  letter-spacing: normal;
+  line-height: 1.45;
+  color: var(--text-1);
+  white-space: normal;
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+.pf-mtab-wrap:hover .pf-mtab-tip,
+.pf-mtab-wrap:focus-within .pf-mtab-tip {
+  visibility: visible;
+  opacity: 1;
+}
+/* Touch has no hover, and a tap on a tab SELECTS it — the full name is printed under the
+   strip instead (.pf-card__market), so nothing depends on this tooltip. */
+@media (hover: none) {
+  .pf-mtab-tip {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pf-mtab-tip {
+    transition: none;
+  }
 }
 
 /* ---- Tick boxes (cards and table share one target size) ------------------- */
@@ -210,7 +333,37 @@
   color: var(--brand-dark);
 }
 
-/* ---- Prediction ----------------------------------------------------------- */
+/* ---- In-card price chart --------------------------------------------------
+   The SAME PriceLineChart the crop page and the Prices page draw — compacted, never
+   forked. Only the surrounding space and the chart's own height change; the numbers, the
+   band, the thin-history note and the <details> table alternative all stay, because the
+   table IS the text alternative and a card is not a reason to drop it. */
+.pf-card__chart {
+  margin-top: var(--sp-1);
+}
+.pf-card__chart .pr-chart {
+  margin-bottom: 0;
+}
+.pf-card__chart .pr-chart__title {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-2);
+  margin-bottom: var(--sp-2);
+}
+/* Cards stay scannable: the chart is a glance, not a study. The viewBox is unchanged, so
+   the geometry is identical to the full-size chart — only the drawn box is shorter. */
+.pf-card__chart .pr-svg {
+  max-height: 160px;
+  max-width: 100%;
+}
+.pf-card__chart .pr-keys {
+  font-size: var(--fs-xs);
+}
+.pf-skel--chart {
+  min-height: 140px;
+}
+
+/* ---- Prediction (crop detail page — the card carries no forecast) --------- */
 .pf-pred {
   display: flex;
   flex-direction: column;

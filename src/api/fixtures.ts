@@ -692,10 +692,10 @@ export function fxHarvestWindowFor(cropId: string, horizonDays = 90, asOf?: stri
 }
 
 export const fxMarkets: Market[] = [
-  { id: 'm0000001-0000-0000-0000-000000000001', name: 'Dambulla Dedicated Economic Centre', district: 'Matale', marketType: 1, isEconomicCenter: true, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
-  { id: 'm0000002-0000-0000-0000-000000000002', name: 'Colombo (Pettah)', district: 'Colombo', marketType: 1, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
-  { id: 'm0000003-0000-0000-0000-000000000003', name: 'Kandy', district: 'Kandy', marketType: 1, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
-  { id: 'm0000004-0000-0000-0000-000000000004', name: 'Meegoda', district: 'Colombo', marketType: 1, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
+  { id: 'm0000001-0000-0000-0000-000000000001', name: 'Dambulla Dedicated Economic Centre', shortCode: 'DEC', district: 'Matale', marketType: 1, isEconomicCenter: true, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
+  { id: 'm0000002-0000-0000-0000-000000000002', name: 'Colombo (Pettah)', shortCode: 'PET', district: 'Colombo', marketType: 1, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
+  { id: 'm0000003-0000-0000-0000-000000000003', name: 'Kandy', shortCode: 'KAN', district: 'Kandy', marketType: 1, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
+  { id: 'm0000004-0000-0000-0000-000000000004', name: 'Meegoda', shortCode: 'MEE', district: 'Colombo', marketType: 1, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
 ];
 
 export const fxPriceHistory: PriceHistoryPoint[] = [
@@ -1001,18 +1001,18 @@ export function fxPolicyFlagsFor(asOfDate?: string): PolicyFlag[] {
 // The monitoring fields exercise every UI state, including the CBSL national-average row
 // that stores nothing and never trains.
 export const fxAdminMarkets: Market[] = [
-  { id: 'b2a20001-0000-0000-0000-000000000001', name: 'Dambulla Dedicated Economic Centre', district: 'Matale', marketType: MarketType.DEC, isEconomicCenter: true, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
-  { id: 'b2a20001-0000-0000-0000-000000000002', name: 'Keppetipola Dedicated Economic Centre', district: 'Badulla', marketType: MarketType.DEC, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
-  { id: 'b2a20001-0000-0000-0000-000000000003', name: 'Thambuttegama Dedicated Economic Centre', district: 'Anuradhapura', marketType: MarketType.DEC, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
-  { id: 'b2a20001-0000-0000-0000-000000000004', name: 'Pettah (HARTI wholesale)', district: 'Colombo', marketType: MarketType.Wholesale, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
-  { id: 'b2a20001-0000-0000-0000-000000000005', name: 'Narahenpita (HARTI retail)', district: 'Colombo', marketType: MarketType.Retail, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
-  { id: 'b2a20001-0000-0000-0000-000000000006', name: 'CBSL national average (pseudo-market)', district: null, marketType: MarketType.NationalAggregate, isEconomicCenter: false, hasStoredData: false, lastStoredDate: null, isTrainingSource: false },
-  { id: 'b2a20001-0000-0000-0000-000000000007', name: 'Kandy (HARTI wholesale)', district: 'Kandy', marketType: MarketType.Wholesale, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
-  { id: 'b2a20001-0000-0000-0000-000000000008', name: 'Meegoda Dedicated Economic Centre', district: 'Colombo', marketType: MarketType.DEC, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
-  { id: 'b2a20001-0000-0000-0000-000000000009', name: 'Norochchole (HARTI wholesale)', district: 'Puttalam', marketType: MarketType.Wholesale, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-15', isTrainingSource: true },
-  { id: 'b2a20001-0000-0000-0000-000000000010', name: 'Nuwara Eliya Dedicated Economic Centre', district: 'Nuwara Eliya', marketType: MarketType.DEC, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
-  { id: 'b2a20001-0000-0000-0000-000000000011', name: 'Bandarawela (HARTI wholesale)', district: 'Badulla', marketType: MarketType.Wholesale, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-22', isTrainingSource: true },
-  { id: 'b2a20001-0000-0000-0000-000000000012', name: 'Veyangoda Dedicated Economic Centre', district: 'Gampaha', marketType: MarketType.DEC, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
+  { id: 'b2a20001-0000-0000-0000-000000000001', name: 'Dambulla Dedicated Economic Centre', shortCode: 'DEC', district: 'Matale', marketType: MarketType.DEC, isEconomicCenter: true, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
+  { id: 'b2a20001-0000-0000-0000-000000000002', name: 'Keppetipola Dedicated Economic Centre', shortCode: 'KEP', district: 'Badulla', marketType: MarketType.DEC, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
+  { id: 'b2a20001-0000-0000-0000-000000000003', name: 'Thambuttegama Dedicated Economic Centre', shortCode: 'THB', district: 'Anuradhapura', marketType: MarketType.DEC, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
+  { id: 'b2a20001-0000-0000-0000-000000000004', name: 'Pettah (HARTI wholesale)', shortCode: 'PET', district: 'Colombo', marketType: MarketType.Wholesale, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
+  { id: 'b2a20001-0000-0000-0000-000000000005', name: 'Narahenpita (HARTI retail)', shortCode: 'NAR', district: 'Colombo', marketType: MarketType.Retail, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
+  { id: 'b2a20001-0000-0000-0000-000000000006', name: 'CBSL national average (pseudo-market)', shortCode: 'NAT', district: null, marketType: MarketType.NationalAggregate, isEconomicCenter: false, hasStoredData: false, lastStoredDate: null, isTrainingSource: false },
+  { id: 'b2a20001-0000-0000-0000-000000000007', name: 'Kandy (HARTI wholesale)', shortCode: 'KAN', district: 'Kandy', marketType: MarketType.Wholesale, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
+  { id: 'b2a20001-0000-0000-0000-000000000008', name: 'Meegoda Dedicated Economic Centre', shortCode: 'MEE', district: 'Colombo', marketType: MarketType.DEC, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
+  { id: 'b2a20001-0000-0000-0000-000000000009', name: 'Norochchole (HARTI wholesale)', shortCode: 'NOR', district: 'Puttalam', marketType: MarketType.Wholesale, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-15', isTrainingSource: true },
+  { id: 'b2a20001-0000-0000-0000-000000000010', name: 'Nuwara Eliya Dedicated Economic Centre', shortCode: 'NUW', district: 'Nuwara Eliya', marketType: MarketType.DEC, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
+  { id: 'b2a20001-0000-0000-0000-000000000011', name: 'Bandarawela (HARTI wholesale)', shortCode: 'BAN', district: 'Badulla', marketType: MarketType.Wholesale, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-22', isTrainingSource: true },
+  { id: 'b2a20001-0000-0000-0000-000000000012', name: 'Veyangoda Dedicated Economic Centre', shortCode: 'VEY', district: 'Gampaha', marketType: MarketType.DEC, isEconomicCenter: false, hasStoredData: true, lastStoredDate: '2026-07-23', isTrainingSource: true },
 ];
 
 // Admin users: 13 demo accounts including `admin` (which simulates the admin role in
@@ -2029,16 +2029,14 @@ const FX_WATCHLIST_SEED: ReadonlyArray<{ cropId: string; marketIds: string[] }> 
 
 let fxWatchlistWorking: WatchlistItem[] | null = null;
 
-/** Short codes are display-only chips on the portfolio wire. The markets registry the demo
- *  reuses does not carry them, so the fixture derives a stable stand-in from the name — it
- *  is never a key, and the real wire value always wins in live mode. */
-function fxShortCode(name: string): string {
-  return name.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase();
-}
-
+/** Short codes are display-only chips. They come from the SAME registry rows the demo's
+ *  market pickers read (Markets.ShortCode on the live wire), never derived from the name:
+ *  a name-derived stand-in would print "DAM" beside a real "DEC" and teach the farmer a
+ *  code that does not exist. An unknown id yields "" — the honest empty the contract allows,
+ *  which the UI renders as the market's full name instead of a blank chip. */
 function fxWatchlistMarket(marketId: string): WatchlistMarket | null {
   const m = fxMarkets.find((x) => x.id === marketId);
-  return m ? { marketId: m.id, name: m.name, shortCode: fxShortCode(m.name) } : null;
+  return m ? { marketId: m.id, name: m.name, shortCode: m.shortCode } : null;
 }
 
 function fxWatchlistRow(cropId: string, marketIds: string[]): WatchlistItem {
@@ -2145,7 +2143,7 @@ function fxDashboardMarket(
   return {
     marketId,
     name: market?.name ?? '',
-    shortCode: fxShortCode(market?.name ?? ''),
+    shortCode: market?.shortCode ?? '',
     isDefaultMarket,
     price: last
       ? {

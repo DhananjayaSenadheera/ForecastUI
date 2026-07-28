@@ -1,12 +1,19 @@
-// WatchlistCard — one watched crop on the portfolio dashboard: what it fetches today at the
-// market the card leads with, which way it has moved, how much it swings, and what the model
-// says it will fetch at harvest. Also exports the two blocks so the per-crop page shows the
-// SAME facts in the same words rather than a second phrasing of them.
+// WatchlistCard — one watched crop on "My crops": which market it is being read at, what
+// that market pays today, which way it has moved, how much it swings, and the recent price
+// history behind those numbers.
 //
-// STEP 5 SCOPE: markets are per crop now and a crop can carry up to three, but this card
-// still shows exactly ONE — markets[0], the farmer's oldest-chosen (the wire orders them and
-// we never re-sort). Market tabs, the in-card chart and the planted date are steps 6–7; the
-// layout here is deliberately unchanged so the rewire and the redesign are separable.
+// STEP 6 SHAPE (the owner's Trello-card sketch):
+//   • the market's SHORT CODE sits on top, the crop name under it;
+//   • a crop watched at two or three markets turns those codes into TABS, and selecting one
+//     switches everything market-scoped at once — the price, its observed date, the trend
+//     line, the swing pill and the chart. One market means one chip and no tablist;
+//   • a compact price-history chart of the selected market closes the card.
+// The forecast section ("≈ About Rs. X at harvest", the band, the harvest date, the
+// National-forecast / rough-estimate tags) is GONE from the card this step. It is not
+// hidden-but-still-true: nothing on the card claims a harvest price any more. The
+// planted-date-driven replacement is step 7, and the crop detail page still shows the full
+// prediction via PredictionBlock in the meantime. The wire types still carry `prediction` —
+// only the card stopped rendering it.
 //
 // The honesty rules that shape this markup (PRD §3.6, §5.2):
 //  - The price is shown WITH its observed date, always. There is no staleness cutoff on the
@@ -16,69 +23,127 @@
 //    absent comparison as a flat price is a lie the farmer cannot detect.
 //  - The price shown is the named market's OWN price. It is never substituted from another
 //    market, so "no price" means this market has published none — not that it is stale.
-//  - The prediction is a RANGE with a confidence word; a fallback-served one is visibly
-//    de-rated (never hidden), and beside a market that is not the anchor it carries the
-//    "National forecast" label, because the model has only ever served one national price.
+//  - The chart is drawn for the SELECTED market and nothing else. A Kandy series under a
+//    Dambulla price would quietly contradict the number; every market-scoped thing on the
+//    card therefore resolves its market through one function, selectedMarketFor().
 //  - Nothing here is red. Red is reserved app-wide for the "Not recommended" verdict — the
 //    remove flow's own confirm button is the single deliberate exception (it destroys data).
 //
-// Both blocks branch on the PRESENCE of the leg, not on `priceUnavailableReason` /
-// `predictionUnavailableReason`. That is deliberate while each field has exactly one code
-// ("no_recent_price" / "no_snapshot"): switching on a one-member set buys nothing and
-// would silently drop an unknown future code into a blank space. When a second code
-// appears, branch here — the reason is already carried through in the types.
+// PriceBlock branches on the PRESENCE of the price leg, not on `priceUnavailableReason`.
+// That is deliberate while that field has exactly one code ("no_recent_price"): switching on
+// a one-member set buys nothing and would silently drop an unknown future code into a blank
+// space. When a second code appears, branch there — the reason is carried in the types.
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { PortfolioDashboardItem, PortfolioDashboardMarket } from '../api/types';
-import { formatDate, formatPrice, formatRange, mapConfidenceString } from '../lib/format';
+import { api } from '../api/client';
+import type {
+  PortfolioDashboardItem,
+  PortfolioDashboardMarket,
+  PriceHistoryPoint,
+} from '../api/types';
+import { formatDate, formatPrice } from '../lib/format';
 import {
   PRICE_AGE_NOTE_DAYS,
-  isDeratedPrediction,
-  primaryMarket,
   priceAgeDays,
-  showsNationalLabel,
+  selectedMarketFor,
   trendGlyph,
   trendLabelKey,
 } from '../lib/portfolio';
-import type { PriceSwing } from '../lib/priceSwing';
+import { classifyPriceSwing } from '../lib/priceSwing';
 import type { CropReadinessStatus } from '../lib/readiness';
-import ReadinessBadge from './ReadinessBadge';
+import MarketTabs, { marketPanelId, marketTabId } from './MarketTabs';
+import PriceLineChart from './PriceLineChart';
 import PriceSwingBadge from './PriceSwingBadge';
+import ReadinessBadge from './ReadinessBadge';
 
 export interface WatchlistCardProps {
   item: PortfolioDashboardItem;
   /** Forecast-readiness for this crop; null = unknown -> no badge, no claim. */
   readiness: CropReadinessStatus | null;
-  /** FE-derived price swing; null = too thin to say -> renders nothing. */
-  swing: PriceSwing | null;
   lang: string;
-  /** Today as "YYYY-MM-DD", passed in so the card stays pure and testable. */
+  /** Today as "YYYY-MM-DD", passed in so the card's price ageing stays testable. */
   todayYmd: string;
-  /** Economic-centre market ids; absent = the national label is shown (see
-   *  showsNationalLabel — the safe direction). */
-  economicCenterIds?: ReadonlySet<string>;
   /** Ticked for removal. Selection lives on the page so one action can remove many. */
   selected: boolean;
   onToggleSelect: (cropId: string) => void;
 }
 
+/**
+ * Observed price history for ONE crop, cached per market.
+ *
+ * One request per market per card, ever: switching to a tab that has already been fetched
+ * repaints from the cache with no round trip, which is what makes the tabs usable on a rural
+ * connection. `requested` is a ref so React 18's dev double-mount cannot fire the same call
+ * twice, and it is keyed by crop AND market so a card that is reused for another crop cannot
+ * inherit the previous crop's series.
+ *
+ * Returns null while a fetch is outstanding and an ARRAY once it resolves — including the
+ * empty array on failure and on "no market at all". Leaving it null there would park the
+ * chart on a skeleton with aria-busy="true" forever, announcing work that will never happen.
+ * A failed history is fail-soft decoration: the empty chart says so and the price above it
+ * is untouched.
+ */
+function useMarketHistory(cropId: string, marketId: string | null): PriceHistoryPoint[] | null {
+  const [cache, setCache] = useState<Record<string, PriceHistoryPoint[]>>({});
+  const requested = useRef<Set<string>>(new Set());
+  const key = marketId ? `${cropId}:${marketId}` : null;
+
+  useEffect(() => {
+    if (!marketId || !key) return;
+    if (requested.current.has(key)) return;
+    requested.current.add(key);
+    api
+      .getPriceHistory(cropId, marketId)
+      .then((h) => setCache((prev) => ({ ...prev, [key]: h })))
+      .catch(() => setCache((prev) => ({ ...prev, [key]: [] })));
+  }, [cropId, marketId, key]);
+
+  if (!key) return [];
+  return cache[key] ?? null;
+}
+
 export default function WatchlistCard({
   item,
   readiness,
-  swing,
   lang,
   todayYmd,
-  economicCenterIds,
   selected,
   onToggleSelect,
 }: WatchlistCardProps) {
   const { t } = useTranslation();
   const titleId = `pf-crop-${item.cropId}`;
-  const market = primaryMarket(item);
+
+  // Null = "the farmer has not chosen a tab", which resolves to markets[0] — the oldest
+  // chosen, exactly what the wire leads with. A selection naming a market this crop no
+  // longer has falls back the same way instead of blanking the card.
+  const [pickedMarketId, setPickedMarketId] = useState<string | null>(null);
+  const market = selectedMarketFor(item, pickedMarketId);
+  const marketId = market?.marketId ?? null;
+  const hasTabs = item.markets.length > 1;
+
+  // A market with NO price has no history to draw either: the wire's price is the freshest
+  // observation that exists at that market and there is no staleness cutoff, so a null price
+  // means this market has published nothing for this crop at all. PriceBlock already says
+  // that in the farmer's words; a second, differently-worded empty chart under it would be
+  // noise, and the request would be a round trip on a rural connection for a series that
+  // cannot have rows. The day the contract grows a staleness cutoff, this has to change.
+  const chartMarketId = market?.price ? marketId : null;
+  const history = useMarketHistory(item.cropId, chartMarketId);
+  // The swing describes the SAME series the chart draws, so it can never disagree with it.
+  const swing = history ? classifyPriceSwing(history) : null;
 
   return (
     <li className={`pf-card${selected ? ' pf-card--selected' : ''}`}>
       <article className="pf-card__inner" aria-labelledby={titleId}>
+        <MarketTabs
+          cropId={item.cropId}
+          cropName={item.cropName}
+          markets={item.markets}
+          selectedMarketId={marketId}
+          onSelect={setPickedMarketId}
+        />
+
         <header className="pf-card__head">
           {/* The tick is a real checkbox with a crop-specific accessible name, so a list of
               ten of them is never ten controls called "Select". */}
@@ -99,25 +164,51 @@ export default function WatchlistCard({
           <ReadinessBadge status={readiness} compact />
         </header>
 
-        {/* Which market these numbers belong to, said once, above them. */}
-        <p className="pf-card__market">
-          <span className="pf-card__market-label">{t('pages.portfolio.marketLabel')}</span>{' '}
-          <span className="pf-card__market-name">
-            {market ? market.name : t('pages.portfolio.noMarketChosen')}
-          </span>
-        </p>
-        {market?.isDefaultMarket && (
-          <p className="pf-card__market-note">{t('pages.portfolio.defaultMarketNote')}</p>
-        )}
+        {/* Everything below belongs to ONE market. With tabs it is that tabpanel; with a
+            single market there is no tablist, so there is no orphan tabpanel either. */}
+        <div
+          className="pf-card__panel"
+          {...(hasTabs && marketId
+            ? {
+                id: marketPanelId(item.cropId),
+                role: 'tabpanel',
+                'aria-labelledby': marketTabId(item.cropId, marketId),
+              }
+            : {})}
+        >
+          {/* The full market name in plain words, under the code. This is what makes the
+              codes readable on a touch screen, where a tap on a tab selects rather than
+              explains — and "KEP" alone is not a market a farmer can recognise. */}
+          <p className="pf-card__market">
+            <span className="pf-card__market-label">{t('pages.portfolio.marketLabel')}</span>{' '}
+            <span className="pf-card__market-name">
+              {market ? market.name : t('pages.portfolio.noMarketChosen')}
+            </span>
+          </p>
+          {market?.isDefaultMarket && (
+            <p className="pf-card__market-note">{t('pages.portfolio.defaultMarketNote')}</p>
+          )}
 
-        <PriceBlock market={market} lang={lang} todayYmd={todayYmd} />
-        <PriceSwingBadge swing={swing} />
-        <PredictionBlock
-          item={item}
-          market={market}
-          lang={lang}
-          economicCenterIds={economicCenterIds}
-        />
+          <PriceBlock market={market} lang={lang} todayYmd={todayYmd} />
+          <PriceSwingBadge swing={swing} />
+
+          {chartMarketId && (
+            <div className="pf-card__chart">
+              {history === null ? (
+                <div className="pf-skel pf-skel--chart" aria-busy="true">
+                  <span className="sr-only">{t('common.loading')}</span>
+                </div>
+              ) : (
+                <PriceLineChart
+                  history={history}
+                  cropLabel={item.cropName}
+                  marketName={market?.name ?? ''}
+                  lang={lang}
+                />
+              )}
+            </div>
+          )}
+        </div>
 
         <p className="pf-card__more">
           <Link
@@ -134,7 +225,8 @@ export default function WatchlistCard({
 }
 
 /** Today's observed price for the crop AT THIS MARKET: the number, the date it was observed,
- *  and the trend — or an honest "this market has no price for this crop". */
+ *  and the trend — or an honest "this market has no price for this crop". Shared with the
+ *  crop detail page so the two screens can never word the same fact differently. */
 export function PriceBlock({
   market,
   lang,
@@ -200,73 +292,6 @@ export function PriceBlock({
         // NOT "steady": there is simply nothing recent enough to compare against.
         <p className="pf-trend pf-trend--none">{t('pages.portfolio.noTrend')}</p>
       )}
-    </div>
-  );
-}
-
-/** The frozen snapshot prediction: a range with a confidence word, de-rated when it came
- *  from a fallback, labelled "National forecast" beside a market that is not the anchor. */
-export function PredictionBlock({
-  item,
-  market,
-  lang,
-  economicCenterIds,
-}: {
-  item: PortfolioDashboardItem;
-  market: PortfolioDashboardMarket | null;
-  lang: string;
-  economicCenterIds?: ReadonlySet<string>;
-}) {
-  const { t } = useTranslation();
-  const rs = t('common.rs');
-  const p = item.prediction;
-
-  if (!p) {
-    return (
-      <p className="pf-nodata" role="note">
-        <span aria-hidden="true">🔎 </span>
-        {t('pages.portfolio.noPrediction')}
-      </p>
-    );
-  }
-
-  const conf = mapConfidenceString(p.confidence);
-  const derated = isDeratedPrediction(p);
-
-  return (
-    <div className={`pf-pred${derated ? ' pf-pred--derated' : ''}`}>
-      <p className={`pf-pred__chip pf-pred__chip--${conf.tone}`}>
-        <span aria-hidden="true">≈ </span>
-        <span className="pf-pred__price">
-          {t('pages.portfolio.predAbout', { price: formatPrice(p.predictedPrice, lang, rs) })}
-        </span>{' '}
-        <span className="pf-pred__conf">
-          ({t('confidence.label')}: {t(conf.labelKey)})
-        </span>
-      </p>
-      {/* A band is always shown as a band — never collapsed into the single number above. */}
-      <p className="pf-pred__band">
-        {t('forecast.rangeTitle')}: {formatRange(p.lowerBound, p.upperBound, lang, rs)}
-      </p>
-      {p.harvestDate && (
-        <p className="pf-pred__when">
-          {t('forecast.harvestAround', { date: formatDate(p.harvestDate, lang) })}
-        </p>
-      )}
-      <p className="pf-pred__tags">
-        {showsNationalLabel(market, economicCenterIds) && (
-          <span className="pf-tag pf-tag--national">
-            {t('pages.portfolio.nationalForecast')}
-          </span>
-        )}
-        {derated && (
-          <span className="pf-tag pf-tag--derated">
-            <span aria-hidden="true">⚠ </span>
-            {t('forecast.lowTrustTitle')}
-          </span>
-        )}
-      </p>
-      {derated && <p className="pf-pred__derated-body">{t('forecast.lowTrustLead')}</p>}
     </div>
   );
 }
