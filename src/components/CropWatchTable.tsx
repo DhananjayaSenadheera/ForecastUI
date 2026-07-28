@@ -25,6 +25,7 @@ import {
   MAX_MARKETS_PER_CROP,
   MAX_WATCHED_CROPS,
   orderMarketsForPicker,
+  sameMarketSet,
   toggleMarketSelection,
 } from '../lib/portfolio';
 import TablePagination, { usePagination } from './TablePagination';
@@ -35,10 +36,13 @@ export interface CropWatchTableProps {
   watchlist: WatchlistItem[];
   lang: string;
   loading: boolean;
-  /** Adds the ticked crops with the markets picked for each. */
-  onAdd: (picks: { cropId: string; marketIds: string[] }[]) => Promise<void>;
-  /** Full-replace of one watched crop's markets. */
-  onUpdateMarkets: (cropId: string, marketIds: string[]) => Promise<void>;
+  /** Adds the ticked crops with the markets picked for each, and answers WHICH of them
+   *  really landed — the table forgets exactly those and keeps the rest ticked. */
+  onAdd: (
+    picks: { cropId: string; marketIds: string[] }[],
+  ) => Promise<{ landedCropIds: string[] }>;
+  /** Full-replace of one watched crop's markets; true when the server accepted it. */
+  onUpdateMarkets: (cropId: string, marketIds: string[]) => Promise<boolean>;
   /** True while a write is in flight — every write control is disabled together. */
   busy: boolean;
 }
@@ -123,14 +127,73 @@ export default function CropWatchTable({
 
   const onAddClick = useCallback(async () => {
     const picks = ticked.map((cropId) => ({ cropId, marketIds: marketsFor(cropId) }));
-    await onAdd(picks);
-    setTicked([]);
-    setDrafts({});
+    const { landedCropIds } = await onAdd(picks);
+    // ONLY what landed is forgotten. Clearing everything unconditionally meant a refused
+    // batch (offline, or a cap the server enforced) silently threw away the ticks AND the
+    // market picks the farmer had just made, with nothing to show for the tap.
+    if (landedCropIds.length === 0) return;
+    const landed = new Set(landedCropIds.map((id) => id.toLowerCase()));
+    setTicked((prev) => prev.filter((id) => !landed.has(id.toLowerCase())));
+    setDrafts((prev) => {
+      const next: Record<string, string[]> = {};
+      for (const [cropId, ids] of Object.entries(prev)) {
+        if (!landed.has(cropId.toLowerCase())) next[cropId] = ids;
+      }
+      return next;
+    });
   }, [ticked, marketsFor, onAdd]);
 
+  const saveMarkets = useCallback(
+    async (cropId: string, marketIds: string[]) => {
+      const ok = await onUpdateMarkets(cropId, marketIds);
+      // Drop the draft once it IS the stored state, so the row goes back to reading from the
+      // server. Leaving it behind left a permanently "dirty" row whose Save button never
+      // went away, firing the same no-op PUT every time it was pressed.
+      if (!ok) return;
+      setDrafts((prev) => {
+        if (!(cropId in prev)) return prev;
+        const next = { ...prev };
+        delete next[cropId];
+        return next;
+      });
+    },
+    [onUpdateMarkets],
+  );
+
+  /**
+   * Every market NAME we can resolve, watchlist first.
+   *
+   * The registry here is getMarkets(), which asks for the price-carrying subset (10 of the
+   * 12) — a crop watched at a market outside it would otherwise print a raw GUID at the
+   * farmer and count silently against their 3-market cap. The watchlist names the markets
+   * the farmer actually watches, so it is the better source and wins.
+   */
+  const nameById = useMemo(() => {
+    const byId = new Map<string, string>();
+    for (const m of markets) byId.set(m.id.toLowerCase(), m.name);
+    for (const w of watchlist) {
+      for (const wm of w.markets) byId.set(wm.marketId.toLowerCase(), wm.name);
+    }
+    return byId;
+  }, [markets, watchlist]);
+
   const nameOf = useCallback(
-    (marketId: string) => markets.find((m) => m.id === marketId)?.name ?? marketId,
-    [markets],
+    (marketId: string) => nameById.get(marketId.toLowerCase()) ?? marketId,
+    [nameById],
+  );
+
+  /** The picker options for one row: the registry, plus any market this crop is already
+   *  watched at that the registry does not list — otherwise the farmer can see that market
+   *  on their row but has no control with which to remove it. */
+  const optionsFor = useCallback(
+    (chosen: string[]): { id: string; name: string }[] => {
+      const known = new Set(marketOptions.map((m) => m.id.toLowerCase()));
+      const extras = chosen
+        .filter((id) => !known.has(id.toLowerCase()))
+        .map((id) => ({ id, name: nameOf(id) }));
+      return [...marketOptions.map((m) => ({ id: m.id, name: m.name })), ...extras];
+    },
+    [marketOptions, nameOf],
   );
 
   return (
@@ -177,11 +240,12 @@ export default function CropWatchTable({
                   const watched = watchedById.get(crop.id.toLowerCase()) ?? null;
                   const chosen = marketsFor(crop.id);
                   const stored = watched ? watched.markets.map((m) => m.marketId) : [];
-                  const dirty =
-                    watched !== null &&
-                    (chosen.length !== stored.length ||
-                      chosen.some((id, i) => id !== stored[i]));
+                  // Compared as a SET: the server keeps its own ChosenAt order and the
+                  // request order means nothing to it, so re-ticking the same markets in a
+                  // different order is not a change to offer to save.
+                  const dirty = watched !== null && !sameMarketSet(chosen, stored);
                   const isTicked = ticked.includes(crop.id);
+                  const isOpen = openPicker === crop.id;
                   const name = cropDisplayName(crop, lang);
 
                   return (
@@ -219,8 +283,11 @@ export default function CropWatchTable({
                         <button
                           type="button"
                           className="btn-ghost pf-mkt__toggle"
-                          aria-expanded={openPicker === crop.id}
-                          aria-controls={`pf-mkt-${crop.id}`}
+                          aria-expanded={isOpen}
+                          // Only while the panel exists: aria-controls pointing at an id
+                          // that is not in the document is a dangling reference AT is
+                          // entitled to follow.
+                          aria-controls={isOpen ? `pf-mkt-${crop.id}` : undefined}
                           disabled={busy}
                           onClick={() =>
                             setOpenPicker((prev) => (prev === crop.id ? null : crop.id))
@@ -228,7 +295,7 @@ export default function CropWatchTable({
                         >
                           {t('pages.portfolio.chooseMarketsFor', { crop: name })}
                         </button>
-                        {openPicker === crop.id && (
+                        {isOpen && (
                           <fieldset className="pf-mkt" id={`pf-mkt-${crop.id}`}>
                             <legend className="pf-mkt__legend">
                               {t('pages.portfolio.marketsLegend', {
@@ -237,7 +304,7 @@ export default function CropWatchTable({
                               })}
                             </legend>
                             <ul className="pf-mkt__list">
-                              {marketOptions.map((m) => {
+                              {optionsFor(chosen).map((m) => {
                                 const on = chosen.includes(m.id);
                                 return (
                                   <li key={m.id}>
@@ -269,7 +336,7 @@ export default function CropWatchTable({
                             type="button"
                             className="btn-primary pf-rowbtn"
                             disabled={busy}
-                            onClick={() => void onUpdateMarkets(crop.id, chosen)}
+                            onClick={() => void saveMarkets(crop.id, chosen)}
                           >
                             {t('pages.portfolio.saveMarketsFor', { crop: name })}
                           </button>
@@ -295,8 +362,10 @@ export default function CropWatchTable({
 
       {/* Both caps speak in the farmer's own terms, and only after they are actually hit. */}
       <p className="pf-set__note" role="status" aria-live="polite">
-        {capNote === 'full' && t('pages.portfolio.errWatchlistFull')}
-        {capNote === 'markets' && t('pages.portfolio.errTooManyMarkets')}
+        {capNote === 'full' &&
+          t('pages.portfolio.errWatchlistFull', { max: MAX_WATCHED_CROPS })}
+        {capNote === 'markets' &&
+          t('pages.portfolio.errTooManyMarkets', { max: MAX_MARKETS_PER_CROP })}
       </p>
 
       <div className="pf-save">

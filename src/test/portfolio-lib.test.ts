@@ -19,11 +19,13 @@ import {
   orderMarketsForPicker,
   priceAgeDays,
   primaryMarket,
+  sameMarketSet,
   showsNationalLabel,
   toggleMarketSelection,
   trendGlyph,
   trendLabelKey,
   watchlistErrorKey,
+  watchlistErrorParams,
 } from '../lib/portfolio';
 
 function block(over: Partial<PortfolioDashboardMarket> = {}): PortfolioDashboardMarket {
@@ -205,6 +207,49 @@ describe('lib/portfolio — caps are one constant, and the client says no before
 
   it('keeps the pick order the farmer tapped', () => {
     expect(toggleMarketSelection(['m3'], 'm1').next).toEqual(['m3', 'm1']);
+  });
+});
+
+describe('lib/portfolio — a market selection is a SET, not a sequence', () => {
+  it('treats the same markets in a different order as UNCHANGED', () => {
+    // The regression: the server keeps its own ChosenAt order, so re-ticking
+    // [Kandy, Dambulla] as [Dambulla, Kandy] is not an edit. Comparing positionally left a
+    // "Save markets" button lit forever, firing no-op PUTs the farmer could not clear.
+    expect(sameMarketSet(['m3', 'm1'], ['m1', 'm3'])).toBe(true);
+  });
+
+  it('spots a real difference in either direction', () => {
+    expect(sameMarketSet(['m1'], ['m3'])).toBe(false);
+    expect(sameMarketSet(['m1', 'm3'], ['m1'])).toBe(false);
+    expect(sameMarketSet([], ['m1'])).toBe(false);
+  });
+
+  it('matches case-insensitively — GUIDs travel in mixed case', () => {
+    expect(sameMarketSet(['AB-01'], ['ab-01'])).toBe(true);
+  });
+
+  it('two empty selections are the same selection', () => {
+    expect(sameMarketSet([], [])).toBe(true);
+  });
+
+  it('does not let a duplicated id compare equal to a genuinely smaller set', () => {
+    expect(sameMarketSet(['m1', 'm1'], ['m1', 'm3'])).toBe(false);
+  });
+});
+
+describe('lib/portfolio — the cap sentences read the constants, never a hardcoded number', () => {
+  it('hands each cap sentence its own constant', () => {
+    expect(watchlistErrorParams('pages.portfolio.errWatchlistFull')).toEqual({
+      max: MAX_WATCHED_CROPS,
+    });
+    expect(watchlistErrorParams('pages.portfolio.errTooManyMarkets')).toEqual({
+      max: MAX_MARKETS_PER_CROP,
+    });
+  });
+
+  it('passes nothing to a sentence that names no cap', () => {
+    expect(watchlistErrorParams('pages.portfolio.errEntryNotFound')).toEqual({});
+    expect(watchlistErrorParams('common.errorBody')).toEqual({});
   });
 });
 

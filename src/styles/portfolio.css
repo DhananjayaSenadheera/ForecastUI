@@ -347,7 +347,8 @@
   border: 1.5px solid var(--brand);
 }
 
-/* One status line for every write on the page. */
+/* One status line for every write on the page. It is also a focus target (a completed
+   removal unmounts the button that was focused), so it needs a visible focus ring. */
 .pf-writemsg {
   margin: var(--sp-3) 0 0;
   color: var(--good-fg);
@@ -355,7 +356,15 @@
 .pf-writemsg:empty {
   display: none;
 }
-.pf-writemsg--error {
+.pf-writemsg:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-sm);
+}
+/* Amber for BOTH the refusal and the "saved, but we could not refresh" case: neither is a
+   failure the farmer caused, and neither is red. */
+.pf-writemsg--error,
+.pf-writemsg--warn {
   padding: var(--sp-2) var(--sp-3);
   border-radius: var(--r-sm);
   background: var(--warn-bg);

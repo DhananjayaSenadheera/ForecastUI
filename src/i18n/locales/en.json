@@ -454,7 +454,6 @@
       "noMarketChosen": "No market chosen",
       "defaultMarketNote": "You have not chosen a market for this crop, so we show the main economic centre.",
       "noPriceAtMarket": "No price data for this market yet.",
-      "watchingCount": "Watching {{count}} of {{max}} crops",
       "emptyBodyTable": "Choose the crops you grow in the list below and we will show their price and forecast here.",
       "selectCropAria": "Tick {{crop}} to remove it",
       "removeSelected_one": "Remove {{count}} crop from my crops",
@@ -485,10 +484,13 @@
       "tickedCount_one": "{{count}} crop ticked.",
       "tickedCount_other": "{{count}} crops ticked.",
       "addToWatchlist": "Add to my crops",
-      "errWatchlistFull": "You can watch up to 10 crops. Remove one before adding another.",
-      "errTooManyMarkets": "You can choose up to 3 markets for one crop.",
+      "errWatchlistFull": "You can watch up to {{max}} crops. Remove one before adding another.",
+      "errTooManyMarkets": "You can choose up to {{max}} markets for one crop.",
       "errInvalidPlantedDate": "That planting date cannot be used. Please choose another.",
-      "errEntryNotFound": "That crop is no longer in your crops."
+      "errEntryNotFound": "That crop is no longer in your crops.",
+      "watchingCount_one": "Watching {{count}} of {{max}} crops",
+      "watchingCount_other": "Watching {{count}} of {{max}} crops",
+      "savedNoRefresh": "Saved. We could not refresh this page — please check again in a moment."
     },
     "portfolioCrop": {
       "title": "My crop",

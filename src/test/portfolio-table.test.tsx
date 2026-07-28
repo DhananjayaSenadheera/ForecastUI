@@ -214,6 +214,174 @@ describe('crop table — adding crops', () => {
   });
 });
 
+describe('crop table — a FAILED add keeps the farmer’s work (S1)', () => {
+  it('keeps the ticks AND the picked markets when the add fails outright', async () => {
+    // The regression: the ticks and every market pick were cleared unconditionally, so an
+    // offline tap silently threw away the whole selection with nothing to show for it.
+    mockPage();
+    vi.spyOn(api, 'addWatchlistCrop').mockRejectedValue(new ApiError('network', 0));
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Add Tomato to my crops' }));
+    const picker = await openPicker('Tomato');
+    fireEvent.click(within(picker).getByRole('checkbox', { name: 'Kandy, for Tomato' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add to my crops' }));
+
+    await screen.findByText('Something went wrong. Please try again.');
+    expect(screen.getByRole('checkbox', { name: 'Add Tomato to my crops' })).toBeChecked();
+    expect(screen.getByText('1 crop ticked.')).toBeInTheDocument();
+    // The market pick survives too — it is part of the same unsaved intention. Read the
+    // row's summary cell, not the (still-open) picker, so this cannot pass on the options.
+    const row = screen.getByRole('rowheader', { name: 'Tomato' }).closest('tr')!;
+    expect(row.querySelector('.pf-c-markets__list')).toHaveTextContent('Kandy');
+  });
+
+  it('on a PARTIAL batch, forgets only the crops that actually landed', async () => {
+    mockPage();
+    vi.spyOn(api, 'addWatchlistCrop').mockImplementation(async (cropId) => {
+      if (cropId === 'c1') return { item: watched('c1', 'Tomato', []), alreadyPresent: false };
+      throw new ApiError('HTTP 422', 422, 'watchlist_full');
+    });
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Add Tomato to my crops' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Add Beans to my crops' }));
+    vi.mocked(api.getWatchlist).mockResolvedValue([watched('c1', 'Tomato', [])]);
+    fireEvent.click(screen.getByRole('button', { name: 'Add to my crops' }));
+
+    await screen.findByText(/You can watch up to 10 crops/);
+    // Tomato landed -> its row is now a watched row, so its add-tick is gone entirely.
+    expect(screen.queryByRole('checkbox', { name: 'Add Tomato to my crops' })).toBeNull();
+    // Beans never landed -> the farmer's tick is still theirs.
+    expect(screen.getByRole('checkbox', { name: 'Add Beans to my crops' })).toBeChecked();
+    expect(screen.getByText('1 crop ticked.')).toBeInTheDocument();
+  });
+});
+
+describe('crop table — the Save button clears itself (S2)', () => {
+  it('offers no save when the SAME markets are re-ticked in a different order', async () => {
+    // The regression: the comparison was positional, so [Kandy, Dambulla] re-picked as
+    // [Dambulla, Kandy] read as an edit and lit a Save button firing no-op PUTs forever.
+    mockPage([watched('c1', 'Tomato', ['m3', 'm1'])]);
+    renderPage();
+
+    const picker = await openPicker('Tomato');
+    const kandy = () => within(picker).getByRole('checkbox', { name: 'Kandy, for Tomato' });
+    const dambulla = () =>
+      within(picker).getByRole('checkbox', {
+        name: 'Dambulla Dedicated Economic Centre, for Tomato',
+      });
+    // Clear both, then re-tick them the other way round: same set, other order.
+    fireEvent.click(kandy());
+    fireEvent.click(dambulla());
+    fireEvent.click(dambulla());
+    fireEvent.click(kandy());
+
+    expect(kandy()).toBeChecked();
+    expect(dambulla()).toBeChecked();
+    expect(screen.queryByRole('button', { name: 'Save markets for Tomato' })).toBeNull();
+  });
+
+  it('drops the row’s draft after a successful save, so the button goes away', async () => {
+    const listSpy = vi.spyOn(api, 'getWatchlist');
+    mockPage([watched('c1', 'Tomato', ['m3'])]);
+    vi.spyOn(api, 'updateWatchlistMarkets').mockResolvedValue({
+      item: watched('c1', 'Tomato', ['m3', 'm2']),
+      marketsChanged: true,
+      plantedDateChanged: false,
+    });
+    renderPage();
+
+    const picker = await openPicker('Tomato');
+    fireEvent.click(within(picker).getByRole('checkbox', { name: 'Colombo, for Tomato' }));
+    listSpy.mockResolvedValue([watched('c1', 'Tomato', ['m3', 'm2'])]);
+    fireEvent.click(screen.getByRole('button', { name: 'Save markets for Tomato' }));
+
+    await screen.findByText('Markets saved.');
+    // The regression: the stale draft kept the row "dirty" for the rest of the session.
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Save markets for Tomato' })).toBeNull(),
+    );
+  });
+
+  it('keeps the draft (and the button) when the save is refused', async () => {
+    mockPage([watched('c1', 'Tomato', ['m3'])]);
+    vi.spyOn(api, 'updateWatchlistMarkets').mockRejectedValue(
+      new ApiError('HTTP 422', 422, 'too_many_markets'),
+    );
+    renderPage();
+
+    const picker = await openPicker('Tomato');
+    fireEvent.click(within(picker).getByRole('checkbox', { name: 'Colombo, for Tomato' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save markets for Tomato' }));
+
+    await screen.findByText('You can choose up to 3 markets for one crop.');
+    expect(screen.getByRole('button', { name: 'Save markets for Tomato' })).toBeInTheDocument();
+  });
+});
+
+describe('crop table — a watched market outside the price-carrying registry (S5)', () => {
+  // getMarkets() asks for ?hasPrices=true, i.e. 10 of the 12 seeded markets. A crop watched
+  // at one of the other two must still be legible and removable.
+  const OFF_REGISTRY = 'm99';
+  const withOffRegistry = (): WatchlistItem => ({
+    cropId: 'c1',
+    cropName: 'Tomato',
+    cropCode: null,
+    plantedDate: null,
+    markets: [{ marketId: OFF_REGISTRY, name: 'Marandagahamula (HARTI wholesale)', shortCode: 'MAR' }],
+    createdAtUtc: '2026-07-20T00:00:00Z',
+  });
+
+  it('names it from the watchlist instead of printing a raw GUID', async () => {
+    mockPage([withOffRegistry()]);
+    renderPage();
+
+    const row = (await screen.findByRole('rowheader', { name: 'Tomato' })).closest('tr')!;
+    expect(within(row).getByText('Marandagahamula (HARTI wholesale)')).toBeInTheDocument();
+    expect(within(row).queryByText(OFF_REGISTRY)).toBeNull();
+  });
+
+  it('offers it in the picker so it can actually be removed', async () => {
+    mockPage([withOffRegistry()]);
+    const put = vi.spyOn(api, 'updateWatchlistMarkets').mockResolvedValue({
+      item: watched('c1', 'Tomato', []),
+      marketsChanged: true,
+      plantedDateChanged: false,
+    });
+    renderPage();
+
+    const picker = await openPicker('Tomato');
+    // The regression: it appeared on the row but had no control, so it could never be
+    // untied — while still counting against the 3-market cap.
+    const off = within(picker).getByRole('checkbox', {
+      name: 'Marandagahamula (HARTI wholesale), for Tomato',
+    });
+    expect(off).toBeChecked();
+    fireEvent.click(off);
+    fireEvent.click(screen.getByRole('button', { name: 'Save markets for Tomato' }));
+
+    await waitFor(() => expect(put).toHaveBeenCalledWith('c1', []));
+  });
+});
+
+describe('crop table — the picker disclosure points at something real (NIT 3)', () => {
+  it('carries aria-controls only while the panel it names exists', async () => {
+    mockPage();
+    renderPage();
+
+    const toggle = await screen.findByRole('button', { name: 'Choose markets for Tomato' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(toggle).not.toHaveAttribute('aria-controls');
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    const id = toggle.getAttribute('aria-controls');
+    expect(id).toBeTruthy();
+    expect(document.getElementById(id!)).toBeInTheDocument();
+  });
+});
+
 describe('crop table — the 3-market cap, client-side AND from the server', () => {
   it('refuses the FOURTH market with a sentence instead of ignoring the tap', async () => {
     mockPage();

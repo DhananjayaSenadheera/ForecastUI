@@ -36,6 +36,7 @@ import {
   economicCenterIdSet,
   primaryMarket,
   watchlistErrorKey,
+  watchlistErrorParams,
 } from '../lib/portfolio';
 import { classifyPriceSwing, type PriceSwing } from '../lib/priceSwing';
 import { buildReadinessMap, readinessFor, type ReadinessMap } from '../lib/readiness';
@@ -85,12 +86,14 @@ export default function PortfolioPage() {
     void load();
   }, [load]);
 
-  /** Re-read everything the writes can have changed. Never an optimistic local patch: after
-   *  a partly-applied batch the screen must show what REALLY landed. */
-  const refresh = useCallback(async () => {
+  /** Re-read everything the writes can have changed, and hand the fresh watchlist back.
+   *  Never an optimistic local patch: after a partly-applied batch the screen must show what
+   *  REALLY landed, and the caller needs the same list to decide what to forget. */
+  const refresh = useCallback(async (): Promise<WatchlistItem[]> => {
     const [d, w] = await Promise.all([api.getPortfolioDashboard(), api.getWatchlist()]);
     setDashboard(d);
     setWatchlist(w);
+    return w;
   }, []);
 
   // Decoration 1 — forecast readiness. Unknown readiness paints nothing.
@@ -140,28 +143,78 @@ export default function PortfolioPage() {
   // One message region for every write. The key is an i18n key, so a 422 the product
   // deliberately refuses (watchlist_full / too_many_markets) says WHICH limit was hit
   // instead of collapsing into "could not save".
-  const [writeMsg, setWriteMsg] = useState<{ tone: 'ok' | 'error'; key: string } | null>(null);
+  const [writeMsg, setWriteMsg] = useState<{
+    tone: 'ok' | 'warn' | 'error';
+    key: string;
+  } | null>(null);
 
-  /** Run a batch of writes, then re-read. Sequential, not parallel: a rural connection copes
-   *  better with one request at a time, and the first refusal stops the batch with its own
-   *  code rather than firing nine more calls that will be refused too. */
+  /** One step of a batch: the crop it is about, and the call itself. */
+  interface WriteStep {
+    cropId: string;
+    run: () => Promise<unknown>;
+  }
+  /** What a batch actually achieved. `done` is the crops whose write the server ACCEPTED —
+   *  the caller's cue for what it may now forget. `watchlist` is null when the re-read
+   *  failed, i.e. "the writes landed but we cannot prove what the state is". */
+  interface WriteOutcome {
+    ok: boolean;
+    done: string[];
+    watchlist: WatchlistItem[] | null;
+  }
+
+  /**
+   * Run a batch of writes, then re-read. Sequential, not parallel: a rural connection copes
+   * better with one request at a time, and the first refusal stops the batch with its own
+   * code rather than firing nine more calls that will be refused too.
+   *
+   * `alreadyDoneCode` names a refusal that means "the goal of this step is ALREADY true"
+   * (a DELETE of a crop that is not there). Such a step counts as done and the batch carries
+   * on — stopping would strand the crops after it, and reporting failure would be a lie
+   * about a state the farmer already has.
+   *
+   * The RE-READ is outside the write try-block on purpose. A failed refresh after a
+   * successful write is not a failed write: reporting "could not save" there would send the
+   * farmer to re-do something that already happened, next to a card that has not caught up.
+   */
   const runWrites = useCallback(
-    async (writes: (() => Promise<unknown>)[], okKey: string) => {
+    async (
+      steps: WriteStep[],
+      okKey: string,
+      opts: { alreadyDoneCode?: string } = {},
+    ): Promise<WriteOutcome> => {
       setBusy(true);
       setWriteMsg(null);
+      const done: string[] = [];
+      let failureKey: string | null = null;
       try {
-        for (const w of writes) await w();
-        await refresh();
-        setWriteMsg({ tone: 'ok', key: okKey });
-      } catch (e) {
-        // The server's own code wins over any client-side guess about why.
-        const code = e instanceof ApiError ? e.code : null;
-        setWriteMsg({ tone: 'error', key: watchlistErrorKey(code) });
+        for (const step of steps) {
+          try {
+            await step.run();
+            done.push(step.cropId);
+          } catch (e) {
+            // The server's own code wins over any client-side guess about why.
+            const code = e instanceof ApiError ? e.code : null;
+            if (opts.alreadyDoneCode && code === opts.alreadyDoneCode) {
+              done.push(step.cropId);
+              continue;
+            }
+            failureKey = watchlistErrorKey(code);
+            break;
+          }
+        }
+
+        let fresh: WatchlistItem[] | null = null;
         try {
-          await refresh();
+          fresh = await refresh();
         } catch {
           /* keep the last known screen rather than blanking it */
         }
+
+        if (failureKey) setWriteMsg({ tone: 'error', key: failureKey });
+        else if (fresh === null) setWriteMsg({ tone: 'warn', key: 'pages.portfolio.savedNoRefresh' });
+        else setWriteMsg({ tone: 'ok', key: okKey });
+
+        return { ok: failureKey === null, done, watchlist: fresh };
       } finally {
         setBusy(false);
       }
@@ -171,10 +224,21 @@ export default function PortfolioPage() {
 
   const onAdd = useCallback(
     async (picks: { cropId: string; marketIds: string[] }[]) => {
-      await runWrites(
-        picks.map((p) => () => api.addWatchlistCrop(p.cropId, p.marketIds)),
+      const { done, watchlist: fresh } = await runWrites(
+        picks.map((p) => ({
+          cropId: p.cropId,
+          run: () => api.addWatchlistCrop(p.cropId, p.marketIds),
+        })),
         'pages.portfolio.addedOk',
       );
+      // What the table may forget: the crops the server accepted AND that the refreshed list
+      // confirms are really watched. With no refreshed list the accepted writes stand on
+      // their own — but a tick is never dropped for a write that failed, so a rejected batch
+      // leaves the farmer's ticks and market picks exactly as they left them.
+      const landedCropIds = fresh
+        ? done.filter((id) => fresh.some((w) => w.cropId.toLowerCase() === id.toLowerCase()))
+        : done;
+      return { landedCropIds };
     },
     [runWrites],
   );
@@ -182,10 +246,11 @@ export default function PortfolioPage() {
   const onUpdateMarkets = useCallback(
     async (cropId: string, marketIds: string[]) => {
       // FULL REPLACE, and plantedDate is not part of the body — step 7 owns that field.
-      await runWrites(
-        [() => api.updateWatchlistMarkets(cropId, marketIds)],
+      const { ok } = await runWrites(
+        [{ cropId, run: () => api.updateWatchlistMarkets(cropId, marketIds) }],
         'pages.portfolio.marketsSavedOk',
       );
+      return ok;
     },
     [runWrites],
   );
@@ -194,6 +259,12 @@ export default function PortfolioPage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [confirming, setConfirming] = useState(false);
   const confirmRef = useRef<HTMLButtonElement | null>(null);
+  const removeBtnRef = useRef<HTMLButtonElement | null>(null);
+  const statusRef = useRef<HTMLParagraphElement | null>(null);
+  // Every control in this flow can UNMOUNT the control that was focused (the bar becomes a
+  // confirm, the confirm becomes nothing). Focus must be sent somewhere deliberate each
+  // time, or a keyboard user is dropped back to <body> and has to tab from the top.
+  const [pendingFocus, setPendingFocus] = useState<'confirm' | 'remove' | 'status' | null>(null);
 
   const toggleSelect = useCallback((cropId: string) => {
     setWriteMsg(null);
@@ -202,11 +273,19 @@ export default function PortfolioPage() {
     );
   }, []);
 
-  // The confirm is where the destructive button lives, so keyboard focus must land on it
-  // rather than staying behind on a button that has just disappeared.
   useEffect(() => {
-    if (confirming) confirmRef.current?.focus();
-  }, [confirming]);
+    if (pendingFocus === null) return;
+    if (pendingFocus === 'confirm') confirmRef.current?.focus();
+    else if (pendingFocus === 'remove') removeBtnRef.current?.focus();
+    else statusRef.current?.focus();
+    setPendingFocus(null);
+  }, [pendingFocus]);
+
+  /** Back out of the confirm — the same path for the button and for Escape. */
+  const cancelConfirm = useCallback(() => {
+    setConfirming(false);
+    setPendingFocus('remove');
+  }, []);
 
   // Ticks that no longer name a watched crop (it was just removed) are dropped, so the
   // action bar cannot linger over an empty selection.
@@ -222,10 +301,16 @@ export default function PortfolioPage() {
     const ids = [...selected];
     setConfirming(false);
     setSelected([]);
+    // A DELETE answering watchlist_entry_not_found means that crop is ALREADY gone — the
+    // farmer's goal for it is met. Stopping the batch there would strand the crops after it
+    // (removing 1 of 3 and reporting an error for a state that is half what was asked).
     await runWrites(
-      ids.map((id) => () => api.removeWatchlistCrop(id)),
+      ids.map((id) => ({ cropId: id, run: () => api.removeWatchlistCrop(id) })),
       'pages.portfolio.removedOk',
+      { alreadyDoneCode: 'watchlist_entry_not_found' },
     );
+    // The bar the farmer just pressed no longer exists; the result message does.
+    setPendingFocus('status');
   }, [selected, runWrites]);
 
   const economicCenterIds = useMemo(() => economicCenterIdSet(markets), [markets]);
@@ -311,8 +396,23 @@ export default function PortfolioPage() {
                 {selected.length > 0 && (
                   <div className="pf-removebar">
                     {confirming ? (
-                      <div className="pf-confirm" role="alert">
-                        <p className="pf-confirm__q">
+                      // alertdialog, not alert: this region is INTERACTIVE, and a plain
+                      // alert announces text while telling a screen-reader user nothing
+                      // about the choice they are standing in. Escape backs out by the same
+                      // path as the "No" button — a confirm a farmer cannot dismiss with the
+                      // key everyone reaches for is a trap.
+                      <div
+                        className="pf-confirm"
+                        role="alertdialog"
+                        aria-labelledby="pf-confirm-q"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape' && !busy) {
+                            e.stopPropagation();
+                            cancelConfirm();
+                          }
+                        }}
+                      >
+                        <p className="pf-confirm__q" id="pf-confirm-q">
                           {t('pages.portfolio.removeConfirmQuestion', {
                             count: selected.length,
                           })}
@@ -331,7 +431,7 @@ export default function PortfolioPage() {
                             type="button"
                             className="btn-ghost pf-confirm__no"
                             disabled={busy}
-                            onClick={() => setConfirming(false)}
+                            onClick={cancelConfirm}
                           >
                             {t('pages.portfolio.removeConfirmNo')}
                           </button>
@@ -340,9 +440,13 @@ export default function PortfolioPage() {
                     ) : (
                       <button
                         type="button"
+                        ref={removeBtnRef}
                         className="btn-ghost pf-removebar__btn"
                         disabled={busy}
-                        onClick={() => setConfirming(true)}
+                        onClick={() => {
+                          setConfirming(true);
+                          setPendingFocus('confirm');
+                        }}
                       >
                         {t('pages.portfolio.removeSelected', { count: selected.length })}
                       </button>
@@ -352,12 +456,17 @@ export default function PortfolioPage() {
               </>
             )}
 
+            {/* tabIndex=-1 so focus can be SENT here when the control that was focused has
+                just unmounted (a completed removal). It is still a live region, so a farmer
+                who never left the keyboard also hears the result announced. */}
             <p
-              className={`pf-writemsg${writeMsg?.tone === 'error' ? ' pf-writemsg--error' : ''}`}
+              ref={statusRef}
+              tabIndex={-1}
+              className={`pf-writemsg${writeMsg ? ` pf-writemsg--${writeMsg.tone}` : ''}`}
               role="status"
               aria-live="polite"
             >
-              {writeMsg && t(writeMsg.key)}
+              {writeMsg && t(writeMsg.key, watchlistErrorParams(writeMsg.key))}
             </p>
           </>
         )}

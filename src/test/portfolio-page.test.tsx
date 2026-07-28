@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import i18n from '../i18n';
+import i18n, { hasOwnTranslation } from '../i18n';
 import PortfolioPage from '../pages/PortfolioPage';
 import { api, ApiError } from '../api/client';
+import { MAX_MARKETS_PER_CROP, MAX_WATCHED_CROPS } from '../lib/portfolio';
 import type {
   Crop,
   CropReadiness,
@@ -528,6 +529,194 @@ describe('PortfolioPage — remove by ticking', () => {
 
     await screen.findByText('Watching 1 of 10 crops');
     expect(api.getPortfolioDashboard).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('PortfolioPage — a batch removal survives a crop that is already gone (S4)', () => {
+  const three = () => ({
+    items: [
+      tomato(),
+      tomato({ cropId: 'c2', cropName: 'Beans' }),
+      tomato({ cropId: 'c3', cropName: 'Carrot' }),
+    ],
+  });
+  const threeWatched = () => [
+    watched('c1', 'Tomato', ['m1']),
+    watched('c2', 'Beans', ['m1']),
+    watched('c3', 'Carrot', ['m1']),
+  ];
+
+  it('treats a 404 watchlist_entry_not_found as done and REMOVES THE REST', async () => {
+    mockPage(three(), threeWatched());
+    const del = vi.spyOn(api, 'removeWatchlistCrop').mockImplementation(async (id) => {
+      // Crop 2 is already gone — the farmer's goal for it is met, not refused.
+      if (id === 'c2') throw new ApiError('HTTP 404', 404, 'watchlist_entry_not_found');
+      return { cropId: id, removed: true };
+    });
+    mockPage(three(), threeWatched());
+    renderPage();
+
+    for (const name of ['Tomato', 'Beans', 'Carrot']) {
+      fireEvent.click(await screen.findByRole('checkbox', { name: `Tick ${name} to remove it` }));
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Remove 3 crops from my crops' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, remove' }));
+
+    // The regression: stopping at c2 stranded c3 AND reported a failure for a state the
+    // farmer already had.
+    await waitFor(() => expect(del).toHaveBeenCalledTimes(3));
+    expect(del.mock.calls.map((c) => c[0])).toEqual(['c1', 'c2', 'c3']);
+    await screen.findByText('Removed.');
+  });
+
+  it('still stops an ADD batch at the first real refusal', async () => {
+    // watchlist_full refuses everything after it too, so firing the rest is pure waste.
+    mockPage({ items: [] }, []);
+    const add = vi
+      .spyOn(api, 'addWatchlistCrop')
+      .mockRejectedValue(new ApiError('HTTP 422', 422, 'watchlist_full'));
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Add Tomato to my crops' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Add Beans to my crops' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add to my crops' }));
+
+    await screen.findByText(/You can watch up to 10 crops/);
+    expect(add).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('PortfolioPage — a failed RE-READ is not a failed write (S3)', () => {
+  it('says "saved, could not refresh" rather than sending the farmer to re-do it', async () => {
+    mockPage({ items: [] }, []);
+    vi.spyOn(api, 'addWatchlistCrop').mockResolvedValue({
+      item: watched('c2', 'Beans', []),
+      alreadyPresent: false,
+    });
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Add Beans to my crops' }));
+    // The write lands; only the re-read falls over.
+    vi.mocked(api.getPortfolioDashboard).mockRejectedValue(new Error('offline'));
+    fireEvent.click(screen.getByRole('button', { name: 'Add to my crops' }));
+
+    await screen.findByText(
+      'Saved. We could not refresh this page — please check again in a moment.',
+    );
+    // The regression: this used to read as a write failure next to a stale card.
+    expect(screen.queryByText('Something went wrong. Please try again.')).toBeNull();
+    expect(screen.queryByText('Added to my crops.')).toBeNull();
+  });
+
+  it('a real write failure still wins over the refresh warning', async () => {
+    mockPage({ items: [] }, []);
+    vi.spyOn(api, 'addWatchlistCrop').mockRejectedValue(new ApiError('network', 0));
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Add Beans to my crops' }));
+    vi.mocked(api.getPortfolioDashboard).mockRejectedValue(new Error('offline'));
+    fireEvent.click(screen.getByRole('button', { name: 'Add to my crops' }));
+
+    await screen.findByText('Something went wrong. Please try again.');
+  });
+});
+
+describe('PortfolioPage — the confirm is a dialog, and keyboard-escapable (S6, S7)', () => {
+  const twoWatched = () => [watched('c1', 'Tomato', ['m1']), watched('c2', 'Beans', ['m1'])];
+  const twoCrops = () => ({ items: [tomato(), tomato({ cropId: 'c2', cropName: 'Beans' })] });
+
+  it('exposes an alertdialog named by its own question, not a bare alert', async () => {
+    mockPage(twoCrops(), twoWatched());
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Tick Tomato to remove it' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove 1 crop from my crops' }));
+
+    const dialog = await screen.findByRole('alertdialog', {
+      name: 'Remove 1 crop from my crops?',
+    });
+    expect(dialog).toBeInTheDocument();
+  });
+
+  it('Escape backs out by the same path as "No, keep them"', async () => {
+    mockPage(twoCrops(), twoWatched());
+    const del = vi.spyOn(api, 'removeWatchlistCrop').mockResolvedValue({ cropId: 'c1', removed: true });
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Tick Tomato to remove it' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove 1 crop from my crops' }));
+    fireEvent.keyDown(screen.getByRole('alertdialog'), { key: 'Escape' });
+
+    expect(del).not.toHaveBeenCalled();
+    const back = await screen.findByRole('button', { name: 'Remove 1 crop from my crops' });
+    // Focus comes back to the control that opened the confirm, not to <body>.
+    await waitFor(() => expect(document.activeElement).toBe(back));
+  });
+
+  it('returns focus to the remove button when the farmer backs out by button', async () => {
+    mockPage(twoCrops(), twoWatched());
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Tick Tomato to remove it' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove 1 crop from my crops' }));
+    fireEvent.click(screen.getByRole('button', { name: 'No, keep them' }));
+
+    const back = await screen.findByRole('button', { name: 'Remove 1 crop from my crops' });
+    await waitFor(() => expect(document.activeElement).toBe(back));
+  });
+
+  it('sends focus to the result message once the removal completes', async () => {
+    // The regression: the whole bar unmounts on success, so focus fell to <body> and a
+    // keyboard user had to tab from the top of the page to find out what happened.
+    mockPage(twoCrops(), twoWatched());
+    vi.spyOn(api, 'removeWatchlistCrop').mockResolvedValue({ cropId: 'c1', removed: true });
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Tick Tomato to remove it' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove 1 crop from my crops' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, remove' }));
+
+    const status = await screen.findByText('Removed.');
+    await waitFor(() => expect(document.activeElement).toBe(status));
+    expect(document.activeElement).not.toBe(document.body);
+  });
+});
+
+describe('PortfolioPage — the caps in the copy come from the constants (S8)', () => {
+  it('interpolates the crop cap rather than shipping a hardcoded 10', async () => {
+    mockPage({ items: [] }, []);
+    vi.spyOn(api, 'addWatchlistCrop').mockRejectedValue(
+      new ApiError('HTTP 422', 422, 'watchlist_full'),
+    );
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Add Beans to my crops' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add to my crops' }));
+
+    await screen.findByText(
+      `You can watch up to ${MAX_WATCHED_CROPS} crops. Remove one before adding another.`,
+    );
+  });
+
+  it('interpolates the market cap the same way', async () => {
+    mockPage({ items: [] }, []);
+    vi.spyOn(api, 'addWatchlistCrop').mockRejectedValue(
+      new ApiError('HTTP 422', 422, 'too_many_markets'),
+    );
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Add Beans to my crops' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add to my crops' }));
+
+    await screen.findByText(
+      `You can choose up to ${MAX_MARKETS_PER_CROP} markets for one crop.`,
+    );
+  });
+
+  it('ships BOTH plural forms of the counter, so si/ta translators get the slots (NIT 1)', () => {
+    // A single form carrying {{count}} silently becomes the only form a translator sees.
+    expect(hasOwnTranslation('pages.portfolio.watchingCount_one', 'en')).toBe(true);
+    expect(hasOwnTranslation('pages.portfolio.watchingCount_other', 'en')).toBe(true);
   });
 });
 

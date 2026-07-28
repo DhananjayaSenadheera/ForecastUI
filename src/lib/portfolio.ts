@@ -146,6 +146,41 @@ export function watchlistErrorKey(code: string | null | undefined): string {
   }
 }
 
+/**
+ * The interpolation values a watchlist error sentence needs — the cap it names.
+ *
+ * The COPY must never hardcode "10" or "3": those numbers are owned by the constants above
+ * (which mirror the backend), and a sentence carrying its own copy of them is a sentence
+ * that goes quietly wrong the day a cap moves, in three languages at once.
+ */
+export function watchlistErrorParams(key: string): { max?: number } {
+  switch (key) {
+    case 'pages.portfolio.errWatchlistFull':
+      return { max: MAX_WATCHED_CROPS };
+    case 'pages.portfolio.errTooManyMarkets':
+      return { max: MAX_MARKETS_PER_CROP };
+    default:
+      return {};
+  }
+}
+
+/**
+ * Do these two market selections hold the SAME markets? Compared as SETS, deliberately:
+ * the server stores its own ChosenAt order and the request order is irrelevant to it, so
+ * re-ticking [Kandy, Dambulla] as [Dambulla, Kandy] is not a change. Comparing positionally
+ * would leave a "Save markets" button lit forever, firing no-op PUTs the farmer cannot
+ * clear. Case-insensitive because GUIDs travel in mixed case.
+ */
+export function sameMarketSet(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const left = new Set(a.map((id) => id.toLowerCase()));
+  for (const id of b) if (!left.has(id.toLowerCase())) return false;
+  // Sets ignore duplicates, so equal sizes plus full containment is only equality when
+  // neither side repeats an id. The pickers cannot produce a duplicate, and a duplicate
+  // arriving from the wire should read as a difference rather than silently compare equal.
+  return left.size === a.length;
+}
+
 /** The economic centre first, then the rest by name — the option order for the market
  *  pickers, so the model's own anchor is the default suggestion at the top. */
 export function orderMarketsForPicker(markets: Market[]): Market[] {
