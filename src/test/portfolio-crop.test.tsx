@@ -165,6 +165,20 @@ describe('PortfolioCropPage', () => {
     expect(forecastRoute).not.toHaveBeenCalled();
   });
 
+  it('drops the assumption line when there IS no forecast to assume anything about', async () => {
+    // "Worked out for a planting on …" sitting above "No forecast for this crop yet." would
+    // describe a number that is not there — and with no prediction there is no snapshotDate
+    // to name either, so the sentence could only be completed with a blank or a guess.
+    mockDashboard({
+      items: [tomato({ prediction: null, predictionUnavailableReason: 'no_snapshot' })],
+    });
+    renderPage();
+
+    await screen.findByText('No forecast for this crop yet.');
+    expect(screen.queryByText(/This is our daily forecast for this crop/)).toBeNull();
+    expect(screen.queryByText(/worked out for a planting on/)).toBeNull();
+  });
+
   it('says nothing about a planting the farmer has not recorded', async () => {
     mockDashboard({ items: [tomato()] });
     renderPage();
