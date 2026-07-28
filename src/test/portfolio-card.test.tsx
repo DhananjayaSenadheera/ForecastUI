@@ -127,6 +127,8 @@ function renderCard(item: PortfolioDashboardItem, onToggleSelect = vi.fn()) {
           todayYmd="2026-07-28"
           selected={false}
           onToggleSelect={onToggleSelect}
+          onSavePlantedDate={vi.fn(async () => null)}
+          busy={false}
         />
       </ul>
     </MemoryRouter>,
@@ -381,10 +383,11 @@ describe('WatchlistCard — the default-market card', () => {
   });
 });
 
-describe('WatchlistCard — the forecast section is gone (step 6)', () => {
-  it('makes no claim about the harvest price, even with a prediction on the wire', async () => {
-    // The prediction still travels in the wire types and the crop detail page still shows
-    // it; the CARD simply stopped rendering it, pending step 7's planted-date section.
+describe('WatchlistCard — the nightly SNAPSHOT forecast is still not on the card', () => {
+  it('never renders the wire prediction: the card forecasts the FARMER’s planting or nothing', async () => {
+    // `prediction` is the nightly snapshot for an assumed planting day the farmer never
+    // named. Step 7 replaced it with a forecast for the date they actually recorded — and
+    // this crop has no date, so the card claims no harvest price at all.
     renderCard(tomato());
 
     await screen.findByText('Rs. 260');
@@ -393,38 +396,49 @@ describe('WatchlistCard — the forecast section is gone (step 6)', () => {
     expect(screen.queryByText(/Confidence:/)).toBeNull();
     expect(screen.queryByText('National forecast')).toBeNull();
     expect(screen.queryByText(/Rough estimate only/)).toBeNull();
+    // The invitation to record a planting is what stands in its place.
+    expect(screen.getByText('When did you plant this crop?')).toBeInTheDocument();
   });
 
-  it('says nothing about a MISSING forecast either — the card is not about forecasts', async () => {
+  it('says nothing about a MISSING snapshot either — the card is not about snapshots', async () => {
     renderCard(tomato({ prediction: null, predictionUnavailableReason: 'no_snapshot' }));
 
     await screen.findByText('Rs. 260');
     expect(screen.queryByText('No forecast for this crop yet.')).toBeNull();
   });
+});
 
-  it('keeps the "See details" link to the crop page', async () => {
+describe('WatchlistCard — "More details" opens the crop, it does not navigate away', () => {
+  it('is a BUTTON that announces its popup, named for its crop', async () => {
     renderCard(tomato());
-    expect(await screen.findByRole('link', { name: 'See details for Tomato' })).toHaveAttribute(
-      'href',
-      '/portfolio/crop/c1',
-    );
+    const btn = await screen.findByRole('button', { name: 'More details for Tomato' });
+    expect(btn).toHaveTextContent('More details');
+    expect(btn).toHaveAttribute('aria-haspopup', 'dialog');
+    // The old link is gone: nothing on the card leaves the list any more.
+    expect(screen.queryByRole('link', { name: /See details/ })).toBeNull();
   });
 
-  it('hands the SELECTED market to the crop page, so the price survives the tap', async () => {
+  it('hands the SELECTED market through to the crop page inside the popup', async () => {
     // The bug this closes: read Rs. 260 on the Kandy tab, tap through, land on Dambulla's
     // Rs. 210 under the same crop name — two answers to one question, neither screen
     // admitting they are about different markets.
     renderCard(tomato());
-    const link = await screen.findByRole('link', { name: 'See details for Tomato' });
+    fireEvent.click(await screen.findByRole('button', { name: 'More details for Tomato' }));
+    const dialog = screen.getByRole('dialog');
     // markets[0] is the card's default context, so the ordinary tap keeps the ONE canonical
     // URL for a crop rather than pinning a redundant parameter into every bookmark.
-    expect(link).toHaveAttribute('href', '/portfolio/crop/c1');
+    expect(
+      within(dialog).getByRole('link', { name: 'Open the full crop page for Tomato' }),
+    ).toHaveAttribute('href', '/portfolio/crop/c1');
 
+    fireEvent.keyDown(dialog, { key: 'Escape' });
     fireEvent.click(screen.getByRole('tab', { name: 'Dambulla Dedicated Economic Centre (DEC)' }));
     await screen.findByText('Rs. 210');
-    expect(screen.getByRole('link', { name: 'See details for Tomato' })).toHaveAttribute(
-      'href',
-      '/portfolio/crop/c1?market=m1',
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'More details for Tomato' }));
+    expect(
+      within(screen.getByRole('dialog')).getByRole('link', {
+        name: 'Open the full crop page for Tomato',
+      }),
+    ).toHaveAttribute('href', '/portfolio/crop/c1?market=m1');
   });
 });

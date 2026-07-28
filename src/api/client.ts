@@ -762,6 +762,29 @@ export const api = {
     });
   },
 
+  // PUT /api/portfolio/watchlist/{cropId} -> the same result shape, carrying ONLY the
+  // farmer's planting date.
+  //
+  // The field is TRI-STATE and the three states are three different sentences:
+  //   omitted        -> "leave it alone" (what updateWatchlistMarkets above sends);
+  //   "YYYY-MM-DD"   -> "I planted on this day";
+  //   null           -> "I have no planting date" — an explicit CLEAR, which is why this
+  //                     method builds { plantedDate: null } rather than dropping the key.
+  // marketIds is never sent from here for the mirror-image reason: a date edit that
+  // mentioned markets would replace the farmer's market picks as a side effect.
+  // 404 { error: "watchlist_entry_not_found" }, 422 { error: "invalid_planted_date" }
+  // (before 2000-01-01, or later than the server's UTC-today + 1 day).
+  async updateWatchlistPlantedDate(
+    cropId: string,
+    plantedDate: string | null,
+  ): Promise<WatchlistEntryUpdateResult> {
+    if (USE_FIXTURES) return fx.fxUpdateWatchlistPlantedDate(cropId, plantedDate);
+    return request<WatchlistEntryUpdateResult>(`/api/portfolio/watchlist/${cropId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ plantedDate }),
+    });
+  },
+
   // DELETE /api/portfolio/watchlist/{cropId} -> { cropId, removed: true }. 404 with code
   // "watchlist_entry_not_found" when the caller does not watch it.
   async removeWatchlistCrop(cropId: string): Promise<WatchlistRemoveResult> {

@@ -751,3 +751,280 @@
   color: var(--brand-strong);
   font-weight: var(--fw-medium);
 }
+
+/* ---- Planting date + the forecast it anchors (step 7) ---------------------
+   Sits at the foot of the card, OUTSIDE the market tabpanel: there is one forecast per
+   crop, and a section inside the panel would read as "the forecast for this market".
+   The rules at the top of this file still hold — nothing here is red (removing a date
+   destroys nothing that cannot be typed again), colour never carries meaning on its own,
+   and every control clears 44px. */
+.pf-plant {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: auto; /* pushes the section to the foot of a short card */
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+}
+.pf-plant__head {
+  margin: 0;
+  font-size: var(--fs-body);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-heading);
+}
+.pf-plant__on {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.pf-plant__date {
+  font-weight: var(--fw-medium);
+}
+/* Text buttons, but full-size targets: "Change" and "Remove date" sit side by side under
+   a thumb. Underlined, so they do not depend on colour to read as controls. */
+.pf-plant__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-min);
+  padding: 0 var(--sp-1);
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: var(--fw-medium);
+  color: var(--brand-strong);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.pf-plant__link:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.pf-plant__link:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-sm);
+}
+.pf-plant__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.pf-plant__label {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+/* A native date input: the phone's own picker is the most familiar calendar a farmer has,
+   and it localises itself. Sized like every other field, never shrunk to fit a card. */
+.pf-plant__input {
+  min-height: var(--touch-primary);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--text-1);
+  font: inherit;
+  width: 100%;
+}
+.pf-plant__input:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.pf-plant__hint {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+.pf-plant__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.pf-plant__save,
+.pf-plant__cancel {
+  min-height: var(--touch-primary);
+}
+.pf-plant__msg {
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+/* An empty status region must not reserve a gap under every card. */
+.pf-plant__msg:empty {
+  display: none;
+}
+.pf-plant__msg--ok {
+  color: var(--good-fg);
+}
+.pf-plant__msg--warn,
+.pf-plant__msg--error {
+  color: var(--warn-fg); /* amber, not red: nothing was destroyed, nothing is forbidden */
+}
+.pf-plant__fcerr {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  align-items: flex-start;
+}
+.pf-plant__retry {
+  width: auto;
+  min-height: var(--touch-min);
+}
+.pf-plant__more {
+  margin: 0;
+}
+.pf-skel--pred {
+  min-height: 96px;
+}
+/* The card's forecast is the same block the crop page shows, tightened for a card. Only
+   spacing and type size change — every line of it still renders. */
+.pf-plant .pf-pred {
+  border-top: 0;
+  padding-top: 0;
+}
+.pf-card__more-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: var(--fw-medium);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.pf-card__more-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-sm);
+}
+
+/* ---- "More details" popup -------------------------------------------------
+   A sheet over the list, not a new screen: the farmer keeps their place. Full width on a
+   phone with room to scroll inside itself; the page behind it is scroll-locked by
+   useDialogBehaviour, so a thumb drag cannot move the list underneath. */
+.pf-modal__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+  background: rgba(10, 40, 35, 0.45);
+}
+.pf-modal {
+  width: 100%;
+  max-width: 560px;
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: var(--sp-4);
+  background: var(--surface);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  box-shadow: var(--e-3);
+}
+@media (min-width: 700px) {
+  .pf-modal__backdrop {
+    align-items: center;
+    padding: var(--sp-4);
+  }
+  .pf-modal {
+    border-radius: var(--r-lg);
+  }
+}
+.pf-modal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+.pf-modal__title {
+  margin: 0;
+  font-size: var(--fs-h2);
+  line-height: var(--lh-heading);
+}
+.pf-modal__close {
+  flex: none;
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  border: 0;
+  background: none;
+  font-size: var(--fs-h3);
+  color: var(--text-2);
+  cursor: pointer;
+}
+.pf-modal__close:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-sm);
+}
+.pf-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.pf-dlg__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.pf-dlg__market {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+/* A label, not a control: the card's tabs are where a market is chosen. */
+.pf-dlg__code {
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  color: var(--text-1);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.08em;
+  font-variant-numeric: var(--fvn-tabular);
+}
+.pf-dlg__market-name {
+  font-weight: var(--fw-medium);
+  color: var(--text-1);
+}
+.pf-dlg__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+}
+.pf-dlg__h {
+  margin: 0;
+  font-size: var(--fs-h3);
+  line-height: var(--lh-heading);
+}
+/* Inside the popup the planting section is already in its own bordered block. */
+.pf-dlg__section .pf-plant {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.pf-dlg__links {
+  margin: 0;
+}
+
+/* A planting whose harvest day has already passed: a plain note where the numbers were.
+   Neutral, never alarm — the date is not a mistake, it is simply behind us. */
+.pf-plant__past {
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  background: var(--surface-3);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+/* The crop page saying which planting ITS forecast assumes (and where the farmer's own
+   planting is answered instead). Quiet, but it must not be missable. */
+.pf-detail__assume {
+  margin: 0 0 var(--sp-2);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}

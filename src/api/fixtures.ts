@@ -2111,6 +2111,24 @@ export function fxUpdateWatchlistMarkets(
   };
 }
 
+/** Sets or CLEARS one crop's planting date, and touches nothing else — the demo mirrors
+ *  the wire's tri-state: null really removes the date, and the markets are left alone. */
+export function fxUpdateWatchlistPlantedDate(
+  cropId: string,
+  plantedDate: string | null,
+): WatchlistEntryUpdateResult {
+  const rows = fxWatchlistRows();
+  const row = rows.find((r) => r.cropId === cropId);
+  if (!row) throw new Error('watchlist_entry_not_found');
+  const before = row.plantedDate;
+  row.plantedDate = plantedDate;
+  return {
+    item: { ...row },
+    marketsChanged: false,
+    plantedDateChanged: before !== plantedDate,
+  };
+}
+
 export function fxRemoveWatchlist(cropId: string): WatchlistRemoveResult {
   const rows = fxWatchlistRows();
   const i = rows.findIndex((r) => r.cropId === cropId);

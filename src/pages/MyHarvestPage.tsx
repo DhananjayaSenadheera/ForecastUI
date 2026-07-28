@@ -7,6 +7,7 @@ import type { Crop, CropTimeline, HarvestForecast, HarvestWindow } from '../api/
 import { cropDisplayName } from '../lib/crops';
 import { clampPlantDateToRange, formatDate, ymdLocal } from '../lib/format';
 import { isLowTrust } from '../lib/forecast';
+import { plantDateParam } from '../lib/plantDate';
 import { buildReadinessMap, type ReadinessMap } from '../lib/readiness';
 import { pushRecentCrop, readLastHarvest, readRecentCrops, writeLastHarvest } from '../lib/storage';
 import BestWindowPanel from '../components/BestWindowPanel';
@@ -83,8 +84,15 @@ export default function MyHarvestPage() {
   // Preselect precedence, run ONCE after the list loads so a later manual change is never
   // undone: a /my-harvest?crop=<id> deep-link always wins; failing that, the remembered
   // last-forecast crop and planting date.
+  //
+  // `?date=` rides along with the crop when My crops sends a farmer here from a planting
+  // they have recorded, so this screen opens on the same question the card just answered.
+  // It is a HINT: a malformed date, or one outside this field's own window, is dropped and
+  // the field keeps its default. It is never clamped to a nearby date — that would forecast
+  // a planting the farmer did not name.
   const [searchParams] = useSearchParams();
   const cropParam = searchParams.get('crop');
+  const dateParam = searchParams.get('date');
   const didPreselect = useRef(false);
 
   const load = useCallback(async () => {
@@ -114,6 +122,8 @@ export default function MyHarvestPage() {
       if (match) {
         setSelected(match);
         setSubmitted(false);
+        const linked = plantDateParam(dateParam, minDate, maxDate);
+        if (linked) setPlantDate(linked);
       }
       return;
     }
@@ -127,7 +137,7 @@ export default function MyHarvestPage() {
     setSelected(match);
     setSubmitted(false);
     setPlantDate(clampPlantDateToRange(last.plantDate, todayStr, minDate, maxDate));
-  }, [cropParam, crops, todayStr, minDate, maxDate]);
+  }, [cropParam, dateParam, crops, todayStr, minDate, maxDate]);
 
   const onSelect = useCallback((crop: Crop) => {
     setSelected(crop);
