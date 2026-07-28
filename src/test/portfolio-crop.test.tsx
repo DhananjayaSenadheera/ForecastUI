@@ -63,9 +63,9 @@ function tomato(over: Partial<PortfolioDashboardItem> = {}): PortfolioDashboardI
   };
 }
 
-function renderPage(cropId = 'c1') {
+function renderPage(cropId = 'c1', search = '') {
   return render(
-    <MemoryRouter initialEntries={[`/portfolio/crop/${cropId}`]}>
+    <MemoryRouter initialEntries={[`/portfolio/crop/${cropId}${search}`]}>
       <Routes>
         <Route path="/portfolio/crop/:cropId" element={<PortfolioCropPage />} />
       </Routes>
@@ -115,6 +115,30 @@ describe('PortfolioCropPage', () => {
     expect(api.getPriceHistory).not.toHaveBeenCalledWith('c1', 'm1');
     // And the page names that market, so the chart and the number agree out loud.
     expect(screen.getAllByText('Kandy').length).toBeGreaterThan(0);
+  });
+
+  it('honours ?market= — the card hands over the tab the farmer was reading', async () => {
+    // Tapping "See details" from the Dambulla tab of a Kandy-led card must not silently
+    // change which market the numbers are about.
+    mockDashboard({ items: [tomato({ markets: [KANDY_BLOCK, DAMBULLA_BLOCK] })] });
+    renderPage('c1', '?market=m1');
+
+    await screen.findByText('Dambulla Dedicated Economic Centre');
+    await waitFor(() => expect(api.getPriceHistory).toHaveBeenCalledWith('c1', 'm1'));
+    expect(api.getPriceHistory).not.toHaveBeenCalledWith('c1', 'm3');
+  });
+
+  it('falls back to markets[0] for a ?market= this crop is not watched at', async () => {
+    // A stale bookmark, a removed market or a hand-edited URL. The parameter is a VIEW
+    // hint, never a claim: an unusable one is ignored silently rather than erroring or
+    // blanking the page — there is always a right market to show.
+    mockDashboard({ items: [tomato({ markets: [KANDY_BLOCK, DAMBULLA_BLOCK] })] });
+    renderPage('c1', '?market=not-a-market');
+
+    await waitFor(() => expect(api.getPriceHistory).toHaveBeenCalledWith('c1', 'm3'));
+    expect(api.getPriceHistory).not.toHaveBeenCalledWith('c1', 'm1');
+    expect(screen.getAllByText('Kandy').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('matches the route id case-insensitively (GUIDs travel in mixed case)', async () => {

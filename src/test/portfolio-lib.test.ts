@@ -11,9 +11,9 @@ import {
   MAX_WATCHED_CROPS,
   PRICE_AGE_NOTE_DAYS,
   chartMarketIdFor,
+  cropDetailLink,
   dashboardEmptyState,
   daysBetweenYmd,
-  economicCenterIdSet,
   harvestLinkFor,
   isDeratedPrediction,
   marketCodeLabel,
@@ -108,28 +108,20 @@ describe('lib/portfolio — the card leads with markets[0]', () => {
 });
 
 describe('lib/portfolio — national-forecast labelling (PRD §3.6)', () => {
-  const centres = economicCenterIdSet([mk('m1', 'Dambulla', 'DEC', true), mk('m3', 'Kandy', 'KAN', false)]);
-
   it('labels predictions as national beside a market that is NOT the anchor', () => {
-    expect(showsNationalLabel(block({ marketId: 'm3', name: 'Kandy' }), centres)).toBe(true);
-  });
-
-  it('does not label them at the economic centre (the model is anchored there)', () => {
-    expect(showsNationalLabel(block({ marketId: 'm1' }), centres)).toBe(false);
-  });
-
-  it('matches economic-centre ids case-insensitively (GUIDs travel in mixed case)', () => {
-    const mixed = economicCenterIdSet([mk('M1-AAAA', 'Dambulla', 'DEC', true)]);
-    expect(showsNationalLabel(block({ marketId: 'm1-aaaa' }), mixed)).toBe(false);
+    expect(showsNationalLabel(block({ marketId: 'm3', name: 'Kandy' }))).toBe(true);
   });
 
   it('does not label the DEFAULT block — that block IS the centre standing in', () => {
     expect(showsNationalLabel(block({ isDefaultMarket: true }))).toBe(false);
   });
 
-  it('FAILS TOWARDS the label when the registry is unavailable', () => {
-    // A national forecast said to be national is at worst redundant; the opposite default
-    // would make a national number look like a local one. Never invert this.
+  it('FAILS TOWARDS the label for every other market, and for none at all', () => {
+    // The one decision this makes is "is this the centre standing in for an unchosen
+    // market?". Everything else gets the label: a national forecast said to be national is
+    // at worst redundant, whereas omitting it makes a national number look like a local
+    // one. Never invert this. It holds even for the economic centre chosen BY HAND (m1
+    // here), which is why the registry lookup that used to special-case it is gone.
     expect(showsNationalLabel(block({ marketId: 'm1' }))).toBe(true);
     expect(showsNationalLabel(null)).toBe(true);
   });
@@ -317,6 +309,28 @@ describe('lib/portfolio — market helpers', () => {
     // markets[0]. One function, two callers — never two notions of "the chart's market".
     expect(chartMarketIdFor(both, 'm1')).toBe('m1');
     expect(chartMarketIdFor(both, null)).toBe('m3');
+  });
+});
+
+describe('lib/portfolio — cropDetailLink carries the card’s market', () => {
+  const kandy = block({ marketId: 'm3', name: 'Kandy', shortCode: 'KAN' });
+  const both = item({ markets: [kandy, block()] });
+
+  it('omits ?market= when the selection IS markets[0], keeping one canonical URL', () => {
+    expect(cropDetailLink(both, 'm3')).toBe('/portfolio/crop/c1');
+    expect(cropDetailLink(both, null)).toBe('/portfolio/crop/c1');
+    // Case-insensitively: GUIDs travel in mixed case, and a case difference is not a
+    // different market — it would otherwise pin a redundant parameter into every bookmark.
+    expect(cropDetailLink(both, 'M3')).toBe('/portfolio/crop/c1');
+  });
+
+  it('carries the market when the card is on any other tab', () => {
+    expect(cropDetailLink(both, 'm1')).toBe('/portfolio/crop/c1?market=m1');
+  });
+
+  it('escapes both ids rather than pasting them into a URL raw', () => {
+    const odd = item({ cropId: 'c 1', markets: [block({ marketId: 'm/1' }), kandy] });
+    expect(cropDetailLink(odd, 'm 2')).toBe('/portfolio/crop/c%201?market=m%202');
   });
 });
 

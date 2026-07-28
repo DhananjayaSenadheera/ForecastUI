@@ -5,11 +5,12 @@
 // It LINKS to the full national forecast rather than rebuilding it (PRD §5.1): My harvest
 // already owns plant-date selection, the band chart, the factor breakdown and the timing
 // panel, and a second copy of that screen would be a second thing to keep honest.
-// The chart is drawn for the market whose number is printed above it — if the price came
-// from the economic-centre fallback, the chart follows it there, because a home-market
-// series sitting under a Dambulla price would quietly contradict the number.
+// The chart is drawn for the market whose number is printed above it, and that market is
+// the one the card handed over in ?market= — a series from another market sitting under a
+// price would quietly contradict the number, and so would landing here on Dambulla after
+// tapping through from the Kandy tab.
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import type { PortfolioDashboard, PortfolioDashboardItem, PriceHistoryPoint } from '../api/types';
@@ -17,7 +18,7 @@ import PriceLineChart from '../components/PriceLineChart';
 import PredictionBlock from '../components/PredictionBlock';
 import PriceSwingBadge from '../components/PriceSwingBadge';
 import { PriceBlock } from '../components/WatchlistCard';
-import { chartMarketIdFor, harvestLinkFor, primaryMarket } from '../lib/portfolio';
+import { chartMarketIdFor, harvestLinkFor, selectedMarketFor } from '../lib/portfolio';
 import { classifyPriceSwing, type PriceSwing } from '../lib/priceSwing';
 import { ymdLocal } from '../lib/format';
 import '../styles/portfolio.css';
@@ -26,6 +27,12 @@ export default function PortfolioCropPage() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const { cropId = '' } = useParams();
+  // ?market= carries the market the card was showing when the farmer tapped "See details".
+  // It is a VIEW parameter, never a claim: an id this crop is not watched at (a stale
+  // bookmark, a hand-edited URL, a market since removed) falls back silently to markets[0]
+  // rather than erroring — selectedMarketFor owns that fallback for every caller.
+  const [searchParams] = useSearchParams();
+  const requestedMarketId = searchParams.get('market');
   // Recomputed per render (same convention as PortfolioPage): one cheap string, and never
   // pinned to mount time on a phone left open across midnight. ymdLocal, never
   // toISOString().slice() — at UTC+5:30 the ISO form is yesterday until 05:30 local.
@@ -53,11 +60,11 @@ export default function PortfolioCropPage() {
   // Case-insensitive id match: GUIDs travel in mixed case between the route and the wire.
   const item: PortfolioDashboardItem | null =
     dashboard?.items.find((i) => i.cropId.toLowerCase() === cropId.toLowerCase()) ?? null;
-  // markets[0] — the market the card's first tab leads with, so the two screens open on the
-  // same numbers for the same crop. This page has no market switcher of its own: it is the
-  // "one crop in detail" view and the forecast beside it is national either way.
-  const market = item ? primaryMarket(item) : null;
-  const chartMarketId = chartMarketIdFor(item);
+  // The market the card was on, or markets[0] when it said nothing. This page has no
+  // switcher of its own — it inherits the card's context so the price the farmer just read
+  // is the price they land on. The forecast beside it is national either way.
+  const market = selectedMarketFor(item, requestedMarketId);
+  const chartMarketId = chartMarketIdFor(item, requestedMarketId);
 
   // History for the chart — fail-soft decoration: its failure shows an empty chart state,
   // never an error over the price and prediction that already loaded.
@@ -143,9 +150,9 @@ export default function PortfolioCropPage() {
 
           <section className="panel pf-detail" aria-label={t('pages.portfolioCrop.forecastHeading')}>
             <h2 className="pf-set__title">{t('pages.portfolioCrop.forecastHeading')}</h2>
-            {/* No economicCenterIds here: this page does not load the markets registry, and
-                showsNationalLabel fails TOWARDS the label — a national forecast said to be
-                national is never wrong, whereas omitting it makes it look local. */}
+            {/* showsNationalLabel fails TOWARDS the label everywhere except the
+                stood-in-for default market — a national forecast said to be national is
+                never wrong, whereas omitting it makes it look local. */}
             <PredictionBlock item={item} market={market} lang={lang} />
             <p className="pf-detail__cta">
               <Link

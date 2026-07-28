@@ -28,14 +28,12 @@ export default function PredictionBlock({
   item,
   market,
   lang,
-  economicCenterIds,
 }: {
   item: PortfolioDashboardItem;
+  /** The market the prediction is shown BESIDE — it decides whether the "National forecast"
+   *  label is needed, not which number is shown (there is one forecast per crop). */
   market: PortfolioDashboardMarket | null;
   lang: string;
-  /** Economic-centre market ids; absent = the national label is shown (see
-   *  showsNationalLabel — the safe direction). */
-  economicCenterIds?: ReadonlySet<string>;
 }) {
   const { t } = useTranslation();
   const rs = t('common.rs');
@@ -74,7 +72,7 @@ export default function PredictionBlock({
         </p>
       )}
       <p className="pf-pred__tags">
-        {showsNationalLabel(market, economicCenterIds) && (
+        {showsNationalLabel(market) && (
           <span className="pf-tag pf-tag--national">{t('pages.portfolio.nationalForecast')}</span>
         )}
         {derated && (

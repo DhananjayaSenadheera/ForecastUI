@@ -45,6 +45,7 @@ import type {
 import { formatDate, formatPrice } from '../lib/format';
 import {
   PRICE_AGE_NOTE_DAYS,
+  cropDetailLink,
   priceAgeDays,
   selectedMarketFor,
   trendGlyph,
@@ -213,7 +214,7 @@ export default function WatchlistCard({
         <p className="pf-card__more">
           <Link
             className="pf-card__link"
-            to={`/portfolio/crop/${item.cropId}`}
+            to={cropDetailLink(item, marketId)}
             aria-label={t('pages.portfolio.openCropAria', { crop: item.cropName })}
           >
             {t('pages.portfolio.openCrop')}

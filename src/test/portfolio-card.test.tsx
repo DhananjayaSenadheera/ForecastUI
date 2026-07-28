@@ -50,11 +50,45 @@ const KANDY: PortfolioDashboardMarket = {
   priceUnavailableReason: null,
 };
 
+const KEPPETIPOLA: PortfolioDashboardMarket = {
+  marketId: 'm2',
+  name: 'Keppetipola Dedicated Economic Centre',
+  shortCode: 'KEP',
+  isDefaultMarket: false,
+  price: {
+    price: 240,
+    observedDate: '2026-07-27',
+    direction: 'steady',
+    changePct: 0,
+    previousPrice: 240,
+    previousObservedDate: '2026-07-24',
+  },
+  priceUnavailableReason: null,
+};
+
 function history(base: number): PriceHistoryPoint[] {
   return Array.from({ length: 12 }, (_, i) => ({
     date: `2026-07-${String(i + 1).padStart(2, '0')}`,
     minPrice: base + i,
     maxPrice: base + 30 + i,
+  }));
+}
+
+// Two series with deliberately DIFFERENT swing levels, so a test can prove the pill follows
+// the tab rather than merely happening to be there: Kandy's midpoint never moves (CV 0 ->
+// "steady"), Dambulla's zig-zags between 150 and 300 (CV ~0.35 -> "moves a lot").
+function flatHistory(): PriceHistoryPoint[] {
+  return Array.from({ length: 12 }, (_, i) => ({
+    date: `2026-07-${String(i + 1).padStart(2, '0')}`,
+    minPrice: 250,
+    maxPrice: 280,
+  }));
+}
+function swingyHistory(): PriceHistoryPoint[] {
+  return Array.from({ length: 12 }, (_, i) => ({
+    date: `2026-07-${String(i + 1).padStart(2, '0')}`,
+    minPrice: i % 2 === 0 ? 140 : 290,
+    maxPrice: i % 2 === 0 ? 160 : 310,
   }));
 }
 
@@ -102,7 +136,7 @@ function renderCard(item: PortfolioDashboardItem, onToggleSelect = vi.fn()) {
 beforeEach(async () => {
   await i18n.changeLanguage('en');
   vi.spyOn(api, 'getPriceHistory').mockImplementation(async (_cropId, marketId) =>
-    marketId === 'm1' ? history(200) : history(250),
+    marketId === 'm1' ? swingyHistory() : flatHistory(),
   );
 });
 afterEach(() => {
@@ -176,8 +210,36 @@ describe('WatchlistCard — market short-code tabs', () => {
     tabs[0].focus();
     fireEvent.keyDown(screen.getByRole('tablist'), { key: 'ArrowRight' });
     expect(document.activeElement).toBe(tabs[1]);
-    // Manual activation: moving focus does NOT change what the card shows.
+    // Manual activation (the WAI-ARIA default, shared with the admin strips): moving focus
+    // does NOT change what the card shows — Enter/Space does.
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('arrows go in the RIGHT DIRECTION on a full three-market strip', async () => {
+    // Three markets is the backend cap and the smallest strip where direction is
+    // observable: on two tabs, +1 and -1 wrap to the same tab, so an inverted ArrowRight
+    // would pass unnoticed.
+    renderCard(tomato({ markets: [KANDY, DAMBULLA, KEPPETIPOLA] }));
+
+    const tabs = await screen.findAllByRole('tab');
+    expect(tabs.map((el) => el.textContent)).toEqual(['KAN', 'DEC', 'KEP']);
+
+    const strip = screen.getByRole('tablist');
+    tabs[0].focus();
+    fireEvent.keyDown(strip, { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(tabs[1]);
+    fireEvent.keyDown(strip, { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(tabs[2]);
+    fireEvent.keyDown(strip, { key: 'ArrowLeft' });
+    expect(document.activeElement).toBe(tabs[1]);
+    // Both ends wrap, so holding one arrow never strands a farmer at the edge.
+    fireEvent.keyDown(strip, { key: 'ArrowLeft' });
+    fireEvent.keyDown(strip, { key: 'ArrowLeft' });
+    expect(document.activeElement).toBe(tabs[2]);
+    fireEvent.keyDown(strip, { key: 'Home' });
+    expect(document.activeElement).toBe(tabs[0]);
+    fireEvent.keyDown(strip, { key: 'End' });
+    expect(document.activeElement).toBe(tabs[2]);
   });
 });
 
@@ -188,10 +250,16 @@ describe('WatchlistCard — a tab switch moves the WHOLE market-scoped block', (
     await screen.findByText('Rs. 260');
     expect(screen.getByText(/Price from Jul 26, 2026/)).toBeInTheDocument();
     expect(screen.getByText(/Down 3\.1% from Rs\. 268/)).toBeInTheDocument();
+    // The swing pill describes the SELECTED market's own series. Pinned independently of
+    // the chart: the two share a fetch today, but "Kandy moves a lot" printed under a
+    // Kandy price it does not describe is exactly the lie this card must not tell.
+    await screen.findByText('Price movement: steady');
 
     fireEvent.click(screen.getByRole('tab', { name: 'Dambulla Dedicated Economic Centre (DEC)' }));
 
     await screen.findByText('Rs. 210');
+    await screen.findByText('Price movement: moves a lot');
+    expect(screen.queryByText('Price movement: steady')).toBeNull();
     // Kandy's number is GONE, not merely joined by Dambulla's: two prices on one card is
     // two answers to "what does this crop fetch".
     expect(screen.queryByText('Rs. 260')).toBeNull();
@@ -339,6 +407,24 @@ describe('WatchlistCard — the forecast section is gone (step 6)', () => {
     expect(await screen.findByRole('link', { name: 'See details for Tomato' })).toHaveAttribute(
       'href',
       '/portfolio/crop/c1',
+    );
+  });
+
+  it('hands the SELECTED market to the crop page, so the price survives the tap', async () => {
+    // The bug this closes: read Rs. 260 on the Kandy tab, tap through, land on Dambulla's
+    // Rs. 210 under the same crop name — two answers to one question, neither screen
+    // admitting they are about different markets.
+    renderCard(tomato());
+    const link = await screen.findByRole('link', { name: 'See details for Tomato' });
+    // markets[0] is the card's default context, so the ordinary tap keeps the ONE canonical
+    // URL for a crop rather than pinning a redundant parameter into every bookmark.
+    expect(link).toHaveAttribute('href', '/portfolio/crop/c1');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Dambulla Dedicated Economic Centre (DEC)' }));
+    await screen.findByText('Rs. 210');
+    expect(screen.getByRole('link', { name: 'See details for Tomato' })).toHaveAttribute(
+      'href',
+      '/portfolio/crop/c1?market=m1',
     );
   });
 });
