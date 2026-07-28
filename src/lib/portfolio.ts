@@ -174,11 +174,14 @@ export function watchlistErrorParams(key: string): { max?: number } {
 export function sameMarketSet(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false;
   const left = new Set(a.map((id) => id.toLowerCase()));
-  for (const id of b) if (!left.has(id.toLowerCase())) return false;
-  // Sets ignore duplicates, so equal sizes plus full containment is only equality when
-  // neither side repeats an id. The pickers cannot produce a duplicate, and a duplicate
-  // arriving from the wire should read as a difference rather than silently compare equal.
-  return left.size === a.length;
+  const right = new Set(b.map((id) => id.toLowerCase()));
+  // Sets ignore duplicates, so equal lengths plus full containment is only equality when
+  // NEITHER side repeats an id — checked on both, or the guard works in one direction only.
+  // The pickers cannot produce a duplicate, and a duplicate arriving from the wire should
+  // read as a difference rather than silently compare equal.
+  if (left.size !== a.length || right.size !== b.length) return false;
+  for (const id of right) if (!left.has(id)) return false;
+  return true;
 }
 
 /** The economic centre first, then the rest by name — the option order for the market

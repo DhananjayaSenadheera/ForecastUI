@@ -665,6 +665,41 @@ describe('PortfolioPage — the confirm is a dialog, and keyboard-escapable (S6,
     await waitFor(() => expect(document.activeElement).toBe(back));
   });
 
+  it('a change of selection cancels a pending confirm, never re-aims it at another crop', async () => {
+    // The regression: unticking hid the bar but left `confirming` true, so ticking a
+    // DIFFERENT crop re-rendered the red destructive confirm immediately — a question the
+    // farmer never asked, now pointed at a crop they had only just selected.
+    mockPage(twoCrops(), twoWatched());
+    const del = vi.spyOn(api, 'removeWatchlistCrop').mockResolvedValue({ cropId: 'c1', removed: true });
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Tick Tomato to remove it' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove 1 crop from my crops' }));
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Tick Tomato to remove it' })); // untick
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Tick Beans to remove it' })); // tick another
+
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Yes, remove' })).toBeNull();
+    // The plain, non-destructive bar is what the farmer gets — now naming Beans.
+    expect(screen.getByRole('button', { name: 'Remove 1 crop from my crops' })).toBeInTheDocument();
+    expect(del).not.toHaveBeenCalled();
+  });
+
+  it('cancels the confirm when the selection GROWS as well', async () => {
+    mockPage(twoCrops(), twoWatched());
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Tick Tomato to remove it' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove 1 crop from my crops' }));
+    // "Remove 1 crop?" is no longer the question once a second crop joins the selection.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Tick Beans to remove it' }));
+
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Remove 2 crops from my crops' })).toBeInTheDocument();
+  });
+
   it('sends focus to the result message once the removal completes', async () => {
     // The regression: the whole bar unmounts on success, so focus fell to <body> and a
     // keyboard user had to tab from the top of the page to find out what happened.

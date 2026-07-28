@@ -268,6 +268,12 @@ export default function PortfolioPage() {
 
   const toggleSelect = useCallback((cropId: string) => {
     setWriteMsg(null);
+    // ANY change to the selection cancels a pending confirm. The confirm names a specific
+    // set of crops ("Remove 2 crops?"), so the moment that set changes the question on
+    // screen is about something the farmer did not ask. Without this, untickng the last
+    // crop hid the bar while leaving `confirming` true, and ticking a DIFFERENT crop
+    // reopened the red destructive confirm immediately, unasked and with no focus move.
+    setConfirming(false);
     setSelected((prev) =>
       prev.includes(cropId) ? prev.filter((id) => id !== cropId) : [...prev, cropId],
     );

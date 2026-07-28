@@ -233,7 +233,15 @@ describe('lib/portfolio — a market selection is a SET, not a sequence', () => 
   });
 
   it('does not let a duplicated id compare equal to a genuinely smaller set', () => {
+    // Both directions: a one-sided dedupe guard is no guard at all — with the duplicate on
+    // the RIGHT, every element still resolves inside the left set and the lengths match.
     expect(sameMarketSet(['m1', 'm1'], ['m1', 'm3'])).toBe(false);
+    expect(sameMarketSet(['m1', 'm3'], ['m1', 'm1'])).toBe(false);
+    // A repeated id is malformed input the picker cannot produce, so it is never "the same"
+    // as anything — including itself. That is the safe direction: a duplicate arriving from
+    // the wire leaves the row offering to save the cleaned-up set, rather than locking the
+    // farmer out of fixing it.
+    expect(sameMarketSet(['m1', 'm1'], ['m1', 'm1'])).toBe(false);
   });
 });
 
