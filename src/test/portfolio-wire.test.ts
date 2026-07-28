@@ -84,12 +84,38 @@ describe('PUT /api/portfolio/watchlist/{cropId} — the markets body', () => {
   });
 
   it('NEVER carries plantedDate — an omitted field is unchanged, a null one CLEARS it', async () => {
-    // Step 7 owns the planting date. Until then a markets edit that mentioned the field at
-    // all could wipe a date the farmer entered elsewhere, so the key must be absent.
+    // A markets edit that mentioned the field at all could wipe the date the farmer typed
+    // on the card a moment earlier, so the key must be ABSENT, not null.
     const { api, calls } = await liveApi();
     await api.updateWatchlistMarkets('c1', ['m1']);
     expect(Object.keys(body(calls[0]))).toEqual(['marketIds']);
     expect(String(calls[0].init.body)).not.toContain('plantedDate');
+  });
+});
+
+describe('PUT /api/portfolio/watchlist/{cropId} — the planting-date body (tri-state)', () => {
+  it('sends the date ALONE: a date edit must not touch the farmer’s markets', async () => {
+    const { api, calls } = await liveApi();
+    await api.updateWatchlistPlantedDate('c1', '2026-05-04');
+
+    expect(calls[0].url).toBe('http://api.test/api/portfolio/watchlist/c1');
+    expect(calls[0].init.method).toBe('PUT');
+    expect(body(calls[0])).toEqual({ plantedDate: '2026-05-04' });
+    // The mirror image of the markets test above: an omitted marketIds is "unchanged",
+    // but a present one is a FULL REPLACE and would silently drop markets.
+    expect(Object.keys(body(calls[0]))).toEqual(['plantedDate']);
+    expect(String(calls[0].init.body)).not.toContain('marketIds');
+  });
+
+  it('clears the date with an EXPLICIT null, never by omitting the key', async () => {
+    // Omitting it means "leave it alone", which is the opposite of what "Remove date" asks
+    // for: the request would come back 200 with the date still on the row.
+    const { api, calls } = await liveApi();
+    await api.updateWatchlistPlantedDate('c1', null);
+
+    expect(body(calls[0])).toEqual({ plantedDate: null });
+    expect(Object.keys(body(calls[0]))).toEqual(['plantedDate']);
+    expect(String(calls[0].init.body)).toContain('"plantedDate":null');
   });
 });
 

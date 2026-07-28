@@ -3,6 +3,21 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import i18n from '../i18n';
 import MyHarvestPage from '../pages/MyHarvestPage';
+import { ymdLocal } from '../lib/format';
+
+const BEANS = 'c0000002-0000-0000-0000-000000000002';
+
+function shift(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return ymdLocal(d);
+}
+
+/** The date input's current value — asserted as a ymd string, never as a rendered locale
+ *  date (en-LK under Node's ICU does not render what a phone renders). */
+function dateField(): HTMLInputElement {
+  return screen.getByLabelText('Planting date') as HTMLInputElement;
+}
 
 function renderAt(path: string) {
   return render(
@@ -35,5 +50,41 @@ describe('MyHarvestPage — ?crop= deep-link preselect (FE-7 cross-link)', () =>
     renderAt('/my-harvest?crop=does-not-exist');
     await screen.findByRole('button', { name: 'Beans' });
     expect(screen.queryByRole('button', { pressed: true })).toBeNull();
+  });
+});
+
+describe('MyHarvestPage — ?date= carries the farmer’s own planting from My crops', () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage('en');
+  });
+
+  it('opens on the planting date the card was showing', async () => {
+    const planted = shift(-30);
+    renderAt(`/my-harvest?crop=${BEANS}&date=${planted}`);
+    await screen.findByRole('button', { name: 'Beans', pressed: true });
+    // The same date the card answered for, so the two screens ask one question.
+    expect(dateField().value).toBe(planted);
+  });
+
+  it('IGNORES a date outside this field’s window instead of clamping it', async () => {
+    // Clamping would silently forecast today's planting under a link that named a date two
+    // years ago — a different question, answered without saying so.
+    const tooOld = shift(-400);
+    renderAt(`/my-harvest?crop=${BEANS}&date=${tooOld}`);
+    await screen.findByRole('button', { name: 'Beans', pressed: true });
+    expect(dateField().value).toBe(ymdLocal(new Date()));
+  });
+
+  it('ignores a malformed date and keeps the crop preselect', async () => {
+    renderAt(`/my-harvest?crop=${BEANS}&date=not-a-date`);
+    await screen.findByRole('button', { name: 'Beans', pressed: true });
+    expect(dateField().value).toBe(ymdLocal(new Date()));
+  });
+
+  it('does nothing with a date when the crop id is unknown', async () => {
+    renderAt(`/my-harvest?crop=nope&date=${shift(-10)}`);
+    await screen.findByRole('button', { name: 'Beans' });
+    expect(screen.queryByRole('button', { pressed: true })).toBeNull();
+    expect(dateField().value).toBe(ymdLocal(new Date()));
   });
 });

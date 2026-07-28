@@ -8,52 +8,42 @@
 //     switches everything market-scoped at once — the price, its observed date, the trend
 //     line, the swing pill and the chart. One market means one chip and no tablist;
 //   • a compact price-history chart of the selected market closes the card.
-// The forecast section ("≈ About Rs. X at harvest", the band, the harvest date, the
-// National-forecast / rough-estimate tags) is GONE from the card this step. It is not
-// hidden-but-still-true: nothing on the card claims a harvest price any more. The
-// planted-date-driven replacement is step 7, and the crop detail page still shows the full
-// prediction via PredictionBlock in the meantime. The wire types still carry `prediction` —
-// only the card stopped rendering it.
+//
+// STEP 7 added the two things that make the card a place to MANAGE a crop rather than only
+// read one:
+//   • the planting date and the forecast that follows from it (PlantedDateSection). The
+//     card's old forecast block was a national snapshot for a crop the farmer might not have
+//     in the ground; this one answers "what will the crop I planted on the 3rd be worth when
+//     it is ready", from the same harvest route the My harvest page uses. Note where it
+//     sits: OUTSIDE the market tabpanel, because there is one forecast per crop and putting
+//     it inside would imply the number changes with the tab.
+//   • "More details", which opens the whole crop in a popup over the list (the crop page
+//     still exists and the popup links to it).
+// The wire's `prediction` field — the nightly snapshot — is still not rendered here: the
+// card's forecast is the farmer's own planting or nothing at all.
 //
 // The honesty rules that shape this markup (PRD §3.6, §5.2):
-//  - The price is shown WITH its observed date, always. There is no staleness cutoff on the
-//    wire, so an old price is displayed and its age is said out loud in plain words — never
-//    hidden, never quietly discounted.
-//  - A null `direction` prints "no earlier price to compare", NOT "steady". Treating an
-//    absent comparison as a flat price is a lie the farmer cannot detect.
-//  - The price shown is the named market's OWN price. It is never substituted from another
-//    market, so "no price" means this market has published none — not that it is stale.
+//  - The price fact itself is PriceBlock's, shared with the popup and the crop page so the
+//    three surfaces cannot word it differently (see that file for its own rules).
 //  - The chart is drawn for the SELECTED market and nothing else. A Kandy series under a
 //    Dambulla price would quietly contradict the number; every market-scoped thing on the
 //    card therefore resolves its market through one function, selectedMarketFor().
 //  - Nothing here is red. Red is reserved app-wide for the "Not recommended" verdict — the
 //    remove flow's own confirm button is the single deliberate exception (it destroys data).
-//
-// PriceBlock branches on the PRESENCE of the price leg, not on `priceUnavailableReason`.
-// That is deliberate while that field has exactly one code ("no_recent_price"): switching on
-// a one-member set buys nothing and would silently drop an unknown future code into a blank
-// space. When a second code appears, branch there — the reason is carried in the types.
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
-import type {
-  PortfolioDashboardItem,
-  PortfolioDashboardMarket,
-  PriceHistoryPoint,
-} from '../api/types';
-import { formatDate, formatPrice } from '../lib/format';
-import {
-  PRICE_AGE_NOTE_DAYS,
-  cropDetailLink,
-  priceAgeDays,
-  selectedMarketFor,
-  trendGlyph,
-  trendLabelKey,
-} from '../lib/portfolio';
+import type { PortfolioDashboardItem, PriceHistoryPoint } from '../api/types';
+import { selectedMarketFor } from '../lib/portfolio';
 import { classifyPriceSwing } from '../lib/priceSwing';
 import type { CropReadinessStatus } from '../lib/readiness';
+import CropDetailsDialog from './CropDetailsDialog';
 import MarketTabs, { marketPanelId, marketTabId } from './MarketTabs';
+import PlantedDateSection, {
+  usePlantedForecast,
+  type WriteMessage,
+} from './PlantedDateSection';
+import PriceBlock from './PriceBlock';
 import PriceLineChart from './PriceLineChart';
 import PriceSwingBadge from './PriceSwingBadge';
 import ReadinessBadge from './ReadinessBadge';
@@ -68,6 +58,11 @@ export interface WatchlistCardProps {
   /** Ticked for removal. Selection lives on the page so one action can remove many. */
   selected: boolean;
   onToggleSelect: (cropId: string) => void;
+  /** Saves or clears this crop's planting date through the page's write machinery (the same
+   *  error mapping every other watchlist write uses), and answers with what to show. */
+  onSavePlantedDate: (cropId: string, plantedDate: string | null) => Promise<WriteMessage | null>;
+  /** A write is in flight anywhere on the page. */
+  busy: boolean;
 }
 
 /**
@@ -111,6 +106,8 @@ export default function WatchlistCard({
   todayYmd,
   selected,
   onToggleSelect,
+  onSavePlantedDate,
+  busy,
 }: WatchlistCardProps) {
   const { t } = useTranslation();
   const titleId = `pf-crop-${item.cropId}`;
@@ -133,6 +130,15 @@ export default function WatchlistCard({
   const history = useMarketHistory(item.cropId, chartMarketId);
   // The swing describes the SAME series the chart draws, so it can never disagree with it.
   const swing = history ? classifyPriceSwing(history) : null;
+
+  // ONE fetch per (crop, planting date) for the whole card, shared with the popup: the two
+  // surfaces show the same forecast because they are literally reading the same state, not
+  // because two requests happened to agree.
+  const { state: plantedForecast, retry: retryForecast } = usePlantedForecast(
+    item.cropId,
+    item.plantedDate,
+  );
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   return (
     <li className={`pf-card${selected ? ' pf-card--selected' : ''}`}>
@@ -211,88 +217,54 @@ export default function WatchlistCard({
           )}
         </div>
 
+        {/* Outside the tabpanel: one forecast per crop, so it must not look market-scoped. */}
+        <PlantedDateSection
+          item={item}
+          market={market}
+          lang={lang}
+          todayYmd={todayYmd}
+          forecast={plantedForecast}
+          onRetryForecast={retryForecast}
+          onSave={onSavePlantedDate}
+          busy={busy}
+          idPrefix="card"
+        />
+
         <p className="pf-card__more">
-          <Link
-            className="pf-card__link"
-            to={cropDetailLink(item, marketId)}
-            aria-label={t('pages.portfolio.openCropAria', { crop: item.cropName })}
+          {/* A button, not a link: it opens a dialog on this page rather than going
+              somewhere, and aria-haspopup says so before it is pressed. Focus returns here
+              when the dialog closes (the shared dialog behaviour captures the opener). */}
+          <button
+            type="button"
+            className="pf-card__link pf-card__more-btn"
+            aria-haspopup="dialog"
+            aria-label={t('pages.portfolio.moreDetailsAria', { crop: item.cropName })}
+            onClick={() => setDetailsOpen(true)}
           >
-            {t('pages.portfolio.openCrop')}
-          </Link>
+            {t('pages.portfolio.moreDetails')}
+          </button>
         </p>
       </article>
-    </li>
-  );
-}
 
-/** Today's observed price for the crop AT THIS MARKET: the number, the date it was observed,
- *  and the trend — or an honest "this market has no price for this crop". Shared with the
- *  crop detail page so the two screens can never word the same fact differently. */
-export function PriceBlock({
-  market,
-  lang,
-  todayYmd,
-}: {
-  market: PortfolioDashboardMarket | null;
-  lang: string;
-  todayYmd: string;
-}) {
-  const { t } = useTranslation();
-  const rs = t('common.rs');
-  const price = market?.price ?? null;
-
-  if (!price) {
-    // NOT "no recent price": nothing was substituted and nothing went stale — this market
-    // has published no usable price for this crop at all. Saying "recent" would invite the
-    // farmer to wait for an update that is not late.
-    return (
-      <p className="pf-nodata" role="note">
-        <span aria-hidden="true">🌱 </span>
-        {t('pages.portfolio.noPriceAtMarket')}
-      </p>
-    );
-  }
-
-  const age = priceAgeDays(price.observedDate, todayYmd);
-  const showAge = age !== null && age >= PRICE_AGE_NOTE_DAYS;
-
-  return (
-    <div className="pf-price">
-      <p className="pf-price__value">
-        <strong className="pf-price__num">{formatPrice(price.price, lang, rs)}</strong>
-        <span className="pf-price__unit">{t('common.perKg')}</span>
-      </p>
-      <p className="pf-price__meta">
-        {t('pages.portfolio.observedOn', { date: formatDate(price.observedDate, lang) })}
-        {showAge && (
-          <>
-            {' · '}
-            <span className="pf-price__age">
-              {t('pages.portfolio.priceAge', { count: age as number })}
-            </span>
-          </>
-        )}
-      </p>
-      {price.direction && price.changePct !== null ? (
-        <p className={`pf-trend pf-trend--${price.direction}`}>
-          <span className="pf-trend__glyph" aria-hidden="true">
-            {trendGlyph[price.direction]}
-          </span>{' '}
-          {t('pages.portfolio.trendLine', {
-            dir: t(trendLabelKey(price.direction)),
-            pct: Math.abs(price.changePct),
-            prev:
-              price.previousPrice !== null ? formatPrice(price.previousPrice, lang, rs) : '—',
-            date:
-              price.previousObservedDate !== null
-                ? formatDate(price.previousObservedDate, lang)
-                : '—',
-          })}
-        </p>
-      ) : (
-        // NOT "steady": there is simply nothing recent enough to compare against.
-        <p className="pf-trend pf-trend--none">{t('pages.portfolio.noTrend')}</p>
+      {detailsOpen && (
+        <CropDetailsDialog
+          item={item}
+          market={market}
+          readiness={readiness}
+          lang={lang}
+          todayYmd={todayYmd}
+          // The card's own cached series — opening the popup buys no round trip. `undefined`
+          // says "this market has no price, so there is no chart", which is not the same
+          // thing as an empty series.
+          history={chartMarketId ? history : undefined}
+          swing={swing}
+          forecast={plantedForecast}
+          onRetryForecast={retryForecast}
+          onSavePlantedDate={onSavePlantedDate}
+          busy={busy}
+          onClose={() => setDetailsOpen(false)}
+        />
       )}
-    </div>
+    </li>
   );
 }

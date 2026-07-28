@@ -1,11 +1,16 @@
-// PredictionBlock — the frozen snapshot forecast for a crop: a range with a confidence word,
-// de-rated when it came from a fallback, labelled "National forecast" beside a market that is
-// not the model's anchor.
+// PredictionBlock — a forecast for one crop: a range with a confidence word, de-rated when
+// it came from a fallback, labelled "National forecast" beside a market that is not the
+// model's anchor.
 //
-// It lived inside WatchlistCard until step 6, when the card stopped carrying a forecast
-// section (the planted-date-driven replacement is step 7). Moved to its own file rather than
-// left exported from a component that no longer renders it — the crop detail page is now its
-// only caller, and an export nobody on the card uses is a trap for the next reader.
+// It renders TWO different forecasts and must keep rendering them the same way:
+//   • the crop page's frozen nightly SNAPSHOT (PortfolioDashboardItem.prediction), and
+//   • step 7's forecast for the farmer's OWN planting date, which comes from the harvest
+//     route and is renamed into this shape by predictionFromHarvestForecast().
+// That is why the prop is a prediction and not a dashboard item: the trust presentation —
+// which confidence word, when the "rough estimate" caution appears, whether the National
+// label is needed — is one implementation for both, so a second surface can never quietly
+// present a fallback more confidently than the first. `lowTrust` is the harvest route's own
+// stale/fallback-DATA flag; it can only ever ADD the caution, never remove it.
 //
 // The honesty rules it encodes (PRD §3.6, §5.2):
 //  - The prediction is a RANGE with a confidence word; the band is never collapsed into the
@@ -20,24 +25,29 @@
 // one-member set buys nothing and would silently drop an unknown future code into a blank
 // space. When a second code appears, branch here.
 import { useTranslation } from 'react-i18next';
-import type { PortfolioDashboardItem, PortfolioDashboardMarket } from '../api/types';
+import type { PortfolioDashboardMarket, PortfolioPrediction } from '../api/types';
 import { formatDate, formatPrice, formatRange, mapConfidenceString } from '../lib/format';
 import { isDeratedPrediction, showsNationalLabel } from '../lib/portfolio';
 
 export default function PredictionBlock({
-  item,
+  prediction,
   market,
   lang,
+  lowTrust = false,
 }: {
-  item: PortfolioDashboardItem;
+  prediction: PortfolioPrediction | null;
   /** The market the prediction is shown BESIDE — it decides whether the "National forecast"
    *  label is needed, not which number is shown (there is one forecast per crop). */
   market: PortfolioDashboardMarket | null;
   lang: string;
+  /** The harvest route's own `lowTrust` flag (old data behind an otherwise model-served
+   *  number). ORed into the de-rating: a caution may always be ADDED by a second signal,
+   *  never withdrawn by one. */
+  lowTrust?: boolean;
 }) {
   const { t } = useTranslation();
   const rs = t('common.rs');
-  const p = item.prediction;
+  const p = prediction;
 
   if (!p) {
     return (
@@ -49,7 +59,7 @@ export default function PredictionBlock({
   }
 
   const conf = mapConfidenceString(p.confidence);
-  const derated = isDeratedPrediction(p);
+  const derated = isDeratedPrediction(p) || lowTrust;
 
   return (
     <div className={`pf-pred${derated ? ' pf-pred--derated' : ''}`}>

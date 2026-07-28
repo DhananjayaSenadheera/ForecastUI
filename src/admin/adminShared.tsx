@@ -1,14 +1,9 @@
 // Shared admin primitives. Imported only by lazy admin pages, so this ships in the
 // admin chunk and never in the farmer first-load bundle.
-import {
-  useEffect,
-  useRef,
-  useState,
-  type KeyboardEvent as ReactKeyboardEvent,
-  type ReactNode,
-} from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiMode } from '../api/client';
+import { useDialogBehaviour } from '../lib/dialog';
 import './admin.css';
 
 // TablePagination is app-wide now; re-exported here so admin pages keep their existing
@@ -221,14 +216,12 @@ export function SortableTh<K extends string>({
   );
 }
 
-const FOCUSABLE =
-  'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
-
 /** Accessible modal dialog shell (users/festivals/news CRUD + the ingestion controls).
- *  aria-modal only PROMISES modality — the keyboard has to deliver it, so this shell
- *  also: closes on Escape, keeps Tab inside the dialog, moves focus in on open, and
- *  returns focus to the element that opened it. `describedBy` points at body copy the
- *  reader must hear with the title (a confirmation's consequences). */
+ *  aria-modal only PROMISES modality — the keyboard has to deliver it. The whole of that
+ *  promise (Escape, the Tab trap, focus in on open and back to the opener on close, and
+ *  the scroll lock on the page behind) lives in useDialogBehaviour, shared verbatim with
+ *  the farmer "More details" popup so the two cannot drift apart. `describedBy` points at
+ *  body copy the reader must hear with the title (a confirmation's consequences). */
 export function AdminDialog({
   title,
   onClose,
@@ -242,51 +235,7 @@ export function AdminDialog({
 }) {
   const { t } = useTranslation();
   const panel = useRef<HTMLDivElement>(null);
-  // Captured on mount so focus can go back where it came from on close.
-  const opener = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    opener.current = document.activeElement as HTMLElement | null;
-    // Focus the first control (a confirm dialog's Cancel), else the panel itself, so a
-    // screen reader lands inside the dialog instead of behind it.
-    const first = panel.current?.querySelector<HTMLElement>(FOCUSABLE);
-    (first ?? panel.current)?.focus();
-    return () => {
-      // Only restore if focus is still ours to move (never yank it from a new dialog).
-      const active = document.activeElement;
-      if (!active || active === document.body || panel.current?.contains(active)) {
-        opener.current?.focus?.();
-      }
-    };
-  }, []);
-
-  function onKeyDown(e: ReactKeyboardEvent<HTMLDivElement>) {
-    if (e.key === 'Escape') {
-      // preventDefault too: Escape has native meanings (cancelling an open <select>
-      // popup, reverting an input) that must not also fire as the dialog closes.
-      e.preventDefault();
-      e.stopPropagation();
-      onClose();
-      return;
-    }
-    if (e.key !== 'Tab') return;
-    const items = Array.from(panel.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []);
-    if (items.length === 0) {
-      e.preventDefault(); // nothing to move to — Tab must not escape the dialog
-      return;
-    }
-    const first = items[0];
-    const last = items[items.length - 1];
-    const active = document.activeElement as HTMLElement | null;
-    // Wrap at both ends; also pull focus back in if it somehow sits outside.
-    if (e.shiftKey && (active === first || !panel.current?.contains(active))) {
-      e.preventDefault();
-      last.focus();
-    } else if (!e.shiftKey && (active === last || !panel.current?.contains(active))) {
-      e.preventDefault();
-      first.focus();
-    }
-  }
+  const { onKeyDown } = useDialogBehaviour(panel, onClose);
 
   return (
     <div className="adm-dialog__backdrop" onClick={onClose}>

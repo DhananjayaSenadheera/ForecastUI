@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { RecommendationLevel } from '../api/types';
 import type {
+  HarvestForecast,
   Market,
   PortfolioDashboard,
   PortfolioDashboardItem,
@@ -9,6 +11,7 @@ import type {
 import {
   MAX_MARKETS_PER_CROP,
   MAX_WATCHED_CROPS,
+  PLANTED_DATE_MIN,
   PRICE_AGE_NOTE_DAYS,
   chartMarketIdFor,
   cropDetailLink,
@@ -16,8 +19,12 @@ import {
   daysBetweenYmd,
   harvestLinkFor,
   isDeratedPrediction,
+  isPlantedDateAllowed,
   marketCodeLabel,
   orderMarketsForPicker,
+  plantDateParam,
+  plantedDateMax,
+  predictionFromHarvestForecast,
   priceAgeDays,
   primaryMarket,
   sameMarketSet,
@@ -421,5 +428,109 @@ describe('lib/portfolio — deep link to the full forecast', () => {
     expect(harvestLinkFor('c0000003-0000-0000-0000-000000000003')).toBe(
       '/my-harvest?crop=c0000003-0000-0000-0000-000000000003',
     );
+  });
+});
+
+describe('lib/portfolio — the planting date the farmer records', () => {
+  const today = '2026-07-28';
+
+  it('accepts a real day inside the contract, including both ends', () => {
+    expect(isPlantedDateAllowed('2026-05-04', today)).toBe(true);
+    expect(isPlantedDateAllowed(today, today)).toBe(true);
+    expect(isPlantedDateAllowed(PLANTED_DATE_MIN, today)).toBe(true);
+  });
+
+  it('refuses what the server would refuse, before the round trip', () => {
+    // The server's ceiling is UTC-today + 1 day; the field stops at local today, which is
+    // never later than that. A planting is something that has happened.
+    expect(isPlantedDateAllowed('2026-07-29', today)).toBe(false);
+    expect(isPlantedDateAllowed('1999-12-31', today)).toBe(false);
+    expect(plantedDateMax(today)).toBe(today);
+  });
+
+  it('refuses anything that is not a real ISO day', () => {
+    expect(isPlantedDateAllowed('', today)).toBe(false);
+    expect(isPlantedDateAllowed('04-05-2026', today)).toBe(false);
+    expect(isPlantedDateAllowed('2026-13-01', today)).toBe(false);
+  });
+});
+
+describe('lib/portfolio — the ?date= hint handed to My harvest', () => {
+  const min = '2025-07-28';
+  const max = '2026-09-26';
+
+  it('passes a usable date through unchanged', () => {
+    expect(plantDateParam('2026-05-04', min, max)).toBe('2026-05-04');
+  });
+
+  it('DROPS a date the field cannot hold rather than clamping it to another day', () => {
+    // Clamping would forecast a planting the farmer never named — silently, under a link
+    // they tapped for a different one.
+    expect(plantDateParam('2020-01-01', min, max)).toBeNull();
+    expect(plantDateParam('2030-01-01', min, max)).toBeNull();
+  });
+
+  it('ignores garbage and an absent parameter alike', () => {
+    expect(plantDateParam(null, min, max)).toBeNull();
+    expect(plantDateParam('yesterday', min, max)).toBeNull();
+    expect(plantDateParam('2026-02-30', min, max)).toBeNull();
+  });
+});
+
+describe('lib/portfolio — one prediction shape for both forecast routes', () => {
+  const forecast: HarvestForecast = {
+    cropId: 'c1',
+    cropName: 'Tomato',
+    plantDate: '2026-05-04',
+    harvestDate: '2026-08-12',
+    growthPeriodDays: 100,
+    currentPrice: 210,
+    predictedPrice: 240,
+    lowerBound: 190,
+    upperBound: 300,
+    confidence: 'Low',
+    activePredictor: 'crop_mean_fallback',
+    modelVersion: 'v17',
+    explanation: '',
+    recommendationLevel: RecommendationLevel.Recommended,
+    reason: '',
+    upsidePct: 14.3,
+    intervalWidthPct: 45.8,
+    lowTrust: true,
+  };
+
+  it('renames the harvest route into the dashboard prediction shape, verbatim', () => {
+    // snapshotDate means "the planting day this forecast assumed" — on the harvest route
+    // that is plantDate. Nothing is rounded, blended or upgraded on the way through.
+    expect(predictionFromHarvestForecast(forecast)).toEqual({
+      predictedPrice: 240,
+      lowerBound: 190,
+      upperBound: 300,
+      confidence: 'Low',
+      activePredictor: 'crop_mean_fallback',
+      modelVersion: 'v17',
+      snapshotDate: '2026-05-04',
+      harvestDate: '2026-08-12',
+    });
+  });
+
+  it('keeps the de-rating verdict the allowlist already gives it', () => {
+    expect(isDeratedPrediction(predictionFromHarvestForecast(forecast))).toBe(true);
+    expect(
+      isDeratedPrediction(
+        predictionFromHarvestForecast({ ...forecast, activePredictor: 'residual' }),
+      ),
+    ).toBe(false);
+  });
+});
+
+describe('lib/portfolio — the full-forecast link carries the planting', () => {
+  it('appends the farmer’s own date when they have recorded one', () => {
+    expect(harvestLinkFor('c1', '2026-05-04')).toBe('/my-harvest?crop=c1&date=2026-05-04');
+  });
+
+  it('stays the plain crop link when there is no date', () => {
+    expect(harvestLinkFor('c1', null)).toBe('/my-harvest?crop=c1');
+    expect(harvestLinkFor('c1')).toBe('/my-harvest?crop=c1');
   });
 });

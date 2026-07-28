@@ -129,11 +129,15 @@ export default function PortfolioPage() {
   }
   /** What a batch actually achieved. `done` is the crops whose write the server ACCEPTED —
    *  the caller's cue for what it may now forget. `watchlist` is null when the re-read
-   *  failed, i.e. "the writes landed but we cannot prove what the state is". */
+   *  failed, i.e. "the writes landed but we cannot prove what the state is". `msg` is the
+   *  message this batch produced, handed back so a caller that reports it ITSELF (the
+   *  planting-date section inside a card, or inside the popup covering this page's status
+   *  region) shows exactly what the page would have shown. */
   interface WriteOutcome {
     ok: boolean;
     done: string[];
     watchlist: WatchlistItem[] | null;
+    msg: { tone: 'ok' | 'warn' | 'error'; key: string };
   }
 
   /**
@@ -149,12 +153,18 @@ export default function PortfolioPage() {
    * The RE-READ is outside the write try-block on purpose. A failed refresh after a
    * successful write is not a failed write: reporting "could not save" there would send the
    * farmer to re-do something that already happened, next to a card that has not caught up.
+   *
+   * `silent` suppresses only the PAGE-LEVEL status region, never the message itself: the
+   * outcome still carries it, for a caller that shows the result beside the control the
+   * farmer actually used. Announcing it in two live regions at once would double-speak it to
+   * a screen-reader user, and the page's region is at the bottom of the list — behind the
+   * popup, when the write came from there.
    */
   const runWrites = useCallback(
     async (
       steps: WriteStep[],
       okKey: string,
-      opts: { alreadyDoneCode?: string } = {},
+      opts: { alreadyDoneCode?: string; silent?: boolean } = {},
     ): Promise<WriteOutcome> => {
       setBusy(true);
       setWriteMsg(null);
@@ -184,11 +194,14 @@ export default function PortfolioPage() {
           /* keep the last known screen rather than blanking it */
         }
 
-        if (failureKey) setWriteMsg({ tone: 'error', key: failureKey });
-        else if (fresh === null) setWriteMsg({ tone: 'warn', key: 'pages.portfolio.savedNoRefresh' });
-        else setWriteMsg({ tone: 'ok', key: okKey });
+        const msg: WriteOutcome['msg'] = failureKey
+          ? { tone: 'error', key: failureKey }
+          : fresh === null
+            ? { tone: 'warn', key: 'pages.portfolio.savedNoRefresh' }
+            : { tone: 'ok', key: okKey };
+        if (!opts.silent) setWriteMsg(msg);
 
-        return { ok: failureKey === null, done, watchlist: fresh };
+        return { ok: failureKey === null, done, watchlist: fresh, msg };
       } finally {
         setBusy(false);
       }
@@ -225,6 +238,32 @@ export default function PortfolioPage() {
         'pages.portfolio.marketsSavedOk',
       );
       return ok;
+    },
+    [runWrites],
+  );
+
+  /**
+   * The farmer's planting date for one crop: a real date to record it, null to remove it.
+   *
+   * It goes through the same machinery as every other watchlist write — sequential, the
+   * server's own error code mapped to its own sentence, the dashboard re-read afterwards so
+   * the forecast that follows from the new date is fetched for what REALLY landed — but it
+   * reports back to the card instead of to the page's status region, because that is where
+   * the farmer is looking and, with the popup open, the only place they can see.
+   *
+   * The body carries plantedDate ALONE (api.updateWatchlistPlantedDate). Adding marketIds
+   * here would replace the crop's watched markets as a side effect of typing a date.
+   */
+  const onSavePlantedDate = useCallback(
+    async (cropId: string, plantedDate: string | null) => {
+      const { msg } = await runWrites(
+        [{ cropId, run: () => api.updateWatchlistPlantedDate(cropId, plantedDate) }],
+        plantedDate === null
+          ? 'pages.portfolio.plantedClearedOk'
+          : 'pages.portfolio.plantedSavedOk',
+        { silent: true },
+      );
+      return msg;
     },
     [runWrites],
   );
@@ -364,6 +403,8 @@ export default function PortfolioPage() {
                       todayYmd={todayYmd}
                       selected={selected.includes(item.cropId)}
                       onToggleSelect={toggleSelect}
+                      onSavePlantedDate={onSavePlantedDate}
+                      busy={busy}
                     />
                   ))}
                 </ul>

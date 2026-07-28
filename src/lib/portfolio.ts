@@ -10,6 +10,7 @@
 //    Shown beside a market that is not the anchor, they carry the "National forecast" label.
 //  - A fallback-served prediction is shown DE-RATED, never hidden and never upgraded.
 import type {
+  HarvestForecast,
   Market,
   PortfolioDashboard,
   PortfolioDashboardItem,
@@ -267,10 +268,105 @@ export function priceAgeDays(observedDate: string, todayYmd: string): number | n
   return age === null ? null : Math.max(0, age);
 }
 
-/** Deep-link to the full national forecast for a crop (PRD §5.1 — the portfolio links to
- *  My harvest, it never rebuilds the forecast screen). */
-export function harvestLinkFor(cropId: string): string {
-  return `/my-harvest?crop=${encodeURIComponent(cropId)}`;
+/**
+ * Deep-link to the full national forecast for a crop (PRD §5.1 — the portfolio links to
+ * My harvest, it never rebuilds the forecast screen).
+ *
+ * The farmer's own planting date rides along when they have recorded one, so the screen
+ * they land on is asking the SAME question the card just answered. My harvest treats the
+ * parameter as a view hint and silently ignores one it cannot use (see plantDateParam),
+ * so an out-of-window or malformed date degrades to that page's own default rather than
+ * erroring — but it is never silently REWRITTEN to a different day, which would put a
+ * price the farmer did not ask for under a date they did not choose.
+ */
+export function harvestLinkFor(cropId: string, plantedDate?: string | null): string {
+  const base = `/my-harvest?crop=${encodeURIComponent(cropId)}`;
+  return plantedDate ? `${base}&date=${encodeURIComponent(plantedDate)}` : base;
+}
+
+// ---- The farmer's own planting date ------------------------------------------------
+// Recorded per watched crop (PUT /api/portfolio/watchlist/{cropId} plantedDate), and the
+// anchor for the forecast the card shows: "what will THIS planting fetch at harvest".
+
+/** The server's floor for a planting date (Domain validator: not before 2000-01-01).
+ *  Mirrored so the date input refuses it before the round trip; the server still answers
+ *  invalid_planted_date and that answer always wins. */
+export const PLANTED_DATE_MIN = '2000-01-01';
+
+/**
+ * The newest planting date the field offers: TODAY, local.
+ *
+ * The server's ceiling is UTC-today + 1 day. Local today is never later than that (at
+ * UTC+5:30 the local date runs at most one day ahead of UTC), so this is always inside
+ * the contract — deliberately one day tighter than the wire allows. That spare day exists
+ * to absorb timezone skew, not to invite a planting date in the future: this field records
+ * what the farmer HAS planted, and "tomorrow" is a plan, not a planting.
+ */
+export function plantedDateMax(todayYmd: string): string {
+  return todayYmd;
+}
+
+/**
+ * Is this a REAL calendar day, written as "YYYY-MM-DD"?
+ *
+ * The round-trip is the whole point: `new Date('2026-02-30T00:00:00')` does not fail, it
+ * quietly becomes the 2nd of March. A shape test plus a NaN test would therefore accept the
+ * 30th of February and forecast a planting that never happened, so the parsed date's own
+ * parts are compared back against the string.
+ */
+function isRealYmd(date: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date ?? '');
+  if (!m) return false;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const parsed = new Date(y, mo - 1, d);
+  return (
+    parsed.getFullYear() === y && parsed.getMonth() === mo - 1 && parsed.getDate() === d
+  );
+}
+
+/** Is this a planting date the field may send? A real calendar day inside
+ *  [2000-01-01, today]. ISO dates sort lexicographically, so string comparison is a correct
+ *  range check. */
+export function isPlantedDateAllowed(date: string, todayYmd: string): boolean {
+  if (!isRealYmd(date)) return false;
+  return date >= PLANTED_DATE_MIN && date <= plantedDateMax(todayYmd);
+}
+
+/**
+ * A `?date=` view hint for My harvest: the date when it is a real ISO day the page's own
+ * field accepts, otherwise null ("ignore me").
+ *
+ * Deliberately NOT clampPlantDateToRange: clamping REWRITES an out-of-range date to today
+ * and would silently forecast a different planting than the link named. A hint that cannot
+ * be honoured is dropped, and the page keeps its own default.
+ */
+export function plantDateParam(raw: string | null, min: string, max: string): string | null {
+  if (!raw || !isRealYmd(raw)) return null;
+  return raw >= min && raw <= max ? raw : null;
+}
+
+/**
+ * The harvest-route forecast, read as the SAME prediction shape the dashboard serves, so
+ * one component (PredictionBlock) renders both and the trust rules cannot fork.
+ *
+ * The two payloads carry the same facts under two names: the dashboard's `snapshotDate` is
+ * "the planting day this forecast assumed", which on the harvest route is `plantDate`. The
+ * harvest route additionally carries `lowTrust` (stale/fallback DATA, not a fallback
+ * predictor) — it is NOT folded in here, because this function's job is a rename, not a
+ * judgement; the caller passes it to PredictionBlock separately, where it can only ever
+ * make the claim smaller.
+ */
+export function predictionFromHarvestForecast(f: HarvestForecast): PortfolioPrediction {
+  return {
+    predictedPrice: f.predictedPrice,
+    lowerBound: f.lowerBound,
+    upperBound: f.upperBound,
+    confidence: f.confidence,
+    activePredictor: f.activePredictor,
+    modelVersion: f.modelVersion,
+    snapshotDate: f.plantDate,
+    harvestDate: f.harvestDate,
+  };
 }
 
 /**

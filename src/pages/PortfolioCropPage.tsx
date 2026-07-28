@@ -17,7 +17,7 @@ import type { PortfolioDashboard, PortfolioDashboardItem, PriceHistoryPoint } fr
 import PriceLineChart from '../components/PriceLineChart';
 import PredictionBlock from '../components/PredictionBlock';
 import PriceSwingBadge from '../components/PriceSwingBadge';
-import { PriceBlock } from '../components/WatchlistCard';
+import PriceBlock from '../components/PriceBlock';
 import { chartMarketIdFor, harvestLinkFor, selectedMarketFor } from '../lib/portfolio';
 import { classifyPriceSwing, type PriceSwing } from '../lib/priceSwing';
 import { ymdLocal } from '../lib/format';
@@ -164,11 +164,15 @@ export default function PortfolioCropPage() {
             {/* showsNationalLabel fails TOWARDS the label everywhere except the
                 stood-in-for default market — a national forecast said to be national is
                 never wrong, whereas omitting it makes it look local. */}
-            <PredictionBlock item={item} market={market} lang={lang} />
+            {/* The nightly SNAPSHOT forecast (one per crop, anchored on the snapshot's own
+                date). The card and its popup show a different thing beside a planting date
+                the farmer recorded — the forecast for THAT planting — which is why each
+                says which planting it is about. Same component, same trust rules. */}
+            <PredictionBlock prediction={item.prediction} market={market} lang={lang} />
             <p className="pf-detail__cta">
               <Link
                 className="btn-primary"
-                to={harvestLinkFor(item.cropId)}
+                to={harvestLinkFor(item.cropId, item.plantedDate)}
                 aria-label={t('pages.portfolioCrop.openHarvestAria', { crop: item.cropName })}
               >
                 {t('pages.portfolioCrop.openHarvest')}

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import i18n, { hasOwnTranslation } from '../i18n';
 import PortfolioPage from '../pages/PortfolioPage';
@@ -738,18 +738,84 @@ describe('PortfolioPage — the server’s refusal keeps its own words', () => {
   });
 });
 
+describe('PortfolioPage — the planting date goes through the page’s write machinery', () => {
+  it('sends the date alone, re-reads the dashboard, and reports beside the card', async () => {
+    mockPage({ items: [tomato()] }, [watched('c1', 'Tomato', ['m1'])]);
+    const put = vi
+      .spyOn(api, 'updateWatchlistPlantedDate')
+      .mockResolvedValue({} as never);
+    const marketsPut = vi.spyOn(api, 'updateWatchlistMarkets');
+    vi.spyOn(api, 'getHarvestForecast').mockResolvedValue({} as never);
+    renderPage();
+
+    fireEvent.change(await screen.findByLabelText('Planting date'), {
+      target: { value: '2026-05-04' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save the planting date for Tomato' }));
+
+    await waitFor(() => expect(put).toHaveBeenCalledWith('c1', '2026-05-04'));
+    // The markets endpoint is not touched: a date edit must not replace market picks.
+    expect(marketsPut).not.toHaveBeenCalled();
+    // Re-read after the write: the forecast that follows the date is fetched for what
+    // really landed, not for what was asked for.
+    await waitFor(() => expect(api.getPortfolioDashboard).toHaveBeenCalledTimes(2));
+    await screen.findByText('Planting date saved.');
+    // Reported beside the control, NOT in the page's shared status region.
+    expect(document.querySelector('.pf-writemsg')).toHaveTextContent('');
+  });
+
+  it('maps the server’s invalid_planted_date to its own sentence', async () => {
+    mockPage({ items: [tomato()] }, [watched('c1', 'Tomato', ['m1'])]);
+    vi.spyOn(api, 'updateWatchlistPlantedDate').mockRejectedValue(
+      new ApiError('unprocessable', 422, 'invalid_planted_date'),
+    );
+    renderPage();
+
+    fireEvent.change(await screen.findByLabelText('Planting date'), {
+      target: { value: '2026-05-04' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save the planting date for Tomato' }));
+
+    // The product's own refusal keeps its own words instead of collapsing into "could not
+    // save" — the same mapping every other watchlist write uses.
+    await screen.findByText('That planting date cannot be used. Please choose another.');
+  });
+
+  it('clears the date with an explicit null when the farmer removes it', async () => {
+    mockPage({ items: [tomato({ plantedDate: '2026-05-04' })] }, [
+      { ...watched('c1', 'Tomato', ['m1']), plantedDate: '2026-05-04' },
+    ]);
+    const put = vi
+      .spyOn(api, 'updateWatchlistPlantedDate')
+      .mockResolvedValue({} as never);
+    vi.spyOn(api, 'getHarvestForecast').mockRejectedValue(new Error('not under test'));
+    renderPage();
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Remove the planting date for Tomato' }),
+    );
+    await waitFor(() => expect(put).toHaveBeenCalledWith('c1', null));
+    await screen.findByText('Planting date removed.');
+  });
+});
+
 describe('PortfolioPage — accessible names', () => {
-  it('the per-crop details link names its crop, so it is unambiguous in a list', async () => {
+  it('the per-crop details control names its crop, so it is unambiguous in a list', async () => {
     mockPage({ items: [tomato(), tomato({ cropId: 'c2', cropName: 'Beans' })] }, twoWatchedIds());
     renderPage();
-    expect(await screen.findByRole('link', { name: 'See details for Tomato' })).toHaveAttribute(
-      'href',
-      '/portfolio/crop/c1',
-    );
-    expect(screen.getByRole('link', { name: 'See details for Beans' })).toHaveAttribute(
-      'href',
-      '/portfolio/crop/c2',
-    );
+    // Ten cards mean ten of these controls: "More details" alone would be ten identically
+    // named buttons in one list.
+    expect(
+      await screen.findByRole('button', { name: 'More details for Tomato' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'More details for Beans' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'More details for Beans' }));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveAccessibleName('Beans');
+    expect(
+      within(dialog).getByRole('link', { name: 'Open the full crop page for Beans' }),
+    ).toHaveAttribute('href', '/portfolio/crop/c2');
   });
 });
 
