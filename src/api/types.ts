@@ -1031,14 +1031,23 @@ export interface ForecastSnapshotPage {
 // Shapes mirror the .NET DTOs verbatim; nothing here is derived or renamed.
 // =============================================================================
 
-/** One crop on the caller's watchlist. `preferredMarketId` null means "no market chosen",
- *  which the dashboard reads as the national / economic-centre default — NOT missing data. */
+/** One market a crop is watched at. `shortCode` ("DEC", "KEP") is DISPLAY ONLY and may be
+ *  empty — every address of a market on the wire is by `marketId`. */
+export interface WatchlistMarket {
+  marketId: string;
+  name: string;
+  shortCode: string;
+}
+
+/** One crop on the caller's watchlist. `markets` is oldest-chosen-first, so `markets[0]` is
+ *  the default the UI leads with. EMPTY is a normal state — "no market chosen" means the
+ *  national / economic-centre default, NOT missing data. */
 export interface WatchlistItem {
   cropId: string;
   cropName: string;
   cropCode: string | null; // VEG######/FRT###### — display only, never a join key
-  preferredMarketId: string | null;
-  preferredMarketName: string | null;
+  plantedDate: string | null; // yyyy-MM-dd, the farmer's own planting day
+  markets: WatchlistMarket[];
   createdAtUtc: string; // ISO Z
 }
 
@@ -1049,14 +1058,23 @@ export interface WatchlistAddResult {
   alreadyPresent: boolean;
 }
 
-/** PUT /api/portfolio/watchlist/{cropId}. The route names ONE crop but the home market is
- *  a per-farmer setting: `appliedToCropCount` is how many watchlist rows now carry it. */
-export interface WatchlistMarketUpdateResult {
-  cropId: string;
-  preferredMarketId: string | null;
-  preferredMarketName: string | null;
-  appliedToCropCount: number;
+/** PUT /api/portfolio/watchlist/{cropId}. `item` is the whole updated entry in the same
+ *  shape GET returns, so the UI replaces a row with the server's version instead of patching
+ *  its own copy. The two flags are for MESSAGING only — `item` is the truth. */
+export interface WatchlistEntryUpdateResult {
+  item: WatchlistItem;
+  marketsChanged: boolean;
+  plantedDateChanged: boolean;
 }
+
+/** The machine-readable `error` codes the portfolio routes answer with (422, or 404 for the
+ *  last one). Every one maps to its OWN farmer-language sentence: "we could not save" for a
+ *  cap the farmer can actually act on would waste the only information in the response. */
+export type PortfolioErrorCode =
+  | 'watchlist_full'
+  | 'too_many_markets'
+  | 'invalid_planted_date'
+  | 'watchlist_entry_not_found';
 
 /** DELETE /api/portfolio/watchlist/{cropId}. A miss is a 404 with code
  *  "watchlist_entry_not_found", so a 200 always means a row really went away. */
@@ -1070,31 +1088,33 @@ export interface WatchlistRemoveResult {
  *  30 days" — it is NEVER "steady" and never says the price beside it is unreliable. */
 export type PortfolioPriceDirection = 'up' | 'down' | 'steady';
 
-/** The one market the dashboard's prices are shown for. `isEconomicCenter: false` is
- *  LOAD-BEARING: predictions are Dambulla-anchored and national, so any prediction shown
- *  under a non-economic-centre home market must carry the "National forecast" label. */
-export interface PortfolioHomeMarket {
-  marketId: string;
-  name: string;
-  isEconomicCenter: boolean;
-  isDefault: boolean; // true = the farmer chose nothing and the centre is standing in
-}
-
-/** A real published price, never a forecast. There is NO staleness cutoff: this is the
- *  freshest observation that EXISTS for this crop, so `observedDate` can be months old and
- *  the UI must show the date rather than hide the price. */
+/** A real published price at ONE market, never a forecast and NEVER substituted from
+ *  another market. There is no staleness cutoff: this is the freshest observation that
+ *  exists for this crop AT THIS MARKET, so `observedDate` can be months old and the UI must
+ *  show the date rather than hide the price. */
 export interface PortfolioPrice {
   price: number;
   observedDate: string; // yyyy-MM-dd
-  marketId: string; // the market that actually served it — not necessarily the home one
-  marketName: string;
-  isFallbackMarket: boolean; // true = home market had nothing, economic centre served it
   direction: PortfolioPriceDirection | null;
   // Signed percent number, 1 decimal place. Null exactly when `direction` is null — the
   // two, plus previousPrice/previousObservedDate, are all null together or all present.
   changePct: number | null;
   previousPrice: number | null;
   previousObservedDate: string | null;
+}
+
+/** One market a crop is watched at, with THAT market's own price. Never empty on an item: a
+ *  crop with no chosen market gets exactly one economic-centre block flagged
+ *  `isDefaultMarket`, which is a DEFAULT standing in, not a failed substitution. */
+export interface PortfolioDashboardMarket {
+  marketId: string;
+  name: string;
+  shortCode: string; // display-only chip label, possibly empty
+  isDefaultMarket: boolean;
+  price: PortfolioPrice | null;
+  // "no_recent_price" = this market has published nothing usable for this crop. It does NOT
+  // mean the data is stale or old — there is none. Copy must not imply recency.
+  priceUnavailableReason: 'no_recent_price' | null;
 }
 
 /** The newest frozen ForecastSnapshots row, read verbatim: what the model said, not how it
@@ -1110,20 +1130,23 @@ export interface PortfolioPrediction {
   harvestDate: string | null; // null when the growth period could not be resolved
 }
 
-/** One watched crop. Both legs are fail-soft decoration: the crop always appears, and a
- *  missing leg is null WITH a reason code rather than a fabricated number. */
+/** One watched crop, with a block per watched market. Every leg is fail-soft decoration: the
+ *  crop always appears, every one of its markets always appears, and a missing leg is null
+ *  WITH a reason code rather than a fabricated number. The prediction is ONE PER CROP, not
+ *  per market — the model serves a single national, Dambulla-anchored price. */
 export interface PortfolioDashboardItem {
   cropId: string;
   cropName: string;
   cropCode: string | null;
-  price: PortfolioPrice | null;
-  priceUnavailableReason: 'no_recent_price' | null;
+  plantedDate: string | null; // yyyy-MM-dd — step 7 surfaces it; carried through now
+  markets: PortfolioDashboardMarket[]; // oldest-chosen first, NEVER empty
   prediction: PortfolioPrediction | null;
   predictionUnavailableReason: 'no_snapshot' | null;
 }
 
-/** GET /api/portfolio/dashboard. An empty watchlist is a 200 with items: [], never a 404. */
+/** GET /api/portfolio/dashboard. An empty watchlist is a 200 with items: [], never a 404.
+ *  THERE IS NO TOP-LEVEL HOME MARKET any more: markets are per crop, so "the market this
+ *  dashboard is for" is not a question with one answer. */
 export interface PortfolioDashboard {
-  homeMarket: PortfolioHomeMarket | null;
   items: PortfolioDashboardItem[];
 }

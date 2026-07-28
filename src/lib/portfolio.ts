@@ -6,18 +6,25 @@
 //    "the price is unreliable". The price beside it is still shown.
 //  - A price has NO staleness cutoff: age is communicated by the date (and a plain-words
 //    age note), never by hiding or discounting the number.
-//  - Predictions are one Dambulla-anchored NATIONAL price. Under a non-economic-centre
-//    home market they must carry the "National forecast" label.
+//  - Predictions are one Dambulla-anchored NATIONAL price, one per CROP — never per market.
+//    Shown beside a market that is not the anchor, they carry the "National forecast" label.
 //  - A fallback-served prediction is shown DE-RATED, never hidden and never upgraded.
 import type {
   Market,
   PortfolioDashboard,
   PortfolioDashboardItem,
-  PortfolioHomeMarket,
+  PortfolioDashboardMarket,
+  PortfolioErrorCode,
   PortfolioPrediction,
   PortfolioPriceDirection,
-  WatchlistItem,
 } from '../api/types';
+
+/** The backend's own caps (Domain/Constants/WatchlistLimits.cs), mirrored ONCE here so the
+ *  counter, the client-side guards and the copy all read the same number. The server still
+ *  answers watchlist_full / too_many_markets — these only let the UI say "no" before the
+ *  round trip, they never replace the server's answer. */
+export const MAX_WATCHED_CROPS = 10;
+export const MAX_MARKETS_PER_CROP = 3;
 
 /** Trend glyph — paired ALWAYS with a word by the component (colour is never the sole
  *  signal, and none of these three is red). */
@@ -42,14 +49,41 @@ export function trendLabelKey(
 }
 
 /**
- * Does a prediction shown under this home market need the "National forecast" label?
- * TRUE whenever the home market is not the economic centre: the model serves ONE
- * Dambulla-anchored national price, so pairing it with a Kandy price without saying so
- * would read as a Kandy forecast. A null home market means nothing is being re-pointed,
- * so no label is needed.
+ * The market a card leads with: `markets[0]`, the farmer's oldest-chosen one (the wire
+ * orders them, we never re-sort). Null only if the server ever sent an empty list, which the
+ * contract forbids — the caller still handles it rather than indexing blindly.
  */
-export function showsNationalLabel(homeMarket: PortfolioHomeMarket | null): boolean {
-  return homeMarket !== null && !homeMarket.isEconomicCenter;
+export function primaryMarket(item: PortfolioDashboardItem): PortfolioDashboardMarket | null {
+  return item.markets[0] ?? null;
+}
+
+/**
+ * Does a prediction shown beside this market need the "National forecast" label?
+ *
+ * The model serves ONE Dambulla-anchored national price per crop, so a forecast sitting next
+ * to a Keppetipola price would read as a Keppetipola forecast unless it says otherwise. The
+ * label is therefore shown UNLESS we can positively establish that the market beside it IS
+ * the economic centre:
+ *   - `isDefaultMarket` is true only for the centre standing in for an unchosen market;
+ *   - otherwise the markets registry is consulted, when the caller has it.
+ * `economicCenterIds` is optional and its absence FAILS TOWARDS THE LABEL: a national label
+ * on a national forecast is at worst redundant, whereas omitting it makes a national number
+ * look local. Never invert this default.
+ */
+export function showsNationalLabel(
+  market: PortfolioDashboardMarket | null,
+  economicCenterIds?: ReadonlySet<string>,
+): boolean {
+  if (market === null) return true;
+  if (market.isDefaultMarket) return false;
+  if (!economicCenterIds) return true;
+  return !economicCenterIds.has(market.marketId.toLowerCase());
+}
+
+/** The ids of the economic-centre markets, lowercased for case-insensitive GUID compares.
+ *  Built from the same markets list the picker uses — no second source of truth. */
+export function economicCenterIdSet(markets: Market[]): ReadonlySet<string> {
+  return new Set(markets.filter((m) => m.isEconomicCenter).map((m) => m.id.toLowerCase()));
 }
 
 /** The predictors a farmer may see at FULL model trust. An ALLOWLIST on purpose, mirroring
@@ -79,42 +113,41 @@ export function isDeratedPrediction(p: PortfolioPrediction | null): boolean {
  *  - 'no-watchlist': the farmer has added nothing -> "Add crops" CTA.
  *  - 'no-data': crops are watched but NOTHING is known about any of them -> an honest
  *    "no prices for your crops yet", never a fake number.
- *  - 'ok': at least one crop has a price or a prediction. */
+ *  - 'ok': at least one crop has a price at some market, or a prediction. */
 export function dashboardEmptyState(
   dashboard: PortfolioDashboard,
 ): 'no-watchlist' | 'no-data' | 'ok' {
   if (dashboard.items.length === 0) return 'no-watchlist';
-  const anyData = dashboard.items.some((i) => i.price !== null || i.prediction !== null);
+  const anyData = dashboard.items.some(
+    (i) => i.prediction !== null || i.markets.some((m) => m.price !== null),
+  );
   return anyData ? 'ok' : 'no-data';
 }
 
-export interface WatchlistDiff {
-  added: string[];
-  removed: string[];
-}
-
 /**
- * What has to be written to turn `current` into `next`: crop ids to POST and to DELETE.
- * Both sides are de-duplicated and the input order of `next` is preserved for `added`, so
- * the calls fire in the order the farmer tapped. An unchanged selection yields two empty
- * arrays, which is the caller's cue that Save has nothing to do.
+ * The farmer-language message for a portfolio error, as an i18n key. Each refusal the
+ * PRODUCT makes gets its OWN sentence: "watchlist is full" and "too many markets" are things
+ * the farmer can act on, and collapsing them into "could not save" throws away the only
+ * useful part of the response. An unrecognised code (or a plain network failure) falls back
+ * to the generic sentence rather than guessing.
  */
-export function diffWatchlist(current: string[], next: string[]): WatchlistDiff {
-  const currentSet = new Set(current);
-  const nextSet = new Set(next);
-  const added: string[] = [];
-  for (const id of next) {
-    if (!currentSet.has(id) && !added.includes(id)) added.push(id);
+export function watchlistErrorKey(code: string | null | undefined): string {
+  switch (code as PortfolioErrorCode) {
+    case 'watchlist_full':
+      return 'pages.portfolio.errWatchlistFull';
+    case 'too_many_markets':
+      return 'pages.portfolio.errTooManyMarkets';
+    case 'invalid_planted_date':
+      return 'pages.portfolio.errInvalidPlantedDate';
+    case 'watchlist_entry_not_found':
+      return 'pages.portfolio.errEntryNotFound';
+    default:
+      return 'common.errorBody';
   }
-  const removed: string[] = [];
-  for (const id of current) {
-    if (!nextSet.has(id) && !removed.includes(id)) removed.push(id);
-  }
-  return { added, removed };
 }
 
-/** The economic centre first, then the rest by name — the option order for the home-market
- *  select, so the model's own anchor is the default suggestion at the top. */
+/** The economic centre first, then the rest by name — the option order for the market
+ *  pickers, so the model's own anchor is the default suggestion at the top. */
 export function orderMarketsForPicker(markets: Market[]): Market[] {
   return [...markets].sort((a, b) => {
     if (a.isEconomicCenter !== b.isEconomicCenter) return a.isEconomicCenter ? -1 : 1;
@@ -122,14 +155,22 @@ export function orderMarketsForPicker(markets: Market[]): Market[] {
   });
 }
 
-/** The home market currently stored on the watchlist rows (one market per farmer), or null
- *  when none is chosen. Reads the first row that carries one so a partially-written list
- *  still resolves. */
-export function watchlistMarketId(items: WatchlistItem[]): string | null {
-  for (const i of items) {
-    if (i.preferredMarketId) return i.preferredMarketId;
+/**
+ * Toggle a market inside one crop's picked set, refusing the (cap+1)th rather than silently
+ * dropping it. Returns the next selection and whether the cap blocked the tap, so the caller
+ * can SAY so — a checkbox that just does not tick is a bug from the farmer's side.
+ * Removal is always allowed, even from an over-cap set that arrived from the server.
+ */
+export function toggleMarketSelection(
+  selected: string[],
+  marketId: string,
+  max: number = MAX_MARKETS_PER_CROP,
+): { next: string[]; blocked: boolean } {
+  if (selected.includes(marketId)) {
+    return { next: selected.filter((id) => id !== marketId), blocked: false };
   }
-  return null;
+  if (selected.length >= max) return { next: selected, blocked: true };
+  return { next: [...selected, marketId], blocked: false };
 }
 
 /**
@@ -168,13 +209,9 @@ export function harvestLinkFor(cropId: string): string {
   return `/my-harvest?crop=${encodeURIComponent(cropId)}`;
 }
 
-/** The market a crop's price chart should be drawn for: the market that ACTUALLY served
- *  the displayed price (which may be the economic-centre fallback), else the home market.
- *  Charting the home market under a fallback-served number would put a different series
- *  next to the price and quietly contradict it. */
-export function chartMarketIdFor(
-  item: PortfolioDashboardItem | null,
-  homeMarket: PortfolioHomeMarket | null,
-): string | null {
-  return item?.price?.marketId ?? homeMarket?.marketId ?? null;
+/** The market a crop's price chart should be drawn for: the one whose number is printed
+ *  above it, i.e. the block the card leads with. Charting a different market next to a
+ *  price would quietly contradict the number. */
+export function chartMarketIdFor(item: PortfolioDashboardItem | null): string | null {
+  return item ? (primaryMarket(item)?.marketId ?? null) : null;
 }

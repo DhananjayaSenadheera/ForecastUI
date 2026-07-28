@@ -44,10 +44,12 @@ import {
   type ForecastSnapshotPage,
   type PortfolioDashboard,
   type PortfolioDashboardItem,
+  type PortfolioDashboardMarket,
   type PortfolioPriceDirection,
   type WatchlistAddResult,
+  type WatchlistEntryUpdateResult,
   type WatchlistItem,
-  type WatchlistMarketUpdateResult,
+  type WatchlistMarket,
   type WatchlistRemoveResult,
 } from './types';
 
@@ -2020,22 +2022,36 @@ export function fxForecastSnapshots(
 // numbers the Prices and My-harvest pages show for the same crop.
 // =============================================================================
 
-const FX_WATCHLIST_SEED: ReadonlyArray<{ cropId: string; marketId: string | null }> = [
-  { cropId: 'c0000003-0000-0000-0000-000000000003', marketId: DAMBULLA_ID }, // Tomato
-  { cropId: 'c0000002-0000-0000-0000-000000000002', marketId: DAMBULLA_ID }, // Beans
+const FX_WATCHLIST_SEED: ReadonlyArray<{ cropId: string; marketIds: string[] }> = [
+  { cropId: 'c0000003-0000-0000-0000-000000000003', marketIds: [DAMBULLA_ID] }, // Tomato
+  { cropId: 'c0000002-0000-0000-0000-000000000002', marketIds: [] }, // Beans — no market chosen
 ];
 
 let fxWatchlistWorking: WatchlistItem[] | null = null;
 
-function fxWatchlistRow(cropId: string, marketId: string | null): WatchlistItem {
+/** Short codes are display-only chips on the portfolio wire. The markets registry the demo
+ *  reuses does not carry them, so the fixture derives a stable stand-in from the name — it
+ *  is never a key, and the real wire value always wins in live mode. */
+function fxShortCode(name: string): string {
+  return name.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase();
+}
+
+function fxWatchlistMarket(marketId: string): WatchlistMarket | null {
+  const m = fxMarkets.find((x) => x.id === marketId);
+  return m ? { marketId: m.id, name: m.name, shortCode: fxShortCode(m.name) } : null;
+}
+
+function fxWatchlistRow(cropId: string, marketIds: string[]): WatchlistItem {
   const crop = fxCrops.find((c) => c.id === cropId);
-  const market = marketId ? fxMarkets.find((m) => m.id === marketId) ?? null : null;
   return {
     cropId,
     cropName: crop?.name ?? cropId,
     cropCode: crop?.cropCode ?? null,
-    preferredMarketId: market?.id ?? null,
-    preferredMarketName: market?.name ?? null,
+    plantedDate: null,
+    // Oldest-chosen first, exactly as the server orders them — never re-sorted.
+    markets: marketIds
+      .map(fxWatchlistMarket)
+      .filter((m): m is WatchlistMarket => m !== null),
     createdAtUtc: '2026-07-20T06:30:00Z',
   };
 }
@@ -2043,7 +2059,7 @@ function fxWatchlistRow(cropId: string, marketId: string | null): WatchlistItem 
 /** Ordered by crop name, exactly as the server orders it. */
 function fxWatchlistRows(): WatchlistItem[] {
   if (!fxWatchlistWorking) {
-    fxWatchlistWorking = FX_WATCHLIST_SEED.map((s) => fxWatchlistRow(s.cropId, s.marketId));
+    fxWatchlistWorking = FX_WATCHLIST_SEED.map((s) => fxWatchlistRow(s.cropId, s.marketIds));
   }
   return fxWatchlistWorking;
 }
@@ -2056,37 +2072,44 @@ export function fxWatchlist(): WatchlistItem[] {
   return fxSortWatchlist(fxWatchlistRows()).map((r) => ({ ...r }));
 }
 
-/** Idempotent add. A null/absent marketId INHERITS the current home market, matching the
- *  server: an add never clears a market the farmer already chose. */
-export function fxAddWatchlist(cropId: string, preferredMarketId?: string | null): WatchlistAddResult {
+/** Idempotent add, and INSERT-ONLY on the markets exactly like the server: a repeat add
+ *  never takes a market away, so the demo cannot teach a habit the API refuses. */
+export function fxAddWatchlist(cropId: string, marketIds?: string[]): WatchlistAddResult {
   const rows = fxWatchlistRows();
+  const wanted = marketIds ?? [];
   const existing = rows.find((r) => r.cropId === cropId);
-  if (existing) return { item: { ...existing }, alreadyPresent: true };
-  const inherited = preferredMarketId ?? rows[0]?.preferredMarketId ?? null;
-  const row = fxWatchlistRow(cropId, inherited);
+  if (existing) {
+    for (const id of wanted) {
+      if (existing.markets.length >= 3) break;
+      if (existing.markets.some((m) => m.marketId === id)) continue;
+      const m = fxWatchlistMarket(id);
+      if (m) existing.markets.push(m);
+    }
+    return { item: { ...existing }, alreadyPresent: true };
+  }
+  const row = fxWatchlistRow(cropId, wanted.slice(0, 3));
   rows.push(row);
   return { item: { ...row }, alreadyPresent: false };
 }
 
-/** One home market per farmer: the update lands on EVERY row, not just the named crop. */
-export function fxUpdateWatchlistMarket(
+/** FULL REPLACE of one crop's watched markets — [] clears them back to the national
+ *  default. It touches that crop only: markets are per crop now, not per farmer. */
+export function fxUpdateWatchlistMarkets(
   cropId: string,
-  preferredMarketId: string | null,
-): WatchlistMarketUpdateResult {
+  marketIds: string[],
+): WatchlistEntryUpdateResult {
   const rows = fxWatchlistRows();
-  if (!rows.some((r) => r.cropId === cropId)) {
-    throw new Error('watchlist_entry_not_found');
-  }
-  const market = preferredMarketId ? fxMarkets.find((m) => m.id === preferredMarketId) ?? null : null;
-  for (const r of rows) {
-    r.preferredMarketId = market?.id ?? null;
-    r.preferredMarketName = market?.name ?? null;
-  }
+  const row = rows.find((r) => r.cropId === cropId);
+  if (!row) throw new Error('watchlist_entry_not_found');
+  const before = row.markets.map((m) => m.marketId).join(',');
+  row.markets = marketIds
+    .slice(0, 3)
+    .map(fxWatchlistMarket)
+    .filter((m): m is WatchlistMarket => m !== null);
   return {
-    cropId,
-    preferredMarketId: market?.id ?? null,
-    preferredMarketName: market?.name ?? null,
-    appliedToCropCount: rows.length,
+    item: { ...row },
+    marketsChanged: row.markets.map((m) => m.marketId).join(',') !== before,
+    plantedDateChanged: false,
   };
 }
 
@@ -2098,12 +2121,17 @@ export function fxRemoveWatchlist(cropId: string): WatchlistRemoveResult {
   return { cropId, removed: true };
 }
 
-function fxDashboardItem(row: WatchlistItem, marketId: string | null): PortfolioDashboardItem {
-  const servedBy = marketId ?? DAMBULLA_ID;
-  const history = fxPriceHistoryFor(row.cropId, servedBy);
+/** One market block for a crop. The price is that market's OWN latest observation and is
+ *  never substituted from elsewhere — a market with nothing gets null + no_recent_price. */
+function fxDashboardMarket(
+  cropId: string,
+  marketId: string,
+  isDefaultMarket: boolean,
+): PortfolioDashboardMarket {
+  const history = fxPriceHistoryFor(cropId, marketId);
   const last = history[history.length - 1];
   const prev = history[history.length - 2];
-  const market = fxMarkets.find((m) => m.id === servedBy);
+  const market = fxMarkets.find((m) => m.id === marketId);
   const mid = (p: PriceHistoryPoint) => Math.round((p.minPrice + p.maxPrice) / 2);
 
   let direction: PortfolioPriceDirection | null = null;
@@ -2114,21 +2142,15 @@ function fxDashboardItem(row: WatchlistItem, marketId: string | null): Portfolio
     changePct = Math.round((delta / mid(prev)) * 1000) / 10;
   }
 
-  // The prediction leg reuses the crop's own forecast fixture so the demo agrees with
-  // My harvest for the same crop; harvestDate comes from the crop's growth period.
-  const forecast = fxForecastFor(row.cropId, ymdLocal(new Date()));
-
   return {
-    cropId: row.cropId,
-    cropName: row.cropName,
-    cropCode: row.cropCode,
+    marketId,
+    name: market?.name ?? '',
+    shortCode: fxShortCode(market?.name ?? ''),
+    isDefaultMarket,
     price: last
       ? {
           price: mid(last),
           observedDate: last.date,
-          marketId: servedBy,
-          marketName: market?.name ?? '',
-          isFallbackMarket: marketId !== null && marketId !== servedBy,
           direction,
           changePct,
           previousPrice: prev ? mid(prev) : null,
@@ -2136,6 +2158,24 @@ function fxDashboardItem(row: WatchlistItem, marketId: string | null): Portfolio
         }
       : null,
     priceUnavailableReason: last ? null : 'no_recent_price',
+  };
+}
+
+function fxDashboardItem(row: WatchlistItem): PortfolioDashboardItem {
+  // The prediction leg reuses the crop's own forecast fixture so the demo agrees with
+  // My harvest for the same crop; harvestDate comes from the crop's growth period.
+  const forecast = fxForecastFor(row.cropId, ymdLocal(new Date()));
+  // Never empty: no chosen market means one economic-centre block, flagged as the default.
+  const markets: PortfolioDashboardMarket[] = row.markets.length
+    ? row.markets.map((m) => fxDashboardMarket(row.cropId, m.marketId, false))
+    : [fxDashboardMarket(row.cropId, DAMBULLA_ID, true)];
+
+  return {
+    cropId: row.cropId,
+    cropName: row.cropName,
+    cropCode: row.cropCode,
+    plantedDate: row.plantedDate,
+    markets,
     prediction: {
       predictedPrice: forecast.predictedPrice,
       lowerBound: forecast.lowerBound,
@@ -2151,18 +2191,5 @@ function fxDashboardItem(row: WatchlistItem, marketId: string | null): Portfolio
 }
 
 export function fxPortfolioDashboard(): PortfolioDashboard {
-  const rows = fxSortWatchlist(fxWatchlistRows());
-  const chosenId = rows[0]?.preferredMarketId ?? null;
-  const market = fxMarkets.find((m) => m.id === (chosenId ?? DAMBULLA_ID));
-  return {
-    homeMarket: market
-      ? {
-          marketId: market.id,
-          name: market.name,
-          isEconomicCenter: market.isEconomicCenter,
-          isDefault: chosenId === null,
-        }
-      : null,
-    items: rows.map((r) => fxDashboardItem(r, chosenId)),
-  };
+  return { items: fxSortWatchlist(fxWatchlistRows()).map(fxDashboardItem) };
 }

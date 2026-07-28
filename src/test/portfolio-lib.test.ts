@@ -3,46 +3,60 @@ import type {
   Market,
   PortfolioDashboard,
   PortfolioDashboardItem,
-  PortfolioHomeMarket,
+  PortfolioDashboardMarket,
   PortfolioPrediction,
-  WatchlistItem,
 } from '../api/types';
 import {
+  MAX_MARKETS_PER_CROP,
+  MAX_WATCHED_CROPS,
   PRICE_AGE_NOTE_DAYS,
   chartMarketIdFor,
   dashboardEmptyState,
   daysBetweenYmd,
-  diffWatchlist,
+  economicCenterIdSet,
   harvestLinkFor,
   isDeratedPrediction,
   orderMarketsForPicker,
   priceAgeDays,
+  primaryMarket,
   showsNationalLabel,
+  toggleMarketSelection,
   trendGlyph,
   trendLabelKey,
-  watchlistMarketId,
+  watchlistErrorKey,
 } from '../lib/portfolio';
 
-const DAMBULLA: PortfolioHomeMarket = {
-  marketId: 'm1',
-  name: 'Dambulla Dedicated Economic Centre',
-  isEconomicCenter: true,
-  isDefault: true,
-};
-const KANDY: PortfolioHomeMarket = {
-  marketId: 'm3',
-  name: 'Kandy',
-  isEconomicCenter: false,
-  isDefault: false,
-};
+function block(over: Partial<PortfolioDashboardMarket> = {}): PortfolioDashboardMarket {
+  return {
+    marketId: 'm1',
+    name: 'Dambulla Dedicated Economic Centre',
+    shortCode: 'DEC',
+    isDefaultMarket: false,
+    price: null,
+    priceUnavailableReason: 'no_recent_price',
+    ...over,
+  };
+}
+
+const PRICED = block({
+  price: {
+    price: 200,
+    observedDate: '2026-07-25',
+    direction: null,
+    changePct: null,
+    previousPrice: null,
+    previousObservedDate: null,
+  },
+  priceUnavailableReason: null,
+});
 
 function item(over: Partial<PortfolioDashboardItem> = {}): PortfolioDashboardItem {
   return {
     cropId: 'c1',
     cropName: 'Tomato',
     cropCode: 'VEG000003',
-    price: null,
-    priceUnavailableReason: 'no_recent_price',
+    plantedDate: null,
+    markets: [block()],
     prediction: null,
     predictionUnavailableReason: 'no_snapshot',
     ...over,
@@ -62,17 +76,55 @@ function prediction(activePredictor: string): PortfolioPrediction {
   };
 }
 
+const mk = (id: string, name: string, ec: boolean): Market => ({
+  id,
+  name,
+  district: null,
+  marketType: 1,
+  isEconomicCenter: ec,
+  hasStoredData: true,
+  lastStoredDate: null,
+  isTrainingSource: true,
+});
+
+describe('lib/portfolio — the card leads with markets[0]', () => {
+  it('takes the FIRST market on the wire and never re-sorts (oldest-chosen wins)', () => {
+    const kandy = block({ marketId: 'm3', name: 'Kandy', shortCode: 'KAN' });
+    const dambulla = block({ marketId: 'm1' });
+    expect(primaryMarket(item({ markets: [kandy, dambulla] }))?.marketId).toBe('m3');
+    expect(primaryMarket(item({ markets: [dambulla, kandy] }))?.marketId).toBe('m1');
+  });
+
+  it('returns null rather than throwing on the contract-forbidden empty list', () => {
+    expect(primaryMarket(item({ markets: [] }))).toBeNull();
+  });
+});
+
 describe('lib/portfolio — national-forecast labelling (PRD §3.6)', () => {
-  it('labels predictions as national under a NON economic-centre home market', () => {
-    expect(showsNationalLabel(KANDY)).toBe(true);
+  const centres = economicCenterIdSet([mk('m1', 'Dambulla', true), mk('m3', 'Kandy', false)]);
+
+  it('labels predictions as national beside a market that is NOT the anchor', () => {
+    expect(showsNationalLabel(block({ marketId: 'm3', name: 'Kandy' }), centres)).toBe(true);
   });
 
   it('does not label them at the economic centre (the model is anchored there)', () => {
-    expect(showsNationalLabel(DAMBULLA)).toBe(false);
+    expect(showsNationalLabel(block({ marketId: 'm1' }), centres)).toBe(false);
   });
 
-  it('does not label them when no home market is re-pointing anything', () => {
-    expect(showsNationalLabel(null)).toBe(false);
+  it('matches economic-centre ids case-insensitively (GUIDs travel in mixed case)', () => {
+    const mixed = economicCenterIdSet([mk('M1-AAAA', 'Dambulla', true)]);
+    expect(showsNationalLabel(block({ marketId: 'm1-aaaa' }), mixed)).toBe(false);
+  });
+
+  it('does not label the DEFAULT block — that block IS the centre standing in', () => {
+    expect(showsNationalLabel(block({ isDefaultMarket: true }))).toBe(false);
+  });
+
+  it('FAILS TOWARDS the label when the registry is unavailable', () => {
+    // A national forecast said to be national is at worst redundant; the opposite default
+    // would make a national number look like a local one. Never invert this.
+    expect(showsNationalLabel(block({ marketId: 'm1' }))).toBe(true);
+    expect(showsNationalLabel(null)).toBe(true);
   });
 });
 
@@ -104,10 +156,7 @@ describe('lib/portfolio — only a known model predictor earns full trust', () =
 });
 
 describe('lib/portfolio — the two distinct empty states (PRD §5.2)', () => {
-  const dash = (items: PortfolioDashboardItem[]): PortfolioDashboard => ({
-    homeMarket: DAMBULLA,
-    items,
-  });
+  const dash = (items: PortfolioDashboardItem[]): PortfolioDashboard => ({ items });
 
   it('an empty watchlist is "no-watchlist" (an invitation, not an admission)', () => {
     expect(dashboardEmptyState(dash([]))).toBe('no-watchlist');
@@ -123,58 +172,67 @@ describe('lib/portfolio — the two distinct empty states (PRD §5.2)', () => {
     );
   });
 
-  it('one crop with only a PRICE is already the ok state', () => {
-    const priced = item({
-      price: {
-        price: 200,
-        observedDate: '2026-07-25',
-        marketId: 'm1',
-        marketName: 'Dambulla',
-        isFallbackMarket: false,
-        direction: null,
-        changePct: null,
-        previousPrice: null,
-        previousObservedDate: null,
-      },
-      priceUnavailableReason: null,
-    });
-    expect(dashboardEmptyState(dash([priced]))).toBe('ok');
+  it('a price at ANY of a crop’s markets is the ok state, not only at the first', () => {
+    // The scan must reach every block: a crop whose second market has the only price is
+    // not a crop we know nothing about.
+    expect(dashboardEmptyState(dash([item({ markets: [block(), PRICED] })]))).toBe('ok');
   });
 });
 
-describe('lib/portfolio — watchlist diff drives exactly the calls we make', () => {
-  it('splits a new selection into adds and removes', () => {
-    expect(diffWatchlist(['a', 'b'], ['b', 'c'])).toEqual({ added: ['c'], removed: ['a'] });
+describe('lib/portfolio — caps are one constant, and the client says no before the server', () => {
+  it('mirrors the backend WatchlistLimits exactly', () => {
+    expect(MAX_WATCHED_CROPS).toBe(10);
+    expect(MAX_MARKETS_PER_CROP).toBe(3);
   });
 
-  it('reports no work when the selection is unchanged (order-insensitive)', () => {
-    expect(diffWatchlist(['a', 'b'], ['b', 'a'])).toEqual({ added: [], removed: [] });
+  it('adds a market up to the cap and REFUSES the fourth, saying it was blocked', () => {
+    let sel: string[] = [];
+    for (const id of ['m1', 'm2', 'm3']) {
+      const r = toggleMarketSelection(sel, id);
+      expect(r.blocked).toBe(false);
+      sel = r.next;
+    }
+    const fourth = toggleMarketSelection(sel, 'm4');
+    expect(fourth.blocked).toBe(true);
+    // Silently dropping it would be the bug: the farmer taps and nothing happens.
+    expect(fourth.next).toEqual(['m1', 'm2', 'm3']);
   });
 
-  it('keeps the tap order of the additions and de-duplicates both sides', () => {
-    expect(diffWatchlist(['a', 'a'], ['c', 'b', 'c'])).toEqual({
-      added: ['c', 'b'],
-      removed: ['a'],
-    });
+  it('always allows a REMOVAL, even from an over-cap set that arrived from the server', () => {
+    const r = toggleMarketSelection(['m1', 'm2', 'm3', 'm4'], 'm2');
+    expect(r).toEqual({ next: ['m1', 'm3', 'm4'], blocked: false });
   });
 
-  it('clearing the whole list removes everything and adds nothing', () => {
-    expect(diffWatchlist(['a', 'b'], [])).toEqual({ added: [], removed: ['a', 'b'] });
+  it('keeps the pick order the farmer tapped', () => {
+    expect(toggleMarketSelection(['m3'], 'm1').next).toEqual(['m3', 'm1']);
+  });
+});
+
+describe('lib/portfolio — every refusal keeps its own sentence', () => {
+  it('maps each wire code to its OWN key, never a shared "could not save"', () => {
+    const keys = [
+      watchlistErrorKey('watchlist_full'),
+      watchlistErrorKey('too_many_markets'),
+      watchlistErrorKey('invalid_planted_date'),
+      watchlistErrorKey('watchlist_entry_not_found'),
+    ];
+    expect(keys).toEqual([
+      'pages.portfolio.errWatchlistFull',
+      'pages.portfolio.errTooManyMarkets',
+      'pages.portfolio.errInvalidPlantedDate',
+      'pages.portfolio.errEntryNotFound',
+    ]);
+    expect(new Set(keys).size).toBe(4);
+  });
+
+  it('falls back to the generic sentence for a code it has never seen, or none at all', () => {
+    expect(watchlistErrorKey(null)).toBe('common.errorBody');
+    expect(watchlistErrorKey(undefined)).toBe('common.errorBody');
+    expect(watchlistErrorKey('some_future_code')).toBe('common.errorBody');
   });
 });
 
 describe('lib/portfolio — market helpers', () => {
-  const mk = (id: string, name: string, ec: boolean): Market => ({
-    id,
-    name,
-    district: null,
-    marketType: 1,
-    isEconomicCenter: ec,
-    hasStoredData: true,
-    lastStoredDate: null,
-    isTrainingSource: true,
-  });
-
   it('offers the economic centre first, then the rest by name', () => {
     const ordered = orderMarketsForPicker([
       mk('m3', 'Kandy', false),
@@ -184,50 +242,14 @@ describe('lib/portfolio — market helpers', () => {
     expect(ordered.map((m) => m.name)).toEqual(['Dambulla', 'Colombo', 'Kandy']);
   });
 
-  it('reads the one stored home market off the watchlist rows', () => {
-    const rows: WatchlistItem[] = [
-      {
-        cropId: 'c1',
-        cropName: 'Tomato',
-        cropCode: null,
-        preferredMarketId: null,
-        preferredMarketName: null,
-        createdAtUtc: '2026-07-20T00:00:00Z',
-      },
-      {
-        cropId: 'c2',
-        cropName: 'Beans',
-        cropCode: null,
-        preferredMarketId: 'm1',
-        preferredMarketName: 'Dambulla',
-        createdAtUtc: '2026-07-20T00:00:00Z',
-      },
-    ];
-    expect(watchlistMarketId(rows)).toBe('m1');
-    expect(watchlistMarketId([])).toBeNull();
+  it('charts the market whose number is printed above the chart', () => {
+    const kandy = block({ marketId: 'm3', name: 'Kandy' });
+    expect(chartMarketIdFor(item({ markets: [kandy, block()] }))).toBe('m3');
   });
 
-  it('charts the market that ACTUALLY served the price, not the home market', () => {
-    const served = item({
-      price: {
-        price: 200,
-        observedDate: '2026-07-25',
-        marketId: 'm1',
-        marketName: 'Dambulla',
-        isFallbackMarket: true,
-        direction: null,
-        changePct: null,
-        previousPrice: null,
-        previousObservedDate: null,
-      },
-      priceUnavailableReason: null,
-    });
-    expect(chartMarketIdFor(served, KANDY)).toBe('m1');
-  });
-
-  it('falls back to the home market when there is no price to anchor on', () => {
-    expect(chartMarketIdFor(item(), KANDY)).toBe('m3');
-    expect(chartMarketIdFor(null, null)).toBeNull();
+  it('has nothing to chart without an item or a market', () => {
+    expect(chartMarketIdFor(null)).toBeNull();
+    expect(chartMarketIdFor(item({ markets: [] }))).toBeNull();
   });
 });
 
