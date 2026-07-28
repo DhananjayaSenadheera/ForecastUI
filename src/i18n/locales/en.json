@@ -51,6 +51,9 @@
     "demoMode": "Demo mode"
   },
   "nav": {
+    "appbar": "App header",
+    "mainLabel": "Main menu",
+    "accountFor": "Account: {{name}}",
     "overview": "Overview",
     "myHarvest": "My harvest",
     "bestCrops": "Best crops",

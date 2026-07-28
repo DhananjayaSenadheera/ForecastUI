@@ -2,15 +2,17 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ADMIN_NAV_DESTINATIONS, NAV_DESTINATIONS } from '../app/nav';
 import { useAuth } from '../auth/AuthContext';
+import TopNavbar from './TopNavbar';
 import LanguageSwitcher from './LanguageSwitcher';
 import TextSizeToggle from './TextSizeToggle';
 import AudioHelpButton from './AudioHelpButton';
 import StalenessBanner from './StalenessBanner';
 import ErrorBoundary from './ErrorBoundary';
-import SessionMenu from './SessionMenu';
+import MyCropsLink from './MyCropsLink';
 
-// Dashboard shell: dark teal sidebar on desktop and tablet; below 600px a top brand bar
-// plus a bottom tab bar (CSS-driven). Routed pages render into <Outlet/>.
+// Dashboard shell: an app-wide top navbar (brand + identity + sign-out) over a dark teal
+// sidebar on desktop and tablet; below 600px the sidebar is replaced by a bottom tab bar
+// (CSS-driven) while the navbar stays. Routed pages render into <Outlet/>.
 export default function AppShell() {
   const { t } = useTranslation();
   const location = useLocation();
@@ -20,102 +22,87 @@ export default function AppShell() {
   const tabItems = isAdmin ? [...NAV_DESTINATIONS, ...ADMIN_NAV_DESTINATIONS] : NAV_DESTINATIONS;
 
   return (
-    <div className="shell">
-      {/* Desktop / tablet sidebar */}
-      <aside className="sidebar">
-        <div className="sidebar__brand">
-          <span className="sidebar__leaf" aria-hidden="true">
-            🌱
-          </span>
-          {t('app.name')}
-        </div>
+    <div className="app">
+      {/* Banner landmark — app-wide, on farmer and admin pages alike. */}
+      <TopNavbar />
 
-        <nav className="sidebar__nav" aria-label={t('nav.overview')}>
-          {NAV_DESTINATIONS.map((d) => (
+      <div className="shell">
+        {/* Desktop / tablet sidebar */}
+        <aside className="sidebar">
+          <nav className="sidebar__nav" aria-label={t('nav.mainLabel')}>
+            {NAV_DESTINATIONS.map((d) => (
+              <NavLink
+                key={d.to}
+                to={d.to}
+                className={({ isActive }) => `navitem${isActive ? ' is-active' : ''}`}
+              >
+                <span className="navitem__icon" aria-hidden="true">
+                  {d.icon}
+                </span>
+                <span className="wrap-label">{t(d.labelKey)}</span>
+                {d.soon && <span className="navitem__soon">{t('nav.soon')}</span>}
+              </NavLink>
+            ))}
+
+            {isAdmin && (
+              <>
+                <p className="sidebar__group" aria-hidden="true">
+                  {t('nav.admin.group')}
+                </p>
+                {ADMIN_NAV_DESTINATIONS.map((d) => (
+                  <NavLink
+                    key={d.to}
+                    to={d.to}
+                    className={({ isActive }) => `navitem${isActive ? ' is-active' : ''}`}
+                  >
+                    <span className="navitem__icon" aria-hidden="true">
+                      {d.icon}
+                    </span>
+                    <span className="wrap-label">{t(d.labelKey)}</span>
+                  </NavLink>
+                ))}
+              </>
+            )}
+          </nav>
+
+          <div className="sidebar__foot">
+            <MyCropsLink variant="sidebar" />
+            <AudioHelpButton />
+            <div className="sidebar__prefs">
+              <LanguageSwitcher />
+              <TextSizeToggle />
+            </div>
+          </div>
+        </aside>
+
+        {/* Main column: pages render here */}
+        <main className="main">
+          {/* Honest "showing saved data" notice when the SW served an offline cache. */}
+          <StalenessBanner />
+          {/* Route-level boundary: a crashed page shows a localized fallback while the
+              shell/nav stay usable; the pathname resetKey clears it on navigation. */}
+          <ErrorBoundary variant="panel" resetKey={location.pathname}>
+            <Outlet />
+          </ErrorBoundary>
+        </main>
+
+        {/* Mobile bottom tab bar */}
+        <nav className="tabbar" aria-label={t('nav.mainLabel')}>
+          {tabItems.map((d) => (
             <NavLink
               key={d.to}
               to={d.to}
-              className={({ isActive }) => `navitem${isActive ? ' is-active' : ''}`}
+              className={({ isActive }) => `tabbar__item${isActive ? ' is-active' : ''}`}
             >
-              <span className="navitem__icon" aria-hidden="true">
+              <span className="tabbar__icon" aria-hidden="true">
                 {d.icon}
               </span>
               <span className="wrap-label">{t(d.labelKey)}</span>
-              {d.soon && <span className="navitem__soon">{t('nav.soon')}</span>}
+              {d.soon && <span className="tabbar__soon">{t('nav.soon')}</span>}
             </NavLink>
           ))}
-
-          {isAdmin && (
-            <>
-              <p className="sidebar__group" aria-hidden="true">
-                {t('nav.admin.group')}
-              </p>
-              {ADMIN_NAV_DESTINATIONS.map((d) => (
-                <NavLink
-                  key={d.to}
-                  to={d.to}
-                  className={({ isActive }) => `navitem${isActive ? ' is-active' : ''}`}
-                >
-                  <span className="navitem__icon" aria-hidden="true">
-                    {d.icon}
-                  </span>
-                  <span className="wrap-label">{t(d.labelKey)}</span>
-                </NavLink>
-              ))}
-            </>
-          )}
         </nav>
-
-        <div className="sidebar__foot">
-          <SessionMenu variant="sidebar" />
-          <AudioHelpButton />
-          <div className="sidebar__prefs">
-            <LanguageSwitcher />
-            <TextSizeToggle />
-          </div>
-        </div>
-      </aside>
-
-      {/* Mobile top bar: brand + language + audio (the sidebar is hidden below 600px) */}
-      <div className="mobilebar">
-        <span className="sidebar__leaf" aria-hidden="true">
-          🌱
-        </span>
-        <strong style={{ fontSize: 16 }}>{t('app.name')}</strong>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-          <SessionMenu variant="mobile" />
-          <LanguageSwitcher />
-          <TextSizeToggle />
-        </div>
       </div>
-
-      {/* Main column: pages render here */}
-      <main className="main">
-        {/* Honest "showing saved data" notice when the SW served an offline cache. */}
-        <StalenessBanner />
-        {/* Route-level boundary: a crashed page shows a localized fallback while the
-            shell/nav stay usable; the pathname resetKey clears it on navigation. */}
-        <ErrorBoundary variant="panel" resetKey={location.pathname}>
-          <Outlet />
-        </ErrorBoundary>
-      </main>
-
-      {/* Mobile bottom tab bar */}
-      <nav className="tabbar" aria-label={t('nav.overview')}>
-        {tabItems.map((d) => (
-          <NavLink
-            key={d.to}
-            to={d.to}
-            className={({ isActive }) => `tabbar__item${isActive ? ' is-active' : ''}`}
-          >
-            <span className="tabbar__icon" aria-hidden="true">
-              {d.icon}
-            </span>
-            <span className="wrap-label">{t(d.labelKey)}</span>
-            {d.soon && <span className="tabbar__soon">{t('nav.soon')}</span>}
-          </NavLink>
-        ))}
-      </nav>
     </div>
   );
 }

@@ -221,6 +221,10 @@
   --touch-primary: 48px;   /* primary buttons                                   */
   --touch-hero:    52px;   /* hero CTA on desktop                               */
 
+  /* App-wide top navbar height — the shell subtracts it from the viewport. */
+  --appbar-h:     56px;
+  --appbar-h-sm:  52px;
+
   --focus-ring: 0 0 0 3px rgba(15, 118, 110, 0.45); /* visible teal focus ring  */
   --focus-offset: 2px;
 
