@@ -20,7 +20,7 @@ import PriceSwingBadge from '../components/PriceSwingBadge';
 import PriceBlock from '../components/PriceBlock';
 import { chartMarketIdFor, harvestLinkFor, selectedMarketFor } from '../lib/portfolio';
 import { classifyPriceSwing, type PriceSwing } from '../lib/priceSwing';
-import { ymdLocal } from '../lib/format';
+import { formatDate, ymdLocal } from '../lib/format';
 import '../styles/portfolio.css';
 
 export default function PortfolioCropPage() {
@@ -164,11 +164,32 @@ export default function PortfolioCropPage() {
             {/* showsNationalLabel fails TOWARDS the label everywhere except the
                 stood-in-for default market — a national forecast said to be national is
                 never wrong, whereas omitting it makes it look local. */}
-            {/* The nightly SNAPSHOT forecast (one per crop, anchored on the snapshot's own
-                date). The card and its popup show a different thing beside a planting date
-                the farmer recorded — the forecast for THAT planting — which is why each
-                says which planting it is about. Same component, same trust rules. */}
+            {/* The nightly SNAPSHOT forecast, and it has to SAY so. The card one hop back
+                shows a different number — the forecast for the day the farmer told us they
+                planted — and two prices under two headings that both read "forecast at
+                harvest" is exactly the "two answers to one question" this app keeps having
+                to close. Each surface therefore names the planting it is about: the card
+                names theirs, this line names the snapshot's own assumed planting day
+                (`snapshotDate`, which the wire defines as "the plant date the forecast
+                assumed"). Same component, same trust rules, different anchor. */}
+            {item.prediction && (
+              <p className="pf-detail__assume">
+                {t('pages.portfolioCrop.forecastAssumption', {
+                  date: formatDate(item.prediction.snapshotDate, lang),
+                })}
+              </p>
+            )}
             <PredictionBlock prediction={item.prediction} market={market} lang={lang} />
+            {/* Costs no fetch: plantedDate rides on the dashboard item this page already
+                loaded. Only a pointer — the forecast for their planting is the card's to
+                show, and duplicating it here would be a third number to keep in step. */}
+            {item.plantedDate && (
+              <p className="pf-detail__assume">
+                {t('pages.portfolioCrop.yourPlantingElsewhere', {
+                  date: formatDate(item.plantedDate, lang),
+                })}
+              </p>
+            )}
             <p className="pf-detail__cta">
               <Link
                 className="btn-primary"

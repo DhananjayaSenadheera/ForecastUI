@@ -368,6 +368,61 @@ describe('The planting date — the forecast it anchors', () => {
   });
 });
 
+describe('The planting date — a harvest that has already been and gone', () => {
+  // The route answers for ANY planting date, so an old one comes back with a confident
+  // future-tense number about a harvest that is over. That is not a stale number, it is a
+  // claim about the wrong thing.
+  it('makes NO price claim once the harvest day has passed', async () => {
+    vi.spyOn(api, 'getHarvestForecast').mockResolvedValue(
+      forecast({ plantDate: '2026-01-02', harvestDate: '2026-04-01' }),
+    );
+    renderCard(tomato({ plantedDate: '2026-01-02' }));
+
+    await screen.findByText(
+      `This planting was due for harvest around ${formatDate('2026-04-01', 'en')}. Change or remove the date to plan your next planting.`,
+    );
+    expect(screen.queryByText(/at harvest/)).toBeNull();
+    expect(screen.queryByText(/Confidence:/)).toBeNull();
+    expect(screen.queryByText(/Likely price range/)).toBeNull();
+    // And no link onward to a screen that would make the same claim.
+    expect(screen.queryByRole('link', { name: /See the full forecast/ })).toBeNull();
+    // The two ways out stay on screen.
+    expect(
+      screen.getByRole('button', { name: 'Change the planting date for Tomato' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Remove the planting date for Tomato' }),
+    ).toBeInTheDocument();
+  });
+
+  it('still forecasts a harvest due TODAY — it is ahead of the farmer, not behind', async () => {
+    vi.spyOn(api, 'getHarvestForecast').mockResolvedValue(
+      forecast({ plantDate: '2026-05-20', harvestDate: TODAY }),
+    );
+    renderCard(tomato({ plantedDate: '2026-05-20' }));
+
+    await screen.findByText('About Rs. 240 at harvest');
+    expect(screen.queryByText(/was due for harvest/)).toBeNull();
+  });
+
+  it('forecasts as normal when the harvest is still ahead', async () => {
+    renderCard(tomato({ plantedDate: PLANTED }));
+    await screen.findByText('About Rs. 240 at harvest');
+    expect(screen.queryByText(/was due for harvest/)).toBeNull();
+  });
+
+  it('says nothing about a past harvest when the route resolved no harvest date', async () => {
+    // No growth period => no harvest day to be past. The forecast still stands.
+    vi.spyOn(api, 'getHarvestForecast').mockResolvedValue(
+      forecast({ harvestDate: null, growthPeriodDays: null }),
+    );
+    renderCard(tomato({ plantedDate: PLANTED }));
+
+    await screen.findByText('About Rs. 240 at harvest');
+    expect(screen.queryByText(/was due for harvest/)).toBeNull();
+  });
+});
+
 describe('The planting date — changing and removing it', () => {
   it('re-opens the field PREFILLED with the recorded date', async () => {
     renderCard(tomato({ plantedDate: PLANTED }));

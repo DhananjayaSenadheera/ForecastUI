@@ -25,9 +25,9 @@
 // one-member set buys nothing and would silently drop an unknown future code into a blank
 // space. When a second code appears, branch here.
 import { useTranslation } from 'react-i18next';
-import type { PortfolioDashboardMarket, PortfolioPrediction } from '../api/types';
+import type { PortfolioDashboardMarket } from '../api/types';
 import { formatDate, formatPrice, formatRange, mapConfidenceString } from '../lib/format';
-import { isDeratedPrediction, showsNationalLabel } from '../lib/portfolio';
+import { isDeratedPrediction, showsNationalLabel, type DisplayPrediction } from '../lib/portfolio';
 
 export default function PredictionBlock({
   prediction,
@@ -35,7 +35,7 @@ export default function PredictionBlock({
   lang,
   lowTrust = false,
 }: {
-  prediction: PortfolioPrediction | null;
+  prediction: DisplayPrediction | null;
   /** The market the prediction is shown BESIDE — it decides whether the "National forecast"
    *  label is needed, not which number is shown (there is one forecast per crop). */
   market: PortfolioDashboardMarket | null;

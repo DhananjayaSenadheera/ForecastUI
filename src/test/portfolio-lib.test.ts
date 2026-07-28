@@ -22,7 +22,6 @@ import {
   isPlantedDateAllowed,
   marketCodeLabel,
   orderMarketsForPicker,
-  plantDateParam,
   plantedDateMax,
   predictionFromHarvestForecast,
   priceAgeDays,
@@ -36,6 +35,7 @@ import {
   watchlistErrorKey,
   watchlistErrorParams,
 } from '../lib/portfolio';
+import { isRealYmd, plantDateParam } from '../lib/plantDate';
 
 function block(over: Partial<PortfolioDashboardMarket> = {}): PortfolioDashboardMarket {
   return {
@@ -455,7 +455,7 @@ describe('lib/portfolio — the planting date the farmer records', () => {
   });
 });
 
-describe('lib/portfolio — the ?date= hint handed to My harvest', () => {
+describe('lib/plantDate — the ?date= hint handed to My harvest', () => {
   const min = '2025-07-28';
   const max = '2026-09-26';
 
@@ -474,6 +474,15 @@ describe('lib/portfolio — the ?date= hint handed to My harvest', () => {
     expect(plantDateParam(null, min, max)).toBeNull();
     expect(plantDateParam('yesterday', min, max)).toBeNull();
     expect(plantDateParam('2026-02-30', min, max)).toBeNull();
+  });
+
+  it('rejects a day that only LOOKS real — Date silently rolls those over', () => {
+    // new Date('2026-02-30T00:00:00') is the 2nd of March, not an error. Both the field
+    // guard and this hint round-trip the parsed parts to catch it.
+    expect(isRealYmd('2026-02-30')).toBe(false);
+    expect(isRealYmd('2025-02-29')).toBe(false);
+    expect(isRealYmd('2024-02-29')).toBe(true);
+    expect(isRealYmd('2026-04-31')).toBe(false);
   });
 });
 
@@ -499,9 +508,10 @@ describe('lib/portfolio — one prediction shape for both forecast routes', () =
     lowTrust: true,
   };
 
-  it('renames the harvest route into the dashboard prediction shape, verbatim', () => {
-    // snapshotDate means "the planting day this forecast assumed" — on the harvest route
-    // that is plantDate. Nothing is rounded, blended or upgraded on the way through.
+  it('reads the harvest route into the display shape, verbatim', () => {
+    // NO snapshotDate: that field is the nightly snapshot's own as-of day, and filling it
+    // in from plantDate would leave one field name meaning two things by provenance.
+    // Nothing is rounded, blended or upgraded on the way through.
     expect(predictionFromHarvestForecast(forecast)).toEqual({
       predictedPrice: 240,
       lowerBound: 190,
@@ -509,9 +519,12 @@ describe('lib/portfolio — one prediction shape for both forecast routes', () =
       confidence: 'Low',
       activePredictor: 'crop_mean_fallback',
       modelVersion: 'v17',
-      snapshotDate: '2026-05-04',
       harvestDate: '2026-08-12',
     });
+  });
+
+  it('carries NO snapshotDate — one field name may not mean two things', () => {
+    expect('snapshotDate' in predictionFromHarvestForecast(forecast)).toBe(false);
   });
 
   it('keeps the de-rating verdict the allowlist already gives it', () => {

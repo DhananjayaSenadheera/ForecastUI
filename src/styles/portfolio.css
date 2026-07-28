@@ -1010,3 +1010,21 @@
 .pf-dlg__links {
   margin: 0;
 }
+
+/* A planting whose harvest day has already passed: a plain note where the numbers were.
+   Neutral, never alarm — the date is not a mistake, it is simply behind us. */
+.pf-plant__past {
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  background: var(--surface-3);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+/* The crop page saying which planting ITS forecast assumes (and where the farmer's own
+   planting is answered instead). Quiet, but it must not be missable. */
+.pf-detail__assume {
+  margin: 0 0 var(--sp-2);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}

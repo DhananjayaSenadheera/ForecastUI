@@ -38,8 +38,14 @@ export function useDialogBehaviour<T extends HTMLElement>(
 
     // The page behind a modal must not scroll: on a phone the backdrop covers the screen,
     // and a thumb drag that moves the list underneath leaves the farmer somewhere else
-    // entirely when the dialog closes. The PREVIOUS value is restored rather than assuming
-    // "visible", so a second lock (or a page that sets its own overflow) is not clobbered.
+    // entirely when the dialog closes. The PREVIOUS value is captured and restored rather
+    // than blindly cleared, so a page that sets its own overflow gets its own value back.
+    //
+    // CONSTRAINT: one dialog at a time. This is a plain save/restore, not a ref count, so
+    // NESTING would leak the lock — an inner dialog would capture "hidden" from the outer
+    // one and restore "hidden" on close, freezing the page. Neither surface nests today
+    // (the admin dialogs are one-at-a-time, and the farmer popup opens from a card). A
+    // nested dialog needs a counter here first.
     const body = document.body;
     const previousOverflow = body.style.overflow;
     body.style.overflow = 'hidden';

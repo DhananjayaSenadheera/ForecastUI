@@ -9,6 +9,7 @@
 //  - Predictions are one Dambulla-anchored NATIONAL price, one per CROP — never per market.
 //    Shown beside a market that is not the anchor, they carry the "National forecast" label.
 //  - A fallback-served prediction is shown DE-RATED, never hidden and never upgraded.
+import { isRealYmd } from './plantDate';
 import type {
   HarvestForecast,
   Market,
@@ -131,7 +132,7 @@ const FULL_TRUST_PREDICTORS = ['model', 'residual'];
  * Deliberately NOT `predictorKind` from lib/format: that denylist stays as it is for the
  * admin surfaces, where loose grouping of a long tail of predictor names is what is wanted.
  */
-export function isDeratedPrediction(p: PortfolioPrediction | null): boolean {
+export function isDeratedPrediction(p: Pick<PortfolioPrediction, 'activePredictor'> | null): boolean {
   if (p === null) return false;
   return !FULL_TRUST_PREDICTORS.includes((p.activePredictor ?? '').toLowerCase());
 }
@@ -274,7 +275,8 @@ export function priceAgeDays(observedDate: string, todayYmd: string): number | n
  *
  * The farmer's own planting date rides along when they have recorded one, so the screen
  * they land on is asking the SAME question the card just answered. My harvest treats the
- * parameter as a view hint and silently ignores one it cannot use (see plantDateParam),
+ * parameter as a view hint and silently ignores one it cannot use (plantDateParam, in
+ * lib/plantDate),
  * so an out-of-window or malformed date degrades to that page's own default rather than
  * erroring — but it is never silently REWRITTEN to a different day, which would put a
  * price the farmer did not ask for under a date they did not choose.
@@ -306,57 +308,47 @@ export function plantedDateMax(todayYmd: string): string {
   return todayYmd;
 }
 
-/**
- * Is this a REAL calendar day, written as "YYYY-MM-DD"?
- *
- * The round-trip is the whole point: `new Date('2026-02-30T00:00:00')` does not fail, it
- * quietly becomes the 2nd of March. A shape test plus a NaN test would therefore accept the
- * 30th of February and forecast a planting that never happened, so the parsed date's own
- * parts are compared back against the string.
- */
-function isRealYmd(date: string): boolean {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date ?? '');
-  if (!m) return false;
-  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
-  const parsed = new Date(y, mo - 1, d);
-  return (
-    parsed.getFullYear() === y && parsed.getMonth() === mo - 1 && parsed.getDate() === d
-  );
-}
-
 /** Is this a planting date the field may send? A real calendar day inside
  *  [2000-01-01, today]. ISO dates sort lexicographically, so string comparison is a correct
- *  range check. */
+ *  range check. `isRealYmd` lives in lib/plantDate because My harvest — which is in the
+ *  first-load bundle — needs it without dragging this module along. */
 export function isPlantedDateAllowed(date: string, todayYmd: string): boolean {
   if (!isRealYmd(date)) return false;
   return date >= PLANTED_DATE_MIN && date <= plantedDateMax(todayYmd);
 }
 
 /**
- * A `?date=` view hint for My harvest: the date when it is a real ISO day the page's own
- * field accepts, otherwise null ("ignore me").
+ * The facts a forecast DISPLAY needs, whichever route served it.
  *
- * Deliberately NOT clampPlantDateToRange: clamping REWRITES an out-of-range date to today
- * and would silently forecast a different planting than the link named. A hint that cannot
- * be honoured is dropped, and the page keeps its own default.
+ * Deliberately narrower than `PortfolioPrediction`: it omits `snapshotDate`, which means
+ * one specific thing ("the as-of day the nightly snapshot froze, which is also the planting
+ * day it assumed") and belongs to the dashboard payload alone. An adapter that filled it in
+ * from the harvest route's `plantDate` would leave one field name meaning two different
+ * things depending on where the object came from — provenance a later reader cannot see.
+ * Nothing that renders a forecast needs that field, so nothing that renders a forecast is
+ * given it, and the dashboard's own prediction still satisfies this shape unchanged.
  */
-export function plantDateParam(raw: string | null, min: string, max: string): string | null {
-  if (!raw || !isRealYmd(raw)) return null;
-  return raw >= min && raw <= max ? raw : null;
-}
+export type DisplayPrediction = Pick<
+  PortfolioPrediction,
+  | 'predictedPrice'
+  | 'lowerBound'
+  | 'upperBound'
+  | 'confidence'
+  | 'activePredictor'
+  | 'modelVersion'
+  | 'harvestDate'
+>;
 
 /**
- * The harvest-route forecast, read as the SAME prediction shape the dashboard serves, so
- * one component (PredictionBlock) renders both and the trust rules cannot fork.
+ * The harvest-route forecast, read as the display shape above, so ONE component
+ * (PredictionBlock) renders both routes and the trust rules cannot fork.
  *
- * The two payloads carry the same facts under two names: the dashboard's `snapshotDate` is
- * "the planting day this forecast assumed", which on the harvest route is `plantDate`. The
- * harvest route additionally carries `lowTrust` (stale/fallback DATA, not a fallback
- * predictor) — it is NOT folded in here, because this function's job is a rename, not a
- * judgement; the caller passes it to PredictionBlock separately, where it can only ever
- * make the claim smaller.
+ * A rename and nothing else: no rounding, no blending, no judgement. In particular the
+ * route's `lowTrust` (stale/fallback DATA, not a fallback predictor) is NOT folded in here
+ * — the caller passes it to PredictionBlock separately, where it can only ever make the
+ * claim smaller.
  */
-export function predictionFromHarvestForecast(f: HarvestForecast): PortfolioPrediction {
+export function predictionFromHarvestForecast(f: HarvestForecast): DisplayPrediction {
   return {
     predictedPrice: f.predictedPrice,
     lowerBound: f.lowerBound,
@@ -364,7 +356,6 @@ export function predictionFromHarvestForecast(f: HarvestForecast): PortfolioPred
     confidence: f.confidence,
     activePredictor: f.activePredictor,
     modelVersion: f.modelVersion,
-    snapshotDate: f.plantDate,
     harvestDate: f.harvestDate,
   };
 }

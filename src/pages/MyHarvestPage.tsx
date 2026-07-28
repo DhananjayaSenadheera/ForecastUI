@@ -7,7 +7,7 @@ import type { Crop, CropTimeline, HarvestForecast, HarvestWindow } from '../api/
 import { cropDisplayName } from '../lib/crops';
 import { clampPlantDateToRange, formatDate, ymdLocal } from '../lib/format';
 import { isLowTrust } from '../lib/forecast';
-import { plantDateParam } from '../lib/portfolio';
+import { plantDateParam } from '../lib/plantDate';
 import { buildReadinessMap, type ReadinessMap } from '../lib/readiness';
 import { pushRecentCrop, readLastHarvest, readRecentCrops, writeLastHarvest } from '../lib/storage';
 import BestWindowPanel from '../components/BestWindowPanel';

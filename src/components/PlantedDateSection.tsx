@@ -327,6 +327,7 @@ export default function PlantedDateSection({
           item={item}
           market={market}
           lang={lang}
+          todayYmd={todayYmd}
           state={forecast}
           onRetry={onRetryForecast}
         />
@@ -335,19 +336,21 @@ export default function PlantedDateSection({
   );
 }
 
-/** The forecast for the recorded planting, in its four states. Rendered by the shared
+/** The forecast for the recorded planting, in its states. Rendered by the shared
  *  PredictionBlock so the range, the confidence word and the de-rating are the same
  *  presentation the rest of the app uses. */
 function PlantedForecast({
   item,
   market,
   lang,
+  todayYmd,
   state,
   onRetry,
 }: {
   item: PortfolioDashboardItem;
   market: PortfolioDashboardMarket | null;
   lang: string;
+  todayYmd: string;
   state: PlantedForecastState;
   onRetry: () => void;
 }) {
@@ -376,6 +379,25 @@ function PlantedForecast({
           {t('common.retry')}
         </button>
       </div>
+    );
+  }
+
+  // A harvest day that has already passed. The route answers for ANY planting date, so an
+  // old one comes back with a confident future-tense number about a harvest that is over —
+  // "About Rs. 240 at harvest · Harvest around Apr 1" beside a date in January. That is not
+  // a stale number, it is a claim about the wrong thing, so it is not shown at all: the
+  // section states what the date means and points at the two ways out (Change / Remove,
+  // both still on screen above). The link to the full forecast is dropped with it, because
+  // it would make the same claim one screen further on.
+  //
+  // Strictly EARLIER than today: a harvest due today is still ahead of the farmer.
+  const harvestDate = state.forecast.harvestDate;
+  if (harvestDate && harvestDate < todayYmd) {
+    return (
+      <p className="pf-plant__past" role="note">
+        <span aria-hidden="true">🌾 </span>
+        {t('pages.portfolio.plantedPastHarvest', { date: formatDate(harvestDate, lang) })}
+      </p>
     );
   }
 

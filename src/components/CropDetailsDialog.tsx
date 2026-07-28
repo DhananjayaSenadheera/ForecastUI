@@ -115,8 +115,11 @@ export default function CropDetailsDialog({
       </section>
 
       {/* The farmer's planting and what it is forecast to fetch — the same section the card
-          shows, with its own ids so the two inputs on screen never share one label. */}
-      <section className="pf-dlg__section">
+          shows, with its own ids so the two inputs on screen never share one label.
+          A DIV, not a <section>: PlantedDateSection is already a landmark-shaped section
+          labelled by its own heading, and wrapping it in a second, nameless one would add
+          an unnamed region to the dialog for nothing but a class name. */}
+      <div className="pf-dlg__section">
         <PlantedDateSection
           item={item}
           market={market}
@@ -129,7 +132,7 @@ export default function CropDetailsDialog({
           idPrefix="dlg"
           headingLevel={3}
         />
-      </section>
+      </div>
 
       {/* Phase 2 (selling price, fertiliser cost, labour cost) slots in HERE as further
           <section className="pf-dlg__section"> blocks, above the way-out links. */}

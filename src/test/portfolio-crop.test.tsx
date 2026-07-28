@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import i18n from '../i18n';
+import { formatDate } from '../lib/format';
 import PortfolioCropPage from '../pages/PortfolioCropPage';
 import { api } from '../api/client';
 import type {
@@ -132,6 +133,43 @@ describe('PortfolioCropPage', () => {
     // The chart is never the only representation of the numbers.
     await waitFor(() => expect(document.querySelector('.pr-svg')).toBeInTheDocument());
     expect(screen.getByText('View as table')).toBeInTheDocument();
+  });
+
+  it('SAYS which planting its forecast assumes, so the card and this page cannot collide', async () => {
+    // The card one hop back answers for the farmer's own planting date. Two prices under
+    // two headings that both read "forecast at harvest" is the "two answers to one
+    // question" bug this app keeps closing — so each surface names its own anchor.
+    mockDashboard({ items: [tomato()] });
+    renderPage();
+
+    await screen.findByText('About Rs. 240 at harvest');
+    expect(
+      screen.getByText(
+        `This is our daily forecast for this crop, worked out for a planting on ${formatDate('2026-07-27', 'en')} — not for your own planting date.`,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('points at the card for the farmer’s OWN planting, without fetching anything', async () => {
+    // plantedDate rides on the dashboard item this page already loaded: a pointer, not a
+    // second forecast — a third number on a third screen is a third thing to keep in step.
+    mockDashboard({ items: [tomato({ plantedDate: '2026-05-04' })] });
+    const forecastRoute = vi.spyOn(api, 'getHarvestForecast');
+    renderPage();
+
+    await screen.findByText(
+      `You planted on ${formatDate('2026-05-04', 'en')} — your crop card shows the forecast for that planting.`,
+    );
+    // One dashboard call and nothing else: the pointer costs no round trip.
+    expect(api.getPortfolioDashboard).toHaveBeenCalledTimes(1);
+    expect(forecastRoute).not.toHaveBeenCalled();
+  });
+
+  it('says nothing about a planting the farmer has not recorded', async () => {
+    mockDashboard({ items: [tomato()] });
+    renderPage();
+    await screen.findByText('About Rs. 240 at harvest');
+    expect(screen.queryByText(/You planted on/)).toBeNull();
   });
 
   it('deep-links to the full national forecast with a crop-specific accessible name', async () => {
