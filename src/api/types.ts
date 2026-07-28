@@ -314,6 +314,10 @@ export interface AuthResponseDto {
 export interface Market {
   id: string;
   name: string;
+  // Three-letter display chip ("DEC", "KEP", "KAN") from Markets.ShortCode. DISPLAY ONLY —
+  // a market is always addressed by `id` on the wire — and it can be an empty string, so
+  // anything rendering it must fall back to the name rather than print a blank chip.
+  shortCode: string;
   district: string | null;
   marketType: number; // MarketType enum (integer wire value) — see MarketType below
   isEconomicCenter: boolean;

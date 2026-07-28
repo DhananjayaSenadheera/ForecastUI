@@ -3,8 +3,8 @@
 // page shows instead of changing route; the active group is mirrored into ?group=.
 // The ids are namespaced `syslog-group-*` so they cannot collide with logsTabId(),
 // because this strip renders inside the hub's tabpanel.
-import { useRef, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useRovingTabs } from '../../lib/tabs';
 import {
   USER_ACTIVITY_CONTENT_EVENT_TYPES,
   USER_ACTIVITY_PIPELINE_EVENT_TYPES,
@@ -70,41 +70,7 @@ export default function ActivityGroupTabs({
   ariaLabel: string;
 }) {
   const { t } = useTranslation();
-  const refs = useRef<Array<HTMLButtonElement | null>>([]);
-
-  function focusTab(index: number) {
-    const n = groups.length;
-    if (n === 0) return;
-    const wrapped = ((index % n) + n) % n; // wrap both ends
-    refs.current[wrapped]?.focus();
-  }
-
-  function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
-    const current = refs.current.findIndex((el) => el === document.activeElement);
-    if (current === -1) return;
-    switch (e.key) {
-      case 'ArrowRight':
-      case 'ArrowDown':
-        e.preventDefault();
-        focusTab(current + 1);
-        break;
-      case 'ArrowLeft':
-      case 'ArrowUp':
-        e.preventDefault();
-        focusTab(current - 1);
-        break;
-      case 'Home':
-        e.preventDefault();
-        focusTab(0);
-        break;
-      case 'End':
-        e.preventDefault();
-        focusTab(groups.length - 1);
-        break;
-      default:
-        break;
-    }
-  }
+  const { refs, onKeyDown } = useRovingTabs<HTMLButtonElement>(groups.length);
 
   return (
     <div className="syslog-groups" role="tablist" aria-label={ariaLabel} onKeyDown={onKeyDown}>

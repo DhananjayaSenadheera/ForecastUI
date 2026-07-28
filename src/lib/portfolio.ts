@@ -58,32 +58,58 @@ export function primaryMarket(item: PortfolioDashboardItem): PortfolioDashboardM
 }
 
 /**
+ * The market block whose numbers are ON SCREEN right now: the selected tab when the crop
+ * carries several markets, `markets[0]` otherwise (and whenever the id no longer names one
+ * of this crop's markets — after a market is dropped, the stale selection must fall back
+ * rather than blank the card).
+ *
+ * Every market-scoped thing on a card — price, observed date, trend, swing, chart — reads
+ * from THIS one function. Two of them resolving the market separately is how a card ends up
+ * charting Kandy under a Dambulla price.
+ */
+export function selectedMarketFor(
+  item: PortfolioDashboardItem | null,
+  selectedMarketId: string | null,
+): PortfolioDashboardMarket | null {
+  if (!item) return null;
+  if (selectedMarketId) {
+    const hit = item.markets.find(
+      (m) => m.marketId.toLowerCase() === selectedMarketId.toLowerCase(),
+    );
+    if (hit) return hit;
+  }
+  return primaryMarket(item);
+}
+
+/** The chip label for a market: its short code, or its full name when the code is empty.
+ *  The contract allows an empty `shortCode`, and a blank chip is a control with no name. */
+export function marketCodeLabel(market: { shortCode: string; name: string }): string {
+  const code = (market.shortCode ?? '').trim();
+  return code.length > 0 ? code : market.name;
+}
+
+/**
  * Does a prediction shown beside this market need the "National forecast" label?
  *
  * The model serves ONE Dambulla-anchored national price per crop, so a forecast sitting next
  * to a Keppetipola price would read as a Keppetipola forecast unless it says otherwise. The
- * label is therefore shown UNLESS we can positively establish that the market beside it IS
- * the economic centre:
- *   - `isDefaultMarket` is true only for the centre standing in for an unchosen market;
- *   - otherwise the markets registry is consulted, when the caller has it.
- * `economicCenterIds` is optional and its absence FAILS TOWARDS THE LABEL: a national label
- * on a national forecast is at worst redundant, whereas omitting it makes a national number
- * look local. Never invert this default.
+ * label is therefore shown UNLESS the block beside it is the economic centre STANDING IN for
+ * a market the farmer never chose (`isDefaultMarket`) — there, the forecast and the price
+ * come from the same place and the label would be noise.
+ *
+ * Every other case FAILS TOWARDS THE LABEL, including a market that happens to be the
+ * economic centre by the farmer's own choice: a national label on a national forecast is at
+ * worst redundant, whereas omitting it makes a national number look local. Never invert this.
+ *
+ * This used to take an optional set of economic-centre ids from the markets registry, as a
+ * second way to reach the same "false". Step 6 removed the card's forecast section, leaving
+ * the crop detail page — which does not load the registry — as the only caller, so that
+ * branch became unreachable code guarding a decision the default already makes safely. It
+ * is deleted rather than kept "for later": an untaken branch is an untested one.
  */
-export function showsNationalLabel(
-  market: PortfolioDashboardMarket | null,
-  economicCenterIds?: ReadonlySet<string>,
-): boolean {
+export function showsNationalLabel(market: PortfolioDashboardMarket | null): boolean {
   if (market === null) return true;
-  if (market.isDefaultMarket) return false;
-  if (!economicCenterIds) return true;
-  return !economicCenterIds.has(market.marketId.toLowerCase());
-}
-
-/** The ids of the economic-centre markets, lowercased for case-insensitive GUID compares.
- *  Built from the same markets list the picker uses — no second source of truth. */
-export function economicCenterIdSet(markets: Market[]): ReadonlySet<string> {
-  return new Set(markets.filter((m) => m.isEconomicCenter).map((m) => m.id.toLowerCase()));
+  return !market.isDefaultMarket;
 }
 
 /** The predictors a farmer may see at FULL model trust. An ALLOWLIST on purpose, mirroring
@@ -247,9 +273,36 @@ export function harvestLinkFor(cropId: string): string {
   return `/my-harvest?crop=${encodeURIComponent(cropId)}`;
 }
 
+/**
+ * "See details" for one crop, CARRYING the market its card is currently showing.
+ *
+ * Without the parameter the farmer reads Rs. 260 on the Kandy tab, taps through, and is
+ * shown Dambulla's Rs. 210 under the same crop name — two answers to one question, with
+ * nothing on either screen admitting they are about different markets. The tab is the
+ * farmer's stated context and it has to survive the tap.
+ *
+ * The parameter is OMITTED when the selection is already `markets[0]`, so the ordinary card
+ * keeps producing the one canonical URL for a crop (shareable, bookmarkable, and the same
+ * string every time) and `?market=` appears only when it actually means something.
+ */
+export function cropDetailLink(
+  item: PortfolioDashboardItem,
+  selectedMarketId: string | null,
+): string {
+  const base = `/portfolio/crop/${encodeURIComponent(item.cropId)}`;
+  const lead = primaryMarket(item)?.marketId ?? null;
+  if (!selectedMarketId) return base;
+  if (lead !== null && selectedMarketId.toLowerCase() === lead.toLowerCase()) return base;
+  return `${base}?market=${encodeURIComponent(selectedMarketId)}`;
+}
+
 /** The market a crop's price chart should be drawn for: the one whose number is printed
- *  above it, i.e. the block the card leads with. Charting a different market next to a
- *  price would quietly contradict the number. */
-export function chartMarketIdFor(item: PortfolioDashboardItem | null): string | null {
-  return item ? (primaryMarket(item)?.marketId ?? null) : null;
+ *  above it. That is the SELECTED market where the surface lets the farmer switch (the card's
+ *  short-code tabs), and `markets[0]` where it does not (the crop detail page). Charting a
+ *  different market next to a price would quietly contradict the number. */
+export function chartMarketIdFor(
+  item: PortfolioDashboardItem | null,
+  selectedMarketId: string | null = null,
+): string | null {
+  return selectedMarketFor(item, selectedMarketId)?.marketId ?? null;
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import i18n from '../i18n';
 import PortfolioCropPage from '../pages/PortfolioCropPage';
 import { api } from '../api/client';
@@ -63,9 +63,44 @@ function tomato(over: Partial<PortfolioDashboardItem> = {}): PortfolioDashboardI
   };
 }
 
-function renderPage(cropId = 'c1') {
+// Two series with no value in common, so "which market is this chart drawing?" is
+// answerable from the table alternative alone.
+const KANDY_SERIES: PriceHistoryPoint[] = Array.from({ length: 12 }, (_, i) => ({
+  date: `2026-07-${String(i + 1).padStart(2, '0')}`,
+  minPrice: 411,
+  maxPrice: 421,
+}));
+const DAMBULLA_SERIES: PriceHistoryPoint[] = Array.from({ length: 12 }, (_, i) => ({
+  date: `2026-07-${String(i + 1).padStart(2, '0')}`,
+  minPrice: 611,
+  maxPrice: 621,
+}));
+
+/** A test-only control that changes ?market= WHILE the page stays mounted — the back/forward
+ *  case the effect has to survive. */
+function GoTo({ to }: { to: string }) {
+  const navigate = useNavigate();
+  return (
+    <button type="button" onClick={() => navigate(to)}>
+      go
+    </button>
+  );
+}
+
+function renderWithNav(to: string) {
   return render(
-    <MemoryRouter initialEntries={[`/portfolio/crop/${cropId}`]}>
+    <MemoryRouter initialEntries={['/portfolio/crop/c1']}>
+      <GoTo to={to} />
+      <Routes>
+        <Route path="/portfolio/crop/:cropId" element={<PortfolioCropPage />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
+function renderPage(cropId = 'c1', search = '') {
+  return render(
+    <MemoryRouter initialEntries={[`/portfolio/crop/${cropId}${search}`]}>
       <Routes>
         <Route path="/portfolio/crop/:cropId" element={<PortfolioCropPage />} />
       </Routes>
@@ -117,6 +152,30 @@ describe('PortfolioCropPage', () => {
     expect(screen.getAllByText('Kandy').length).toBeGreaterThan(0);
   });
 
+  it('honours ?market= — the card hands over the tab the farmer was reading', async () => {
+    // Tapping "See details" from the Dambulla tab of a Kandy-led card must not silently
+    // change which market the numbers are about.
+    mockDashboard({ items: [tomato({ markets: [KANDY_BLOCK, DAMBULLA_BLOCK] })] });
+    renderPage('c1', '?market=m1');
+
+    await screen.findByText('Dambulla Dedicated Economic Centre');
+    await waitFor(() => expect(api.getPriceHistory).toHaveBeenCalledWith('c1', 'm1'));
+    expect(api.getPriceHistory).not.toHaveBeenCalledWith('c1', 'm3');
+  });
+
+  it('falls back to markets[0] for a ?market= this crop is not watched at', async () => {
+    // A stale bookmark, a removed market or a hand-edited URL. The parameter is a VIEW
+    // hint, never a claim: an unusable one is ignored silently rather than erroring or
+    // blanking the page — there is always a right market to show.
+    mockDashboard({ items: [tomato({ markets: [KANDY_BLOCK, DAMBULLA_BLOCK] })] });
+    renderPage('c1', '?market=not-a-market');
+
+    await waitFor(() => expect(api.getPriceHistory).toHaveBeenCalledWith('c1', 'm3'));
+    expect(api.getPriceHistory).not.toHaveBeenCalledWith('c1', 'm1');
+    expect(screen.getAllByText('Kandy').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('matches the route id case-insensitively (GUIDs travel in mixed case)', async () => {
     mockDashboard({ items: [tomato({ cropId: 'AB12CD34-0000-0000-0000-000000000001' })] });
     renderPage('ab12cd34-0000-0000-0000-000000000001');
@@ -156,6 +215,71 @@ describe('PortfolioCropPage', () => {
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Could not load');
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+  });
+
+  it('never draws the OLD market’s series under the new market’s name', async () => {
+    // ?market= changing while mounted (browser back/forward between two variants) used to
+    // flip the title and the price instantly while the chart and its <details> table kept
+    // drawing the previous market for the length of the request — the chart silently
+    // contradicting the number above it, which is the one thing this page must not do.
+    // The second fetch is held open on purpose: the bug lives INSIDE that window, and a
+    // mock that resolves immediately closes it before any assertion can look.
+    let release: (h: PriceHistoryPoint[]) => void = () => {};
+    vi.spyOn(api, 'getPortfolioDashboard').mockResolvedValue({
+      items: [tomato({ markets: [KANDY_BLOCK, DAMBULLA_BLOCK] })],
+    });
+    vi.spyOn(api, 'getPriceHistory').mockImplementation((_c, marketId) =>
+      marketId === 'm1'
+        ? new Promise<PriceHistoryPoint[]>((res) => {
+            release = res;
+          })
+        : Promise.resolve(KANDY_SERIES),
+    );
+    renderWithNav('/portfolio/crop/c1?market=m1');
+
+    // Kandy first: markets[0], no parameter.
+    await waitFor(() => expect(screen.getAllByText('Rs. 411').length).toBeGreaterThan(0));
+
+    fireEvent.click(screen.getByRole('button', { name: 'go' }));
+
+    // The heading flips to Dambulla straight away — it reads from the wire, not the fetch.
+    await waitFor(() =>
+      expect(document.querySelector('.pf-card__market-name')?.textContent).toBe(
+        'Dambulla Dedicated Economic Centre',
+      ),
+    );
+    // …and from that instant Kandy's numbers are GONE. A skeleton here is the honest
+    // answer; Kandy's rows under a Dambulla heading are not.
+    expect(screen.queryAllByText('Rs. 411')).toHaveLength(0);
+    expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
+
+    release(DAMBULLA_SERIES);
+    await waitFor(() => expect(screen.getAllByText('Rs. 611').length).toBeGreaterThan(0));
+    await waitFor(() => expect(document.querySelector('[aria-busy="true"]')).toBeNull());
+  });
+
+  it('drops the swing claim when the new market’s history fails to load', async () => {
+    // setSwing only ever ran on SUCCESS, so a failed refetch left the previous market's
+    // pill beside the new market's price, permanently — a measured claim about a series
+    // this screen is no longer showing and never loaded.
+    vi.spyOn(api, 'getPortfolioDashboard').mockResolvedValue({
+      items: [tomato({ markets: [KANDY_BLOCK, DAMBULLA_BLOCK] })],
+    });
+    vi.spyOn(api, 'getPriceHistory').mockImplementation(async (_c, marketId) => {
+      if (marketId === 'm1') throw new Error('offline');
+      return KANDY_SERIES;
+    });
+    renderWithNav('/portfolio/crop/c1?market=m1');
+
+    await screen.findByText(/Price movement/);
+
+    fireEvent.click(screen.getByRole('button', { name: 'go' }));
+
+    await screen.findByText('No recent price data for this crop at this market yet.');
+    expect(screen.queryByText(/Price movement/)).toBeNull();
+    // Still fail-soft: the price and the prediction are untouched, and nothing shouts.
+    expect(screen.getByText('Rs. 210')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('keeps the price and prediction when the history fetch fails (fail-soft chart)', async () => {

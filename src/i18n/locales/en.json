@@ -451,6 +451,8 @@
       "openCrop": "See details",
       "openCropAria": "See details for {{crop}}",
       "marketLabel": "Market:",
+      "marketTabsAria": "Markets you watch {{crop}} at",
+      "marketCodeAria": "{{market}} ({{code}})",
       "noMarketChosen": "No market chosen",
       "defaultMarketNote": "You have not chosen a market for this crop, so we show the main economic centre.",
       "noPriceAtMarket": "No price data for this market yet.",

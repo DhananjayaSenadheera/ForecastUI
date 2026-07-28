@@ -33,10 +33,11 @@ const CROPS: Crop[] = [
   crop('c3', 'Carrot', 'VEG000009'),
 ];
 
-function market(id: string, name: string, ec = false): Market {
+function market(id: string, name: string, shortCode: string, ec = false): Market {
   return {
     id,
     name,
+    shortCode,
     district: null,
     marketType: 1,
     isEconomicCenter: ec,
@@ -47,10 +48,10 @@ function market(id: string, name: string, ec = false): Market {
 }
 
 const MARKETS: Market[] = [
-  market('m3', 'Kandy'),
-  market('m1', 'Dambulla Dedicated Economic Centre', true),
-  market('m2', 'Colombo'),
-  market('m4', 'Keppetipola'),
+  market('m3', 'Kandy', 'KAN'),
+  market('m1', 'Dambulla Dedicated Economic Centre', 'DEC', true),
+  market('m2', 'Colombo', 'PET'),
+  market('m4', 'Keppetipola', 'KEP'),
 ];
 
 function watched(cropId: string, cropName: string, marketIds: string[]): WatchlistItem {
@@ -62,7 +63,7 @@ function watched(cropId: string, cropName: string, marketIds: string[]): Watchli
     markets: marketIds.map((id) => ({
       marketId: id,
       name: MARKETS.find((m) => m.id === id)?.name ?? id,
-      shortCode: id.toUpperCase(),
+      shortCode: MARKETS.find((m) => m.id === id)?.shortCode ?? '',
     })),
     createdAtUtc: '2026-07-20T00:00:00Z',
   };

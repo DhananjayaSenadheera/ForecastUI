@@ -5,18 +5,20 @@
 // It LINKS to the full national forecast rather than rebuilding it (PRD §5.1): My harvest
 // already owns plant-date selection, the band chart, the factor breakdown and the timing
 // panel, and a second copy of that screen would be a second thing to keep honest.
-// The chart is drawn for the market whose number is printed above it — if the price came
-// from the economic-centre fallback, the chart follows it there, because a home-market
-// series sitting under a Dambulla price would quietly contradict the number.
+// The chart is drawn for the market whose number is printed above it, and that market is
+// the one the card handed over in ?market= — a series from another market sitting under a
+// price would quietly contradict the number, and so would landing here on Dambulla after
+// tapping through from the Kandy tab.
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import type { PortfolioDashboard, PortfolioDashboardItem, PriceHistoryPoint } from '../api/types';
 import PriceLineChart from '../components/PriceLineChart';
+import PredictionBlock from '../components/PredictionBlock';
 import PriceSwingBadge from '../components/PriceSwingBadge';
-import { PredictionBlock, PriceBlock } from '../components/WatchlistCard';
-import { chartMarketIdFor, harvestLinkFor, primaryMarket } from '../lib/portfolio';
+import { PriceBlock } from '../components/WatchlistCard';
+import { chartMarketIdFor, harvestLinkFor, selectedMarketFor } from '../lib/portfolio';
 import { classifyPriceSwing, type PriceSwing } from '../lib/priceSwing';
 import { ymdLocal } from '../lib/format';
 import '../styles/portfolio.css';
@@ -25,6 +27,12 @@ export default function PortfolioCropPage() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const { cropId = '' } = useParams();
+  // ?market= carries the market the card was showing when the farmer tapped "See details".
+  // It is a VIEW parameter, never a claim: an id this crop is not watched at (a stale
+  // bookmark, a hand-edited URL, a market since removed) falls back silently to markets[0]
+  // rather than erroring — selectedMarketFor owns that fallback for every caller.
+  const [searchParams] = useSearchParams();
+  const requestedMarketId = searchParams.get('market');
   // Recomputed per render (same convention as PortfolioPage): one cheap string, and never
   // pinned to mount time on a phone left open across midnight. ymdLocal, never
   // toISOString().slice() — at UTC+5:30 the ISO form is yesterday until 05:30 local.
@@ -52,16 +60,28 @@ export default function PortfolioCropPage() {
   // Case-insensitive id match: GUIDs travel in mixed case between the route and the wire.
   const item: PortfolioDashboardItem | null =
     dashboard?.items.find((i) => i.cropId.toLowerCase() === cropId.toLowerCase()) ?? null;
-  // markets[0] — the same block the card leads with, so the two screens can never print
-  // different numbers for the same crop. Market tabs arrive in step 6.
-  const market = item ? primaryMarket(item) : null;
-  const chartMarketId = chartMarketIdFor(item);
+  // The market the card was on, or markets[0] when it said nothing. This page has no
+  // switcher of its own — it inherits the card's context so the price the farmer just read
+  // is the price they land on. The forecast beside it is national either way.
+  const market = selectedMarketFor(item, requestedMarketId);
+  const chartMarketId = chartMarketIdFor(item, requestedMarketId);
 
   // History for the chart — fail-soft decoration: its failure shows an empty chart state,
   // never an error over the price and prediction that already loaded.
   const [history, setHistory] = useState<PriceHistoryPoint[] | null>(null);
   const [swing, setSwing] = useState<PriceSwing | null>(null);
   useEffect(() => {
+    // EVERY run starts from unresolved, unconditionally and before anything else. Both of
+    // these are DERIVED from the market this effect is about, so the moment that market
+    // changes — a ?market= flip while mounted, or a walk from one crop to another — the old
+    // values describe a series this screen is no longer showing. Leaving them up meant the
+    // heading and the price flipped instantly while the chart and its <details> table went
+    // on drawing the previous market for the length of the request, and a FAILED refetch
+    // (which only ever set history) left the old market's swing pill beside the new
+    // market's price permanently. Clearing restores the skeleton this file already
+    // documents; saying "loading" is honest, saying the wrong market's numbers is not.
+    setHistory(null);
+    setSwing(null);
     if (!item) return;
     // No market to chart (no price served AND no home market — both reachable). There is
     // nothing to wait for, so resolve to an EMPTY history: leaving `history` null would
@@ -141,9 +161,9 @@ export default function PortfolioCropPage() {
 
           <section className="panel pf-detail" aria-label={t('pages.portfolioCrop.forecastHeading')}>
             <h2 className="pf-set__title">{t('pages.portfolioCrop.forecastHeading')}</h2>
-            {/* No economicCenterIds here: this page does not load the markets registry, and
-                showsNationalLabel fails TOWARDS the label — a national forecast said to be
-                national is never wrong, whereas omitting it makes it look local. */}
+            {/* showsNationalLabel fails TOWARDS the label everywhere except the
+                stood-in-for default market — a national forecast said to be national is
+                never wrong, whereas omitting it makes it look local. */}
             <PredictionBlock item={item} market={market} lang={lang} />
             <p className="pf-detail__cta">
               <Link
