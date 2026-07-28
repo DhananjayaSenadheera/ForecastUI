@@ -71,6 +71,17 @@ export default function PortfolioCropPage() {
   const [history, setHistory] = useState<PriceHistoryPoint[] | null>(null);
   const [swing, setSwing] = useState<PriceSwing | null>(null);
   useEffect(() => {
+    // EVERY run starts from unresolved, unconditionally and before anything else. Both of
+    // these are DERIVED from the market this effect is about, so the moment that market
+    // changes — a ?market= flip while mounted, or a walk from one crop to another — the old
+    // values describe a series this screen is no longer showing. Leaving them up meant the
+    // heading and the price flipped instantly while the chart and its <details> table went
+    // on drawing the previous market for the length of the request, and a FAILED refetch
+    // (which only ever set history) left the old market's swing pill beside the new
+    // market's price permanently. Clearing restores the skeleton this file already
+    // documents; saying "loading" is honest, saying the wrong market's numbers is not.
+    setHistory(null);
+    setSwing(null);
     if (!item) return;
     // No market to chart (no price served AND no home market — both reachable). There is
     // nothing to wait for, so resolve to an EMPTY history: leaving `history` null would
