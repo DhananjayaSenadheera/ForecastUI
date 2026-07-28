@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { useEffect } from 'react';
-import i18n from '../i18n';
+import i18n, { hasOwnTranslation } from '../i18n';
 import { AuthProvider, useAuth } from '../auth/AuthContext';
 import AppShell from '../components/AppShell';
 
@@ -44,10 +44,23 @@ describe('TopNavbar', () => {
     const banner = await screen.findByRole('banner', { name: 'App header' });
     expect(banner).toBeInTheDocument();
     expect(within(banner).getByText('AgriForecast')).toBeInTheDocument();
-    // The tab navigation is untouched and carries its own, different landmark name.
-    const navs = screen.getAllByRole('navigation', { name: 'Main menu' });
+    // The tab navigation is untouched, including its landmark name: it stays on the
+    // si/ta-translated nav.overview until nav.mainLabel is translated too (see the nav._note
+    // in en.json). The banner's name must still be distinct from it.
+    const navs = screen.getAllByRole('navigation', { name: 'Overview' });
     expect(navs.length).toBeGreaterThan(0);
     expect(within(navs[0]).getAllByRole('link').length).toBe(4);
+    expect(banner).not.toHaveAccessibleName('Overview');
+  });
+
+  it('every string the navbar renders in Sinhala is really Sinhala, not an English fallback', async () => {
+    // Guards the S1 regression class: a landmark/label that exists only in en makes a
+    // Sinhala farmer hear English. The three new nav.* keys are screen-reader labels the
+    // owner still owes; the VISIBLE identity strings must already be translated.
+    for (const key of ['auth.loggedInAs', 'auth.logout', 'auth.demoMode', 'nav.overview']) {
+      expect(hasOwnTranslation(key, 'si')).toBe(true);
+      expect(hasOwnTranslation(key, 'ta')).toBe(true);
+    }
   });
 
   it('shows the signed-in username in the navbar', async () => {

@@ -33,6 +33,8 @@ export default function TopNavbar() {
   // Dismiss on outside press and on Escape (Escape returns focus to the trigger).
   useEffect(() => {
     if (!open) return;
+    // pointerdown, not mousedown: the popover only exists below 600px, i.e. on touch, where
+    // a synthesised mouse event is not guaranteed and arrives late when it is.
     const onDown = (e: Event) => {
       if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
     };
@@ -42,10 +44,10 @@ export default function TopNavbar() {
         triggerRef.current?.focus();
       }
     };
-    document.addEventListener('mousedown', onDown);
+    document.addEventListener('pointerdown', onDown);
     document.addEventListener('keydown', onKey);
     return () => {
-      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('pointerdown', onDown);
       document.removeEventListener('keydown', onKey);
     };
   }, [open]);

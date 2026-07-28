@@ -263,8 +263,10 @@
     background: var(--brand-tint);
     color: var(--brand-dark);
   }
-  .appbar .acct__signout:focus-visible {
-    box-shadow: var(--focus-ring); /* light card, so the teal ring is the readable one */
+  /* Structural, not per-control: the open popover is a light card, so ANYTHING focusable
+     inside it needs the teal ring back — the bar's white ring would be invisible on it. */
+  .appbar .acct__panel.is-open :focus-visible {
+    box-shadow: var(--focus-ring);
   }
 }
 

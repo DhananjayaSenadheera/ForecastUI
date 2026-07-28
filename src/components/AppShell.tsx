@@ -29,7 +29,12 @@ export default function AppShell() {
       <div className="shell">
         {/* Desktop / tablet sidebar */}
         <aside className="sidebar">
-          <nav className="sidebar__nav" aria-label={t('nav.mainLabel')}>
+          {/* HOLD: this should be nav.mainLabel ("Main menu") — a landmark must not share
+              its name with one of its own destinations. It stays on nav.overview until si+ta
+              carry mainLabel, because that key is English-only and swapping now would make
+              Sinhala/Tamil screen-reader users hear an English landmark. Flip both this and
+              the tab bar below together. See the `_note` in nav.* (en.json). */}
+          <nav className="sidebar__nav" aria-label={t('nav.overview')}>
             {NAV_DESTINATIONS.map((d) => (
               <NavLink
                 key={d.to}
@@ -86,8 +91,9 @@ export default function AppShell() {
           </ErrorBoundary>
         </main>
 
-        {/* Mobile bottom tab bar */}
-        <nav className="tabbar" aria-label={t('nav.mainLabel')}>
+        {/* Mobile bottom tab bar — same landmark as the sidebar nav at another breakpoint,
+            so it carries the same (held) label. */}
+        <nav className="tabbar" aria-label={t('nav.overview')}>
           {tabItems.map((d) => (
             <NavLink
               key={d.to}

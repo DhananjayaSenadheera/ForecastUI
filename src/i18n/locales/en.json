@@ -51,6 +51,7 @@
     "demoMode": "Demo mode"
   },
   "nav": {
+    "_note": "mainLabel is DEFINED BUT UNUSED — the tab navs stay on the si/ta-translated `overview` until si+ta carry it. Rationale + flip instructions: AppShell.tsx.",
     "appbar": "App header",
     "mainLabel": "Main menu",
     "accountFor": "Account: {{name}}",
