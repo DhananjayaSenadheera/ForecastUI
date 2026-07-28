@@ -4,15 +4,36 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import i18n from '../i18n';
 import PortfolioCropPage from '../pages/PortfolioCropPage';
 import { api } from '../api/client';
-import type { PortfolioDashboard, PortfolioDashboardItem, PriceHistoryPoint } from '../api/types';
+import type {
+  PortfolioDashboard,
+  PortfolioDashboardItem,
+  PortfolioDashboardMarket,
+  PriceHistoryPoint,
+} from '../api/types';
 
-const DAMBULLA = {
+// Wire shape as the live API serves it: the price lives INSIDE a market block, one block per
+// market the crop is watched at, and there is no top-level home market.
+const DAMBULLA_BLOCK: PortfolioDashboardMarket = {
   marketId: 'm1',
   name: 'Dambulla Dedicated Economic Centre',
-  isEconomicCenter: true,
-  isDefault: false,
+  shortCode: 'DEC',
+  isDefaultMarket: false,
+  price: {
+    price: 210,
+    observedDate: '2026-07-25',
+    direction: 'down',
+    changePct: -2.5,
+    previousPrice: 215,
+    previousObservedDate: '2026-07-21',
+  },
+  priceUnavailableReason: null,
 };
-const KANDY = { marketId: 'm3', name: 'Kandy', isEconomicCenter: false, isDefault: false };
+const KANDY_BLOCK: PortfolioDashboardMarket = {
+  ...DAMBULLA_BLOCK,
+  marketId: 'm3',
+  name: 'Kandy',
+  shortCode: 'KAN',
+};
 
 const HISTORY: PriceHistoryPoint[] = Array.from({ length: 12 }, (_, i) => ({
   date: `2026-07-${String(i + 1).padStart(2, '0')}`,
@@ -25,18 +46,8 @@ function tomato(over: Partial<PortfolioDashboardItem> = {}): PortfolioDashboardI
     cropId: 'c1',
     cropName: 'Tomato',
     cropCode: 'VEG000003',
-    price: {
-      price: 210,
-      observedDate: '2026-07-25',
-      marketId: 'm1',
-      marketName: 'Dambulla Dedicated Economic Centre',
-      isFallbackMarket: false,
-      direction: 'down',
-      changePct: -2.5,
-      previousPrice: 215,
-      previousObservedDate: '2026-07-21',
-    },
-    priceUnavailableReason: null,
+    plantedDate: null,
+    markets: [DAMBULLA_BLOCK],
     prediction: {
       predictedPrice: 240,
       lowerBound: 190,
@@ -76,7 +87,7 @@ describe('PortfolioCropPage', () => {
   });
 
   it('shows the crop’s price, prediction and a chart with its table alternative', async () => {
-    mockDashboard({ homeMarket: DAMBULLA, items: [tomato()] });
+    mockDashboard({ items: [tomato()] });
     renderPage();
 
     await screen.findByRole('heading', { name: 'Tomato', level: 1 });
@@ -89,41 +100,34 @@ describe('PortfolioCropPage', () => {
   });
 
   it('deep-links to the full national forecast with a crop-specific accessible name', async () => {
-    mockDashboard({ homeMarket: DAMBULLA, items: [tomato()] });
+    mockDashboard({ items: [tomato()] });
     renderPage();
 
     const link = await screen.findByRole('link', { name: 'See the full forecast for Tomato' });
     expect(link).toHaveAttribute('href', '/my-harvest?crop=c1');
   });
 
-  it('charts the market that actually served the price, not the home market', async () => {
-    mockDashboard({
-      homeMarket: KANDY,
-      items: [tomato({ price: { ...tomato().price!, marketId: 'm1', isFallbackMarket: true } })],
-    });
+  it('charts the market whose number is printed above it — markets[0], not any other', async () => {
+    mockDashboard({ items: [tomato({ markets: [KANDY_BLOCK, DAMBULLA_BLOCK] })] });
     renderPage();
 
-    await waitFor(() => expect(api.getPriceHistory).toHaveBeenCalledWith('c1', 'm1'));
-    expect(screen.getByText(/Your market had no price for this crop/)).toBeInTheDocument();
+    await waitFor(() => expect(api.getPriceHistory).toHaveBeenCalledWith('c1', 'm3'));
+    expect(api.getPriceHistory).not.toHaveBeenCalledWith('c1', 'm1');
+    // And the page names that market, so the chart and the number agree out loud.
+    expect(screen.getAllByText('Kandy').length).toBeGreaterThan(0);
   });
 
   it('matches the route id case-insensitively (GUIDs travel in mixed case)', async () => {
-    mockDashboard({
-      homeMarket: DAMBULLA,
-      items: [tomato({ cropId: 'AB12CD34-0000-0000-0000-000000000001' })],
-    });
+    mockDashboard({ items: [tomato({ cropId: 'AB12CD34-0000-0000-0000-000000000001' })] });
     renderPage('ab12cd34-0000-0000-0000-000000000001');
 
     await screen.findByRole('heading', { name: 'Tomato', level: 1 });
   });
 
   it('settles on the empty-chart state when there is no market to chart at all', async () => {
-    // No price served AND no home market: nothing to fetch. The region must resolve to the
-    // honest empty chart, NOT sit on a skeleton announcing aria-busy work that never comes.
-    mockDashboard({
-      homeMarket: null,
-      items: [tomato({ price: null, priceUnavailableReason: 'no_recent_price' })],
-    });
+    // No market block at all: nothing to fetch. The region must resolve to the honest empty
+    // chart, NOT sit on a skeleton announcing aria-busy work that never comes.
+    mockDashboard({ items: [tomato({ markets: [] })] });
     renderPage();
 
     await screen.findByText('No recent price data for this crop at this market yet.');
@@ -135,14 +139,12 @@ describe('PortfolioCropPage', () => {
   });
 
   it('is an honest dead end for a crop that is not on the watchlist', async () => {
-    mockDashboard({ homeMarket: DAMBULLA, items: [] });
+    mockDashboard({ items: [] });
     renderPage('c9');
 
     await screen.findByText('This crop is not in your crops');
-    expect(screen.getByRole('link', { name: 'Add crops' })).toHaveAttribute(
-      'href',
-      '/portfolio/settings',
-    );
+    // The dissolved settings screen is gone: the way back is the page that now owns it.
+    expect(screen.getByRole('link', { name: 'Add crops' })).toHaveAttribute('href', '/portfolio');
     expect(screen.queryByText(/Rs\./)).toBeNull();
   });
 
@@ -157,10 +159,7 @@ describe('PortfolioCropPage', () => {
   });
 
   it('keeps the price and prediction when the history fetch fails (fail-soft chart)', async () => {
-    vi.spyOn(api, 'getPortfolioDashboard').mockResolvedValue({
-      homeMarket: DAMBULLA,
-      items: [tomato()],
-    });
+    vi.spyOn(api, 'getPortfolioDashboard').mockResolvedValue({ items: [tomato()] });
     vi.spyOn(api, 'getPriceHistory').mockRejectedValue(new Error('offline'));
     renderPage();
 

@@ -16,7 +16,6 @@ import RequireAdmin from './admin/RequireAdmin';
 // Overview card and the session menu, so its code must not sit in the first paint of the
 // four tabs every farmer does use. Same chunking precedent as the admin console.
 const PortfolioPage = lazy(() => import('./pages/PortfolioPage'));
-const PortfolioSettingsPage = lazy(() => import('./pages/PortfolioSettingsPage'));
 const PortfolioCropPage = lazy(() => import('./pages/PortfolioCropPage'));
 
 // Admin pages are lazy-loaded, so none of their code is in the farmer bundle.
@@ -75,7 +74,10 @@ export default function App() {
           {/* "My crops" — NON-tab routes (the 4-tab IA is locked). Entry points are the
               Overview card and the session menu, not the nav. */}
           <Route path="/portfolio" element={lazyPage(<PortfolioPage />)} />
-          <Route path="/portfolio/settings" element={lazyPage(<PortfolioSettingsPage />)} />
+          {/* The settings screen was dissolved INTO /portfolio (cards + crop table on one
+              page). The route stays as a redirect so bookmarks and any link still in the
+              wild land on the page that now does the job, instead of the catch-all. */}
+          <Route path="/portfolio/settings" element={<Navigate to="/portfolio" replace />} />
           <Route path="/portfolio/crop/:cropId" element={lazyPage(<PortfolioCropPage />)} />
 
           {/* Admin console — role-gated by RequireAdmin. It renders inside the shell so

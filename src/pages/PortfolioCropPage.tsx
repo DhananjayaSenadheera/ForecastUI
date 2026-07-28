@@ -16,7 +16,7 @@ import type { PortfolioDashboard, PortfolioDashboardItem, PriceHistoryPoint } fr
 import PriceLineChart from '../components/PriceLineChart';
 import PriceSwingBadge from '../components/PriceSwingBadge';
 import { PredictionBlock, PriceBlock } from '../components/WatchlistCard';
-import { chartMarketIdFor, harvestLinkFor } from '../lib/portfolio';
+import { chartMarketIdFor, harvestLinkFor, primaryMarket } from '../lib/portfolio';
 import { classifyPriceSwing, type PriceSwing } from '../lib/priceSwing';
 import { ymdLocal } from '../lib/format';
 import '../styles/portfolio.css';
@@ -52,7 +52,10 @@ export default function PortfolioCropPage() {
   // Case-insensitive id match: GUIDs travel in mixed case between the route and the wire.
   const item: PortfolioDashboardItem | null =
     dashboard?.items.find((i) => i.cropId.toLowerCase() === cropId.toLowerCase()) ?? null;
-  const chartMarketId = chartMarketIdFor(item, dashboard?.homeMarket ?? null);
+  // markets[0] — the same block the card leads with, so the two screens can never print
+  // different numbers for the same crop. Market tabs arrive in step 6.
+  const market = item ? primaryMarket(item) : null;
+  const chartMarketId = chartMarketIdFor(item);
 
   // History for the chart — fail-soft decoration: its failure shows an empty chart state,
   // never an error over the price and prediction that already loaded.
@@ -85,7 +88,7 @@ export default function PortfolioCropPage() {
     };
   }, [item, chartMarketId]);
 
-  const marketName = item?.price?.marketName ?? dashboard?.homeMarket?.name ?? '';
+  const marketName = market?.name ?? '';
 
   return (
     <>
@@ -118,7 +121,7 @@ export default function PortfolioCropPage() {
           </p>
           <p className="pf-state__title">{t('pages.portfolioCrop.notWatchedTitle')}</p>
           <p className="pf-state__body">{t('pages.portfolioCrop.notWatchedBody')}</p>
-          <Link className="btn-primary pf-state__cta" to="/portfolio/settings">
+          <Link className="btn-primary pf-state__cta" to="/portfolio">
             {t('pages.portfolio.addCrops')}
           </Link>
         </section>
@@ -126,13 +129,22 @@ export default function PortfolioCropPage() {
         <>
           <section className="panel pf-detail" aria-label={t('pages.portfolioCrop.todayHeading')}>
             <h2 className="pf-set__title">{t('pages.portfolioCrop.todayHeading')}</h2>
-            <PriceBlock item={item} lang={lang} todayYmd={todayYmd} />
+            <p className="pf-card__market">
+              <span className="pf-card__market-label">{t('pages.portfolio.marketLabel')}</span>{' '}
+              <span className="pf-card__market-name">
+                {market ? market.name : t('pages.portfolio.noMarketChosen')}
+              </span>
+            </p>
+            <PriceBlock market={market} lang={lang} todayYmd={todayYmd} />
             <PriceSwingBadge swing={swing} />
           </section>
 
           <section className="panel pf-detail" aria-label={t('pages.portfolioCrop.forecastHeading')}>
             <h2 className="pf-set__title">{t('pages.portfolioCrop.forecastHeading')}</h2>
-            <PredictionBlock item={item} homeMarket={dashboard?.homeMarket ?? null} lang={lang} />
+            {/* No economicCenterIds here: this page does not load the markets registry, and
+                showsNationalLabel fails TOWARDS the label — a national forecast said to be
+                national is never wrong, whereas omitting it makes it look local. */}
+            <PredictionBlock item={item} market={market} lang={lang} />
             <p className="pf-detail__cta">
               <Link
                 className="btn-primary"

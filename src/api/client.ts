@@ -42,8 +42,8 @@ import type {
   TrainingRunPage,
   UserActivityPage,
   WatchlistAddResult,
+  WatchlistEntryUpdateResult,
   WatchlistItem,
-  WatchlistMarketUpdateResult,
   WatchlistRemoveResult,
 } from './types';
 
@@ -728,31 +728,37 @@ export const api = {
 
   // POST /api/portfolio/watchlist -> { item, alreadyPresent }. IDEMPOTENT: re-adding a
   // watched crop is a 200 with alreadyPresent=true, not an error, so a double-tap on a
-  // slow connection is harmless. Omitting preferredMarketId INHERITS the farmer's current
-  // home market — passing null here would NOT clear it, and we never send it for that.
-  async addWatchlistCrop(cropId: string, preferredMarketId?: string | null): Promise<WatchlistAddResult> {
-    if (USE_FIXTURES) return fx.fxAddWatchlist(cropId, preferredMarketId ?? null);
-    const body: { cropId: string; preferredMarketId?: string } = { cropId };
-    if (preferredMarketId) body.preferredMarketId = preferredMarketId;
+  // slow connection is harmless.
+  //
+  // marketIds is INSERT-ONLY server-side: on a crop already watched it ADDS the markets it
+  // does not have and never takes one away. Changing a crop's markets is therefore a PUT
+  // (full replace), never a POST — see updateWatchlistMarkets.
+  // 422 { error: "watchlist_full" | "too_many_markets" }.
+  async addWatchlistCrop(cropId: string, marketIds?: string[]): Promise<WatchlistAddResult> {
+    if (USE_FIXTURES) return fx.fxAddWatchlist(cropId, marketIds);
+    const body: { cropId: string; marketIds?: string[] } = { cropId };
+    if (marketIds) body.marketIds = marketIds;
     return request<WatchlistAddResult>('/api/portfolio/watchlist', {
       method: 'POST',
       body: JSON.stringify(body),
     });
   },
 
-  // PUT /api/portfolio/watchlist/{cropId} -> sets the home market on EVERY crop the caller
-  // watches (one home market per farmer), and says so via appliedToCropCount. The cropId is
-  // just a row the caller must own; a crop they do not watch is a 404
-  // { error: "watchlist_entry_not_found" }.
-  // A null preferredMarketId is MEANINGFUL here: it clears the market back to national.
-  async updateWatchlistMarket(
+  // PUT /api/portfolio/watchlist/{cropId} -> { item, marketsChanged, plantedDateChanged }.
+  //
+  // marketIds present is a FULL REPLACE of that crop's watched markets ([] clears them back
+  // to the national default); omitted leaves them untouched. plantedDate is DELIBERATELY
+  // never sent from here — an omitted field is "unchanged", but a null one would CLEAR the
+  // farmer's planting day, so a markets edit must not carry the field at all.
+  // 404 { error: "watchlist_entry_not_found" }, 422 { error: "too_many_markets" }.
+  async updateWatchlistMarkets(
     cropId: string,
-    preferredMarketId: string | null,
-  ): Promise<WatchlistMarketUpdateResult> {
-    if (USE_FIXTURES) return fx.fxUpdateWatchlistMarket(cropId, preferredMarketId);
-    return request<WatchlistMarketUpdateResult>(`/api/portfolio/watchlist/${cropId}`, {
+    marketIds: string[],
+  ): Promise<WatchlistEntryUpdateResult> {
+    if (USE_FIXTURES) return fx.fxUpdateWatchlistMarkets(cropId, marketIds);
+    return request<WatchlistEntryUpdateResult>(`/api/portfolio/watchlist/${cropId}`, {
       method: 'PUT',
-      body: JSON.stringify({ preferredMarketId }),
+      body: JSON.stringify({ marketIds }),
     });
   },
 
@@ -765,10 +771,11 @@ export const api = {
     });
   },
 
-  // GET /api/portfolio/dashboard -> home market + one item per watched crop. Both legs are
-  // fail-soft: a missing price/prediction is null WITH a reason code, and the crop still
-  // appears. The price carries NO staleness cutoff — a months-old observedDate is a fact
-  // about the market's publishing, not a reason to hide the number.
+  // GET /api/portfolio/dashboard -> one item per watched crop, each with one block per
+  // market that crop is watched at. Every leg is fail-soft: a missing price/prediction is
+  // null WITH a reason code, and the crop still appears. The price carries NO staleness
+  // cutoff — a months-old observedDate is a fact about the market's publishing, not a
+  // reason to hide the number.
   async getPortfolioDashboard(): Promise<PortfolioDashboard> {
     if (USE_FIXTURES) return fx.fxPortfolioDashboard();
     return request<PortfolioDashboard>('/api/portfolio/dashboard');
