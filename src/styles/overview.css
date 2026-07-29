@@ -120,6 +120,19 @@
   font-weight: var(--fw-bold);
   overflow-wrap: break-word;
 }
+/* One rule for both crop lists on this page (movers, best-crops teaser): a bare glyph
+   ahead of the name, at the name's own scale. These are rows and small tiles, not the
+   subject of a screen — the tinted disc is reserved for surfaces that are about ONE crop.
+   The margin is on the right because the icon leads and the name must not touch it. */
+.ov-crop__icon {
+  margin-right: var(--sp-2);
+}
+/* The name is wrapped rather than left as a bare text node beside the glyph, so it stays
+   ONE node that is exactly the crop's name — which is what every text query, and any tool
+   that lifts text out of the DOM, expects to find. */
+.ov-crop__name {
+  overflow-wrap: break-word;
+}
 .ov-mvrow__market {
   font-size: var(--fs-xs);
   color: var(--text-3);

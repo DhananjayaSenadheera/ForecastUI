@@ -35,6 +35,22 @@ describe('BestCropsPage (FE-7)', () => {
     expect(screen.getByText(/Ranked using the last 3 months/)).toBeInTheDocument();
   });
 
+  it('leads each row with a decorative crop emoji that never joins the row header', async () => {
+    renderPage();
+    await screen.findByText('Capsicum');
+    const slots = document.querySelectorAll('.bc-crop__art');
+    expect(slots.length).toBe(fxBestCrops.length);
+    for (const slot of slots) {
+      expect(slot).toHaveAttribute('aria-hidden', 'true');
+      expect(slot.textContent?.trim()).not.toBe('');
+    }
+    // The cell is the row's <th>, and the glyph is its FIRST child — so if the emoji were
+    // readable it would be the first thing in every row's accessible name. Anchoring the
+    // regex at the start is what makes this assertion catch that.
+    const rowHeader = document.querySelector('.bc-c-crop') as HTMLElement;
+    expect(rowHeader).toHaveAccessibleName(/^Capsicum/);
+  });
+
   it('uses RED (critical) badge ONLY for the Not-recommended row', async () => {
     renderPage();
     await screen.findByText('Cabbage');

@@ -184,7 +184,7 @@ export default function WatchlistCard({
                 any accessible name, because a screen-reader user gains nothing from
                 "aubergine Brinjal". It is here for the farmer scanning ten cards at arm's
                 length in daylight, who finds their crop by shape before they read it. */}
-            <span className="pf-card__icon" aria-hidden="true">
+            <span className="crop-chip crop-chip--lg" aria-hidden="true">
               {cropIcon({ cropCode: item.cropCode, cropName: item.cropName })}
             </span>
             <h3 className="pf-card__title" id={titleId}>

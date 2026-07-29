@@ -138,6 +138,61 @@ button {
   line-height: 1;
 }
 
+/* =============================================================================
+   Crop icon (2026-07-29). The crop's emoji, resolved by lib/cropIcons. It began
+   life on the My-crops card and is now shared by the crop picker, Best crops,
+   Overview, the crop page, its popup and the all-crops table — hence base.css,
+   beside .rdy-badge, for the same reason.
+
+   IT IS ALWAYS DECORATIVE. Every call site renders it aria-hidden and never
+   inside an accessible name: it repeats what the crop's NAME already says, so a
+   screen-reader user who never hears it loses nothing, and "aubergine Brinjal"
+   is not a thing anyone needs read to them. It is a SCANNING aid for a farmer
+   moving their eye down ninety-six crops, not a label.
+
+   Two shapes, and the choice is about the surface rather than taste:
+     .crop-chip  — a round tinted disc, for a surface where ONE crop is the
+                   subject: a card header, a page title, a dialog head. Sized
+                   like a touch target though it is not one, so the header keeps
+                   a stable left edge whatever the glyph is; flex: none, so it
+                   never shrinks and never wraps away from the name it belongs
+                   to.
+     .crop-emoji — a bare glyph, for a crop that is one ROW in a list: picker
+                   tiles, table rows, mover rows, teaser cards. A tinted disc is
+                   wrong there twice over — it disappears on the surfaces that
+                   are already tinted (a selected picker card, a low-confidence
+                   Best-crops row) and it is a box drawn inside a box.
+
+   Emoji only. The sizes here are sizes, not type-scale entries, because no
+   Sinhala or Tamil text ever lands in these elements — the crop NAME beside
+   them is what carries the script, and it keeps the type scale.
+   ============================================================================= */
+.crop-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--crop-chip-size, 40px);
+  height: var(--crop-chip-size, 40px);
+  border-radius: var(--r-pill);
+  background: var(--brand-tint);
+  font-size: var(--crop-chip-glyph, 22px);
+  line-height: 1;
+}
+/* The My-crops card's own size — the header this pattern was designed for. */
+.crop-chip--lg {
+  --crop-chip-size: 56px;
+  --crop-chip-glyph: 28px;
+}
+/* Default 1.1em: in a row of text the glyph should read a shade larger than the
+   name without pushing the line box around. Containers that want a fixed size
+   (a picker tile, a table cell) set --crop-emoji-size and nothing else. */
+.crop-emoji {
+  font-size: var(--crop-emoji-size, 1.1em);
+  line-height: 1;
+  font-style: normal;
+}
+
 /* Reduced-motion: tokens already zero durations; also kill transitions/animations. */
 @media (prefers-reduced-motion: reduce) {
   *,

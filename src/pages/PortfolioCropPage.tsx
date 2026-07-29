@@ -18,6 +18,7 @@ import PriceLineChart from '../components/PriceLineChart';
 import PredictionBlock from '../components/PredictionBlock';
 import PriceSwingBadge from '../components/PriceSwingBadge';
 import PriceBlock from '../components/PriceBlock';
+import { cropIcon } from '../lib/cropIcons';
 import { chartMarketIdFor, harvestLinkFor, selectedMarketFor } from '../lib/portfolio';
 import { classifyPriceSwing, type PriceSwing } from '../lib/priceSwing';
 import { formatDate, ymdLocal } from '../lib/format';
@@ -113,6 +114,15 @@ export default function PortfolioCropPage() {
   return (
     <>
       <div className="topbar">
+        {/* The chip, not the bare glyph: this whole screen is about ONE crop, which is the
+            same statement the My-crops card makes, so it gets the same disc. It renders
+            only once the crop is known — a chip beside the generic loading title would be
+            a claim about a crop we cannot name yet. aria-hidden; the <h1> is the name. */}
+        {item && (
+          <span className="crop-chip pf-crop__icon" aria-hidden="true">
+            {cropIcon({ cropCode: item.cropCode, cropName: item.cropName })}
+          </span>
+        )}
         <h1 className="topbar__title">{item ? item.cropName : t('pages.portfolioCrop.title')}</h1>
         <Link className="topbar__updated pf-back" to="/portfolio">
           {t('pages.portfolioCrop.backToPortfolio')}

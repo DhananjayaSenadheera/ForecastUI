@@ -27,6 +27,7 @@
 import { useTranslation } from 'react-i18next';
 import type { PortfolioDashboardItem, PortfolioDashboardMarket, PriceHistoryPoint } from '../api/types';
 import type { CropReadinessStatus } from '../lib/readiness';
+import { cropIcon } from '../lib/cropIcons';
 import { cropDetailLink, marketCodeLabel } from '../lib/portfolio';
 import Modal from './Modal';
 import PlantedDateSection, {
@@ -76,7 +77,14 @@ export default function CropDetailsDialog({
   const titleId = `pf-dlg-title-${item.cropId}`;
 
   return (
-    <Modal title={item.cropName} titleId={titleId} onClose={onClose}>
+    <Modal
+      title={item.cropName}
+      titleId={titleId}
+      // The same disc the card behind this sheet is showing: the popup covers that card,
+      // so carrying its icon over is what makes it read as the SAME crop opened up.
+      icon={cropIcon({ cropCode: item.cropCode, cropName: item.cropName })}
+      onClose={onClose}
+    >
       {/* Header facts: how far the model can be trusted on this crop, and which market
           everything below is about. The code is a LABEL here, not a control — the tabs on
           the card are where a market is chosen. */}

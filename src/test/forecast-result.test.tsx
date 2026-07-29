@@ -24,6 +24,22 @@ describe('ForecastResult (FE-4)', () => {
     await i18n.changeLanguage('en');
   });
 
+  it('leads the hero with the crop’s emoji — decorative, and beside the name not inside it', () => {
+    renderResult({ cropCode: 'VEG000012' }); // Brinjal in the live registry
+    const icon = document.querySelector('.fc-hero__icon') as HTMLElement;
+    expect(icon).toHaveTextContent('🍆');
+    expect(icon).toHaveAttribute('aria-hidden', 'true');
+    // The name stays its own node, exactly the crop's name and nothing else, so a text
+    // query for the crop still finds one clean element.
+    expect(document.querySelector('.fc-hero__cropname')).toHaveTextContent(/^Capsicum$/);
+  });
+
+  it('still shows an icon when the page passes no crop code — the name alone resolves one', () => {
+    renderResult(); // no cropCode; fxHarvestForecast.cropName carries the English name
+    const icon = document.querySelector('.fc-hero__icon') as HTMLElement;
+    expect(icon.textContent?.trim()).not.toBe('');
+  });
+
   it('shows a loading skeleton (aria-busy) while the forecast loads', () => {
     renderResult({ loading: true, forecast: null });
     expect(document.querySelector('[aria-busy="true"]')).toBeInTheDocument();

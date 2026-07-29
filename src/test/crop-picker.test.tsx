@@ -68,6 +68,33 @@ describe('CropPicker', () => {
     expect(screen.queryByRole('button', { name: /Banana/ })).not.toBeInTheDocument();
   });
 
+  it('leads every tile with the crop’s emoji, and keeps it out of the button’s name', () => {
+    renderPicker();
+    // 🍅 comes from the NAME rule, not the code table, so this pin is independent of which
+    // registry the fixtures were built against — it is true in every environment.
+    const tomato = screen.getByRole('button', { name: 'Tomato' });
+    const art = tomato.querySelector('.cp-card__art') as HTMLElement;
+    expect(art).toHaveTextContent('🍅');
+    expect(art).toHaveAttribute('aria-hidden', 'true');
+    // The whole point: the tile is still called "Tomato", not "tomato Tomato". An exact
+    // accessible-name match is what proves the glyph never joined it.
+    expect(tomato).toHaveAccessibleName('Tomato');
+    // and no tile is ever left with an empty icon slot
+    for (const slot of document.querySelectorAll('.cp-card__art')) {
+      expect(slot.textContent?.trim()).not.toBe('');
+    }
+  });
+
+  it('resolves the icon from the ENGLISH name even when the label is localized', async () => {
+    await i18n.changeLanguage('si');
+    renderPicker();
+    // The Sinhala label matches no English keyword rule; feeding cropIcon the display name
+    // instead of crop.name would drop this tile to the 🌱 fallback.
+    const tile = screen.getByRole('button', { name: 'තක්කාලි' });
+    expect(tile.querySelector('.cp-card__art')).toHaveTextContent('🍅');
+    await i18n.changeLanguage('en');
+  });
+
   it('shows a localized empty state when nothing matches', () => {
     renderPicker();
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'zzznope' } });

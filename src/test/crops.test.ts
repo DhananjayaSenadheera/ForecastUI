@@ -6,7 +6,6 @@ import {
   filterCrops,
   groupCropsByCategory,
 } from '../lib/crops';
-import { cropArtKey } from '../components/cropArt';
 
 function crop(partial: Partial<Crop> & { id: string; name: string }): Crop {
   return {
@@ -92,16 +91,5 @@ describe('categoryLabelKey', () => {
     expect(categoryLabelKey('VEG-UP')).toBe('crop.catVegetables');
     expect(categoryLabelKey('FRT')).toBe('crop.catFruits');
     expect(categoryLabelKey(null)).toBe('crop.catAll');
-  });
-});
-
-describe('cropArtKey (illustration lookup)', () => {
-  it('resolves known crops by name keyword', () => {
-    expect(cropArtKey({ name: 'Tomato', cropCode: null })).toBe('tomato');
-    expect(cropArtKey({ name: 'Green Chilli', cropCode: null })).toBe('chilli');
-    expect(cropArtKey({ name: 'Banana', cropCode: null })).toBe('banana');
-  });
-  it('falls back to the generic sprout for unknown crops', () => {
-    expect(cropArtKey({ name: 'Dragonfruit', cropCode: null })).toBe('generic');
   });
 });

@@ -13,6 +13,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import type { BestCrop, MarketLatestPrice, MarketMover, MarketOverview } from '../api/types';
+import { cropIcon } from '../lib/cropIcons';
 import { formatDate, formatPrice, mapVerdict } from '../lib/format';
 import { biggestMover, moverGlyph, moverDirectionKey, overviewHasData, partitionMovers } from '../lib/overview';
 import { buildSparkline } from '../lib/prices';
@@ -307,7 +308,16 @@ function MoverList({
                   })}
                 >
                   <span className="ov-mvrow__main">
-                    <span className="ov-mvrow__crop">{m.cropName}</span>
+                    {/* aria-hidden, and doubly so here: the whole row is a link with a
+                        hand-written aria-label, so anything readable inside it is dead
+                        weight the label already covers. The movers payload carries no
+                        crop code, so the icon comes from the English name rules alone. */}
+                    <span className="ov-mvrow__crop">
+                      <span className="crop-emoji ov-crop__icon" aria-hidden="true">
+                        {cropIcon({ cropName: m.cropName })}
+                      </span>
+                      <span className="ov-crop__name">{m.cropName}</span>
+                    </span>
                     <span className="ov-mvrow__market">{m.marketName}</span>
                   </span>
                   <span className="ov-mvrow__nums">
@@ -500,7 +510,12 @@ function BestCropsTeaser({
             return (
               <li key={c.cropId} className="ov-teaser__card">
                 <Link className="ov-teaser__link" to={`/my-harvest?crop=${encodeURIComponent(c.cropId)}`}>
-                  <span className="ov-teaser__crop">{c.cropName}</span>
+                  <span className="ov-teaser__crop">
+                    <span className="crop-emoji ov-crop__icon" aria-hidden="true">
+                      {cropIcon({ cropCode: c.cropCode, cropName: c.cropName })}
+                    </span>
+                    <span className="ov-crop__name">{c.cropName}</span>
+                  </span>
                   <span className="ov-teaser__price">{formatPrice(c.averagePrice, lang, rs)}</span>
                   <span className={`ov-badge ov-badge--${verdict.tone}`}>
                     <span className="ov-badge__glyph" aria-hidden="true">{VERDICT_GLYPH[verdict.tone]}</span>

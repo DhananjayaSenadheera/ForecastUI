@@ -18,6 +18,15 @@
 //     name (see WatchlistCard) — a screen-reader user hears "Brinjal", not "aubergine
 //     Brinjal". It carries no meaning that the text does not already carry.
 //
+// WHY THIS IS THE ONLY CROP-VISUAL MAP. There used to be a second one: components/cropArt
+// .tsx, a set of hand-drawn stroke SVGs described in its own header as "placeholders for
+// commissioned art". It covered twelve crops, so on a registry of ninety-six it drew the
+// same generic sprout for roughly seven tiles in eight — the picker looked illustrated and
+// discriminated almost nothing. It was retired when the icons spread past the My-crops card
+// (2026-07-29): two competing crop-visual systems on one app is how two screens end up
+// disagreeing about what a crop looks like. It is in git history if commissioned SVG art is
+// ever picked up again, and that day this file goes with it.
+//
 // LOOKUP ORDER: crop code -> name keywords -> seedling.
 // BY_CODE was built from the LIVE crop registry (96 crops, read from /api/crops/get/all on
 // 2026-07-29), so it is a snapshot of real codes and not a guess — including the registry's
