@@ -119,7 +119,7 @@
   background: var(--surface);
   border: 1.5px solid var(--line-strong);
   border-radius: var(--r-lg);
-  color: var(--brand-strong); /* drives the currentColor illustration */
+  color: var(--brand-strong); /* inherited default; every child sets its own colour */
   text-align: center;
   transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
@@ -152,10 +152,18 @@
   border-width: 2px;
   background: var(--brand-tint);
 }
+/* The crop's emoji, bare — no tinted disc. This tile is ALREADY a box, and it is a box
+   whose fill changes: brand-tint when selected, green or amber when the readiness colouring
+   applies. A tinted chip inside it would vanish on three of those four states. Fixed 34px
+   rather than an em size so every tile in the grid has the same optical weight whatever the
+   glyph, and so a long Sinhala label underneath cannot drag the icon around with it. */
 .cp-card__art {
   display: grid;
   place-items: center;
-  color: inherit;
+  --crop-emoji-size: 34px;
+  /* Reserve the row the old 48px illustration held, so swapping art for emoji did not
+     re-flow the grid: the tiles keep their height and the labels keep their baseline. */
+  min-height: 44px;
 }
 .cp-card__label {
   font-size: var(--fs-sm);
@@ -282,6 +290,12 @@
   font-weight: var(--fw-bold);
   text-align: right;
 }
+/* Sits before the crop's name in the summary's value cell. A right-aligned cell, so the
+   margin goes on the RIGHT of the glyph — the gap belongs between icon and name, and the
+   name is what must stay flush with the numbers in the row below it. */
+.hv-summary__icon {
+  margin-right: var(--sp-2);
+}
 .hv-summary__empty {
   color: var(--text-3);
   font-weight: var(--fw-regular);
@@ -355,6 +369,12 @@
   font-size: var(--fs-body-lg);
   font-weight: var(--fw-bold);
   margin: 0;
+}
+/* Larger than the 1.1em default: this is the one place on the page where the crop is the
+   headline, so the glyph carries the same weight as the name. */
+.fc-hero__icon {
+  --crop-emoji-size: 26px;
+  margin-right: var(--sp-2);
 }
 .fc-hero__harvest {
   font-size: var(--fs-sm);

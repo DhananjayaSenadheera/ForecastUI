@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import type { HarvestForecast } from '../api/types';
 import { formatDate, formatPrice, mapConfidenceString, mapVerdict } from '../lib/format';
 import { bandCentrePct, forecastVerdictTone, isLowTrust } from '../lib/forecast';
+import { cropIcon } from '../lib/cropIcons';
 import WhyForecast from './WhyForecast';
 import ShareForecast from './ShareForecast';
 
@@ -30,6 +31,14 @@ export interface ForecastResultProps {
   onRetry: () => void;
   /** Localized crop name from the picker; falls back to the payload cropName. */
   cropLabel?: string | null;
+  /**
+   * The picker's crop CODE, used only to resolve the decorative emoji. Optional and
+   * defaulted: a caller that omits it still gets an icon, resolved from the payload's
+   * English cropName alone — the code is the more reliable of the two lookups, not a
+   * requirement. The harvest payload has no cropCode of its own, which is why this comes
+   * in from the page rather than out of the forecast.
+   */
+  cropCode?: string | null;
   /**
    * Extra content for the LEFT column, below the price-range block — in practice the
    * planting-window strip. It renders in EVERY state, including error and first load,
@@ -47,6 +56,7 @@ export default function ForecastResult({
   error,
   onRetry,
   cropLabel,
+  cropCode,
   windowSlot,
 }: ForecastResultProps) {
   const { t, i18n } = useTranslation();
@@ -98,7 +108,17 @@ export default function ForecastResult({
     stateContent = (
       <>
         <div className="fc-hero">
-          <p className="fc-hero__crop">{name}</p>
+          {/* Bare emoji rather than the round chip the My-crops card uses: this hero is
+              already filled with --price-bg, which IS the chip's tint, so a chip here
+              would be an invisible circle. aria-hidden — the name follows it. Resolved
+              from the payload's ENGLISH cropName, never `name`, which may be the
+              Sinhala or Tamil label and would match no keyword rule. */}
+          <p className="fc-hero__crop">
+            <span className="crop-emoji fc-hero__icon" aria-hidden="true">
+              {cropIcon({ cropCode, cropName: f.cropName })}
+            </span>
+            <span className="fc-hero__cropname">{name}</span>
+          </p>
           {f.harvestDate && (
             <p className="fc-hero__harvest">
               {t('forecast.harvestAround', { date: formatDate(f.harvestDate, lang) })}

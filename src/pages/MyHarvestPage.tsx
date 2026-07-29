@@ -5,6 +5,7 @@ import { api } from '../api/client';
 import { RecommendationLevel } from '../api/types';
 import type { Crop, CropTimeline, HarvestForecast, HarvestWindow } from '../api/types';
 import { cropDisplayName } from '../lib/crops';
+import { cropIcon } from '../lib/cropIcons';
 import { clampPlantDateToRange, formatDate, ymdLocal } from '../lib/format';
 import { isLowTrust } from '../lib/forecast';
 import { plantDateParam } from '../lib/plantDate';
@@ -338,7 +339,21 @@ export default function MyHarvestPage() {
           <div className="hv-summary__row">
             <span className="hv-summary__key">{t('pages.myHarvest.myCrop')}</span>
             <span className="hv-summary__val">
-              {selectedLabel ?? <span className="hv-summary__empty">{t('pages.myHarvest.noCropYet')}</span>}
+              {selected ? (
+                <>
+                  {/* The same glyph as the tile just tapped, so the summary reads as a
+                      confirmation of that tap rather than as a second, unrelated fact.
+                      aria-hidden — "My crop" already names it. Resolved from the ENGLISH
+                      name (cropIcon's rules are English keywords) even though the label
+                      beside it is localized. */}
+                  <span className="crop-emoji hv-summary__icon" aria-hidden="true">
+                    {cropIcon({ cropCode: selected.cropCode, cropName: selected.name })}
+                  </span>
+                  <span className="hv-summary__crop">{selectedLabel}</span>
+                </>
+              ) : (
+                <span className="hv-summary__empty">{t('pages.myHarvest.noCropYet')}</span>
+              )}
             </span>
           </div>
           <div className="hv-summary__row">
@@ -377,6 +392,7 @@ export default function MyHarvestPage() {
             error={fcError}
             onRetry={() => void runForecast(plantDate)}
             cropLabel={selectedLabel}
+            cropCode={selected.cropCode}
             windowSlot={
               <>
                 <h3 className="fc-window__title">{t('bestWindow.title')}</h3>

@@ -150,23 +150,11 @@
   grid-column: 2 / 3;
   grid-row: 1;
 }
-/* The crop's emoji in a round tinted chip. Decorative (aria-hidden in the component), sized
-   like a touch target even though it is not one, so the header keeps a stable left edge
-   whatever the glyph is. flex: none — it never shrinks, and it never wraps away from the
-   name it belongs to. */
-.pf-card__icon {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 56px;
-  height: 56px;
-  border-radius: var(--r-pill);
-  background: var(--brand-tint);
-  /* Emoji only: a size, not a type ramp entry, and no script text ever lands here. */
-  font-size: 28px;
-  line-height: 1;
-}
+/* The crop's emoji in a round tinted chip used to be defined here, card-scoped. It is now
+   `.crop-chip .crop-chip--lg` in base.css: the same 56px disc with the same 28px glyph,
+   shared with the crop page's title and the details popup's head, because the three
+   surfaces are the same statement ("this screen is about ONE crop") and drifting apart
+   was only a matter of time. Nothing about the card's rendering changed. */
 /* The price and its movement, side by side: the number leads, the badge closes the row. */
 .pf-card__pricecell {
   display: flex;
@@ -1148,8 +1136,18 @@
 .pf-row.is-watched {
   background: var(--brand-tint);
 }
+.pf-c-crop__icon {
+  margin-right: var(--sp-2);
+}
 .pf-c-crop__name {
   font-weight: var(--fw-medium);
+}
+/* The crop page's title chip. Slightly smaller than the card's 56px because it stands
+   beside an --fs-h2 heading rather than an --fs-h3 one and would otherwise out-shout it;
+   the topbar is a flex row, so the chip simply becomes its first item. */
+.pf-crop__icon {
+  --crop-chip-size: 48px;
+  --crop-chip-glyph: 26px;
 }
 /* "Watching" is a state, not an alert: brand tint + a tick glyph + the word. */
 .pf-watching {
@@ -1534,10 +1532,13 @@
     border-radius: var(--r-lg);
   }
 }
+/* flex-start + an auto margin on the ✕ rather than space-between: with the optional crop
+   chip the head has THREE items, and space-between would push the title into the middle of
+   the row. Without the chip the two rules render identically. */
 .pf-modal__head {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: var(--sp-3);
   margin-bottom: var(--sp-3);
 }
@@ -1546,8 +1547,14 @@
   font-size: var(--fs-h2);
   line-height: var(--lh-heading);
 }
+/* Matches the crop page's title chip — the popup and that page are the same statement. */
+.pf-modal__icon {
+  --crop-chip-size: 48px;
+  --crop-chip-glyph: 26px;
+}
 .pf-modal__close {
   flex: none;
+  margin-left: auto;
   min-width: var(--touch-min);
   min-height: var(--touch-min);
   border: 0;

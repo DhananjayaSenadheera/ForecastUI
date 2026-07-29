@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import type { BestCrop } from '../api/types';
 import { formatPrice, mapConfidenceCode, mapVerdict } from '../lib/format';
-import { CropArt } from '../components/cropArt';
+import { cropIcon } from '../lib/cropIcons';
 import ReadinessBadge from '../components/ReadinessBadge';
 import { buildReadinessMap, readinessFor, type ReadinessMap } from '../lib/readiness';
 import TablePagination, { usePagination } from '../components/TablePagination';
@@ -220,8 +220,13 @@ export default function BestCropsPage() {
                       <tr key={c.cropId} className={rowClass}>
                         <th scope="row" className="bc-c-crop" data-label={t('pages.bestCrops.colCrop')}>
                           <span className="bc-crop">
-                            <span className="bc-crop__art">
-                              <CropArt crop={{ name: c.cropName, cropCode: c.cropCode }} />
+                            {/* Decorative, aria-hidden: this cell is the row's <th>, so
+                                anything readable inside it joins EVERY row's accessible
+                                name. The emoji is a scanning aid for the eye running down
+                                the rank order, nothing more. `name` here is the wire's
+                                English cropName, which is what cropIcon's rules expect. */}
+                            <span className="bc-crop__art crop-emoji" aria-hidden="true">
+                              {cropIcon({ cropCode: c.cropCode, cropName: c.cropName })}
                             </span>
                             <span className="bc-crop__text">
                               <span className="bc-crop__name">{name}</span>

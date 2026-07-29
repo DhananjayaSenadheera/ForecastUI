@@ -1,12 +1,12 @@
-// CropPicker — searchable, illustrated crop grid. Search matches EN/SI/TA names and the
-// result count is announced politely; crops group by category when the data has one, else
-// a single "All crops" group. Cards are aria-pressed toggle buttons (>=48px) whose selected
-// state is never colour alone. Four async states: loading, success, empty search, error +
-// retry. Matching and grouping logic lives in lib/crops.ts.
+// CropPicker — searchable crop grid, one emoji-led tile per crop. Search matches EN/SI/TA
+// names and the result count is announced politely; crops group by category when the data
+// has one, else a single "All crops" group. Cards are aria-pressed toggle buttons (>=48px)
+// whose selected state is never colour alone. Four async states: loading, success, empty
+// search, error + retry. Matching and grouping logic lives in lib/crops.ts.
 import { useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Crop } from '../api/types';
-import { CropArt } from './cropArt';
+import { cropIcon } from '../lib/cropIcons';
 import ReadinessBadge from './ReadinessBadge';
 import {
   categoryLabelKey,
@@ -82,8 +82,12 @@ export default function CropPicker({
           {...(descId ? { 'aria-describedby': descId } : {})}
           onClick={() => onSelect(crop)}
         >
-          <span className="cp-card__art">
-            <CropArt crop={crop} />
+          {/* Decoration, aria-hidden: the label under it is the crop's name and the only
+              thing that means anything here. Resolved from the crop's CODE and its
+              ENGLISH name — cropIcon's keyword rules are English, so feeding it the
+              Sinhala or Tamil display name would drop every crop to the seedling. */}
+          <span className="cp-card__art crop-emoji" aria-hidden="true">
+            {cropIcon({ cropCode: crop.cropCode, cropName: crop.name })}
           </span>
           <span className="cp-card__label">{cropDisplayName(crop, lang)}</span>
           <ReadinessBadge status={status} ariaHidden />

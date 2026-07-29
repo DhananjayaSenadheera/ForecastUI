@@ -21,6 +21,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Crop, Market, WatchlistItem } from '../api/types';
 import { cropDisplayName, filterCrops } from '../lib/crops';
+import { cropIcon } from '../lib/cropIcons';
 import {
   MAX_MARKETS_PER_CROP,
   MAX_WATCHED_CROPS,
@@ -271,6 +272,14 @@ export default function CropWatchTable({
                       </td>
 
                       <th scope="row" className="pf-c-crop" data-label={t('pages.portfolio.colCrop')}>
+                        {/* Bare glyph in a dense table row, aria-hidden: this is the row's
+                            <th>, so a readable emoji would join every row's accessible
+                            name and every "Tick X to remove it" beside it. Resolved from
+                            the crop's code and its ENGLISH name, not `name` — that is the
+                            localized label, which matches no keyword rule. */}
+                        <span className="crop-emoji pf-c-crop__icon" aria-hidden="true">
+                          {cropIcon({ cropCode: crop.cropCode, cropName: crop.name })}
+                        </span>
                         <span className="pf-c-crop__name">{name}</span>
                       </th>
 

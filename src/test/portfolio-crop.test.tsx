@@ -135,6 +135,22 @@ describe('PortfolioCropPage', () => {
     expect(screen.getByText('View as table')).toBeInTheDocument();
   });
 
+  it('titles the page with the crop’s chip — decorative, and only once the crop is known', async () => {
+    mockDashboard({ items: [tomato()] });
+    const { container } = renderPage();
+
+    // Before the crop loads the heading is the generic page title, and a chip beside it
+    // would be a picture of a crop we cannot yet name.
+    expect(container.querySelector('.crop-chip')).toBeNull();
+
+    await screen.findByRole('heading', { name: 'Tomato', level: 1 });
+    const chip = container.querySelector('.crop-chip') as HTMLElement;
+    expect(chip).toHaveTextContent('🍅');
+    expect(chip).toHaveAttribute('aria-hidden', 'true');
+    // The chip is the heading's SIBLING, so the page's name is the crop's name exactly.
+    expect(screen.getByRole('heading', { level: 1 })).toHaveAccessibleName('Tomato');
+  });
+
   it('SAYS which planting its forecast assumes, so the card and this page cannot collide', async () => {
     // The card one hop back answers for the farmer's own planting date. Two prices under
     // two headings that both read "forecast at harvest" is the "two answers to one

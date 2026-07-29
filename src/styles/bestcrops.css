@@ -168,13 +168,16 @@
   align-items: center;
   gap: var(--sp-3);
 }
+/* Bare emoji, not a tinted disc: these rows tint themselves. A "Not recommended" row is
+   washed by the critical rule and a low-confidence one by the amber rule, and a brand-tint
+   chip laid over either reads as a third, meaningless status colour. 30px — a shade under
+   the picker's 34px, because in a dense table the NAME leads and the glyph follows it. */
 .bc-crop__art {
   flex: none;
-  color: var(--brand-strong);
   display: grid;
   place-items: center;
+  --crop-emoji-size: 30px;
 }
-.bc-crop__art svg { width: 34px; height: 34px; }
 .bc-crop__text { display: flex; flex-direction: column; }
 .bc-crop__name {
   font-size: var(--fs-body);

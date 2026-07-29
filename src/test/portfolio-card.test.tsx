@@ -613,7 +613,9 @@ describe('WatchlistCard — the header the 2026-07-29 mockup asked for', () => {
   it('leads with the crop’s icon, and hides it from the accessibility tree', async () => {
     renderCard(tomato({ cropName: 'Brinjal', cropCode: 'VEG000012' }));
 
-    const icon = document.querySelector('.pf-card__icon') as HTMLElement;
+    // `.crop-chip` is the shared class (base.css) the card-scoped `.pf-card__icon` became
+    // when the crop page and the details popup started using the same disc.
+    const icon = document.querySelector('.crop-chip') as HTMLElement;
     expect(icon).toHaveTextContent('🍆');
     // Decoration only: "aubergine Brinjal" is not a crop name, and the heading beside it
     // already says everything.

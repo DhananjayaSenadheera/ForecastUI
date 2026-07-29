@@ -22,10 +22,18 @@ export interface ModalProps {
   onClose: () => void;
   /** Optional: a stable id for the heading (tests and callers that link to it). */
   titleId?: string;
+  /**
+   * OPT-IN decoration ahead of the title — in practice the crop's emoji. A SIBLING of the
+   * heading, never a child of it: the heading is this dialog's accessible name, and the
+   * one way to be certain a decoration can never leak into that name is to keep it out of
+   * the element the name is computed from. Omitted (the default) renders exactly the
+   * markup this shell rendered before the prop existed.
+   */
+  icon?: string;
   children: ReactNode;
 }
 
-export default function Modal({ title, onClose, titleId, children }: ModalProps) {
+export default function Modal({ title, onClose, titleId, icon, children }: ModalProps) {
   const { t } = useTranslation();
   const panel = useRef<HTMLDivElement>(null);
   const { onKeyDown } = useDialogBehaviour(panel, onClose);
@@ -47,6 +55,11 @@ export default function Modal({ title, onClose, titleId, children }: ModalProps)
         onClick={(e) => e.stopPropagation()}
       >
         <div className="pf-modal__head">
+          {icon && (
+            <span className="crop-chip pf-modal__icon" aria-hidden="true">
+              {icon}
+            </span>
+          )}
           <h2 className="pf-modal__title" id={headingId}>
             {title}
           </h2>
