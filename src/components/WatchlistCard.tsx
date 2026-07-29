@@ -157,11 +157,21 @@ export default function WatchlistCard({
   );
   const [detailsOpen, setDetailsOpen] = useState(false);
 
+  // ONE definition, two homes: the price rides in the header row, the "no price here" note
+  // rides inside the market panel (see the placement comments below). Written once so the
+  // two cases cannot drift into two differently-worded answers.
+  const priceCell = (
+    <div className={`pf-card__pricecell${hasPrice ? '' : ' pf-card__pricecell--nodata'}`}>
+      <PriceBlock market={market} lang={lang} todayYmd={todayYmd} part="price" />
+    </div>
+  );
+
   return (
     <li className={`pf-card${selected ? ' pf-card--selected' : ''}`}>
       <article className="pf-card__inner" aria-labelledby={titleId}>
-        {/* The header block and the market-scoped facts share ONE grid — see the note at the
-            top of this file for why the panel below is `display: contents`. */}
+        {/* The header grid, and only it: three cells on row 1 — the crop's identity, the
+            remove tick, and (on a wide enough card) the price. The market panel is one
+            full-width row beneath them and lays its own contents out in a column. */}
         <div className="pf-card__top">
           <header className="pf-card__ident">
             <h3 className="pf-card__title" id={titleId}>
@@ -200,20 +210,20 @@ export default function WatchlistCard({
             />
           </label>
 
-          {/* Top right of the header row: the number, and the day it was observed. It is
-              OUTSIDE the tabpanel on purpose — it shares its row with the tablist, which
-              cannot live inside the panel it controls, and a grid item is a rectangle. What
-              keeps it honest is not the nesting but the seam: this block, the trend and the
-              chart all read `market`, one selectedMarketFor() resolution, so the tab cannot
-              move one of them without moving the others.
-              The "no price at this market" note keeps this same place in the reading order
-              — the absence of a price is shown where the price would be — but as a
-              full-width row, because a sentence in a header column crushes the crop name. */}
-          <div
-            className={`pf-card__pricecell${hasPrice ? '' : ' pf-card__pricecell--nodata'}`}
-          >
-            <PriceBlock market={market} lang={lang} todayYmd={todayYmd} part="price" />
-          </div>
+          {/* A PRICE sits top right of the header row, outside the tabpanel on purpose: it
+              shares its row with the tablist, which cannot live inside the panel it
+              controls, and a grid item is a rectangle. What keeps it honest is not the
+              nesting but the seam — this block, the trend and the chart all read `market`,
+              one selectedMarketFor() resolution, so the tab cannot move one of them without
+              moving the others.
+              The NO-PRICE note is the same block in the same place in the reading order,
+              rendered inside the panel instead. It has to be full width either way (a
+              sentence in a header column crushes the crop name), and the two positions are
+              pixel-identical — so putting it inside is free, and it is the only thing that
+              would be in the panel on a market with no price. Outside, a tab would label an
+              empty region and the one sentence that answers "what does this market pay?"
+              would sit outside the region that tab names. */}
+          {hasPrice && priceCell}
 
           {/* Everything in here belongs to ONE market. With tabs it is that tabpanel; with a
               single market there is no tablist, so there is no orphan tabpanel either. */}
@@ -227,6 +237,8 @@ export default function WatchlistCard({
                 }
               : {})}
           >
+            {!hasPrice && priceCell}
+
             {/* Load-bearing honesty, not clutter: this crop has no market of the farmer's
                 own, so the number above it belongs to the economic centre we chose for them. */}
             {market?.isDefaultMarket && (

@@ -347,6 +347,35 @@ describe('WatchlistCard — a tab switch moves the WHOLE market-scoped block', (
     expect(trend.closest('.pf-card__panel')).not.toBeNull();
   });
 
+  it('never labels an EMPTY tabpanel: the no-price note goes inside the region', async () => {
+    // A market with no price has no trend and no chart either, so lifting the price cell out
+    // of the panel left `<div role="tabpanel"></div>` — a tab pointing at nothing, with the
+    // one sentence that answers "what does this market pay?" sitting outside the region that
+    // tab names. The note renders inside instead; it is a full-width row in both places, so
+    // the move costs no pixels.
+    const noPriceKandy: PortfolioDashboardMarket = {
+      ...KANDY,
+      price: null,
+      priceUnavailableReason: 'no_recent_price',
+    };
+    renderCard(tomato({ markets: [noPriceKandy, DAMBULLA] }));
+
+    const panel = await screen.findByRole('tabpanel');
+    expect(within(panel).getByText('No price data for this market yet.')).toBeInTheDocument();
+    expect(panel.children.length).toBeGreaterThan(0);
+    // Nothing was duplicated into the header row on the way.
+    expect(document.querySelectorAll('.pf-card__pricecell')).toHaveLength(1);
+
+    // Switching to a market that HAS one restores the split: number outside the panel,
+    // trend and chart inside it.
+    fireEvent.click(screen.getByRole('tab', { name: 'Dambulla Dedicated Economic Centre (DEC)' }));
+    await screen.findByText('Rs. 210');
+    const priceCell = document.querySelector('.pf-card__pricecell') as HTMLElement;
+    expect(panel.contains(priceCell)).toBe(false);
+    expect(within(panel).getByText(/Up 4\.2% from Rs\. 201/)).toBeInTheDocument();
+    expect(within(panel).queryByText('No price data for this market yet.')).toBeNull();
+  });
+
   it('keeps the remove tick in the header, before the price and outside the tabpanel', async () => {
     // Two ways round, because each catches a different regression: dropping the tick into
     // the tabpanel would make it read as market-scoped ("remove this market?"), and moving

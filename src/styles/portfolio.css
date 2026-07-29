@@ -123,7 +123,9 @@
 }
 /* No price here is a SENTENCE, not a number: it never takes the narrow header column, in
    any variant. It keeps the price's place in the reading order — first thing under the crop
-   name — but as a full-width row, so it cannot squeeze the name into an overflow. */
+   name — but as a full-width row, so it cannot squeeze the name into an overflow. The card
+   renders it inside .pf-card__panel (so a tab never labels an empty region), where it is a
+   flex row; this rule keeps the same result should it ever be placed in the grid again. */
 .pf-card__pricecell--nodata {
   justify-self: stretch;
 }
