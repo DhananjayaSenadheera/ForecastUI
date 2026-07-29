@@ -1,13 +1,29 @@
 // WatchlistCard — one watched crop on "My crops": which market it is being read at, what
-// that market pays today, which way it has moved, how much it swings, and the recent price
-// history behind those numbers.
+// that market pays today, which way it has moved, and the recent price history behind those
+// numbers.
 //
-// STEP 6 SHAPE (the owner's Trello-card sketch):
-//   • the market's SHORT CODE sits on top, the crop name under it;
-//   • a crop watched at two or three markets turns those codes into TABS, and selecting one
-//     switches everything market-scoped at once — the price, its observed date, the trend
-//     line, the swing pill and the chart. One market means one chip and no tablist;
-//   • a compact price-history chart of the selected market closes the card.
+// SHAPE (the owner's simplified sketch, 2026-07-29) — ONE header row, then the facts:
+//   • "Beans → DEC" on the left: the crop name, an arrow, and the short code(s) of the
+//     market(s) it is watched at. A crop watched at two or three markets turns those codes
+//     into TABS, and selecting one switches everything market-scoped at once — the price,
+//     its observed date, the trend line and the chart. One market means one chip, no tablist;
+//   • the price on the right of that same row, with the day it was observed under it;
+//   • the remove tick at the far edge;
+//   • then the trend line full width, then the chart, then the planting section.
+// What the simplification MOVED (nothing was deleted): the spelled-out market name, the
+// readiness badge and the price-swing pill now live in the "More details" popup, which is
+// the surface for reading about a crop rather than scanning a list of them.
+//
+// The header is a two-or-three column grid rather than a flex row. The price cell sits
+// OUTSIDE the market tabpanel in that grid, which is worth stating plainly because it looks
+// wrong: the number a tab changes is not inside the panel that tab labels. It shares row 1
+// with the tablist, which cannot be nested inside the panel it controls, and a grid item is
+// a rectangle — so the price is tab-governed state rendered beside the panel, and both it
+// and the panel's contents are resolved from ONE selectedMarketFor() call. That single seam,
+// not the nesting, is what makes it impossible for the price and the chart to disagree.
+// At narrow widths (a 360px phone, one card per screen) the price drops to its own row under
+// the name, end-aligned — a deliberate break, so a long crop name and three chips can never
+// squeeze the number.
 //
 // STEP 7 added the two things that make the card a place to MANAGE a crop rather than only
 // read one:
@@ -45,8 +61,6 @@ import PlantedDateSection, {
 } from './PlantedDateSection';
 import PriceBlock from './PriceBlock';
 import PriceLineChart from './PriceLineChart';
-import PriceSwingBadge from './PriceSwingBadge';
-import ReadinessBadge from './ReadinessBadge';
 
 export interface WatchlistCardProps {
   item: PortfolioDashboardItem;
@@ -126,9 +140,12 @@ export default function WatchlistCard({
   // that in the farmer's words; a second, differently-worded empty chart under it would be
   // noise, and the request would be a round trip on a rural connection for a series that
   // cannot have rows. The day the contract grows a staleness cutoff, this has to change.
-  const chartMarketId = market?.price ? marketId : null;
+  const hasPrice = market?.price != null;
+  const chartMarketId = hasPrice ? marketId : null;
   const history = useMarketHistory(item.cropId, chartMarketId);
   // The swing describes the SAME series the chart draws, so it can never disagree with it.
+  // It is read in the "More details" popup rather than on the card — computed here because
+  // this is where the series lives, and because it must keep following the selected tab.
   const swing = history ? classifyPriceSwing(history) : null;
 
   // ONE fetch per (crop, planting date) for the whole card, shared with the popup: the two
@@ -140,20 +157,49 @@ export default function WatchlistCard({
   );
   const [detailsOpen, setDetailsOpen] = useState(false);
 
+  // ONE definition, two homes: the price rides in the header row, the "no price here" note
+  // rides inside the market panel (see the placement comments below). Written once so the
+  // two cases cannot drift into two differently-worded answers.
+  const priceCell = (
+    <div className={`pf-card__pricecell${hasPrice ? '' : ' pf-card__pricecell--nodata'}`}>
+      <PriceBlock market={market} lang={lang} todayYmd={todayYmd} part="price" />
+    </div>
+  );
+
   return (
     <li className={`pf-card${selected ? ' pf-card--selected' : ''}`}>
       <article className="pf-card__inner" aria-labelledby={titleId}>
-        <MarketTabs
-          cropId={item.cropId}
-          cropName={item.cropName}
-          markets={item.markets}
-          selectedMarketId={marketId}
-          onSelect={setPickedMarketId}
-        />
+        {/* The header grid, and only it: three cells on row 1 — the crop's identity, the
+            remove tick, and (on a wide enough card) the price. The market panel is one
+            full-width row beneath them and lays its own contents out in a column. */}
+        <div className="pf-card__top">
+          <header className="pf-card__ident">
+            <h3 className="pf-card__title" id={titleId}>
+              {item.cropName}
+            </h3>
+            {item.markets.length > 0 && (
+              // Decorative: the arrow says "read at" to the eye. Screen readers get the
+              // relationship from the tablist's own name ("Markets you watch Tomato at").
+              <span className="pf-card__arrow" aria-hidden="true">
+                →
+              </span>
+            )}
+            <MarketTabs
+              cropId={item.cropId}
+              cropName={item.cropName}
+              markets={item.markets}
+              selectedMarketId={marketId}
+              onSelect={setPickedMarketId}
+            />
+          </header>
 
-        <header className="pf-card__head">
           {/* The tick is a real checkbox with a crop-specific accessible name, so a list of
-              ten of them is never ten controls called "Select". */}
+              ten of them is never ten controls called "Select". It comes before the price
+              and the panel in the DOM and it sits in the header row in both layout
+              variants, so it is never reached after the chart. (In the wide variant the eye
+              reads name → price → tick while the DOM runs name → tick → price; the price is
+              not focusable, so the focus order still matches the visual order of the
+              controls.) */}
           <label className="pf-pick">
             <input
               type="checkbox"
@@ -163,58 +209,63 @@ export default function WatchlistCard({
               aria-label={t('pages.portfolio.selectCropAria', { crop: item.cropName })}
             />
           </label>
-          {/* The badge sits OUTSIDE any link, so it keeps its word visible and never
-              joins a control's accessible name. */}
-          <h3 className="pf-card__title" id={titleId}>
-            {item.cropName}
-          </h3>
-          <ReadinessBadge status={readiness} compact />
-        </header>
 
-        {/* Everything below belongs to ONE market. With tabs it is that tabpanel; with a
-            single market there is no tablist, so there is no orphan tabpanel either. */}
-        <div
-          className="pf-card__panel"
-          {...(hasTabs && marketId
-            ? {
-                id: marketPanelId(item.cropId),
-                role: 'tabpanel',
-                'aria-labelledby': marketTabId(item.cropId, marketId),
-              }
-            : {})}
-        >
-          {/* The full market name in plain words, under the code. This is what makes the
-              codes readable on a touch screen, where a tap on a tab selects rather than
-              explains — and "KEP" alone is not a market a farmer can recognise. */}
-          <p className="pf-card__market">
-            <span className="pf-card__market-label">{t('pages.portfolio.marketLabel')}</span>{' '}
-            <span className="pf-card__market-name">
-              {market ? market.name : t('pages.portfolio.noMarketChosen')}
-            </span>
-          </p>
-          {market?.isDefaultMarket && (
-            <p className="pf-card__market-note">{t('pages.portfolio.defaultMarketNote')}</p>
-          )}
+          {/* A PRICE sits top right of the header row, outside the tabpanel on purpose: it
+              shares its row with the tablist, which cannot live inside the panel it
+              controls, and a grid item is a rectangle. What keeps it honest is not the
+              nesting but the seam — this block, the trend and the chart all read `market`,
+              one selectedMarketFor() resolution, so the tab cannot move one of them without
+              moving the others.
+              The NO-PRICE note is the same block in the same place in the reading order,
+              rendered inside the panel instead. It has to be full width either way (a
+              sentence in a header column crushes the crop name), and the two positions are
+              pixel-identical — so putting it inside is free, and it is the only thing that
+              would be in the panel on a market with no price. Outside, a tab would label an
+              empty region and the one sentence that answers "what does this market pay?"
+              would sit outside the region that tab names. */}
+          {hasPrice && priceCell}
 
-          <PriceBlock market={market} lang={lang} todayYmd={todayYmd} />
-          <PriceSwingBadge swing={swing} />
+          {/* Everything in here belongs to ONE market. With tabs it is that tabpanel; with a
+              single market there is no tablist, so there is no orphan tabpanel either. */}
+          <div
+            className="pf-card__panel"
+            {...(hasTabs && marketId
+              ? {
+                  id: marketPanelId(item.cropId),
+                  role: 'tabpanel',
+                  'aria-labelledby': marketTabId(item.cropId, marketId),
+                }
+              : {})}
+          >
+            {!hasPrice && priceCell}
 
-          {chartMarketId && (
-            <div className="pf-card__chart">
-              {history === null ? (
-                <div className="pf-skel pf-skel--chart" aria-busy="true">
-                  <span className="sr-only">{t('common.loading')}</span>
-                </div>
-              ) : (
-                <PriceLineChart
-                  history={history}
-                  cropLabel={item.cropName}
-                  marketName={market?.name ?? ''}
-                  lang={lang}
-                />
-              )}
-            </div>
-          )}
+            {/* Load-bearing honesty, not clutter: this crop has no market of the farmer's
+                own, so the number above it belongs to the economic centre we chose for them. */}
+            {market?.isDefaultMarket && (
+              <p className="pf-card__market-note">{t('pages.portfolio.defaultMarketNote')}</p>
+            )}
+
+            {/* Full width under the header. Same component, same words as the popup and the
+                crop page — only the position differs. */}
+            <PriceBlock market={market} lang={lang} todayYmd={todayYmd} part="trend" />
+
+            {chartMarketId && (
+              <div className="pf-card__chart">
+                {history === null ? (
+                  <div className="pf-skel pf-skel--chart" aria-busy="true">
+                    <span className="sr-only">{t('common.loading')}</span>
+                  </div>
+                ) : (
+                  <PriceLineChart
+                    history={history}
+                    cropLabel={item.cropName}
+                    marketName={market?.name ?? ''}
+                    lang={lang}
+                  />
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Outside the tabpanel: one forecast per crop, so it must not look market-scoped. */}

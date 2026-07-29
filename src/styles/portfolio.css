@@ -44,7 +44,22 @@
   }
 }
 
+/* The card's INNER surface is the query container, so the header can lay itself out from
+   the width of the CARD rather than of the viewport: above 700px the grid packs 300px-wide
+   cards, which are phone-width columns on a desktop screen.
+
+   NOT the <li>: `container-type: inline-size` also applies LAYOUT containment, which makes
+   the element a containing block for `position: fixed` descendants. The "More details"
+   dialog is rendered inside the <li> (Modal does not portal), so a container on the <li>
+   would trap .pf-modal__backdrop inside one 300px card — backdrop over a single card, later
+   cards painting over the open sheet. The dialog is a SIBLING of this <article>, so it
+   escapes containment here. portfolio-card.test.tsx pins that relationship, because jsdom
+   cannot see the CSS that depends on it.
+
+   A browser without container queries keeps the narrow layout everywhere — the mobile-first
+   arrangement is the fallback, and it is a complete one. */
 .pf-card__inner {
+  container: pf-card / inline-size;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -55,27 +70,133 @@
   border-radius: var(--r-lg);
   box-shadow: var(--e-1);
 }
-.pf-card__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-2);
+
+/* ---- Card header + market-scoped facts (ONE grid) -------------------------
+   Row 1 is the header the owner sketched: "Beans → DEC" on the left, the price on the
+   right, the remove tick at the far edge. The trend line, the chart and the rest follow in
+   full-width rows below it.
+
+   The price cell sits OUTSIDE the tabpanel in the DOM, by design and against the instinct
+   that the tab's own number should live inside the panel it labels. The layout demands a
+   rectangle per grid item, and the price has to share row 1 with the tablist itself, which
+   cannot be inside the panel it controls. The two escapes both cost more than they buy:
+   `display: contents` on the panel has documented accessibility-tree bugs on role-bearing
+   elements, and subgrid needs the panel's box to span row 1, where it would cover the tabs
+   and the tick and swallow their taps. So the panel keeps a normal box around the trend and
+   the chart, and the price cell is tab-governed state rendered beside it — resolved from
+   the SAME selectedMarketFor() call, which is what actually guarantees they agree. */
+.pf-card__top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: var(--sp-3);
+  row-gap: var(--sp-2);
 }
-.pf-card__title {
-  margin: 0;
-  font-size: var(--fs-h3);
-  line-height: var(--lh-heading);
-}
-/* A ticked card is outlined, not tinted red: ticking is a selection, not a warning. */
-.pf-card--selected .pf-card__inner {
-  border-color: var(--brand);
-  box-shadow: 0 0 0 2px var(--brand-tint);
+/* Default: every row is full width. The header cells opt out below. */
+.pf-card__top > * {
+  grid-column: 1 / -1;
 }
 .pf-card__panel {
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
 }
+.pf-card__ident {
+  grid-column: 1 / 2;
+  grid-row: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-2);
+}
+.pf-card__top > .pf-pick {
+  grid-column: 2 / 3;
+  grid-row: 1;
+}
+/* Narrow (a 360px phone): the price breaks onto its own row under the name and stays
+   end-aligned, so a long crop name with three market chips can never squeeze the number or
+   push it to a chaotic wrap. */
+.pf-card__pricecell {
+  justify-self: end;
+  max-width: 100%;
+}
+/* No price here is a SENTENCE, not a number: it never takes the narrow header column, in
+   any variant. It keeps the price's place in the reading order — first thing under the crop
+   name — but as a full-width row, so it cannot squeeze the name into an overflow. The card
+   renders it inside .pf-card__panel (so a tab never labels an empty region), where it is a
+   flex row; this rule keeps the same result should it ever be placed in the grid again. */
+.pf-card__pricecell--nodata {
+  justify-self: stretch;
+}
+/* The arrow is the whole explanation of the header: crop → the market it is read at. */
+.pf-card__arrow {
+  color: var(--text-3);
+  font-size: var(--fs-h3);
+  line-height: 1;
+}
+.pf-card__title {
+  margin: 0;
+  font-size: var(--fs-h3);
+  line-height: var(--lh-heading);
+  /* Sri Lankan crop names are long single words (Mukunuwenna, Karawila) and the Sinhala and
+     Tamil ones have no spaces to break at either. In a squeezed grid column they must break
+     rather than overflow the card. */
+  overflow-wrap: anywhere;
+}
+/* The one-row header, from 360px of CONTENT width. The container is the padded inner
+   surface, so a card queries 32px narrower than it looks: 360px here is a ~392px card.
+
+   Measured, not guessed (headless-Chrome intrinsic widths of the real markup): the
+   observed-date line is 153px, the tick 44px, the gaps 24px, and the identity side needs
+   126px for a long crop name (Mukunuwenna) or 135px for a two-chip strip — 356px in the
+   worst two-chip case. Below that the price drops to its own row, which is what keeps
+   "Tomato → KAN DEC" on one line at 360px instead of breaking the strip up.
+
+   The identity column carries an 8rem floor so the shrinking happens on the RIGHT: when the
+   card is tight, the price's date line wraps (readable) rather than the crop name breaking
+   mid-word (not readable, and Sinhala and Tamil names have no spaces to break at). */
+@container pf-card (min-width: 360px) {
+  .pf-card__top {
+    grid-template-columns: minmax(8rem, 1fr) auto auto;
+  }
+  .pf-card__pricecell:not(.pf-card__pricecell--nodata) {
+    grid-column: 2 / 3;
+    grid-row: 1;
+    /* Capped against the container, so the number can never take half the header from the
+       crop name. */
+    max-width: min(16rem, 45cqi);
+  }
+  .pf-card__top > .pf-pick {
+    grid-column: 3 / 4;
+  }
+}
+/* Three markets — the backend cap — is the one case that needs more: the strip alone is
+   202px, so the one-row header does not fit until 423px of content. Between 360 and 423 the
+   chips would break 2-then-1 down the card, so those cards keep the stacked header instead.
+   :has() is the only way to say "this card has three chips" in CSS; where it is
+   unsupported, the band renders the broken strip it renders today, which is untidy rather
+   than unusable. */
+@container pf-card (max-width: 423px) {
+  .pf-card__top:has(.pf-mtab-wrap:nth-child(3)) {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .pf-card__top:has(.pf-mtab-wrap:nth-child(3)) .pf-card__pricecell {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    max-width: 100%;
+  }
+  .pf-card__top:has(.pf-mtab-wrap:nth-child(3)) > .pf-pick {
+    grid-column: 2 / 3;
+  }
+}
+/* A ticked card is outlined, not tinted red: ticking is a selection, not a warning. */
+.pf-card--selected .pf-card__inner {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px var(--brand-tint);
+}
+/* Still the crop DETAIL page's market line — the card's own copy of it moved into the
+   "More details" popup. */
 .pf-card__market {
   margin: 0;
   font-size: var(--fs-sm);
@@ -92,18 +213,18 @@
 }
 
 /* ---- Market short codes: tabs (2–3 markets) or one chip -------------------
-   Same visual idiom as the admin Logs tab strip (a rule under the row, the active tab
-   sitting on a brand underline, an explainer that appears on hover/focus) — but its own
-   classes: admin.css never ships to a farmer, and a card tab is a smaller thing than a
-   page tab. The keyboard behaviour IS shared, in lib/tabs.ts.
-   Codes are short and uppercase, so they get letter-spacing and tabular figures rather
-   than a smaller size — three letters at 12px in sunlight are unreadable. */
+   These live INSIDE the card's header row now, immediately after "Beans →", so they are
+   pills rather than the underlined page-tab strip they used to be: a rule spanning the card
+   would have cut the crop name off from its own price. The strip is one flex item, so it
+   either sits beside the name or drops whole to the next line — three chips never break up
+   mid-strip. The keyboard behaviour is unchanged and still shared, in lib/tabs.ts.
+   Codes are short and uppercase, so they get letter-spacing rather than a smaller size —
+   three letters at 12px in sunlight are unreadable. */
 .pf-mtabs {
   display: flex;
   flex-wrap: wrap;
   gap: var(--sp-1);
-  margin: 0 0 var(--sp-1);
-  border-bottom: 1px solid var(--line);
+  margin: 0;
 }
 .pf-mtab-wrap {
   position: relative;
@@ -117,8 +238,9 @@
   justify-content: center;
   min-height: var(--touch-min);
   min-width: var(--touch-min);
-  padding: var(--sp-2) var(--sp-3);
-  border: 0;
+  padding: var(--sp-1) var(--sp-3);
+  border: 2px solid transparent;
+  border-radius: var(--r-pill);
   background: none;
   color: var(--text-2);
   font: inherit;
@@ -127,27 +249,28 @@
   cursor: pointer;
 }
 .pf-mtab {
-  border-bottom: 3px solid transparent;
-  border-radius: var(--r-sm) var(--r-sm) 0 0;
+  border-color: var(--line-strong);
 }
 .pf-mtab:hover {
   background: var(--brand-tint);
 }
 /* The selected tab is NOT signalled by colour alone: aria-selected carries it for assistive
-   tech, and the underline + weight + tint carry it visually. */
+   tech, and visually it is a FILLED pill against outlined ones — shape first, tint second.
+   The border stays 2px in both states so selecting one never nudges the row. */
 .pf-mtab.is-active {
   color: var(--brand-strong);
-  border-bottom-color: var(--brand);
+  border-color: var(--brand);
   background: var(--brand-tint);
 }
 .pf-mtab:focus-visible,
 .pf-mcode:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
-  border-radius: var(--r-sm);
+  border-radius: var(--r-pill);
 }
-/* One market: a chip, not a strip. It reads as a label, so it carries the tint rather than
-   an underline that would imply a second tab is hiding somewhere. */
+/* One market: a chip, not a strip. It selects nothing, so it is filled from the start
+   rather than offering an outline that would imply a second tab is hiding somewhere. Its
+   revealed name wraps to the next line of the header, under the crop name. */
 .pf-mcode-row {
   display: flex;
   flex-wrap: wrap;
@@ -155,8 +278,6 @@
   gap: var(--sp-2);
 }
 .pf-mcode {
-  padding: var(--sp-1) var(--sp-3);
-  border-radius: var(--r-pill);
   background: var(--brand-tint);
   color: var(--brand-strong);
 }
@@ -196,8 +317,9 @@
   visibility: visible;
   opacity: 1;
 }
-/* Touch has no hover, and a tap on a tab SELECTS it — the full name is printed under the
-   strip instead (.pf-card__market), so nothing depends on this tooltip. */
+/* Touch has no hover, and a tap on a tab SELECTS it — a single chip toggles its name
+   inline, and a crop with several markets has its market spelled out in "More details", so
+   nothing depends on this tooltip. */
 @media (hover: none) {
   .pf-mtab-tip {
     display: none;
@@ -266,6 +388,23 @@
   margin: 0;
   color: var(--text-3);
   font-size: var(--fs-sm);
+}
+/* The card header's variant: the number and its date only (the trend has its own full-width
+   line below), stacked tight and end-aligned under the tick. "Rs. 260" and "/kg" close up
+   into one price the eye reads as a unit. Logical properties throughout — the same card has
+   to lay out under a future RTL locale without a second rule. */
+.pf-price--head {
+  gap: 0;
+  text-align: end;
+}
+.pf-price--head .pf-price__value {
+  justify-content: flex-end;
+  gap: 2px;
+}
+/* A sentence, not a number: it takes the price's place in the reading order when there is
+   no price, and it reads from the start edge like every other sentence on the card. */
+.pf-card__pricecell .pf-nodata {
+  text-align: start;
 }
 .pf-price__age {
   color: var(--warn-fg); /* caution, never alarm — and the words say it too */

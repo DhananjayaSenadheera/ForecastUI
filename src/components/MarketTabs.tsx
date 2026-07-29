@@ -1,5 +1,6 @@
-// MarketTabs — the short-code strip that sits on top of a crop card and says WHICH market
-// the numbers below it belong to.
+// MarketTabs — the short-code strip that sits in a crop card's header row, right after the
+// crop name and the arrow ("Beans → DEC"), and says WHICH market the numbers beside and
+// below it belong to.
 //
 // One market: a single chip, no tablist (a tab strip of one is a control that cannot do
 // anything). Two or three: the WAI-ARIA tabs pattern, in wire order — markets[0], the
@@ -10,12 +11,13 @@
 //   • it is the control's ACCESSIBLE NAME ("Kandy (HARTI wholesale) (KAN)"), so a screen
 //     reader never announces three unexplained letters;
 //   • it is a hover/focus tooltip for pointer and keyboard users;
-//   • and the card prints it in plain text under the strip for the SELECTED market, which
-//     is the touch answer — a tap on a tab selects it, so a tap cannot also be "show me
-//     what this means". A farmer who has never seen "KEP" must still be able to read
-//     "Keppetipola" without a mouse.
-// The single chip has no selection job, so there a tap DOES toggle the name inline, the
-// same idiom as the admin ⓘ hint.
+//   • the single chip — which has no selection job — toggles it inline on tap, the same
+//     idiom as the admin ⓘ hint;
+//   • and for a crop with SEVERAL markets, where a tap on a tab selects rather than
+//     explains, "More details" spells the selected market out in plain words. The card
+//     itself no longer prints it (the owner's 2026-07-29 simplification moved that line
+//     into the popup along with readiness and the swing pill), so the popup is now the
+//     touch answer to "what is KEP?" and must keep carrying it.
 //
 // "DEC"/"KEP"/… are display only. Every market is addressed by marketId, and the contract
 // allows an empty shortCode — marketCodeLabel falls back to the full name so the chip is

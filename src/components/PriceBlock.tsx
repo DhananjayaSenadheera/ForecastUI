@@ -20,6 +20,13 @@
 // deliberate while that field has exactly one code ("no_recent_price"): switching on a
 // one-member set buys nothing and would silently drop an unknown future code into a blank
 // space. When a second code appears, branch there — the reason is carried in the types.
+//
+// `part` exists because the simplified crop card puts the NUMBER in its header row (top
+// right, beside the crop name) and the TREND on its own full-width line underneath — two
+// places in one layout, one fact. It splits the render, never the wording: every string,
+// every rounding rule and every honesty branch below is shared by all three surfaces. The
+// alternative — the card assembling its own price line from `market.price` — is how three
+// screens end up saying three different things about one number.
 import { useTranslation } from 'react-i18next';
 import type { PortfolioDashboardMarket } from '../api/types';
 import { formatDate, formatPrice } from '../lib/format';
@@ -30,20 +37,31 @@ import {
   trendLabelKey,
 } from '../lib/portfolio';
 
+/** Which half of the price fact to render.
+ *  - 'all'   — number, observed date and trend together (popup, crop page).
+ *  - 'price' — the number and its observed date, PLUS the "no price here" note, because that
+ *              note is what stands in the number's place when there is none.
+ *  - 'trend' — the trend line alone; nothing at all when there is no price, since the note
+ *              in the price slot has already said so and repeating it is noise. */
+export type PriceBlockPart = 'all' | 'price' | 'trend';
+
 export default function PriceBlock({
   market,
   lang,
   todayYmd,
+  part = 'all',
 }: {
   market: PortfolioDashboardMarket | null;
   lang: string;
   todayYmd: string;
+  part?: PriceBlockPart;
 }) {
   const { t } = useTranslation();
   const rs = t('common.rs');
   const price = market?.price ?? null;
 
   if (!price) {
+    if (part === 'trend') return null;
     // NOT "no recent price": nothing was substituted and nothing went stale — this market
     // has published no usable price for this crop at all. Saying "recent" would invite the
     // farmer to wait for an update that is not late.
@@ -58,8 +76,8 @@ export default function PriceBlock({
   const age = priceAgeDays(price.observedDate, todayYmd);
   const showAge = age !== null && age >= PRICE_AGE_NOTE_DAYS;
 
-  return (
-    <div className="pf-price">
+  const facts = (
+    <>
       <p className="pf-price__value">
         <strong className="pf-price__num">{formatPrice(price.price, lang, rs)}</strong>
         <span className="pf-price__unit">{t('common.perKg')}</span>
@@ -75,26 +93,40 @@ export default function PriceBlock({
           </>
         )}
       </p>
-      {price.direction && price.changePct !== null ? (
-        <p className={`pf-trend pf-trend--${price.direction}`}>
-          <span className="pf-trend__glyph" aria-hidden="true">
-            {trendGlyph[price.direction]}
-          </span>{' '}
-          {t('pages.portfolio.trendLine', {
-            dir: t(trendLabelKey(price.direction)),
-            pct: Math.abs(price.changePct),
-            prev:
-              price.previousPrice !== null ? formatPrice(price.previousPrice, lang, rs) : '—',
-            date:
-              price.previousObservedDate !== null
-                ? formatDate(price.previousObservedDate, lang)
-                : '—',
-          })}
-        </p>
-      ) : (
-        // NOT "steady": there is simply nothing recent enough to compare against.
-        <p className="pf-trend pf-trend--none">{t('pages.portfolio.noTrend')}</p>
-      )}
+    </>
+  );
+
+  // Returned before the trend is built at all: the card asks for the two halves separately,
+  // so the header slot must not construct a line it would throw away on every repaint.
+  if (part === 'price') return <div className="pf-price pf-price--head">{facts}</div>;
+
+  const trend =
+    price.direction && price.changePct !== null ? (
+      <p className={`pf-trend pf-trend--${price.direction}`}>
+        <span className="pf-trend__glyph" aria-hidden="true">
+          {trendGlyph[price.direction]}
+        </span>{' '}
+        {t('pages.portfolio.trendLine', {
+          dir: t(trendLabelKey(price.direction)),
+          pct: Math.abs(price.changePct),
+          prev: price.previousPrice !== null ? formatPrice(price.previousPrice, lang, rs) : '—',
+          date:
+            price.previousObservedDate !== null
+              ? formatDate(price.previousObservedDate, lang)
+              : '—',
+        })}
+      </p>
+    ) : (
+      // NOT "steady": there is simply nothing recent enough to compare against.
+      <p className="pf-trend pf-trend--none">{t('pages.portfolio.noTrend')}</p>
+    );
+
+  if (part === 'trend') return trend;
+
+  return (
+    <div className="pf-price">
+      {facts}
+      {trend}
     </div>
   );
 }

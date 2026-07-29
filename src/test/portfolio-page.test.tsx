@@ -823,6 +823,9 @@ function twoWatchedIds(): WatchlistItem[] {
   return [watched('c1', 'Tomato', ['m1']), watched('c2', 'Beans', ['m1'])];
 }
 
+// The swing pill is read in "More details" now (the 2026-07-29 card simplification), so
+// these open the popup to reach it. What is under test is unchanged: the pill appears only
+// when the series is long enough to support the claim.
 describe('PortfolioPage — price swing is decoration, and honest about thin data', () => {
   it('shows a swing badge once the history is long enough', async () => {
     const flat: PriceHistoryPoint[] = Array.from({ length: 12 }, (_, i) => ({
@@ -832,7 +835,8 @@ describe('PortfolioPage — price swing is decoration, and honest about thin dat
     }));
     mockPage({ items: [tomato()] }, [watched('c1', 'Tomato', ['m1'])], flat);
     renderPage();
-    await screen.findByText('Price movement: steady');
+    fireEvent.click(await screen.findByRole('button', { name: 'More details for Tomato' }));
+    await within(screen.getByRole('dialog')).findByText('Price movement: steady');
   });
 
   it('shows NO swing badge for a thin history (never a comforting "steady")', async () => {
@@ -842,7 +846,8 @@ describe('PortfolioPage — price swing is decoration, and honest about thin dat
     renderPage();
     await screen.findByRole('heading', { name: 'Tomato', level: 3 });
     await waitFor(() => expect(api.getPriceHistory).toHaveBeenCalled());
-    expect(screen.queryByText(/Price movement/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'More details for Tomato' }));
+    expect(within(screen.getByRole('dialog')).queryByText(/Price movement/)).toBeNull();
   });
 
   it('survives a failed history fetch with no error surface (fail-soft decoration)', async () => {
