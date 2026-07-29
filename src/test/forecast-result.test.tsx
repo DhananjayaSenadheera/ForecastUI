@@ -40,6 +40,24 @@ describe('ForecastResult (FE-4)', () => {
     expect(icon.textContent?.trim()).not.toBe('');
   });
 
+  it('resolves the hero icon from the ENGLISH payload name while the label is Sinhala', async () => {
+    // The hero PRINTS `cropLabel` (localized, handed down from the picker) but must RESOLVE
+    // the glyph from the payload's English cropName — two strings from two places, and
+    // picking the wrong one fails silently, because the 🌱 fallback looks like a real icon.
+    // No cropCode on purpose: the code lookup would otherwise mask exactly this bug.
+    await i18n.changeLanguage('si');
+    renderResult({
+      cropLabel: 'තක්කාලි',
+      forecast: { ...fxHarvestForecast, cropName: 'Tomato' },
+    });
+    const icon = document.querySelector('.fc-hero__icon') as HTMLElement;
+    expect(icon).toHaveTextContent('🍅'); // 🌱 here = the localized label leaked into the lookup
+    expect(icon).toHaveAttribute('aria-hidden', 'true');
+    // and the copy is untouched: the farmer still reads the Sinhala name
+    expect(document.querySelector('.fc-hero__cropname')).toHaveTextContent('තක්කාලි');
+    await i18n.changeLanguage('en');
+  });
+
   it('shows a loading skeleton (aria-busy) while the forecast loads', () => {
     renderResult({ loading: true, forecast: null });
     expect(document.querySelector('[aria-busy="true"]')).toBeInTheDocument();

@@ -185,8 +185,12 @@ button {
   --crop-chip-glyph: 28px;
 }
 /* Default 1.1em: in a row of text the glyph should read a shade larger than the
-   name without pushing the line box around. Containers that want a fixed size
-   (a picker tile, a table cell) set --crop-emoji-size and nothing else. */
+   name without pushing the line box around. A surface that wants a fixed size
+   instead puts a second class on the SAME element and sets --crop-emoji-size
+   there — `.cp-card__art` 34px, `.bc-crop__art` 30px, `.fc-hero__icon` 26px,
+   each of them a class sitting alongside `.crop-emoji` on one span. The
+   variable is read off the element's own declarations, so no wrapper is
+   needed to carry it down. */
 .crop-emoji {
   font-size: var(--crop-emoji-size, 1.1em);
   line-height: 1;

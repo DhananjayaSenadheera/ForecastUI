@@ -51,6 +51,23 @@ describe('MyHarvestPage — ?crop= deep-link preselect (FE-7 cross-link)', () =>
     await screen.findByRole('button', { name: 'Beans' });
     expect(screen.queryByRole('button', { pressed: true })).toBeNull();
   });
+
+  it('resolves the summary icon from the ENGLISH name while the label is Sinhala', async () => {
+    // cropIcon's keyword rules are English. This screen shows the LOCALIZED name beside the
+    // glyph, so the two strings come from different places and it is easy to pass the wrong
+    // one — doing so is silent, because the fallback 🌱 is a perfectly valid-looking icon.
+    // Tomato is the right crop to pin it with: its fixture code (VEG000003) is not in the
+    // icon map, so ONLY the English name can produce 🍅 and the code cannot mask the bug.
+    await i18n.changeLanguage('si');
+    renderAt('/my-harvest?crop=c0000003-0000-0000-0000-000000000003'); // Tomato
+
+    await screen.findByRole('button', { name: 'තක්කාලි', pressed: true });
+    const icon = document.querySelector('.hv-summary__icon') as HTMLElement;
+    expect(icon).toHaveTextContent('🍅');
+    expect(icon).toHaveAttribute('aria-hidden', 'true');
+    // the label beside it is still the Sinhala one — the icon did not change the copy
+    expect(document.querySelector('.hv-summary__crop')).toHaveTextContent('තක්කාලි');
+  });
 });
 
 describe('MyHarvestPage — ?date= carries the farmer’s own planting from My crops', () => {

@@ -67,6 +67,24 @@ describe('OverviewPage (FE-1 market overview dashboard)', () => {
     await within(teaser).findByText('Capsicum');
   });
 
+  it('keeps the teaser card’s decorative crop emoji out of the link’s name', async () => {
+    renderOverview();
+    const teaser = await screen.findByLabelText('Best crops to plant now');
+    await within(teaser).findByText('Capsicum');
+
+    // This link has NO aria-label, so its accessible name is computed from its CONTENTS —
+    // the crop, the price and the verdict badge. The emoji leads that content, so if it
+    // ever loses aria-hidden it becomes the first thing announced ("chilli pepper Capsicum
+    // Rs. 552 …"). Anchoring the regex at the start is what catches exactly that.
+    // The card's own link, not the section's "See all" — that one is first in DOM order.
+    const link = teaser.querySelector('.ov-teaser__link') as HTMLElement;
+    expect(link).toHaveAccessibleName(/^Capsicum/);
+    // and the glyph really is rendered — otherwise the assertion above passes vacuously
+    const icon = link.querySelector('.crop-emoji') as HTMLElement;
+    expect(icon.textContent?.trim()).not.toBe('');
+    expect(icon).toHaveAttribute('aria-hidden', 'true');
+  });
+
   it('shows the honest "no market data yet" state when asOf is null', async () => {
     vi.spyOn(api, 'getMarketOverview').mockResolvedValue(EMPTY_OVERVIEW);
     renderOverview();
