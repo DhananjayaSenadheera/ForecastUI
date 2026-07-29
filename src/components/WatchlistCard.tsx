@@ -2,28 +2,37 @@
 // that market pays today, which way it has moved, and the recent price history behind those
 // numbers.
 //
-// SHAPE (the owner's simplified sketch, 2026-07-29) — ONE header row, then the facts:
-//   • "Beans → DEC" on the left: the crop name, an arrow, and the short code(s) of the
-//     market(s) it is watched at. A crop watched at two or three markets turns those codes
-//     into TABS, and selecting one switches everything market-scoped at once — the price,
-//     its observed date, the trend line and the chart. One market means one chip, no tablist;
-//   • the price on the right of that same row, with the day it was observed under it;
-//   • the remove tick at the far edge;
-//   • then the trend line full width, then the chart, then the planting section.
-// What the simplification MOVED (nothing was deleted): the spelled-out market name, the
-// readiness badge and the price-swing pill now live in the "More details" popup, which is
+// SHAPE (the owner's hi-fi mockup, 2026-07-29 — a restyle of the sketch shipped that
+// morning, with the same facts in the same order):
+//   • HEADER: the crop's emoji in a round chip, "Beans → DEC" beside it — the name, an
+//     arrow, and the short code(s) of the market(s) it is watched at — and a BOOKMARK at
+//     the far edge. A crop watched at two or three markets turns those codes into TABS, and
+//     selecting one switches everything market-scoped at once: the price, its observed
+//     date, the trend and the chart. One market means one chip, no tablist;
+//   • PRICE ROW: the number large on the left with the day it was observed under it, and
+//     the movement as a tinted badge on the right;
+//   • the CHART in its own inset panel, with a 1M/3M range chooser in its title row;
+//   • the PLANTING section — the date, the forecast that follows from it, and the two
+//     full-width buttons the card ends on.
+// The BOOKMARK is the removal tick in different clothes and nothing else: a real, focusable
+// <input type="checkbox"> with the same crop-specific accessible name, visually replaced by
+// an outline/filled bookmark. The page's "remove selected" flow, its confirm and its focus
+// routing are untouched — a farmer who has learned that ticking a card queues it for
+// removal has learned this too.
+// What the earlier simplification MOVED (nothing was deleted): the spelled-out market name,
+// the readiness badge and the price-swing pill live in the "More details" popup, which is
 // the surface for reading about a crop rather than scanning a list of them.
 //
 // The header is a two-or-three column grid rather than a flex row. The price cell sits
 // OUTSIDE the market tabpanel in that grid, which is worth stating plainly because it looks
-// wrong: the number a tab changes is not inside the panel that tab labels. It shares row 1
-// with the tablist, which cannot be nested inside the panel it controls, and a grid item is
-// a rectangle — so the price is tab-governed state rendered beside the panel, and both it
-// and the panel's contents are resolved from ONE selectedMarketFor() call. That single seam,
-// not the nesting, is what makes it impossible for the price and the chart to disagree.
+// wrong: the number a tab changes is not inside the panel that tab labels. The tablist
+// cannot be nested inside the panel it controls, and a grid item is a rectangle — so the
+// price is tab-governed state rendered beside the panel, and both it and the panel's
+// contents are resolved from ONE selectedMarketFor() call. That single seam, not the
+// nesting, is what makes it impossible for the price and the chart to disagree.
 // At narrow widths (a 360px phone, one card per screen) the price drops to its own row under
-// the name, end-aligned — a deliberate break, so a long crop name and three chips can never
-// squeeze the number.
+// the name — a deliberate break, so a long crop name and three chips can never squeeze the
+// number.
 //
 // STEP 7 added the two things that make the card a place to MANAGE a crop rather than only
 // read one:
@@ -44,13 +53,17 @@
 //  - The chart is drawn for the SELECTED market and nothing else. A Kandy series under a
 //    Dambulla price would quietly contradict the number; every market-scoped thing on the
 //    card therefore resolves its market through one function, selectedMarketFor().
-//  - Nothing here is red. Red is reserved app-wide for the "Not recommended" verdict — the
-//    remove flow's own confirm button is the single deliberate exception (it destroys data).
+//  - The 1M/3M control is a ZOOM on data the card already has, never a different question:
+//    no request, no reload, and the price above it does not move when the window changes.
+//  - Nothing here is red except the two controls that DESTROY something: the remove flow's
+//    confirm button and "Remove date". Red is otherwise reserved app-wide for the "Not
+//    recommended" verdict — a falling price gets amber, which is caution, not failure.
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import type { PortfolioDashboardItem, PriceHistoryPoint } from '../api/types';
-import { selectedMarketFor } from '../lib/portfolio';
+import { cropIcon } from '../lib/cropIcons';
+import { selectedMarketFor, sliceHistoryByRange, type ChartRange } from '../lib/portfolio';
 import { classifyPriceSwing } from '../lib/priceSwing';
 import type { CropReadinessStatus } from '../lib/readiness';
 import CropDetailsDialog from './CropDetailsDialog';
@@ -125,6 +138,7 @@ export default function WatchlistCard({
 }: WatchlistCardProps) {
   const { t } = useTranslation();
   const titleId = `pf-crop-${item.cropId}`;
+  const rangeId = `pf-range-${item.cropId}`;
 
   // Null = "the farmer has not chosen a tab", which resolves to markets[0] — the oldest
   // chosen, exactly what the wire leads with. A selection naming a market this crop no
@@ -157,12 +171,33 @@ export default function WatchlistCard({
   );
   const [detailsOpen, setDetailsOpen] = useState(false);
 
-  // ONE definition, two homes: the price rides in the header row, the "no price here" note
-  // rides inside the market panel (see the placement comments below). Written once so the
-  // two cases cannot drift into two differently-worded answers.
+  // How much of the fetched series the chart draws. State, not a request: the card has the
+  // whole history already, so switching windows costs nothing and cannot fail. It is
+  // per-card and NOT per-market on purpose — "show me the last month" is a habit of
+  // reading, not a fact about Kandy, so it survives a tab switch.
+  const [range, setRange] = useState<ChartRange>('3m');
+  const shownHistory = history === null ? null : sliceHistoryByRange(history, range);
+
+  // ONE definition, two homes: the price rides in its own header row, the "no price here"
+  // note rides inside the market panel (see the placement comments below). Written once so
+  // the two cases cannot drift into two differently-worded answers.
+  //
+  // The trend badge is part of this cell rather than a separate row: the movement is the
+  // price's second half ("Rs. 263, down 18% from Rs. 320"), and the two must never be able
+  // to describe different markets or different days. PriceBlock renders both halves from
+  // one `market`, and the badge returns nothing at all when there is no price — so the
+  // no-price case is one sentence in one cell, exactly as before.
   const priceCell = (
     <div className={`pf-card__pricecell${hasPrice ? '' : ' pf-card__pricecell--nodata'}`}>
-      <PriceBlock market={market} lang={lang} todayYmd={todayYmd} part="price" />
+      <PriceBlock
+        market={market}
+        lang={lang}
+        todayYmd={todayYmd}
+        part="price"
+        hintId={`pf-card-${item.cropId}`}
+        hintCrop={item.cropName}
+      />
+      <PriceBlock market={market} lang={lang} todayYmd={todayYmd} part="trend" trendStyle="badge" />
     </div>
   );
 
@@ -174,6 +209,13 @@ export default function WatchlistCard({
             full-width row beneath them and lays its own contents out in a column. */}
         <div className="pf-card__top">
           <header className="pf-card__ident">
+            {/* DECORATION, and deliberately so: the emoji is aria-hidden and never joins
+                any accessible name, because a screen-reader user gains nothing from
+                "aubergine Brinjal". It is here for the farmer scanning ten cards at arm's
+                length in daylight, who finds their crop by shape before they read it. */}
+            <span className="pf-card__icon" aria-hidden="true">
+              {cropIcon({ cropCode: item.cropCode, cropName: item.cropName })}
+            </span>
             <h3 className="pf-card__title" id={titleId}>
               {item.cropName}
             </h3>
@@ -184,7 +226,6 @@ export default function WatchlistCard({
                 →
               </span>
             )}
-            
             <MarketTabs
               cropId={item.cropId}
               cropName={item.cropName}
@@ -194,30 +235,34 @@ export default function WatchlistCard({
             />
           </header>
 
-          {/* The tick is a real checkbox with a crop-specific accessible name, so a list of
-              ten of them is never ten controls called "Select". It comes before the price
-              and the panel in the DOM and it sits in the header row in both layout
-              variants, so it is never reached after the chart. (In the wide variant the eye
-              reads name → price → tick while the DOM runs name → tick → price; the price is
-              not focusable, so the focus order still matches the visual order of the
-              controls.) */}
+          {/* The BOOKMARK is a checkbox wearing a different picture. The control is a real
+              <input type="checkbox"> with its crop-specific accessible name — so a list of
+              ten of them is never ten controls called "Select", and the keyboard, the
+              screen reader, the form semantics and the page's remove-selected flow are all
+              exactly what they were. Only the paint changed: the box is moved off-screen
+              (never display:none, which would take it out of the tab order) and the SVG
+              beside it is filled when checked and outlined when not — shape first, so the
+              state does not depend on colour.
+              It comes before the price and the panel in the DOM and sits in the header row
+              in both layout variants, so it is never reached after the chart. */}
           <label className="pf-pick">
             <input
               type="checkbox"
-              className="pf-pick__box"
+              className="pf-pick__box sr-only"
               checked={selected}
               onChange={() => onToggleSelect(item.cropId)}
               aria-label={t('pages.portfolio.selectCropAria', { crop: item.cropName })}
             />
+            <span className="pf-pick__mark" aria-hidden="true">
+              <BookmarkIcon filled={selected} />
+            </span>
           </label>
-          
 
-          {/* A PRICE sits top right of the header row, outside the tabpanel on purpose: it
-              shares its row with the tablist, which cannot live inside the panel it
-              controls, and a grid item is a rectangle. What keeps it honest is not the
-              nesting but the seam — this block, the trend and the chart all read `market`,
-              one selectedMarketFor() resolution, so the tab cannot move one of them without
-              moving the others.
+          {/* The PRICE ROW sits outside the tabpanel on purpose: the tablist above it
+              cannot live inside the panel it controls, and a grid item is a rectangle. What
+              keeps it honest is not the nesting but the seam — this block, the badge inside
+              it and the chart below all read `market`, one selectedMarketFor() resolution,
+              so the tab cannot move one of them without moving the others.
               The NO-PRICE note is the same block in the same place in the reading order,
               rendered inside the panel instead. It has to be full width either way (a
               sentence in a header column crushes the crop name), and the two positions are
@@ -239,7 +284,6 @@ export default function WatchlistCard({
                 }
               : {})}
           >
-            <hr className="pf-card__rule" />
             {!hasPrice && priceCell}
 
             {/* Load-bearing honesty, not clutter: this crop has no market of the farmer's
@@ -248,23 +292,40 @@ export default function WatchlistCard({
               <p className="pf-card__market-note">{t('pages.portfolio.defaultMarketNote')}</p>
             )}
 
-            {/* Full width under the header. Same component, same words as the popup and the
-                crop page — only the position differs. */}
-            <PriceBlock market={market} lang={lang} todayYmd={todayYmd} part="trend" />
-
             {chartMarketId && (
               <div className="pf-card__chart">
-                {history === null ? (
+                {shownHistory === null ? (
                   <div className="pf-skel pf-skel--chart" aria-busy="true">
                     <span className="sr-only">{t('common.loading')}</span>
                   </div>
                 ) : (
                   <PriceLineChart
-                    history={history}
+                    history={shownHistory}
                     cropLabel={item.cropName}
                     marketName={market?.name ?? ''}
                     lang={lang}
+                    // The card is a scanning surface and the table is one tap away in
+                    // "More details"; the chart's own summary sentence changes with this
+                    // so it never promises a table that is not there.
                     hideTable
+                    showUnitLabel
+                    headerExtra={
+                      <label className="pf-range" htmlFor={rangeId}>
+                        <span className="sr-only">{t('pages.portfolio.rangeLabel')}</span>
+                        {/* A native <select>: the phone's own picker, two options, no
+                            invented widget to learn. It re-slices data the card already
+                            holds — nothing is fetched and the price above cannot move. */}
+                        <select
+                          id={rangeId}
+                          className="pf-range__select"
+                          value={range}
+                          onChange={(e) => setRange(e.target.value as ChartRange)}
+                        >
+                          <option value="1m">{t('pages.portfolio.range1m')}</option>
+                          <option value="3m">{t('pages.portfolio.range3m')}</option>
+                        </select>
+                      </label>
+                    }
                   />
                 )}
               </div>
@@ -283,20 +344,27 @@ export default function WatchlistCard({
           onSave={onSavePlantedDate}
           busy={busy}
           idPrefix="card"
+          forecastLayout="split"
         />
 
         <p className="pf-card__more">
           {/* A button, not a link: it opens a dialog on this page rather than going
               somewhere, and aria-haspopup says so before it is pressed. Focus returns here
-              when the dialog closes (the shared dialog behaviour captures the opener). */}
+              when the dialog closes (the shared dialog behaviour captures the opener).
+              It is the SECOND action on the card — outlined, under the primary "See the
+              full forecast" — because a farmer who has a forecast to read should read it,
+              and everything in here is detail about it. */}
           <button
             type="button"
-            className="pf-card__link pf-card__more-btn"
+            className="pf-btn pf-btn--ghost"
             aria-haspopup="dialog"
             aria-label={t('pages.portfolio.moreDetailsAria', { crop: item.cropName })}
             onClick={() => setDetailsOpen(true)}
           >
             {t('pages.portfolio.moreDetails')}
+            <span className="pf-btn__chev" aria-hidden="true">
+              {' →'}
+            </span>
           </button>
         </p>
       </article>
@@ -321,5 +389,28 @@ export default function WatchlistCard({
         />
       )}
     </li>
+  );
+}
+
+/** The bookmark the removal tick wears. Filled when the card is ticked, outlined when it is
+ *  not — a shape difference, so the state survives greyscale and sunlight. Decorative: the
+ *  checkbox beside it carries the name and the state for assistive tech. */
+function BookmarkIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg
+      className="pf-pick__icon"
+      viewBox="0 0 24 24"
+      width="24"
+      height="24"
+      fill={filled ? 'currentColor' : 'none'}
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4.2L5 21V4a1 1 0 0 1 1-1Z" />
+    </svg>
   );
 }

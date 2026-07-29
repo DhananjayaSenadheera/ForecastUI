@@ -225,10 +225,14 @@ describe('The planting date — the forecast it anchors', () => {
     await waitFor(() => expect(api.getHarvestForecast).toHaveBeenCalledWith('c1', PLANTED));
     expect(await screen.findByText('Planted on ' + formatDate(PLANTED, 'en'))).toBeInTheDocument();
     // The number is the harvest route's, NOT the nightly snapshot's (Rs. 999 in the fixture).
+    // On the card the sentence is what assistive tech hears — the visible "About / Rs. 240 /
+    // at harvest" is that same sentence laid out for the eye — so it is asserted whole.
     expect(screen.getByText('About Rs. 240 at harvest')).toBeInTheDocument();
     expect(screen.queryByText(/Rs\. 999/)).toBeNull();
-    // A band is a band, and it says when the crop is ready.
-    expect(screen.getByText(/Likely price range: Rs\. 190 – 300/)).toBeInTheDocument();
+    // A band is a band (label over value in the card's split block), and it says when the
+    // crop is ready.
+    expect(screen.getByText('Likely price range')).toBeInTheDocument();
+    expect(screen.getByText('Rs. 190 – 300')).toBeInTheDocument();
     expect(
       screen.getByText('Harvest around ' + formatDate('2026-08-12', 'en')),
     ).toBeInTheDocument();
@@ -549,6 +553,61 @@ describe('"More details" — the popup', () => {
     // Opening the popup costs no round trip — neither the forecast nor the chart series.
     expect(api.getHarvestForecast).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(api.getPriceHistory).toHaveBeenCalledTimes(1));
+  });
+
+  it('keeps the popup on the STACKED forecast the crop page shows, not the card’s split', async () => {
+    // PlantedDateSection takes the layout as a prop and defaults to 'lines'. Nothing else
+    // pins that default, so flipping it would silently convert the popup — and the crop
+    // page's own reading of the same block — to a card layout nobody asked for. The two
+    // shapes are told apart by the band: label-and-value on one line here, stacked on the
+    // card.
+    renderCard(tomato({ plantedDate: PLANTED }));
+    await screen.findByText('About Rs. 240 at harvest');
+    fireEvent.click(screen.getByRole('button', { name: 'More details for Tomato' }));
+
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText(/Likely price range: Rs\. 190 – 300/)).toBeInTheDocument();
+    expect(dialog.querySelector('.pf-pred--split')).toBeNull();
+    // ...and the card behind it is still the split one.
+    expect(document.querySelector('.pf-card__inner .pf-pred--split')).not.toBeNull();
+  });
+
+  it('says the forecast number ONCE to a screen reader, whatever the card shows', async () => {
+    // The split block prints "About", the number and "at harvest" as three visible
+    // fragments and carries the whole sentence in an sr-only span. Dropping aria-hidden
+    // from the fragments would make a screen reader read the forecast twice, in two
+    // different word orders.
+    renderCard(tomato({ plantedDate: PLANTED }));
+    const sentence = await screen.findByText('About Rs. 240 at harvest');
+    expect(sentence).toHaveClass('sr-only');
+
+    const card = document.querySelector('.pf-card__inner') as HTMLElement;
+    expect(card.querySelector('.pf-pred__big')).toHaveAttribute('aria-hidden', 'true');
+    expect(card.querySelectorAll('.pf-pred__cap')).toHaveLength(2);
+    card.querySelectorAll('.pf-pred__cap').forEach((cap) => {
+      expect(cap).toHaveAttribute('aria-hidden', 'true');
+    });
+    // The number appears once as a fragment and once inside the hidden sentence, and only
+    // the sentence is announced.
+    expect(card.querySelector('.pf-pred__big')).toHaveTextContent('Rs. 240');
+  });
+
+  it('names the confidence ⓘ for its crop — ten cards, ten distinguishable buttons', async () => {
+    renderCard(tomato({ plantedDate: PLANTED }));
+    await screen.findByText('About Rs. 240 at harvest');
+
+    const hint = screen.getByRole('button', { name: 'What does confidence mean for Tomato?' });
+    expect(screen.queryByRole('button', { name: 'What is this?' })).toBeNull();
+    // The word it explains is on screen with the hint closed; the ⓘ only adds to it.
+    expect(screen.getByText(/Confidence: Good/)).toBeInTheDocument();
+
+    fireEvent.click(hint);
+    // The copy covers every confidence word the wire can send (Good / Fair / Low), not just
+    // the one this crop happens to have.
+    const note = screen.getAllByText(/How far this forecast can be trusted/)[0];
+    for (const word of ['Good', 'Fair', 'Low']) {
+      expect(note.textContent).toContain(word);
+    }
   });
 
   it('carries the planting affordance when there is no date yet', async () => {

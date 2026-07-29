@@ -75,6 +75,30 @@ function history(base: number): PriceHistoryPoint[] {
   }));
 }
 
+/** Half a year of daily points, so the card's 1M/3M zoom really has something to cut. */
+function longHistory(): PriceHistoryPoint[] {
+  return Array.from({ length: 180 }, (_, i) => {
+    const d = new Date(Date.UTC(2026, 0, 30));
+    d.setUTCDate(d.getUTCDate() + i);
+    return { date: d.toISOString().slice(0, 10), minPrice: 200 + (i % 20), maxPrice: 240 + (i % 20) };
+  });
+}
+
+/**
+ * A series that says two DIFFERENT things depending on how much of it you read: 150 wild
+ * days (CV well over 0.2 -> "moves a lot") followed by 30 flat ones (CV 0 -> "steady").
+ * It exists so a test can prove which series the swing claim is computed from.
+ */
+function wildThenFlatHistory(): PriceHistoryPoint[] {
+  return Array.from({ length: 180 }, (_, i) => {
+    const d = new Date(Date.UTC(2026, 0, 30));
+    d.setUTCDate(d.getUTCDate() + i);
+    const wild = i % 2 === 0 ? 140 : 290;
+    const value = i < 150 ? wild : 250;
+    return { date: d.toISOString().slice(0, 10), minPrice: value - 10, maxPrice: value + 10 };
+  });
+}
+
 // Two series with deliberately DIFFERENT swing levels, so a test can prove the pill follows
 // the tab rather than merely happening to be there: Kandy's midpoint never moves (CV 0 ->
 // "steady"), Dambulla's zig-zags between 150 and 300 (CV ~0.35 -> "moves a lot").
@@ -302,19 +326,19 @@ describe('WatchlistCard — a tab switch moves the WHOLE market-scoped block', (
   });
 
   it('moves price, trend and chart from ONE market resolution, panel or no panel', async () => {
-    // The price cell is rendered OUTSIDE the tabpanel (it shares row 1 with the tablist,
-    // which cannot be nested inside the panel it controls), so nesting is not what keeps it
-    // honest — the single selectedMarketFor() seam is. This pins the property that seam
-    // exists for: one tab press moves all three, and no two of them can name different
+    // The price row is rendered OUTSIDE the tabpanel (the tablist above it cannot be nested
+    // inside the panel it controls, and a grid item is a rectangle), so nesting is not what
+    // keeps it honest — the single selectedMarketFor() seam is. This pins the property that
+    // seam exists for: one tab press moves all three, and no two of them can name different
     // markets.
     renderCard(tomato());
 
     const panel = await screen.findByRole('tabpanel');
     const priceCell = document.querySelector('.pf-card__pricecell') as HTMLElement;
-    // The price is deliberately not inside the panel; the trend and the chart are.
+    // The price and its movement are one cell outside the panel; the chart is inside it.
     expect(panel.contains(priceCell)).toBe(false);
     expect(within(priceCell).getByText('Rs. 260')).toBeInTheDocument();
-    expect(within(panel).getByText(/Down 3\.1% from Rs\. 268/)).toBeInTheDocument();
+    expect(within(priceCell).getByText(/Down 3\.1% from Rs\. 268/)).toBeInTheDocument();
     await within(panel).findAllByText('Daily price — Tomato at Kandy (HARTI wholesale)');
     // ...and the crop name, which does NOT change with the tab, is in neither.
     expect(within(panel).queryByRole('heading', { name: 'Tomato' })).toBeNull();
@@ -323,28 +347,33 @@ describe('WatchlistCard — a tab switch moves the WHOLE market-scoped block', (
 
     await within(priceCell).findByText('Rs. 210');
     expect(within(priceCell).queryByText('Rs. 260')).toBeNull();
-    expect(within(panel).getByText(/Up 4\.2% from Rs\. 201/)).toBeInTheDocument();
-    expect(within(panel).queryByText(/Down 3\.1%/)).toBeNull();
+    expect(within(priceCell).getByText(/Up 4\.2% from Rs\. 201/)).toBeInTheDocument();
+    expect(within(priceCell).queryByText(/Down 3\.1%/)).toBeNull();
     await within(panel).findAllByText('Daily price — Tomato at Dambulla Dedicated Economic Centre');
     expect(
       within(panel).queryAllByText('Daily price — Tomato at Kandy (HARTI wholesale)'),
     ).toHaveLength(0);
   });
 
-  it('puts the number in the header slot and the trend in the panel — not the reverse', async () => {
+  it('keeps the number and its movement in ONE price row, and the chart out of it', async () => {
     // Pinned on the TWO-market path, where the tabs actually live: swapping PriceBlock's
-    // `part` branches must fail here, not only on the single-market card.
+    // `part` branches must fail here, not only on the single-market card. The 2026-07-29
+    // mockup moved the trend up beside the price (it is the price's second half — "Rs. 260,
+    // down 3.1% from Rs. 268") and left the chart alone in the panel.
     renderCard(tomato());
 
     const priceCell = (await screen.findByText('Rs. 260')).closest(
       '.pf-card__pricecell',
     ) as HTMLElement;
     expect(within(priceCell).getByText('Price from Jul 26, 2026')).toBeInTheDocument();
-    expect(within(priceCell).queryByText(/Down 3\.1%/)).toBeNull();
-
-    const trend = screen.getByText(/Down 3\.1% from Rs\. 268/);
-    expect(trend.closest('.pf-card__pricecell')).toBeNull();
-    expect(trend.closest('.pf-card__panel')).not.toBeNull();
+    expect(within(priceCell).getByText(/Down 3\.1%/)).toBeInTheDocument();
+    // The chart is NOT in the price row — it is the panel the tab labels.
+    expect(priceCell.querySelector('.pf-card__chart')).toBeNull();
+    expect(
+      (await screen.findAllByText('Daily price — Tomato at Kandy (HARTI wholesale)'))[0].closest(
+        '.pf-card__panel',
+      ),
+    ).not.toBeNull();
   });
 
   it('never labels an EMPTY tabpanel: the no-price note goes inside the region', async () => {
@@ -366,14 +395,15 @@ describe('WatchlistCard — a tab switch moves the WHOLE market-scoped block', (
     // Nothing was duplicated into the header row on the way.
     expect(document.querySelectorAll('.pf-card__pricecell')).toHaveLength(1);
 
-    // Switching to a market that HAS one restores the split: number outside the panel,
-    // trend and chart inside it.
+    // Switching to a market that HAS one restores the split: price row outside the panel,
+    // chart inside it.
     fireEvent.click(screen.getByRole('tab', { name: 'Dambulla Dedicated Economic Centre (DEC)' }));
     await screen.findByText('Rs. 210');
     const priceCell = document.querySelector('.pf-card__pricecell') as HTMLElement;
     expect(panel.contains(priceCell)).toBe(false);
-    expect(within(panel).getByText(/Up 4\.2% from Rs\. 201/)).toBeInTheDocument();
+    expect(within(priceCell).getByText(/Up 4\.2% from Rs\. 201/)).toBeInTheDocument();
     expect(within(panel).queryByText('No price data for this market yet.')).toBeNull();
+    expect(within(panel).queryByText(/Up 4\.2%/)).toBeNull();
   });
 
   it('keeps the remove tick in the header, before the price and outside the tabpanel', async () => {
@@ -451,11 +481,227 @@ describe('WatchlistCard — a tab switch moves the WHOLE market-scoped block', (
     expect(api.getPriceHistory).toHaveBeenCalledTimes(2);
   });
 
-  it('keeps the chart’s table alternative — the numbers are the product', async () => {
+  it('drops the table on the CARD, keeps it in the popup, and promises nothing it lacks', async () => {
+    // The owner's call, and the only surface it holds on: a card is scanned, and the same
+    // table is one tap away in "More details". What must NOT happen is the chart's own
+    // summary still ending "Full numbers in the table below" beside no table — that
+    // sentence is read by exactly the people who cannot see the chart.
     renderCard(tomato());
     const panel = await screen.findByRole('tabpanel');
-    expect(within(panel).getByText('View as table')).toBeNull();
-    expect(panel.querySelector('.pr-svg')).toHaveAttribute('aria-label');
+    expect(within(panel).queryByText('View as table')).toBeNull();
+
+    const svg = panel.querySelector('.pr-svg') as SVGElement;
+    const summary = svg.getAttribute('aria-label') ?? '';
+    expect(summary).toMatch(/Daily low–high price for Tomato at Kandy \(HARTI wholesale\)/);
+    expect(summary).not.toMatch(/table below/);
+
+    // The popup — the reading surface — still carries the numbers themselves.
+    fireEvent.click(screen.getByRole('button', { name: 'More details for Tomato' }));
+    const dialog = screen.getByRole('dialog');
+    expect(await within(dialog).findByText('View as table')).toBeInTheDocument();
+    expect(within(dialog).getByRole('img')).toHaveAttribute(
+      'aria-label',
+      expect.stringContaining('table below'),
+    );
+  });
+
+  it('zooms the chart to 1M / 3M without asking the server anything', async () => {
+    // The control is a ZOOM on data already downloaded: no request, and the price above it
+    // does not move. A farmer on a rural connection pays nothing to look closer.
+    vi.spyOn(api, 'getPriceHistory').mockResolvedValue(longHistory());
+    renderCard(tomato({ markets: [DAMBULLA] }));
+
+    const days = () =>
+      Number(
+        /: (\d+) days/.exec(document.querySelector('.pr-svg')?.getAttribute('aria-label') ?? '')?.[1],
+      );
+    await waitFor(() => expect(days()).toBe(91)); // 3 months, the default
+    expect(api.getPriceHistory).toHaveBeenCalledTimes(1);
+
+    const select = screen.getByLabelText('How much price history to show');
+    expect(select).toHaveValue('3m');
+    fireEvent.change(select, { target: { value: '1m' } });
+
+    await waitFor(() => expect(days()).toBe(31));
+    // Nothing was fetched, and the number the card is about is untouched.
+    expect(api.getPriceHistory).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Rs. 210')).toBeInTheDocument();
+  });
+
+  it('computes the swing from the WHOLE series, never from the zoomed window', async () => {
+    // The zoom is a way of LOOKING at the series; it is not a different question, and the
+    // claims made about the crop must not quietly change with it. This series is wild for
+    // five months and flat for the last one, so a swing computed from the 1M slice would
+    // read "steady" — a fabricated reassurance about a crop that swings between Rs. 140 and
+    // Rs. 290. (The mutation passes the whole suite without this test.)
+    vi.spyOn(api, 'getPriceHistory').mockResolvedValue(wildThenFlatHistory());
+    renderCard(tomato({ markets: [DAMBULLA] }));
+
+    const select = await screen.findByLabelText('How much price history to show');
+    fireEvent.change(select, { target: { value: '1m' } });
+    await waitFor(() =>
+      expect(document.querySelector('.pr-svg')?.getAttribute('aria-label')).toMatch(/: 31 days/),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'More details for Tomato' }));
+    const dialog = screen.getByRole('dialog');
+    expect(await within(dialog).findByText('Price movement: moves a lot')).toBeInTheDocument();
+    expect(within(dialog).queryByText('Price movement: steady')).toBeNull();
+  });
+
+  it('keeps the chosen window when the market tab changes', async () => {
+    // "Show me the last month" is a habit of reading, not a fact about Kandy.
+    vi.spyOn(api, 'getPriceHistory').mockResolvedValue(longHistory());
+    renderCard(tomato());
+
+    const select = await screen.findByLabelText('How much price history to show');
+    fireEvent.change(select, { target: { value: '1m' } });
+    fireEvent.click(screen.getByRole('tab', { name: 'Dambulla Dedicated Economic Centre (DEC)' }));
+
+    await screen.findAllByText('Daily price — Tomato at Dambulla Dedicated Economic Centre');
+    expect(screen.getByLabelText('How much price history to show')).toHaveValue('1m');
+  });
+});
+
+describe('WatchlistCard — the header the 2026-07-29 mockup asked for', () => {
+  it('is still a CHECKBOX behind the bookmark: same name, same toggle, same page flow', async () => {
+    // The bookmark is paint. Everything a farmer, a keyboard or a screen reader relies on —
+    // the role, the crop-specific name, the checked state, the page's remove-selected
+    // machinery — is the checkbox that was always there.
+    const onToggleSelect = vi.fn();
+    renderCard(tomato(), onToggleSelect);
+
+    const box = await screen.findByRole('checkbox', { name: 'Tick Tomato to remove it' });
+    expect(box).toHaveProperty('type', 'checkbox');
+    expect(box).not.toBeChecked();
+    // Hidden from the eye, NEVER from the keyboard: display:none would drop it out of the
+    // tab order and strand a keyboard user.
+    expect(box.className).toContain('sr-only');
+    fireEvent.click(box);
+    expect(onToggleSelect).toHaveBeenCalledWith('c1');
+
+    // The visual is decoration and says so.
+    const mark = document.querySelector('.pf-pick__mark') as HTMLElement;
+    expect(mark).toHaveAttribute('aria-hidden', 'true');
+    expect(mark.querySelector('svg')).toHaveAttribute('fill', 'none'); // outline when unticked
+  });
+
+  it('fills the bookmark when the card is ticked — a shape change, not only a colour', async () => {
+    render(
+      <MemoryRouter>
+        <ul>
+          <WatchlistCard
+            item={tomato()}
+            readiness={null}
+            lang="en"
+            todayYmd="2026-07-28"
+            selected
+            onToggleSelect={vi.fn()}
+            onSavePlantedDate={vi.fn(async () => null)}
+            busy={false}
+          />
+        </ul>
+      </MemoryRouter>,
+    );
+    // Let the card's own history fetch settle before asserting, so the paint under test is
+    // the settled one (and no state update lands outside act()).
+    await screen.findAllByText('Rs. 260');
+    expect(screen.getByRole('checkbox', { name: 'Tick Tomato to remove it' })).toBeChecked();
+    expect(document.querySelector('.pf-pick__mark svg')).toHaveAttribute('fill', 'currentColor');
+  });
+
+  it('leads with the crop’s icon, and hides it from the accessibility tree', async () => {
+    renderCard(tomato({ cropName: 'Brinjal', cropCode: 'VEG000012' }));
+
+    const icon = document.querySelector('.pf-card__icon') as HTMLElement;
+    expect(icon).toHaveTextContent('🍆');
+    // Decoration only: "aubergine Brinjal" is not a crop name, and the heading beside it
+    // already says everything.
+    expect(icon).toHaveAttribute('aria-hidden', 'true');
+    expect(await screen.findByRole('heading', { level: 3 })).toHaveAccessibleName('Brinjal');
+  });
+
+  it('tints the trend badge by DIRECTION — green up, amber down, never red', async () => {
+    renderCard(tomato({ markets: [DAMBULLA] })); // up 4.2%
+    await screen.findByText('Rs. 210');
+    expect(document.querySelector('.pf-trendbadge')).toHaveClass('pf-trendbadge--up');
+
+    renderCard(tomato({ markets: [KANDY] })); // down 3.1%
+    await screen.findAllByText('Rs. 260');
+    const badges = document.querySelectorAll('.pf-trendbadge');
+    expect(badges[badges.length - 1]).toHaveClass('pf-trendbadge--down');
+  });
+
+  it('says the movement in ONE sentence for assistive tech, whatever the badge shows', async () => {
+    // The badge splits the fact in two for the eye ("↓ 3.1%" over "Down from Rs. 268 on
+    // Jul 22, 2026"). A screen reader hears the SAME sentence the popup and the crop page
+    // print, and hears it once — the visible halves are aria-hidden.
+    renderCard(tomato({ markets: [KANDY] }));
+    const sr = await screen.findByText('Down 3.1% from Rs. 268 on Jul 22, 2026');
+    expect(sr).toHaveClass('sr-only');
+    expect(document.querySelector('.pf-trendbadge__pct')).toHaveAttribute('aria-hidden', 'true');
+    expect(document.querySelector('.pf-trendbadge__from')).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('shows NO badge when there is nothing to compare with — an absence is not a movement', async () => {
+    renderCard(
+      tomato({
+        markets: [
+          {
+            ...DAMBULLA,
+            price: {
+              ...DAMBULLA.price!,
+              direction: null,
+              changePct: null,
+              previousPrice: null,
+              previousObservedDate: null,
+            },
+          },
+        ],
+      }),
+    );
+
+    await screen.findByText('Rs. 210');
+    expect(screen.getByText('No earlier price to compare with.')).toBeInTheDocument();
+    expect(document.querySelector('.pf-trendbadge')).toBeNull();
+  });
+
+  it('explains the price date with a ⓘ that says WHICH crop it is about', async () => {
+    // A page of ten cards carries up to twenty of these buttons. Named "What is this?" they
+    // would give a screen-reader user twenty identical entries in the controls list — the
+    // same failure the removal tick is named per crop to avoid.
+    renderCard(tomato({ markets: [DAMBULLA] }));
+
+    const hint = await screen.findByRole('button', {
+      name: 'What does the price date mean for Tomato?',
+    });
+    expect(screen.queryByRole('button', { name: 'What is this?' })).toBeNull();
+    expect(hint).toHaveAttribute('aria-expanded', 'false');
+    // The fact reads perfectly with the hint closed — the ⓘ adds, it does not carry.
+    expect(screen.getByText('Price from Jul 25, 2026')).toBeInTheDocument();
+
+    fireEvent.click(hint);
+    expect(hint).toHaveAttribute('aria-expanded', 'true');
+    expect(
+      screen.getAllByText(/newest price this market has reported/).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it('keeps the range chooser when the chart comes back EMPTY — never a room with no door', async () => {
+    // An empty state must not remove its own exit: if a window ever resolved to nothing,
+    // dropping the chooser with the chart would strand the farmer in the empty view.
+    vi.spyOn(api, 'getPriceHistory').mockResolvedValue([]);
+    renderCard(tomato({ markets: [DAMBULLA] }));
+
+    await screen.findByText('No recent price data for this crop at this market yet.');
+    const select = screen.getByLabelText('How much price history to show');
+    expect(select).toBeInTheDocument();
+    fireEvent.change(select, { target: { value: '1m' } });
+    expect(screen.getByLabelText('How much price history to show')).toHaveValue('1m');
+    // ...and the chart still names what it is about.
+    expect(
+      screen.getByText('Daily price — Tomato at Dambulla Dedicated Economic Centre'),
+    ).toBeInTheDocument();
   });
 });
 
@@ -521,9 +767,11 @@ describe('WatchlistCard — the simplified card: what MOVED to the popup', () =>
     expect(within(cell).getByText('Rs. 210')).toBeInTheDocument();
     expect(within(cell).getByText('/kg')).toBeInTheDocument();
     expect(within(cell).getByText('Price from Jul 25, 2026')).toBeInTheDocument();
-    // The trend is NOT in the price cell — it is its own full-width line under the header.
-    expect(within(cell).queryByText(/Up 4\.2%/)).toBeNull();
-    expect(await screen.findByText(/Up 4\.2% from Rs\. 201 on Jul 21, 2026/)).toBeInTheDocument();
+    // The movement rides in the same row, as the badge — same sentence, same market, same
+    // resolution.
+    expect(
+      within(cell).getByText('Up 4.2% from Rs. 201 on Jul 21, 2026'),
+    ).toBeInTheDocument();
   });
 
   it('drops the readiness badge and the market line from the card, and shows both in the popup', async () => {

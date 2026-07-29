@@ -8,7 +8,7 @@
 // <details> table alternative is mandatory (the numbers ARE the product), the chart carries
 // an aria summary sentence, and a short series says so in words rather than pretending the
 // trend is meaningful.
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PriceHistoryPoint } from '../api/types';
 import { formatDate, formatPrice } from '../lib/format';
@@ -37,9 +37,31 @@ export interface PriceLineChartProps {
   cropLabel: string;
   marketName: string;
   lang: string;
+  /** Drop the <details> table alternative. ONLY the crop card passes this: a card is a
+   *  scanning surface and the same table is one tap away in "More details", which is where
+   *  the numbers are read. Every other surface keeps it — the table IS the text
+   *  alternative, and where the chart is the point of the screen it is mandatory.
+   *  The aria summary changes with it (see `summary` below): a chart that promises "full
+   *  numbers in the table below" beside no table is a small lie told to the people who
+   *  depend on that sentence most. */
   hideTable?: boolean;
+  /** A control to sit at the END of the title row — the card's 1M/3M range chooser. A node
+   *  rather than a built-in feature, so the zoom state stays with the card that owns the
+   *  series and this component keeps drawing exactly what it is given. */
+  headerExtra?: ReactNode;
+  /** Print the y-axis unit ("Rs./kg") above the plot. Opt-in so the Prices page and the crop
+   *  page keep the layout they were signed off with. */
+  showUnitLabel?: boolean;
 }
-export default function PriceLineChart({ history, cropLabel, marketName, lang ,hideTable }: PriceLineChartProps) {
+export default function PriceLineChart({
+  history,
+  cropLabel,
+  marketName,
+  lang,
+  hideTable = false,
+  headerExtra,
+  showUnitLabel = false,
+}: PriceLineChartProps) {
   const { t } = useTranslation();
   const rs = t('common.rs');
   const dayLabel = useDayLabel(lang);
@@ -73,10 +95,27 @@ export default function PriceLineChart({ history, cropLabel, marketName, lang ,h
 
   const tt = useChartTooltip(tipPoints, VIEW_W, VIEW_H);
 
+  const title = (
+    <p className="pr-chart__title">{t('pages.prices.chartTitle', { crop: cropLabel, market: marketName })}</p>
+  );
+  // One title, in one of two shapes: bare where nothing shares its line (every surface that
+  // existed before the card's range control), and a row where something does.
+  const head = headerExtra ? (
+    <div className="pr-chart__head">
+      {title}
+      {headerExtra}
+    </div>
+  ) : (
+    title
+  );
+
   if (!geo || history.length === 0) {
+    // The control stays, deliberately. If a narrow window ever came back empty, dropping the
+    // chooser with the chart would strand the farmer in the empty view with no way back to
+    // the wider one — an empty state must never remove its own exit.
     return (
       <div className="pr-chart pr-chart--empty">
-        <p className="pr-chart__title">{t('pages.prices.chartTitle', { crop: cropLabel, market: marketName })}</p>
+        {head}
         <p className="pr-empty" role="note">
           <span aria-hidden="true">🌱 </span>
           {t('pages.prices.emptyChart')}
@@ -88,7 +127,7 @@ export default function PriceLineChart({ history, cropLabel, marketName, lang ,h
   const short = isShortHistory(history);
   const lo = Math.min(...history.map((h) => h.minPrice));
   const hi = Math.max(...history.map((h) => h.maxPrice));
-  const summary = t('pages.prices.chartAria', {
+  const summary = t(hideTable ? 'pages.prices.chartAriaNoTable' : 'pages.prices.chartAria', {
     crop: cropLabel,
     market: marketName,
     days: history.length,
@@ -98,7 +137,7 @@ export default function PriceLineChart({ history, cropLabel, marketName, lang ,h
 
   return (
     <div className="pr-chart">
-      <p className="pr-chart__title">{t('pages.prices.chartTitle', { crop: cropLabel, market: marketName })}</p>
+      {head}
 
       {short && (
         <p className="pr-thin" role="note">
@@ -111,6 +150,11 @@ export default function PriceLineChart({ history, cropLabel, marketName, lang ,h
         <span className="pr-key pr-key--range">{t('pages.prices.keyRange')}</span>
         <span className="pr-key pr-key--mid">{t('pages.prices.keyMid')}</span>
       </p>
+
+      {/* The y axis is bare numbers inside the viewBox; this says what they are. Not
+          aria-hidden — "Rs. per kg" is already in the summary sentence above, but a sighted
+          reader needs it beside the scale, and reading it twice costs nothing. */}
+      {showUnitLabel && <p className="pr-chart__unit">{t('pages.prices.axisUnit', { rs })}</p>}
 
       <div className="ct-wrap">
         <svg className="pr-svg" viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} role="img" aria-label={summary} {...tt.svgProps}>
@@ -138,34 +182,33 @@ export default function PriceLineChart({ history, cropLabel, marketName, lang ,h
         <ChartTooltip point={tt.active} mode={tt.mode} viewW={VIEW_W} viewH={VIEW_H} />
       </div>
       {!hideTable && (
-      <details className="pr-table">
-        <summary className="pr-table__summary">
-          <span aria-hidden="true">📋 </span>
-          {t('pages.prices.tableToggle')}
-        </summary>
-        <table className="pr-table__grid">
-          <caption className="sr-only">{t('pages.prices.chartTitle', { crop: cropLabel, market: marketName })}</caption>
-          <thead>
-            <tr>
-              <th scope="col">{t('pages.prices.tableDate')}</th>
-              <th scope="col" className="pr-table__num">{t('pages.prices.tableLow')}</th>
-              <th scope="col" className="pr-table__num">{t('pages.prices.tableHigh')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pager.pageRows.map((h) => (
-              <tr key={h.date}>
-                <th scope="row">{formatDate(h.date, lang)}</th>
-                <td className="pr-table__num">{formatPrice(h.minPrice, lang, rs)}</td>
-                <td className="pr-table__num">{formatPrice(h.maxPrice, lang, rs)}</td>
+        <details className="pr-table">
+          <summary className="pr-table__summary">
+            <span aria-hidden="true">📋 </span>
+            {t('pages.prices.tableToggle')}
+          </summary>
+          <table className="pr-table__grid">
+            <caption className="sr-only">{t('pages.prices.chartTitle', { crop: cropLabel, market: marketName })}</caption>
+            <thead>
+              <tr>
+                <th scope="col">{t('pages.prices.tableDate')}</th>
+                <th scope="col" className="pr-table__num">{t('pages.prices.tableLow')}</th>
+                <th scope="col" className="pr-table__num">{t('pages.prices.tableHigh')}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-        <TablePagination {...pager} />
-      </details>
+            </thead>
+            <tbody>
+              {pager.pageRows.map((h) => (
+                <tr key={h.date}>
+                  <th scope="row">{formatDate(h.date, lang)}</th>
+                  <td className="pr-table__num">{formatPrice(h.minPrice, lang, rs)}</td>
+                  <td className="pr-table__num">{formatPrice(h.maxPrice, lang, rs)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <TablePagination {...pager} />
+        </details>
       )}
-      
     </div>
   );
 }
