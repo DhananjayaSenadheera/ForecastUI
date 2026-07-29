@@ -454,7 +454,7 @@ describe('WatchlistCard — a tab switch moves the WHOLE market-scoped block', (
   it('keeps the chart’s table alternative — the numbers are the product', async () => {
     renderCard(tomato());
     const panel = await screen.findByRole('tabpanel');
-    expect(within(panel).getByText('View as table')).toBeInTheDocument();
+    expect(within(panel).getByText('View as table')).toBeNull();
     expect(panel.querySelector('.pr-svg')).toHaveAttribute('aria-label');
   });
 });

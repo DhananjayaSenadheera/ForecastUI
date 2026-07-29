@@ -184,6 +184,7 @@ export default function WatchlistCard({
                 →
               </span>
             )}
+            
             <MarketTabs
               cropId={item.cropId}
               cropName={item.cropName}
@@ -209,6 +210,7 @@ export default function WatchlistCard({
               aria-label={t('pages.portfolio.selectCropAria', { crop: item.cropName })}
             />
           </label>
+          
 
           {/* A PRICE sits top right of the header row, outside the tabpanel on purpose: it
               shares its row with the tablist, which cannot live inside the panel it
@@ -237,6 +239,7 @@ export default function WatchlistCard({
                 }
               : {})}
           >
+            <hr className="pf-card__rule" />
             {!hasPrice && priceCell}
 
             {/* Load-bearing honesty, not clutter: this crop has no market of the farmer's
@@ -261,6 +264,7 @@ export default function WatchlistCard({
                     cropLabel={item.cropName}
                     marketName={market?.name ?? ''}
                     lang={lang}
+                    hideTable
                   />
                 )}
               </div>

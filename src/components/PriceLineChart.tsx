@@ -37,8 +37,9 @@ export interface PriceLineChartProps {
   cropLabel: string;
   marketName: string;
   lang: string;
+  hideTable?: boolean;
 }
-export default function PriceLineChart({ history, cropLabel, marketName, lang }: PriceLineChartProps) {
+export default function PriceLineChart({ history, cropLabel, marketName, lang ,hideTable }: PriceLineChartProps) {
   const { t } = useTranslation();
   const rs = t('common.rs');
   const dayLabel = useDayLabel(lang);
@@ -136,7 +137,7 @@ export default function PriceLineChart({ history, cropLabel, marketName, lang }:
         </svg>
         <ChartTooltip point={tt.active} mode={tt.mode} viewW={VIEW_W} viewH={VIEW_H} />
       </div>
-
+      {!hideTable && (
       <details className="pr-table">
         <summary className="pr-table__summary">
           <span aria-hidden="true">📋 </span>
@@ -163,6 +164,8 @@ export default function PriceLineChart({ history, cropLabel, marketName, lang }:
         </table>
         <TablePagination {...pager} />
       </details>
+      )}
+      
     </div>
   );
 }
