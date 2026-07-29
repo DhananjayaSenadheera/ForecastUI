@@ -318,8 +318,12 @@
 
 /* The full market name on hover/focus. Purely visual — the same text is already the
    control's accessible name, so it is aria-hidden and never announced twice.
-   pointer-events: none so it cannot steal its own hover. */
+   pointer-events: none so it cannot steal its own hover.
+
+   display: none when closed, NOT visibility: hidden — see the note on .pf-hint-tip below:
+   a hidden-but-laid-out box that overhangs the right edge widens the whole page. */
 .pf-mtab-tip {
+  display: none;
   position: absolute;
   top: calc(100% + var(--sp-1));
   left: 0;
@@ -338,26 +342,16 @@
   color: var(--text-1);
   white-space: normal;
   pointer-events: none;
-  visibility: hidden;
-  opacity: 0;
-  transition: opacity var(--dur-fast) var(--ease);
-}
-.pf-mtab-wrap:hover .pf-mtab-tip,
-.pf-mtab-wrap:focus-within .pf-mtab-tip {
-  visibility: visible;
-  opacity: 1;
 }
 /* Touch has no hover, and a tap on a tab SELECTS it — a single chip toggles its name
    inline, and a crop with several markets has its market spelled out in "More details", so
-   nothing depends on this tooltip. */
-@media (hover: none) {
-  .pf-mtab-tip {
-    display: none;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .pf-mtab-tip {
-    transition: none;
+   nothing depends on this tooltip. The whole reveal therefore lives inside (hover: hover):
+   this selector is more specific than the base rule, so a `@media (hover: none)` override
+   after it would NOT win. */
+@media (hover: hover) {
+  .pf-mtab-wrap:hover .pf-mtab-tip,
+  .pf-mtab-wrap:focus-within .pf-mtab-tip {
+    display: block;
   }
 }
 
@@ -642,7 +636,19 @@
   box-shadow: var(--focus-ring);
   border-radius: var(--r-pill);
 }
+/* THE CLOSED TOOLTIP MUST NOT BE LAID OUT. `visibility: hidden` keeps the box, and an
+   absolutely positioned box that overhangs the right edge of a 375px screen counts towards
+   the document's scrollable width: /portfolio laid out 457px wide with nothing visibly
+   wrong, the page dragged sideways, and the mobile initial containing block grew with it —
+   which stretched the details dialog's `position: fixed; inset: 0` backdrop to 457px and
+   carried its ✕ off the screen. So: display: none, pinned by tooltip-overflow.test.ts.
+   It stays in the DOM (aria-describedby needs it, and a directly referenced element's text
+   is used even while hidden), it just stops occupying space. There is no fade: display
+   cannot be transitioned on the browsers this app targets, and keeping the box alive to
+   fade it is exactly the bug. When it opens, src/lib/tooltip.ts shifts it back inside the
+   screen — CSS cannot express that clamp without anchor positioning. */
 .pf-hint-tip {
+  display: none;
   position: absolute;
   top: calc(100% + var(--sp-1));
   inset-inline-start: 0;
@@ -661,24 +667,15 @@
   white-space: normal;
   text-align: start;
   pointer-events: none;
-  visibility: hidden;
-  opacity: 0;
-  transition: opacity var(--dur-fast) var(--ease);
 }
-.pf-hint-wrap:hover .pf-hint-tip,
-.pf-hint-wrap:focus-within .pf-hint-tip {
-  visibility: visible;
-  opacity: 1;
-}
-@media (hover: none) {
-  /* Touch never sees the tooltip — it taps and reads the note below instead. */
-  .pf-hint-tip {
-    display: none;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .pf-hint-tip {
-    transition: none;
+/* Touch never sees the tooltip — it taps and reads the note below instead, so the reveal
+   itself is gated on (hover: hover). Gating the reveal, rather than overriding it back to
+   display: none for touch, is the only order that works: these selectors are more specific
+   than the base rule and would win over any later `@media (hover: none)` block. */
+@media (hover: hover) {
+  .pf-hint-wrap:hover .pf-hint-tip,
+  .pf-hint-wrap:focus-within .pf-hint-tip {
+    display: block;
   }
 }
 /* The tapped-open note: a full-width block inside whatever paragraph it belongs to. */

@@ -22,6 +22,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { rules } from './support/cssRules';
 
 const CSS_PATH = resolve(__dirname, '../styles/portfolio.css');
 
@@ -34,50 +35,9 @@ const CONTAINER_OWNER = '.pf-card__inner';
  *  are stripped before this is applied. */
 const CONTAINMENT_DECL = /(?:^|;)\s*container(-type)?\s*:/m;
 
-interface Rule {
-  selectors: string[];
-  body: string;
-}
-
-/**
- * Every style rule in a stylesheet, flattened out of its at-rules.
- *
- * A regex over `sel { … }` cannot do this: @container and @media nest, and this file is full
- * of both, so the naive version would read a whole at-rule body as one declaration block and
- * mistake `@container pf-card (min-width: 360px)` for a selector. This walks braces instead,
- * recursing into anything that starts with `@` and yielding only real rules.
- */
-function rules(css: string): Rule[] {
-  const out: Rule[] = [];
-  const walk = (text: string) => {
-    let i = 0;
-    while (i < text.length) {
-      const open = text.indexOf('{', i);
-      if (open === -1) break;
-      const prelude = text.slice(i, open).trim();
-      let depth = 1;
-      let j = open + 1;
-      while (j < text.length && depth > 0) {
-        if (text[j] === '{') depth += 1;
-        else if (text[j] === '}') depth -= 1;
-        j += 1;
-      }
-      const body = text.slice(open + 1, j - 1);
-      if (prelude.startsWith('@')) walk(body);
-      else if (prelude.length > 0) {
-        out.push({ selectors: prelude.split(',').map((s) => s.trim()), body });
-      }
-      i = j;
-    }
-  };
-  walk(css);
-  return out;
-}
-
-const source = readFileSync(CSS_PATH, 'utf8');
-// Comments carry the words this test looks for — including the explanation of why the
-// container is where it is — so they go first.
-const parsed = rules(source.replace(/\/\*[\s\S]*?\*\//g, ''));
+// The brace walker (and the comment stripping it does first — comments carry the words these
+// tests look for) is shared with the tooltip tripwire: ./support/cssRules.
+const parsed = rules(readFileSync(CSS_PATH, 'utf8'));
 
 describe('crop card CSS: the query container must not be an ancestor of the dialog', () => {
   it('parses the stylesheet into real rules (self-check, so a broken parser cannot pass)', () => {

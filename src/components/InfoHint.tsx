@@ -9,6 +9,14 @@
 //   • touch has no hover, so a tap toggles the same sentence as an inline note;
 //   • aria-controls is set only while that note exists (a dangling idref is invalid).
 //
+// The tooltip stays in the DOM but is `display: none` until it is revealed. It has to stay:
+// aria-describedby needs its target to exist, and a directly-referenced element's text is
+// used for the description even while it is hidden — which is how touch devices, where the
+// tooltip is switched off entirely, have always announced this hint. It has to be display
+// (not visibility) because a laid-out box hanging off the right edge silently widened the
+// whole page; the reasoning and the shift that keeps an OPEN tooltip on screen are in
+// src/lib/tooltip.ts.
+//
 // Everything it renders is INLINE-safe (the note is a <span role="note"> with
 // display:block, not a <p>), because the two places it is used sit inside paragraphs:
 // "Price from 28 Jul ⓘ" and "Confidence: Good ⓘ". A <p> nested in a <p> is invalid markup
@@ -19,6 +27,7 @@
 // annotates is complete and readable with the hint closed.
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { onTipReveal } from '../lib/tooltip';
 
 export default function InfoHint({
   hint,
@@ -48,7 +57,14 @@ export default function InfoHint({
   const tipId = `${id}-tip`;
   return (
     <>
-      <span className={`pf-hint-wrap${className ? ` ${className}` : ''}`}>
+      <span
+        className={`pf-hint-wrap${className ? ` ${className}` : ''}`}
+        // The tooltip opens up to 260px wide from the ⓘ, and the ⓘ can sit anywhere on the
+        // line; these place it back inside the screen the moment it is revealed, by pointer
+        // or by keyboard. See src/lib/tooltip.ts.
+        onPointerEnter={onTipReveal}
+        onFocus={onTipReveal}
+      >
         <button
           type="button"
           className="pf-hint-btn"
@@ -60,7 +76,7 @@ export default function InfoHint({
         >
           <span aria-hidden="true">ⓘ</span>
         </button>
-        <span role="tooltip" id={tipId} className="pf-hint-tip">
+        <span role="tooltip" id={tipId} className="pf-hint-tip" data-tip>
           {hint}
         </span>
       </span>
