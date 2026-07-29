@@ -466,9 +466,12 @@ function PlantedForecast({
         lang={lang}
         lowTrust={state.forecast.lowTrust}
         layout={layout}
-        // The hint is part of the split block only, and its id has to be unique across the
-        // card and the popup, which are mounted together.
-        {...(layout === 'split' ? { hintId: `${idPrefix}-${item.cropId}` } : {})}
+        // The hint is part of the split block only. Its id has to be unique across the card
+        // and the popup (both mounted at once), and its NAME has to say which crop it is
+        // about — a page of ten cards otherwise offers ten identical ⓘ buttons.
+        {...(layout === 'split'
+          ? { hintId: `${idPrefix}-${item.cropId}`, hintCrop: item.cropName }
+          : {})}
       />
       <p className="pf-plant__more">
         {/* Still one link to one place; on the card it is drawn as the primary action of

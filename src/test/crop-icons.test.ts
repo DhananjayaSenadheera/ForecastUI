@@ -5,7 +5,7 @@
 // ordering traps inside the name rules ("sweet potato" before "potato"). A card must never
 // render an empty icon slot, and it must never render a glyph the phone cannot draw.
 import { describe, it, expect } from 'vitest';
-import { FALLBACK_CROP_ICON, cropIcon } from '../lib/cropIcons';
+import { CROP_ICONS, FALLBACK_CROP_ICON, cropIcon } from '../lib/cropIcons';
 
 describe('lib/cropIcons — resolution order', () => {
   it('prefers the registry CODE, which is the crop’s real identity', () => {
@@ -41,23 +41,54 @@ describe('lib/cropIcons — resolution order', () => {
     expect(cropIcon({ cropName: 'Nai Miris' })).toBe('🌶️');
   });
 
+  it('never lets a name rule name the WRONG plant', () => {
+    // Four real traps, all currently hidden behind the code map but live on the advertised
+    // degradation path (an unknown code falls through to these rules):
+    //  • "Ambarella" contains "amba", the Sinhala for mango;
+    //  • "Embul Amba" is a MANGO variety, but "embul" also opens "embul kesel", a banana;
+    //  • "Mangosteen" starts with "mango" and is not one;
+    //  • "Bell Pepper" is a capsicum, while the bare word "pepper" belongs to black pepper.
+    expect(cropIcon({ cropName: 'Ambarella' })).toBe('🌳');
+    expect(cropIcon({ cropName: 'Embul Amba' })).toBe('🥭');
+    expect(cropIcon({ cropName: 'Embul Kesel' })).toBe('🍌');
+    expect(cropIcon({ cropName: 'Mangosteen' })).toBe('🌳');
+    expect(cropIcon({ cropName: 'Bell Pepper' })).toBe('🌶️');
+    // ...and the neighbours those fixes must not break.
+    expect(cropIcon({ cropName: 'Mango - Malu' })).toBe('🥭');
+    expect(cropIcon({ cropName: 'Amba' })).toBe('🥭');
+    expect(cropIcon({ cropName: 'Banana - Sini' })).toBe('🍌');
+    expect(cropIcon({ cropName: 'Black Pepper' })).toBe('🌾');
+  });
+
   it('stays inside the Emoji 12 ceiling — nothing here is a tofu box on a 2019 phone', () => {
     // The rule the file is built on: no glyph from Emoji 13/14/15, because an unsupported
     // codepoint renders as an empty box beside a crop name and looks like a bug.
-    const TOO_NEW = ['🫘', '🫛', '🫚', '🫑', '🫜', '🪷'];
-    const names = [
-      'Beans',
-      'Winged Bean',
-      'Ginger',
-      'Capsicum',
-      'Beetroot - Nuwaraeliya',
-      'Raddish',
-      "Lady's Fingers",
-      'Lotus Roots',
-    ];
-    for (const cropName of names) {
-      expect(TOO_NEW).not.toContain(cropIcon({ cropName }));
+    // Scanned over the WHOLE declared table rather than a few sample names, so a glyph
+    // added to either lookup cannot slip in unreviewed.
+    const TOO_NEW = ['🫘', '🫛', '🫚', '🫑', '🫜', '🪷', '🫒', '🧋'];
+    for (const icon of CROP_ICONS) {
+      expect(TOO_NEW).not.toContain(icon);
+      // A conservative second gate: every tofu-box risk this file worries about lives in
+      // the U+1FA70+ block (2019 onwards), and nothing this table uses is anywhere near it.
+      // Named in the failure so a rejected glyph is obvious rather than a bare number.
+      expect({ icon, block: (icon.codePointAt(0) as number) < 0x1fa70 }).toEqual({
+        icon,
+        block: true,
+      });
     }
+  });
+
+  it('returns nothing outside the declared table — CROP_ICONS is the whole vocabulary', () => {
+    // The ceiling test above is only worth anything if the table it scans is really the set
+    // of glyphs a card can show.
+    const seen = new Set<string>();
+    for (const cropCode of ['VEG000012', 'VEG000065', 'FRT000019', 'VEG000040', 'FRT000002']) {
+      seen.add(cropIcon({ cropCode, cropName: '' }));
+    }
+    for (const cropName of ['Tomato', 'Karawila', 'Murunga', 'Quinoa', 'Bell Pepper', 'Ambarella']) {
+      seen.add(cropIcon({ cropName }));
+    }
+    for (const icon of seen) expect(CROP_ICONS).toContain(icon);
   });
 
   it('gives the whole live registry an icon, and the same one every time', () => {

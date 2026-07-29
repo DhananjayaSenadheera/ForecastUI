@@ -279,7 +279,8 @@ export function priceAgeDays(observedDate: string, todayYmd: string): number | n
 export type ChartRange = '1m' | '3m';
 
 /** Window length in days. Calendar months vary; the label says "1 month" and the window is
- *  30 days, which is the same promise a farmer reads from it. */
+ *  30 days, which is the same promise a farmer reads from it. The cutoff is INCLUSIVE at
+ *  both ends, so a daily series yields 31 points for '1m' and 91 for '3m'. */
 export const CHART_RANGE_DAYS: Record<ChartRange, number> = { '1m': 30, '3m': 90 };
 
 /**

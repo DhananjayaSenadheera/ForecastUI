@@ -538,10 +538,8 @@
   flex-direction: column;
   gap: 2px;
   margin: 0;
-  /* Stacked under the price (the narrow default) it takes the whole row — a badge indented
-     to half a line reads as debris. The cap that keeps it out of the price's way belongs to
-     the side-by-side band only, and is set there. */
-  max-width: 100%;
+  /* The two width bands below set the cap. They are mutually exclusive container queries
+     rather than a base value plus an override, so nothing here depends on source order. */
   padding: var(--sp-2) var(--sp-3);
   border-radius: var(--r-md);
   background: var(--neutral-bg);
@@ -555,13 +553,23 @@
   background: var(--warn-bg);
   color: var(--warn-fg);
 }
-/* Pairs with the price row's nowrap band at the top of this file: once the badge shares a
-   line with the price it is capped against the CARD, so it can never take the row. Measured
-   at 328px of content (a 360px phone) it is 163px wide and its second line runs to two; at
-   388px it is 193px. The price keeps what is left and its DATE line wraps — the right thing
-   to give up first, because a wrapped date is readable and a wrapped price is not.
-   It lives HERE, after the base rule, because both selectors are equally specific and
-   source order is what decides. */
+/* The badge's width, in the same two bands the price row uses (they are set at the top of
+   this file). The pair is exhaustive AND mutually exclusive, so neither needs to win on
+   source order:
+   - stacked under the price, it takes the whole row — a badge indented to half a line reads
+     as debris;
+   - sharing the line, it is capped against the CARD so it can never take the row from the
+     price. Measured: at 328px of content (a 360px phone) it is 163px and its second line
+     runs to two; at 388px it is 193px. The price keeps what is left and its DATE line wraps
+     — the right thing to give up first, because a wrapped date is readable and a wrapped
+     price is not.
+   A browser without container queries applies neither and the badge is auto-width inside a
+   wrapping row, which is the stacked arrangement. */
+@container pf-card (max-width: 319.98px) {
+  .pf-trendbadge {
+    max-width: 100%;
+  }
+}
 @container pf-card (min-width: 320px) {
   .pf-trendbadge {
     max-width: min(15rem, 50cqi);

@@ -76,6 +76,7 @@ export default function PriceBlock({
   part = 'all',
   trendStyle = 'line',
   hintId,
+  hintCrop,
 }: {
   market: PortfolioDashboardMarket | null;
   lang: string;
@@ -86,6 +87,9 @@ export default function PriceBlock({
    *  as its id root. Omitted (popup, crop page) means no hint at all — those surfaces have
    *  the room to explain in prose and are not competing with a crop name for width. */
   hintId?: string;
+  /** The crop the hint is about. It goes into the ⓘ button's accessible NAME, because a
+   *  page of ten cards otherwise offers ten buttons called the same thing. */
+  hintCrop?: string;
 }) {
   const { t } = useTranslation();
   const rs = t('common.rs');
@@ -125,7 +129,13 @@ export default function PriceBlock({
         )}
         {/* Everything InfoHint renders is inline-safe, so it can live inside this
             paragraph and stay on the date's own line. */}
-        {hintId && <InfoHint hint={t('pages.portfolio.priceFromHint')} id={`${hintId}-pricefrom`} />}
+        {hintId && (
+          <InfoHint
+            hint={t('pages.portfolio.priceFromHint')}
+            id={`${hintId}-pricefrom`}
+            label={t('pages.portfolio.priceFromHintAria', { crop: hintCrop ?? '' })}
+          />
+        )}
       </p>
     </>
   );

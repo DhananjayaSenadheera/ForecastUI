@@ -195,6 +195,7 @@ export default function WatchlistCard({
         todayYmd={todayYmd}
         part="price"
         hintId={`pf-card-${item.cropId}`}
+        hintCrop={item.cropName}
       />
       <PriceBlock market={market} lang={lang} todayYmd={todayYmd} part="trend" trendStyle="badge" />
     </div>

@@ -139,15 +139,22 @@ const NAME_RULES: Array<[RegExp, string]> = [
     /gotukola|mukunuwenna|spinach|kangkung|kankun|lettuce|curry ?leaves|onion ?leaves|drumstick|murunga|kohila|leaves|nivithi/i,
     '🌿',
   ],
-  [/chilli|chili|chillies|miris|capsicum/i, '🌶️'],
+  // "Bell pepper" is a capsicum, NOT the spice: it has to be claimed here, because the
+  // grain-and-spice rule below owns the bare word "pepper" (for black pepper).
+  [/chilli|chili|chillies|miris|capsicum|bell ?pepper/i, '🌶️'],
   [/garlic|sudu ?lunu/i, '🧄'],
   [/onion|lunu|leek/i, '🧅'],
   [/cucumber|gourd|karawila|pathola|chaw|kekiri ?gourd/i, '🥒'],
   [/pumpkin|wattakka|squash/i, '🎃'],
   [/corn|maize|bada ?iringu/i, '🌽'],
-  [/banana|plantain|kesel|embul/i, '🍌'],
+  // "embul KESEL" is the banana; "embul AMBA" is a mango, so the local word cannot stand on
+  // its own here.
+  [/banana|plantain|kesel|embul ?kesel/i, '🍌'],
   [/pineapple|annasi/i, '🍍'],
-  [/mango|amba/i, '🥭'],
+  // TWO traps in one line: "mangosteen" is not a mango (the tree-fruit rule takes it, and
+  // the lookahead keeps this rule off it), and "Ambarella" contains "amba" without being
+  // one — hence the word boundaries.
+  [/mango(?!steen)|\bamba\b/i, '🥭'],
   [/avocado|avacado|aligator ?pear/i, '🥑'],
   [/lime|lemon|dehi/i, '🍋'],
   [/watermelon|komadu/i, '🍉'],
@@ -155,7 +162,19 @@ const NAME_RULES: Array<[RegExp, string]> = [
   [/coconut|pol\b/i, '🥥'],
   [/peanut|groundnut|rata ?kaju/i, '🥜'],
   [/millet|sesame|thala\b|soya|gram|cowpea|pepper|turmeric|kaha\b|ginger|inguru/i, '🌾'],
-  [/ambarella|gooseberry|nelli|guava|pera\b|bael|beli\b|jackfruit|kos\b|passion|soursop|tamarind|siyambala|wood ?apple|divul/i, '🌳'],
+  [/ambarella|gooseberry|nelli|guava|pera\b|bael|beli\b|jackfruit|kos\b|passion|soursop|tamarind|siyambala|wood ?apple|divul|mangosteen/i, '🌳'],
+];
+
+/**
+ * Every glyph this module can return, for the ceiling test — the Emoji 12.0 (2019) rule in
+ * the header is only worth writing down if something enforces it on the WHOLE table rather
+ * than on a handful of names a test happens to probe. Adding a glyph to either table without
+ * adding it here fails that test, which is the point: a new icon should be looked at.
+ */
+export const CROP_ICONS: readonly string[] = [
+  '🍅', '🍆', '🥕', '🍠', '🥔', '🥦', '🥬', '🌿', '🌶️', '🧄', '🧅', '🥒',
+  '🎃', '🌽', '🍌', '🍍', '🥭', '🥑', '🍋', '🍉', '🍈', '🥥', '🥜', '🌾',
+  '🌳', FALLBACK_CROP_ICON,
 ];
 
 /**

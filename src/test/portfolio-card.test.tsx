@@ -84,6 +84,21 @@ function longHistory(): PriceHistoryPoint[] {
   });
 }
 
+/**
+ * A series that says two DIFFERENT things depending on how much of it you read: 150 wild
+ * days (CV well over 0.2 -> "moves a lot") followed by 30 flat ones (CV 0 -> "steady").
+ * It exists so a test can prove which series the swing claim is computed from.
+ */
+function wildThenFlatHistory(): PriceHistoryPoint[] {
+  return Array.from({ length: 180 }, (_, i) => {
+    const d = new Date(Date.UTC(2026, 0, 30));
+    d.setUTCDate(d.getUTCDate() + i);
+    const wild = i % 2 === 0 ? 140 : 290;
+    const value = i < 150 ? wild : 250;
+    return { date: d.toISOString().slice(0, 10), minPrice: value - 10, maxPrice: value + 10 };
+  });
+}
+
 // Two series with deliberately DIFFERENT swing levels, so a test can prove the pill follows
 // the tab rather than merely happening to be there: Kandy's midpoint never moves (CV 0 ->
 // "steady"), Dambulla's zig-zags between 150 and 300 (CV ~0.35 -> "moves a lot").
@@ -513,6 +528,27 @@ describe('WatchlistCard — a tab switch moves the WHOLE market-scoped block', (
     expect(screen.getByText('Rs. 210')).toBeInTheDocument();
   });
 
+  it('computes the swing from the WHOLE series, never from the zoomed window', async () => {
+    // The zoom is a way of LOOKING at the series; it is not a different question, and the
+    // claims made about the crop must not quietly change with it. This series is wild for
+    // five months and flat for the last one, so a swing computed from the 1M slice would
+    // read "steady" — a fabricated reassurance about a crop that swings between Rs. 140 and
+    // Rs. 290. (The mutation passes the whole suite without this test.)
+    vi.spyOn(api, 'getPriceHistory').mockResolvedValue(wildThenFlatHistory());
+    renderCard(tomato({ markets: [DAMBULLA] }));
+
+    const select = await screen.findByLabelText('How much price history to show');
+    fireEvent.change(select, { target: { value: '1m' } });
+    await waitFor(() =>
+      expect(document.querySelector('.pr-svg')?.getAttribute('aria-label')).toMatch(/: 31 days/),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'More details for Tomato' }));
+    const dialog = screen.getByRole('dialog');
+    expect(await within(dialog).findByText('Price movement: moves a lot')).toBeInTheDocument();
+    expect(within(dialog).queryByText('Price movement: steady')).toBeNull();
+  });
+
   it('keeps the chosen window when the market tab changes', async () => {
     // "Show me the last month" is a habit of reading, not a fact about Kandy.
     vi.spyOn(api, 'getPriceHistory').mockResolvedValue(longHistory());
@@ -630,10 +666,16 @@ describe('WatchlistCard — the header the 2026-07-29 mockup asked for', () => {
     expect(document.querySelector('.pf-trendbadge')).toBeNull();
   });
 
-  it('explains the price date and the confidence word with ⓘ, never as the only copy', async () => {
+  it('explains the price date with a ⓘ that says WHICH crop it is about', async () => {
+    // A page of ten cards carries up to twenty of these buttons. Named "What is this?" they
+    // would give a screen-reader user twenty identical entries in the controls list — the
+    // same failure the removal tick is named per crop to avoid.
     renderCard(tomato({ markets: [DAMBULLA] }));
 
-    const hint = (await screen.findAllByRole('button', { name: 'What is this?' }))[0];
+    const hint = await screen.findByRole('button', {
+      name: 'What does the price date mean for Tomato?',
+    });
+    expect(screen.queryByRole('button', { name: 'What is this?' })).toBeNull();
     expect(hint).toHaveAttribute('aria-expanded', 'false');
     // The fact reads perfectly with the hint closed — the ⓘ adds, it does not carry.
     expect(screen.getByText('Price from Jul 25, 2026')).toBeInTheDocument();
@@ -643,6 +685,23 @@ describe('WatchlistCard — the header the 2026-07-29 mockup asked for', () => {
     expect(
       screen.getAllByText(/newest price this market has reported/).length,
     ).toBeGreaterThan(0);
+  });
+
+  it('keeps the range chooser when the chart comes back EMPTY — never a room with no door', async () => {
+    // An empty state must not remove its own exit: if a window ever resolved to nothing,
+    // dropping the chooser with the chart would strand the farmer in the empty view.
+    vi.spyOn(api, 'getPriceHistory').mockResolvedValue([]);
+    renderCard(tomato({ markets: [DAMBULLA] }));
+
+    await screen.findByText('No recent price data for this crop at this market yet.');
+    const select = screen.getByLabelText('How much price history to show');
+    expect(select).toBeInTheDocument();
+    fireEvent.change(select, { target: { value: '1m' } });
+    expect(screen.getByLabelText('How much price history to show')).toHaveValue('1m');
+    // ...and the chart still names what it is about.
+    expect(
+      screen.getByText('Daily price — Tomato at Dambulla Dedicated Economic Centre'),
+    ).toBeInTheDocument();
   });
 });
 

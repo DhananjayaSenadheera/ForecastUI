@@ -23,12 +23,24 @@ import { useTranslation } from 'react-i18next';
 export default function InfoHint({
   hint,
   id,
+  label,
   className,
 }: {
   /** The already-translated sentence to show. */
   hint: string;
   /** Unique per mounted instance — the card and the popup over it are both mounted. */
   id: string;
+  /**
+   * The button's accessible NAME, already translated, and it must say what THIS hint is
+   * about ("What does confidence mean for Brinjal?").
+   *
+   * A list of ten crop cards carries up to twenty of these buttons, and naming them all
+   * "What is this?" gives a screen-reader user a control list of twenty identical entries
+   * with no way to tell which crop or which fact each belongs to — the same failure the
+   * removal tick was named per-crop to avoid. The generic fallback exists only for a
+   * surface that shows exactly one.
+   */
+  label?: string;
   className?: string;
 }) {
   const { t } = useTranslation();
@@ -40,7 +52,7 @@ export default function InfoHint({
         <button
           type="button"
           className="pf-hint-btn"
-          aria-label={t('common.hintLabel')}
+          aria-label={label ?? t('common.hintLabel')}
           aria-describedby={tipId}
           aria-expanded={open}
           {...(open ? { 'aria-controls': id } : {})}

@@ -46,6 +46,7 @@ export default function PredictionBlock({
   lowTrust = false,
   layout = 'lines',
   hintId,
+  hintCrop,
 }: {
   prediction: DisplayPrediction | null;
   /** The market the prediction is shown BESIDE — it decides whether the "National forecast"
@@ -61,6 +62,9 @@ export default function PredictionBlock({
    *  as its id root. Only the split layout uses it — the surfaces that show the lines have
    *  the room to explain the word in prose. */
   hintId?: string;
+  /** The crop the hint is about, for the ⓘ button's accessible NAME: ten cards must not
+   *  offer ten identically-named buttons. */
+  hintCrop?: string;
 }) {
   const { t } = useTranslation();
   const rs = t('common.rs');
@@ -124,7 +128,11 @@ export default function PredictionBlock({
           <p className={`pf-pred__confline pf-pred__confline--${conf.tone}`}>
             {t('confidence.label')}: {t(conf.labelKey)}
             {hintId && (
-              <InfoHint hint={t('pages.portfolio.confidenceHint')} id={`${hintId}-conf`} />
+              <InfoHint
+                hint={t('pages.portfolio.confidenceHint')}
+                id={`${hintId}-conf`}
+                label={t('pages.portfolio.confidenceHintAria', { crop: hintCrop ?? '' })}
+              />
             )}
           </p>
         </div>

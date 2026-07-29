@@ -95,10 +95,27 @@ export default function PriceLineChart({
 
   const tt = useChartTooltip(tipPoints, VIEW_W, VIEW_H);
 
+  const title = (
+    <p className="pr-chart__title">{t('pages.prices.chartTitle', { crop: cropLabel, market: marketName })}</p>
+  );
+  // One title, in one of two shapes: bare where nothing shares its line (every surface that
+  // existed before the card's range control), and a row where something does.
+  const head = headerExtra ? (
+    <div className="pr-chart__head">
+      {title}
+      {headerExtra}
+    </div>
+  ) : (
+    title
+  );
+
   if (!geo || history.length === 0) {
+    // The control stays, deliberately. If a narrow window ever came back empty, dropping the
+    // chooser with the chart would strand the farmer in the empty view with no way back to
+    // the wider one — an empty state must never remove its own exit.
     return (
       <div className="pr-chart pr-chart--empty">
-        <p className="pr-chart__title">{t('pages.prices.chartTitle', { crop: cropLabel, market: marketName })}</p>
+        {head}
         <p className="pr-empty" role="note">
           <span aria-hidden="true">🌱 </span>
           {t('pages.prices.emptyChart')}
@@ -118,22 +135,9 @@ export default function PriceLineChart({
     max: formatPrice(hi, lang, rs),
   });
 
-  const title = (
-    <p className="pr-chart__title">{t('pages.prices.chartTitle', { crop: cropLabel, market: marketName })}</p>
-  );
-
   return (
     <div className="pr-chart">
-      {/* One title, in one of two shapes: bare where nothing shares its line (every surface
-          that existed before the card's range control), and a row where something does. */}
-      {headerExtra ? (
-        <div className="pr-chart__head">
-          {title}
-          {headerExtra}
-        </div>
-      ) : (
-        title
-      )}
+      {head}
 
       {short && (
         <p className="pr-thin" role="note">
@@ -150,7 +154,7 @@ export default function PriceLineChart({
       {/* The y axis is bare numbers inside the viewBox; this says what they are. Not
           aria-hidden — "Rs. per kg" is already in the summary sentence above, but a sighted
           reader needs it beside the scale, and reading it twice costs nothing. */}
-      {showUnitLabel && <p className="pr-chart__unit">{t('pages.prices.axisUnit')}</p>}
+      {showUnitLabel && <p className="pr-chart__unit">{t('pages.prices.axisUnit', { rs })}</p>}
 
       <div className="ct-wrap">
         <svg className="pr-svg" viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} role="img" aria-label={summary} {...tt.svgProps}>
