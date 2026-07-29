@@ -76,6 +76,30 @@ export default function PriceBlock({
   const age = priceAgeDays(price.observedDate, todayYmd);
   const showAge = age !== null && age >= PRICE_AGE_NOTE_DAYS;
 
+  const facts = (
+    <>
+      <p className="pf-price__value">
+        <strong className="pf-price__num">{formatPrice(price.price, lang, rs)}</strong>
+        <span className="pf-price__unit">{t('common.perKg')}</span>
+      </p>
+      <p className="pf-price__meta">
+        {t('pages.portfolio.observedOn', { date: formatDate(price.observedDate, lang) })}
+        {showAge && (
+          <>
+            {' · '}
+            <span className="pf-price__age">
+              {t('pages.portfolio.priceAge', { count: age as number })}
+            </span>
+          </>
+        )}
+      </p>
+    </>
+  );
+
+  // Returned before the trend is built at all: the card asks for the two halves separately,
+  // so the header slot must not construct a line it would throw away on every repaint.
+  if (part === 'price') return <div className="pf-price pf-price--head">{facts}</div>;
+
   const trend =
     price.direction && price.changePct !== null ? (
       <p className={`pf-trend pf-trend--${price.direction}`}>
@@ -100,23 +124,9 @@ export default function PriceBlock({
   if (part === 'trend') return trend;
 
   return (
-    <div className={`pf-price${part === 'price' ? ' pf-price--head' : ''}`}>
-      <p className="pf-price__value">
-        <strong className="pf-price__num">{formatPrice(price.price, lang, rs)}</strong>
-        <span className="pf-price__unit">{t('common.perKg')}</span>
-      </p>
-      <p className="pf-price__meta">
-        {t('pages.portfolio.observedOn', { date: formatDate(price.observedDate, lang) })}
-        {showAge && (
-          <>
-            {' · '}
-            <span className="pf-price__age">
-              {t('pages.portfolio.priceAge', { count: age as number })}
-            </span>
-          </>
-        )}
-      </p>
-      {part === 'all' && trend}
+    <div className="pf-price">
+      {facts}
+      {trend}
     </div>
   );
 }

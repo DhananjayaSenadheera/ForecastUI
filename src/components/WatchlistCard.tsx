@@ -14,14 +14,16 @@
 // readiness badge and the price-swing pill now live in the "More details" popup, which is
 // the surface for reading about a crop rather than scanning a list of them.
 //
-// The header is a two-or-three column grid rather than a flex row, and the market-scoped
-// panel is `display: contents`, so the PRICE — the number that changes when a tab is
-// pressed — can sit up in the header row and still be INSIDE the tabpanel it belongs to.
-// Grid items are rectangles; without that the only way to get the price into the header was
-// to lift it out of the panel, leaving a tabpanel that excludes the one fact the tab
-// governs. At narrow widths (a 360px phone, one card per screen) the price drops to its own
-// row under the name, right-aligned — a deliberate break, so a long crop name and three
-// chips can never squeeze the number.
+// The header is a two-or-three column grid rather than a flex row. The price cell sits
+// OUTSIDE the market tabpanel in that grid, which is worth stating plainly because it looks
+// wrong: the number a tab changes is not inside the panel that tab labels. It shares row 1
+// with the tablist, which cannot be nested inside the panel it controls, and a grid item is
+// a rectangle — so the price is tab-governed state rendered beside the panel, and both it
+// and the panel's contents are resolved from ONE selectedMarketFor() call. That single seam,
+// not the nesting, is what makes it impossible for the price and the chart to disagree.
+// At narrow widths (a 360px phone, one card per screen) the price drops to its own row under
+// the name, end-aligned — a deliberate break, so a long crop name and three chips can never
+// squeeze the number.
 //
 // STEP 7 added the two things that make the card a place to MANAGE a crop rather than only
 // read one:
@@ -138,7 +140,8 @@ export default function WatchlistCard({
   // that in the farmer's words; a second, differently-worded empty chart under it would be
   // noise, and the request would be a round trip on a rural connection for a series that
   // cannot have rows. The day the contract grows a staleness cutoff, this has to change.
-  const chartMarketId = market?.price ? marketId : null;
+  const hasPrice = market?.price != null;
+  const chartMarketId = hasPrice ? marketId : null;
   const history = useMarketHistory(item.cropId, chartMarketId);
   // The swing describes the SAME series the chart draws, so it can never disagree with it.
   // It is read in the "More details" popup rather than on the card — computed here because
@@ -181,9 +184,12 @@ export default function WatchlistCard({
           </header>
 
           {/* The tick is a real checkbox with a crop-specific accessible name, so a list of
-              ten of them is never ten controls called "Select". It sits before the panel in
-              the DOM as well as at the top of the card visually, so the focus order follows
-              the reading order rather than arriving after the chart. */}
+              ten of them is never ten controls called "Select". It comes before the price
+              and the panel in the DOM and it sits in the header row in both layout
+              variants, so it is never reached after the chart. (In the wide variant the eye
+              reads name → price → tick while the DOM runs name → tick → price; the price is
+              not focusable, so the focus order still matches the visual order of the
+              controls.) */}
           <label className="pf-pick">
             <input
               type="checkbox"
@@ -193,6 +199,21 @@ export default function WatchlistCard({
               aria-label={t('pages.portfolio.selectCropAria', { crop: item.cropName })}
             />
           </label>
+
+          {/* Top right of the header row: the number, and the day it was observed. It is
+              OUTSIDE the tabpanel on purpose — it shares its row with the tablist, which
+              cannot live inside the panel it controls, and a grid item is a rectangle. What
+              keeps it honest is not the nesting but the seam: this block, the trend and the
+              chart all read `market`, one selectedMarketFor() resolution, so the tab cannot
+              move one of them without moving the others.
+              The "no price at this market" note keeps this same place in the reading order
+              — the absence of a price is shown where the price would be — but as a
+              full-width row, because a sentence in a header column crushes the crop name. */}
+          <div
+            className={`pf-card__pricecell${hasPrice ? '' : ' pf-card__pricecell--nodata'}`}
+          >
+            <PriceBlock market={market} lang={lang} todayYmd={todayYmd} part="price" />
+          </div>
 
           {/* Everything in here belongs to ONE market. With tabs it is that tabpanel; with a
               single market there is no tablist, so there is no orphan tabpanel either. */}
@@ -206,13 +227,6 @@ export default function WatchlistCard({
                 }
               : {})}
           >
-            {/* Top right of the header row: the number, and the day it was observed. The
-                "no price at this market" note takes the same slot — the absence of a price
-                is shown where the price would be, not tucked away. */}
-            <div className="pf-card__pricecell">
-              <PriceBlock market={market} lang={lang} todayYmd={todayYmd} part="price" />
-            </div>
-
             {/* Load-bearing honesty, not clutter: this crop has no market of the farmer's
                 own, so the number above it belongs to the economic centre we chose for them. */}
             {market?.isDefaultMarket && (

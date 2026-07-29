@@ -301,18 +301,67 @@ describe('WatchlistCard — a tab switch moves the WHOLE market-scoped block', (
     expect(screen.getByText(/Up 4\.2% from Rs\. 201/)).toBeInTheDocument();
   });
 
-  it('keeps the price INSIDE the tabpanel, where the tab that changes it can name it', async () => {
-    // The price sits in the header row, visually beside the crop name — but it is the one
-    // number the tab governs, so it stays inside the panel the tab labels. (The layout does
-    // that with `display: contents`; the DOM relationship is what this pins.)
+  it('moves price, trend and chart from ONE market resolution, panel or no panel', async () => {
+    // The price cell is rendered OUTSIDE the tabpanel (it shares row 1 with the tablist,
+    // which cannot be nested inside the panel it controls), so nesting is not what keeps it
+    // honest — the single selectedMarketFor() seam is. This pins the property that seam
+    // exists for: one tab press moves all three, and no two of them can name different
+    // markets.
     renderCard(tomato());
 
     const panel = await screen.findByRole('tabpanel');
-    expect(within(panel).getByText('Rs. 260')).toBeInTheDocument();
-    expect(within(panel).getByText(/Price from Jul 26, 2026/)).toBeInTheDocument();
+    const priceCell = document.querySelector('.pf-card__pricecell') as HTMLElement;
+    // The price is deliberately not inside the panel; the trend and the chart are.
+    expect(panel.contains(priceCell)).toBe(false);
+    expect(within(priceCell).getByText('Rs. 260')).toBeInTheDocument();
     expect(within(panel).getByText(/Down 3\.1% from Rs\. 268/)).toBeInTheDocument();
-    // ...and the crop name, which does NOT change with the tab, stays outside it.
+    await within(panel).findAllByText('Daily price — Tomato at Kandy (HARTI wholesale)');
+    // ...and the crop name, which does NOT change with the tab, is in neither.
     expect(within(panel).queryByRole('heading', { name: 'Tomato' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Dambulla Dedicated Economic Centre (DEC)' }));
+
+    await within(priceCell).findByText('Rs. 210');
+    expect(within(priceCell).queryByText('Rs. 260')).toBeNull();
+    expect(within(panel).getByText(/Up 4\.2% from Rs\. 201/)).toBeInTheDocument();
+    expect(within(panel).queryByText(/Down 3\.1%/)).toBeNull();
+    await within(panel).findAllByText('Daily price — Tomato at Dambulla Dedicated Economic Centre');
+    expect(
+      within(panel).queryAllByText('Daily price — Tomato at Kandy (HARTI wholesale)'),
+    ).toHaveLength(0);
+  });
+
+  it('puts the number in the header slot and the trend in the panel — not the reverse', async () => {
+    // Pinned on the TWO-market path, where the tabs actually live: swapping PriceBlock's
+    // `part` branches must fail here, not only on the single-market card.
+    renderCard(tomato());
+
+    const priceCell = (await screen.findByText('Rs. 260')).closest(
+      '.pf-card__pricecell',
+    ) as HTMLElement;
+    expect(within(priceCell).getByText('Price from Jul 26, 2026')).toBeInTheDocument();
+    expect(within(priceCell).queryByText(/Down 3\.1%/)).toBeNull();
+
+    const trend = screen.getByText(/Down 3\.1% from Rs\. 268/);
+    expect(trend.closest('.pf-card__pricecell')).toBeNull();
+    expect(trend.closest('.pf-card__panel')).not.toBeNull();
+  });
+
+  it('keeps the remove tick in the header, before the price and outside the tabpanel', async () => {
+    // Two ways round, because each catches a different regression: dropping the tick into
+    // the tabpanel would make it read as market-scoped ("remove this market?"), and moving
+    // it after the price would put a control the eye meets first at the end of the row.
+    renderCard(tomato());
+
+    const panel = await screen.findByRole('tabpanel');
+    const tick = screen.getByRole('checkbox', { name: 'Tick Tomato to remove it' });
+    const priceCell = document.querySelector('.pf-card__pricecell') as HTMLElement;
+
+    expect(panel.contains(tick)).toBe(false);
+    expect(tick.closest('.pf-card__top')).not.toBeNull();
+    expect(
+      tick.compareDocumentPosition(priceCell) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it('carries the swing pill into the popup, still following the selected tab', async () => {
@@ -465,9 +514,11 @@ describe('WatchlistCard — the simplified card: what MOVED to the popup', () =>
     expect(within(dialog).getByText('Dambulla Dedicated Economic Centre')).toBeInTheDocument();
   });
 
-  it('keeps the "no price here" note in the price slot, in its own honest words', async () => {
+  it('keeps the "no price here" note in the price slot, as a full-width row', async () => {
     // The absence of a price is shown where the price would be — not tucked below the fold
-    // — and it still does not imply staleness.
+    // — and it still does not imply staleness. It is flagged as a sentence rather than a
+    // number so the CSS can give it the whole row: 235px of copy in a header column leaves
+    // a long crop name (Mukunuwenna, or any Sinhala/Tamil name) nowhere to go.
     renderCard(
       tomato({
         markets: [{ ...DAMBULLA, price: null, priceUnavailableReason: 'no_recent_price' }],
@@ -476,10 +527,30 @@ describe('WatchlistCard — the simplified card: what MOVED to the popup', () =>
 
     const cell = (await screen.findByText('No price data for this market yet.')).closest(
       '.pf-card__pricecell',
-    );
+    ) as HTMLElement;
     expect(cell).not.toBeNull();
+    expect(cell.className).toContain('pf-card__pricecell--nodata');
     // No trend line either: there is no price for it to describe.
     expect(document.querySelector('.pf-trend')).toBeNull();
+  });
+
+  it('opens the popup OUTSIDE the card surface that carries the CSS container', async () => {
+    // `container-type: inline-size` also applies layout containment, which makes the element
+    // a containing block for position:fixed descendants. Modal does not portal, so if the
+    // container sat on the <li> the dialog's fixed backdrop would be trapped inside one
+    // 300px-wide card on the desktop grid — a "modal" covering one card, with later cards
+    // painting over it. The container therefore lives on .pf-card__inner, and this pins the
+    // DOM relationship that makes that safe. jsdom applies no CSS; only this structure can
+    // be tested here.
+    renderCard(tomato());
+    fireEvent.click(await screen.findByRole('button', { name: 'More details for Tomato' }));
+
+    const backdrop = document.querySelector('.pf-modal__backdrop') as HTMLElement;
+    const container = document.querySelector('.pf-card__inner') as HTMLElement;
+    const card = document.querySelector('.pf-card') as HTMLElement;
+    expect(backdrop).not.toBeNull();
+    expect(container.contains(backdrop)).toBe(false);
+    expect(card.contains(backdrop)).toBe(true);
   });
 });
 
