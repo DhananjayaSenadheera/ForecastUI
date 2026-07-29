@@ -72,27 +72,34 @@
 }
 
 /* ---- Card header + market-scoped facts (ONE grid) -------------------------
-   Row 1 is the header the owner sketched: "Beans → DEC" on the left, the price on the
-   right, the remove tick at the far edge. The trend line, the chart and the rest follow in
-   full-width rows below it.
+   The owner's hi-fi mockup (2026-07-29), which restyles the sketch shipped that morning:
 
-   The price cell sits OUTSIDE the tabpanel in the DOM, by design and against the instinct
-   that the tab's own number should live inside the panel it labels. The layout demands a
-   rectangle per grid item, and the price has to share row 1 with the tablist itself, which
-   cannot be inside the panel it controls. The two escapes both cost more than they buy:
-   `display: contents` on the panel has documented accessibility-tree bugs on role-bearing
-   elements, and subgrid needs the panel's box to span row 1, where it would cover the tabs
-   and the tick and swallow their taps. So the panel keeps a normal box around the trend and
-   the chart, and the price cell is tab-governed state rendered beside it — resolved from
-   the SAME selectedMarketFor() call, which is what actually guarantees they agree. */
+     row 1  [ 🍆 ]  Brinjal → DEC KAN                              [ bookmark ]
+     row 2  Rs. 263 /kg                                  [ ↓ 18%  tinted badge ]
+            Price from Jul 28, 2026 ⓘ                    [ Down from Rs. 320…  ]
+     ─────────────────────────────────────────────────────────────────────────
+     row 3  the chart, in its own inset panel
+
+   Row 2 is now a row of its own instead of sharing row 1 with the name, which is what buys
+   the number its size: at 30px the price cannot share a line with a crop name and three
+   market chips on a phone, and the mockup's trend badge needs a column of its own.
+
+   The price row still sits OUTSIDE the tabpanel in the DOM, by design and against the
+   instinct that the tab's own number belongs inside the panel it labels. A grid item is a
+   rectangle and the panel cannot span the tablist that controls it; the escapes both cost
+   more than they buy (`display: contents` on a role-bearing element has documented
+   accessibility-tree bugs, and subgrid would put the panel's box over the tabs and the
+   bookmark, swallowing their taps). So the panel keeps a normal box around the chart, and
+   the price row is tab-governed state rendered beside it — resolved from the SAME
+   selectedMarketFor() call, which is what actually guarantees they agree. */
 .pf-card__top {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
   column-gap: var(--sp-3);
-  row-gap: var(--sp-2);
+  row-gap: var(--sp-3);
 }
-/* Default: every row is full width. The header cells opt out below. */
+/* Default: every row is full width. The two header cells opt out below. */
 .pf-card__top > * {
   grid-column: 1 / -1;
 }
@@ -100,6 +107,15 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
+}
+/* The thin rule the mockup draws under the price row. It is CSS on the boundary rather than
+   an <hr>: a separator element is announced by screen readers, and there is nothing here to
+   separate that the headings and regions do not already separate. The adjacent-sibling
+   selector means it appears only when a price row really precedes the panel — a market with
+   no price has its note INSIDE the panel and gets no stray line above it. */
+.pf-card__pricecell + .pf-card__panel {
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
 }
 .pf-card__ident {
   grid-column: 1 / 2;
@@ -114,20 +130,37 @@
   grid-column: 2 / 3;
   grid-row: 1;
 }
-/* Narrow (a 360px phone): the price breaks onto its own row under the name and stays
-   end-aligned, so a long crop name with three market chips can never squeeze the number or
-   push it to a chaotic wrap. */
+/* The crop's emoji in a round tinted chip. Decorative (aria-hidden in the component), sized
+   like a touch target even though it is not one, so the header keeps a stable left edge
+   whatever the glyph is. flex: none — it never shrinks, and it never wraps away from the
+   name it belongs to. */
+.pf-card__icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--r-pill);
+  background: var(--brand-tint);
+  /* Emoji only: a size, not a type ramp entry, and no script text ever lands here. */
+  font-size: 28px;
+  line-height: 1;
+}
+/* The price and its movement, side by side: the number leads, the badge closes the row. */
 .pf-card__pricecell {
-  justify-self: end;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-2) var(--sp-3);
   max-width: 100%;
 }
-/* No price here is a SENTENCE, not a number: it never takes the narrow header column, in
-   any variant. It keeps the price's place in the reading order — first thing under the crop
-   name — but as a full-width row, so it cannot squeeze the name into an overflow. The card
-   renders it inside .pf-card__panel (so a tab never labels an empty region), where it is a
-   flex row; this rule keeps the same result should it ever be placed in the grid again. */
+/* No price here is a SENTENCE, not a number, and there is no badge beside it: it takes the
+   whole row so it cannot be squeezed, and it keeps the price's place in the reading order.
+   The card renders it inside .pf-card__panel, so a tab never labels an empty region. */
 .pf-card__pricecell--nodata {
-  justify-self: stretch;
+  display: block;
 }
 /* The arrow is the whole explanation of the header: crop → the market it is read at. */
 .pf-card__arrow {
@@ -144,50 +177,33 @@
      rather than overflow the card. */
   overflow-wrap: anywhere;
 }
-/* The one-row header, from 360px of CONTENT width. The container is the padded inner
-   surface, so a card queries 32px narrower than it looks: 360px here is a ~392px card.
+/* MEASURED in headless Chrome on the real markup (the recipe from the card-simplify PR:
+   render the component, load the real stylesheets, fix the width, read intrinsic widths),
+   never guessed. The container is the padded inner surface, so a card queries 32px narrower
+   than it looks: 279px of content is a 311px card — the narrowest the desktop 3-column grid
+   produces — and 328px is a 360px phone.
 
-   Measured, not guessed (headless-Chrome intrinsic widths of the real markup): the
-   observed-date line is 153px, the tick 44px, the gaps 24px, and the identity side needs
-   126px for a long crop name (Mukunuwenna) or 135px for a two-chip strip — 356px in the
-   worst two-chip case. Below that the price drops to its own row, which is what keeps
-   "Tomato → KAN DEC" on one line at 360px instead of breaking the strip up.
-
-   The identity column carries an 8rem floor so the shrinking happens on the RIGHT: when the
-   card is tight, the price's date line wraps (readable) rather than the crop name breaking
-   mid-word (not readable, and Sinhala and Tamil names have no spaces to break at). */
-@container pf-card (min-width: 360px) {
-  .pf-card__top {
-    grid-template-columns: minmax(8rem, 1fr) auto auto;
-  }
+   The one thing that does not fit at every width is the price row. Side by side it needs
+   the price's own 134px (the number and "/kg", with the date line wrapping under it) plus
+   the badge's cap and the 12px gap — 320px of content, which is a 352px card. Below that
+   the badge drops under the price and both take the full width: that is the mobile-first
+   default here, and the query only turns the side-by-side arrangement ON. */
+@container pf-card (min-width: 320px) {
   .pf-card__pricecell:not(.pf-card__pricecell--nodata) {
-    grid-column: 2 / 3;
-    grid-row: 1;
-    /* Capped against the container, so the number can never take half the header from the
-       crop name. */
-    max-width: min(16rem, 45cqi);
+    flex-wrap: nowrap;
   }
-  .pf-card__top > .pf-pick {
-    grid-column: 3 / 4;
-  }
+  /* The badge's own cap for this band is set beside the badge itself (source order
+     decides between two equally specific rules, and the badge is styled further down). */
 }
-/* Three markets — the backend cap — is the one case that needs more: the strip alone is
-   202px, so the one-row header does not fit until 423px of content. Between 360 and 423 the
-   chips would break 2-then-1 down the card, so those cards keep the stacked header instead.
-   :has() is the only way to say "this card has three chips" in CSS; where it is
-   unsupported, the band renders the broken strip it renders today, which is untidy rather
-   than unusable. */
-@container pf-card (max-width: 423px) {
-  .pf-card__top:has(.pf-mtab-wrap:nth-child(3)) {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-  .pf-card__top:has(.pf-mtab-wrap:nth-child(3)) .pf-card__pricecell {
-    grid-column: 1 / -1;
-    grid-row: auto;
-    max-width: 100%;
-  }
-  .pf-card__top:has(.pf-mtab-wrap:nth-child(3)) > .pf-pick {
-    grid-column: 2 / 3;
+/* Three markets — the backend cap — is the one identity strip that cannot share its line:
+   the chips alone measure 202px, so on a narrow card the crop name and the codes fight for
+   the same row and the name breaks mid-word. Giving the strip its own line under the name
+   costs one line and keeps both readable. :has() is the only way to say "this card has
+   three chips" in CSS; where it is unsupported the strip wraps as it always did, which is
+   untidy rather than unusable. */
+@container pf-card (max-width: 359px) {
+  .pf-card__ident:has(.pf-mtab-wrap:nth-child(3)) .pf-mtabs {
+    flex-basis: 100%;
   }
 }
 /* A ticked card is outlined, not tinted red: ticking is a selection, not a warning. */
@@ -248,19 +264,23 @@
   letter-spacing: 0.08em;
   cursor: pointer;
 }
+/* The mockup inverts the fill: an UNSELECTED code is a flat grey pill and the SELECTED one
+   is white with a brand-coloured ring around it, which reads as "lifted off the strip" the
+   way a chosen tab should. The distinction is still not colour alone — aria-selected
+   carries it for assistive tech, and the ring/fill difference survives greyscale. The
+   border stays 2px in both states so selecting one never nudges the row. */
 .pf-mtab {
-  border-color: var(--line-strong);
+  border-color: transparent;
+  background: var(--neutral-bg);
+  color: var(--text-2);
 }
 .pf-mtab:hover {
-  background: var(--brand-tint);
+  border-color: var(--line-strong);
 }
-/* The selected tab is NOT signalled by colour alone: aria-selected carries it for assistive
-   tech, and visually it is a FILLED pill against outlined ones — shape first, tint second.
-   The border stays 2px in both states so selecting one never nudges the row. */
 .pf-mtab.is-active {
   color: var(--brand-strong);
   border-color: var(--brand);
-  background: var(--brand-tint);
+  background: var(--surface);
 }
 .pf-mtab:focus-visible,
 .pf-mcode:focus-visible {
@@ -331,7 +351,11 @@
   }
 }
 
-/* ---- Tick boxes (cards and table share one target size) ------------------- */
+/* ---- Tick boxes (cards and table share one target size) -------------------
+   The card's tick wears a BOOKMARK (owner's mockup); the crops table keeps the native box.
+   Same control either way — a real checkbox with a crop-specific accessible name — so this
+   is paint, not behaviour. The input is moved off-screen with .sr-only rather than
+   display:none, which would take it out of the tab order and off the keyboard entirely. */
 .pf-pick {
   display: inline-flex;
   align-items: center;
@@ -350,6 +374,29 @@
   outline: none;
   box-shadow: var(--focus-ring);
 }
+/* The bookmark's own box: the full 44px target, since the 24px glyph inside it is not one. */
+.pf-pick__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-min);
+  height: var(--touch-min);
+  border-radius: var(--r-md);
+  color: var(--text-3);
+}
+/* Ticked: brand teal and a FILLED bookmark (the fill comes from the SVG, not from here), so
+   the state is a shape change first and a colour change second. Never red — ticking a card
+   queues it for removal, it does not remove anything. */
+.pf-pick__box:checked + .pf-pick__mark {
+  color: var(--brand);
+}
+/* The visually-hidden input keeps the focus; the ring has to appear on what is visible. */
+.pf-pick__box:focus-visible + .pf-pick__mark {
+  box-shadow: var(--focus-ring);
+}
+.pf-pick:hover .pf-pick__mark {
+  color: var(--brand-strong);
+}
 .pf-card__more {
   margin: auto 0 0;
   padding-top: var(--sp-2);
@@ -360,6 +407,47 @@
   min-height: var(--touch-min);
   color: var(--brand-strong);
   font-weight: var(--fw-medium);
+}
+
+/* ---- The card's two foot buttons ------------------------------------------
+   "See the full forecast" (primary, solid) then "More details" (secondary, outlined), both
+   full width and both 48px tall: one thumb, two unambiguous choices, in the order the card
+   wants them read. The chevron is decoration — the words already say where each one goes. */
+.pf-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-1);
+  width: 100%;
+  min-height: var(--touch-primary);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--r-md);
+  font: inherit;
+  font-weight: var(--fw-medium);
+  text-align: center;
+  cursor: pointer;
+}
+.pf-btn--primary {
+  border: 2px solid var(--brand-dark);
+  background: var(--brand-dark);
+  color: var(--text-on-brand);
+}
+.pf-btn--primary:hover {
+  background: var(--brand-strong);
+  border-color: var(--brand-strong);
+}
+.pf-btn--ghost {
+  border: 2px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--brand-strong);
+}
+.pf-btn--ghost:hover {
+  border-color: var(--brand);
+  background: var(--brand-tint);
+}
+.pf-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 /* ---- Price block ---------------------------------------------------------- */
@@ -389,17 +477,24 @@
   color: var(--text-3);
   font-size: var(--fs-sm);
 }
-/* The card header's variant: the number and its date only (the trend has its own full-width
-   line below), stacked tight and end-aligned under the tick. "Rs. 260" and "/kg" close up
-   into one price the eye reads as a unit. Logical properties throughout — the same card has
-   to lay out under a future RTL locale without a second rule. */
+/* The card's variant: the number and its observed date, leading the price row from the
+   start edge with the trend badge closing it. "Rs. 263" and "/kg" close up into one price
+   the eye reads as a unit, and the number is the biggest thing on the card because it is
+   the thing the farmer came for. Logical properties throughout — the same card has to lay
+   out under a future RTL locale without a second rule. */
 .pf-price--head {
   gap: 0;
-  text-align: end;
+  min-width: 0;
 }
 .pf-price--head .pf-price__value {
-  justify-content: flex-end;
   gap: 2px;
+  /* "Rs. 263" and "/kg" are ONE price: they may never break apart, which is why the badge
+     beside them is capped in cqi rather than being allowed to squeeze this line. */
+  flex-wrap: nowrap;
+}
+.pf-price--head .pf-price__num {
+  font-size: var(--fs-price);
+  line-height: var(--lh-numeral);
 }
 /* A sentence, not a number: it takes the price's place in the reading order when there is
    no price, and it reads from the start edge like every other sentence on the card. */
@@ -410,7 +505,7 @@
   color: var(--warn-fg); /* caution, never alarm — and the words say it too */
 }
 
-/* Trend: neutral tints only. "Down" is amber-free and red-free on purpose. */
+/* Trend as a LINE (popup, crop page): neutral tints only. */
 .pf-trend {
   margin: 0;
   font-size: var(--fs-sm);
@@ -428,6 +523,155 @@
 }
 .pf-trend--none {
   color: var(--text-3);
+}
+
+/* ---- Trend as a BADGE (the card) ------------------------------------------
+   DIRECTIONAL tint, decided with the owner: soft green when the price has risen, soft AMBER
+   when it has fallen, neutral when it is unchanged. Amber is caution, not alarm — a falling
+   price is a fact the farmer must act on, not an error, and red stays reserved app-wide for
+   the "Not recommended" verdict and for the two controls that destroy data. The arrow and
+   the words carry the direction on their own; the tint only reinforces them, and the whole
+   badge is duplicated as one screen-reader sentence in the component. */
+.pf-trendbadge {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  /* Stacked under the price (the narrow default) it takes the whole row — a badge indented
+     to half a line reads as debris. The cap that keeps it out of the price's way belongs to
+     the side-by-side band only, and is set there. */
+  max-width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-md);
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+}
+.pf-trendbadge--up {
+  background: var(--good-bg);
+  color: var(--good-fg);
+}
+.pf-trendbadge--down {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+/* Pairs with the price row's nowrap band at the top of this file: once the badge shares a
+   line with the price it is capped against the CARD, so it can never take the row. Measured
+   at 328px of content (a 360px phone) it is 163px wide and its second line runs to two; at
+   388px it is 193px. The price keeps what is left and its DATE line wraps — the right thing
+   to give up first, because a wrapped date is readable and a wrapped price is not.
+   It lives HERE, after the base rule, because both selectors are equally specific and
+   source order is what decides. */
+@container pf-card (min-width: 320px) {
+  .pf-trendbadge {
+    max-width: min(15rem, 50cqi);
+  }
+}
+.pf-trendbadge__pct {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-1);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: var(--fvn-tabular);
+  line-height: var(--lh-heading);
+}
+.pf-trendbadge__arrow {
+  font-size: var(--fs-body-lg);
+  line-height: 1;
+}
+/* The comparison, small but never below the trilingual floor: this line carries a date and
+   a price and has to stay readable in Sinhala and Tamil. */
+.pf-trendbadge__from {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+}
+
+/* ---- ⓘ explainers (the farmer-side twin of the admin hint) -----------------
+   Hover/focus tooltip for pointer and keyboard; a tap toggles the same sentence inline,
+   because touch has no hover. Everything is inline-safe so it can live inside a paragraph.
+   It explains — no colour, no alarm, and the fact it annotates reads fine with it closed. */
+.pf-hint-wrap {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+}
+.pf-hint-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 24px of ink inside a 44px hit area: the padding does the touch work so the ⓘ does not
+     shout beside a small caption. */
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  margin: calc(-1 * var(--sp-2)) 0;
+  padding: 0 var(--sp-2);
+  border: 0;
+  background: none;
+  color: var(--text-3);
+  font: inherit;
+  font-size: var(--fs-body);
+  line-height: 1;
+  cursor: pointer;
+}
+.pf-hint-btn:hover {
+  color: var(--brand-strong);
+}
+.pf-hint-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-pill);
+}
+.pf-hint-tip {
+  position: absolute;
+  top: calc(100% + var(--sp-1));
+  inset-inline-start: 0;
+  z-index: 6;
+  width: max-content;
+  max-width: min(260px, 70vw);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface);
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--e-2);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-regular);
+  line-height: var(--lh-body);
+  color: var(--text);
+  white-space: normal;
+  text-align: start;
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+.pf-hint-wrap:hover .pf-hint-tip,
+.pf-hint-wrap:focus-within .pf-hint-tip {
+  visibility: visible;
+  opacity: 1;
+}
+@media (hover: none) {
+  /* Touch never sees the tooltip — it taps and reads the note below instead. */
+  .pf-hint-tip {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pf-hint-tip {
+    transition: none;
+  }
+}
+/* The tapped-open note: a full-width block inside whatever paragraph it belongs to. */
+.pf-hint-note {
+  display: block;
+  margin-top: var(--sp-1);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  background: var(--surface-3);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+  font-weight: var(--fw-regular);
 }
 
 /* ---- Notes / no-data ------------------------------------------------------ */
@@ -473,21 +717,75 @@
 }
 
 /* ---- In-card price chart --------------------------------------------------
-   The SAME PriceLineChart the crop page and the Prices page draw — compacted, never
-   forked. Only the surrounding space and the chart's own height change; the numbers, the
-   band, the thin-history note and the <details> table alternative all stay, because the
-   table IS the text alternative and a card is not a reason to drop it. */
+   The SAME PriceLineChart the crop page and the Prices page draw — compacted, never forked.
+   On the card it sits in its own inset panel (the mockup's white sub-card): a 1px border
+   and a radius that say "this is one thing, and it is the picture behind the number above".
+
+   The one thing the card DOES drop is the <details> table. That is the owner's call and it
+   is the only surface where it holds: a card is scanned, the same table is one tap away in
+   "More details", and the chart's aria summary changes with it so it never promises a table
+   that is not there (PriceLineChart, `chartAriaNoTable`). Everywhere else the table stays
+   mandatory — the numbers ARE the product. */
 .pf-card__chart {
   margin-top: var(--sp-1);
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
 }
 .pf-card__chart .pr-chart {
   margin-bottom: 0;
+}
+/* Title and range chooser share the panel's top line; the title keeps the space and wraps,
+   the control never shrinks. */
+.pr-chart__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+.pr-chart__head .pr-chart__title {
+  flex: 1 1 8rem;
+  min-width: 0;
 }
 .pf-card__chart .pr-chart__title {
   font-size: var(--fs-sm);
   font-weight: var(--fw-medium);
   color: var(--text-2);
   margin-bottom: var(--sp-2);
+}
+/* The y axis's unit, above the plot where the scale starts. A micro-label, and Latin +
+   numerals only, so --fs-xs is allowed here. */
+.pr-chart__unit {
+  margin: 0 0 var(--sp-1);
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+}
+/* ---- The 1M / 3M range chooser --------------------------------------------
+   A native <select>, deliberately: it is two options, it opens the phone's own picker, it
+   is keyboard- and screen-reader-complete for free, and it weighs nothing. The label is
+   screen-reader-only because the chosen value ("3 months") says what it is on screen. */
+.pf-range {
+  flex: none;
+  display: inline-flex;
+}
+.pf-range__select {
+  min-height: var(--touch-min);
+  padding: var(--sp-1) var(--sp-3);
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+}
+.pf-range__select:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 /* Cards stay scannable: the chart is a glance, not a study. The viewBox is unchanged, so
    the geometry is identical to the full-size chart — only the drawn box is shorter. */
@@ -571,6 +869,103 @@
   margin: 0;
   font-size: var(--fs-sm);
   color: var(--warn-fg);
+}
+
+/* ---- Prediction, SPLIT (the card) -----------------------------------------
+   Two columns inside one tinted block: the money and how far to trust it on the left, the
+   band, the harvest day and the labels on the right. Same facts, same strings and the same
+   reading order as the stacked version — a farmer scanning ten cards finds the number in
+   the same place on every one of them.
+
+   The confidence word sits directly under the number it qualifies and is never smaller than
+   the band beside it: a de-rated forecast that whispers its de-rating is the one thing this
+   app must not ship. */
+.pf-pred--split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--brand-tint);
+}
+@container pf-card (min-width: 320px) {
+  .pf-pred--split {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  }
+}
+.pf-pred__money {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+/* The dotted rule under the money is the mockup's; it separates the number from the trust
+   statement without drawing a second box around either. */
+.pf-pred__money .pf-pred__confline {
+  margin: 0;
+  padding-top: var(--sp-2);
+  border-top: 1px dashed var(--line-strong);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+.pf-pred__confline--good {
+  color: var(--conf-good-fg);
+}
+.pf-pred__confline--fair {
+  color: var(--conf-fair-fg);
+}
+.pf-pred__confline--low {
+  color: var(--conf-low-fg);
+}
+.pf-pred__about {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-1) var(--sp-2);
+}
+.pf-pred__icon {
+  font-size: var(--fs-body-lg);
+  line-height: 1;
+}
+.pf-pred__cap {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+/* The forecast number, at price size — but a step under the observed price above it, which
+   is a fact where this is an estimate. */
+.pf-pred__big {
+  flex-basis: 100%;
+  font-size: var(--fs-price-sm);
+  font-weight: var(--fw-black);
+  line-height: var(--lh-numeral);
+  color: var(--price-fg);
+  font-variant-numeric: var(--fvn-tabular);
+}
+.pf-pred__facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+/* Label over value, the label small and grey: a pair, never a sentence a translator has to
+   reassemble. */
+.pf-pred--split .pf-pred__band {
+  display: flex;
+  flex-direction: column;
+}
+.pf-pred__lab {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+.pf-pred__val {
+  color: var(--text);
+  font-weight: var(--fw-medium);
+  font-variant-numeric: var(--fvn-tabular);
+}
+.pf-pred--split .pf-pred__when {
+  color: var(--text);
 }
 
 /* ---- States --------------------------------------------------------------- */
@@ -905,6 +1300,26 @@
   padding-top: var(--sp-3);
   border-top: 1px solid var(--line);
 }
+/* The seedling in its own pale-green disc, beside the heading it decorates (aria-hidden in
+   the component — it repeats the heading and adds nothing to a screen reader). It marks
+   "the planting part" of every card in the same place, findable without reading. */
+.pf-plant__headrow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.pf-plant__seed {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-pill);
+  background: var(--good-bg);
+  font-size: 18px;
+  line-height: 1;
+}
 .pf-plant__head {
   margin: 0;
   font-size: var(--fs-body);
@@ -926,6 +1341,7 @@
 .pf-plant__link {
   display: inline-flex;
   align-items: center;
+  gap: var(--sp-1);
   min-height: var(--touch-min);
   padding: 0 var(--sp-1);
   border: 0;
@@ -935,6 +1351,17 @@
   color: var(--brand-strong);
   text-decoration: underline;
   cursor: pointer;
+}
+/* THE SECOND (and last) RED THING IN THIS FILE. "Remove date" throws away something the
+   farmer typed, which is the same exception .pf-confirm__yes claims — red marks
+   destruction, never a falling price and never a warning. It stays a text button beside
+   "Change" rather than a filled danger button, and it ships a bin AND the word "Remove",
+   so the colour is the third signal and not the only one. */
+.pf-plant__link--danger {
+  color: var(--critical-fg);
+}
+.pf-icon {
+  flex: none;
 }
 .pf-plant__link:disabled {
   opacity: 0.55;
@@ -984,19 +1411,34 @@
 .pf-plant__cancel {
   min-height: var(--touch-primary);
 }
+/* The result of the farmer's own action, as a full-width tinted strip (the mockup's "✓
+   Planting date saved."). Green for done, amber for anything else — never red: a refused
+   date is not a failure of the farmer's, and nothing was destroyed. */
 .pf-plant__msg {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
   margin: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
   font-size: var(--fs-sm);
+  line-height: var(--lh-body);
 }
-/* An empty status region must not reserve a gap under every card. */
+/* An empty status region must not reserve a gap — or a tinted strip — under every card. */
 .pf-plant__msg:empty {
   display: none;
 }
+.pf-plant__msg-glyph {
+  flex: none;
+  font-weight: var(--fw-bold);
+}
 .pf-plant__msg--ok {
+  background: var(--good-bg);
   color: var(--good-fg);
 }
 .pf-plant__msg--warn,
 .pf-plant__msg--error {
+  background: var(--warn-bg);
   color: var(--warn-fg); /* amber, not red: nothing was destroyed, nothing is forbidden */
 }
 .pf-plant__fcerr {
@@ -1021,19 +1463,10 @@
   border-top: 0;
   padding-top: 0;
 }
-.pf-card__more-btn {
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  font-weight: var(--fw-medium);
-  text-decoration: underline;
-  cursor: pointer;
-}
-.pf-card__more-btn:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-  border-radius: var(--r-sm);
+/* The card's planting section owns the primary button, so its own bottom margin goes: the
+   two foot buttons read as one pair. */
+.pf-plant .pf-plant__more {
+  margin-top: var(--sp-1);
 }
 
 /* ---- "More details" popup -------------------------------------------------
@@ -1166,10 +1599,4 @@
   margin: 0 0 var(--sp-2);
   color: var(--text-2);
   font-size: var(--fs-sm);
-}
-.pf-card__rule {
-  border: 0;
-  border-top: 1px solid var(--line);
-  margin: var(--sp-2) 0;
-  width: 100%;
 }

@@ -9,6 +9,7 @@ import type {
   PortfolioPrediction,
 } from '../api/types';
 import {
+  CHART_RANGE_DAYS,
   MAX_MARKETS_PER_CROP,
   MAX_WATCHED_CROPS,
   PLANTED_DATE_MIN,
@@ -28,6 +29,7 @@ import {
   primaryMarket,
   sameMarketSet,
   selectedMarketFor,
+  sliceHistoryByRange,
   showsNationalLabel,
   toggleMarketSelection,
   trendGlyph,
@@ -545,5 +547,50 @@ describe('lib/portfolio — the full-forecast link carries the planting', () => 
   it('stays the plain crop link when there is no date', () => {
     expect(harvestLinkFor('c1', null)).toBe('/my-harvest?crop=c1');
     expect(harvestLinkFor('c1')).toBe('/my-harvest?crop=c1');
+  });
+});
+
+describe('lib/portfolio — the card chart’s 1M / 3M zoom', () => {
+  // A year of daily points, so a window really can exclude something.
+  const series = Array.from({ length: 200 }, (_, i) => {
+    const d = new Date(Date.UTC(2026, 0, 1));
+    d.setUTCDate(d.getUTCDate() + i);
+    return { date: d.toISOString().slice(0, 10), minPrice: 100 + i, maxPrice: 140 + i };
+  });
+
+  it('keeps only the last 30 / 90 days of the series', () => {
+    expect(sliceHistoryByRange(series, '1m')).toHaveLength(31);
+    expect(sliceHistoryByRange(series, '3m')).toHaveLength(91);
+    // Inclusive of both ends, and it is a TAIL: the newest point is always in.
+    expect(sliceHistoryByRange(series, '1m').at(-1)).toEqual(series.at(-1));
+  });
+
+  it('anchors on the newest OBSERVATION, not on today', () => {
+    // The whole reason: a market that stopped publishing weeks ago must still draw a chart.
+    // Anchored on "now" this returns nothing and the empty chart says "no recent price
+    // data" — which would be false, the data exists and is simply older than the window.
+    const stale = series.slice(0, 40); // ends 2026-02-09, months behind any real "today"
+    const zoomed = sliceHistoryByRange(stale, '1m');
+    expect(zoomed.length).toBeGreaterThan(1);
+    expect(zoomed.at(-1)).toEqual(stale.at(-1));
+  });
+
+  it('is order-independent — it scans for the newest date rather than trusting the array', () => {
+    const shuffled = [...series].reverse();
+    expect(sliceHistoryByRange(shuffled, '1m')).toHaveLength(31);
+  });
+
+  it('never invents or drops a series it cannot window', () => {
+    expect(sliceHistoryByRange([], '1m')).toEqual([]);
+    const one = [{ date: '2026-07-01', minPrice: 10, maxPrice: 20 }];
+    expect(sliceHistoryByRange(one, '1m')).toEqual(one);
+    // Unparsable dates are not a reason to blank a chart.
+    const junk = [{ date: 'not-a-date', minPrice: 10, maxPrice: 20 }];
+    expect(sliceHistoryByRange(junk, '3m')).toEqual(junk);
+  });
+
+  it('agrees with the days it advertises', () => {
+    expect(CHART_RANGE_DAYS['1m']).toBe(30);
+    expect(CHART_RANGE_DAYS['3m']).toBe(90);
   });
 });

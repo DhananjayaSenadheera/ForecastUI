@@ -24,8 +24,11 @@
 //    that will never finish.
 //  - The date the farmer typed is never discarded on a refusal. A rejected save keeps the
 //    field open with their date in it and says why.
-//  - Nothing here is red. Removing a date destroys nothing that cannot be typed again in
-//    five seconds, so it is a quiet ghost button, not a destructive confirm.
+//  - ONE thing here is red: "Remove date", which throws away something the farmer typed.
+//    That is the same exception the remove-crop confirm claims (portfolio.css names it) —
+//    red marks destruction, never a falling price and never a warning. It is a text button
+//    with a bin and a word, so the colour is the third signal and not the only one. The
+//    2026-07-29 mockup asked for it; it is flagged for reviewer judgement in the PR.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -43,7 +46,7 @@ import {
   plantedDateMax,
   predictionFromHarvestForecast,
 } from '../lib/portfolio';
-import PredictionBlock from './PredictionBlock';
+import PredictionBlock, { type PredictionLayout } from './PredictionBlock';
 
 /** What the page's write machinery reports back: a tone and an i18n key, exactly the shape
  *  PortfolioPage puts in its own status region. */
@@ -133,6 +136,10 @@ export interface PlantedDateSectionProps {
   idPrefix: string;
   /** 3 inside the popup (under its h2), 4 on the card (under the crop's h3). */
   headingLevel?: 3 | 4;
+  /** How the forecast underneath is arranged (see PredictionBlock): the card asks for the
+   *  two-column 'split' block, the popup keeps the stacked lines. Passed EXPLICITLY rather
+   *  than inferred from idPrefix — a layout decision should read as one. */
+  forecastLayout?: PredictionLayout;
 }
 
 export default function PlantedDateSection({
@@ -146,6 +153,7 @@ export default function PlantedDateSection({
   busy,
   idPrefix,
   headingLevel = 4,
+  forecastLayout = 'lines',
 }: PlantedDateSectionProps) {
   const { t } = useTranslation();
   const plantedDate = item.plantedDate;
@@ -218,11 +226,19 @@ export default function PlantedDateSection({
 
   return (
     <section className="pf-plant" aria-labelledby={headingId}>
-      <Heading className="pf-plant__head" id={headingId}>
-        {plantedDate && !editing
-          ? t('pages.portfolio.plantedForecastHeading')
-          : t('pages.portfolio.plantedQuestion')}
-      </Heading>
+      {/* The seedling is DECORATION — it repeats what the heading beside it says and is
+          hidden from the accessibility tree. It exists so a farmer scanning a list of cards
+          can find "the planting part" of every card in the same place without reading. */}
+      <div className="pf-plant__headrow">
+        <span className="pf-plant__seed" aria-hidden="true">
+          🌱
+        </span>
+        <Heading className="pf-plant__head" id={headingId}>
+          {plantedDate && !editing
+            ? t('pages.portfolio.plantedForecastHeading')
+            : t('pages.portfolio.plantedQuestion')}
+        </Heading>
+      </div>
 
       {plantedDate && !editing && (
         <p className="pf-plant__on">
@@ -244,13 +260,19 @@ export default function PlantedDateSection({
           >
             {t('pages.portfolio.editPlantedDate')}
           </button>
+          {/* "Remove date" is the one control here that DESTROYS something the farmer
+              typed, so it is the one that carries the destructive colour and a bin — the
+              same exception class as the remove-crop confirm. Never the primary weight in
+              the row: it sits after "Change", it is a text button, and the colour is a
+              second signal behind the word and the icon. */}
           <button
             type="button"
-            className="pf-plant__link"
+            className="pf-plant__link pf-plant__link--danger"
             disabled={disabled}
             onClick={() => void save(null)}
             aria-label={t('pages.portfolio.clearPlantedDateAria', { crop: item.cropName })}
           >
+            <TrashIcon />
             {t('pages.portfolio.clearPlantedDate')}
           </button>
         </p>
@@ -319,6 +341,13 @@ export default function PlantedDateSection({
         role="status"
         aria-live="polite"
       >
+        {/* The glyph is decoration on a message that already says what happened in words;
+            an empty region stays empty (and hidden) so no card reserves a blank strip. */}
+        {msg && (
+          <span className="pf-plant__msg-glyph" aria-hidden="true">
+            {msg.tone === 'ok' ? '✓' : '!'}
+          </span>
+        )}
         {msg && t(msg.key)}
       </p>
 
@@ -330,9 +359,33 @@ export default function PlantedDateSection({
           todayYmd={todayYmd}
           state={forecast}
           onRetry={onRetryForecast}
+          layout={forecastLayout}
+          idPrefix={idPrefix}
         />
       )}
     </section>
+  );
+}
+
+/** A bin, drawn in currentColor so the button decides the hue. Decorative: the button says
+ *  "Remove date" beside it and names its crop in its accessible name. */
+function TrashIcon() {
+  return (
+    <svg
+      className="pf-icon"
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M4 7h16M10 4h4M9 7v12M15 7v12M6 7l1 13h10l1-13" />
+    </svg>
   );
 }
 
@@ -346,6 +399,8 @@ function PlantedForecast({
   todayYmd,
   state,
   onRetry,
+  layout,
+  idPrefix,
 }: {
   item: PortfolioDashboardItem;
   market: PortfolioDashboardMarket | null;
@@ -353,6 +408,8 @@ function PlantedForecast({
   todayYmd: string;
   state: PlantedForecastState;
   onRetry: () => void;
+  layout: PredictionLayout;
+  idPrefix: string;
 }) {
   const { t } = useTranslation();
 
@@ -408,14 +465,25 @@ function PlantedForecast({
         market={market}
         lang={lang}
         lowTrust={state.forecast.lowTrust}
+        layout={layout}
+        // The hint is part of the split block only, and its id has to be unique across the
+        // card and the popup, which are mounted together.
+        {...(layout === 'split' ? { hintId: `${idPrefix}-${item.cropId}` } : {})}
       />
       <p className="pf-plant__more">
+        {/* Still one link to one place; on the card it is drawn as the primary action of
+            the whole card, because "see the whole forecast" is what the card is for. */}
         <Link
-          className="pf-card__link"
+          className={layout === 'split' ? 'pf-btn pf-btn--primary' : 'pf-card__link'}
           to={harvestLinkFor(item.cropId, item.plantedDate)}
           aria-label={t('pages.portfolio.openHarvestAria', { crop: item.cropName })}
         >
           {t('pages.portfolio.openHarvest')}
+          {layout === 'split' && (
+            <span className="pf-btn__chev" aria-hidden="true">
+              {' →'}
+            </span>
+          )}
         </Link>
       </p>
     </>

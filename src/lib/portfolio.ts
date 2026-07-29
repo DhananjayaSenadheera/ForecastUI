@@ -269,6 +269,48 @@ export function priceAgeDays(observedDate: string, todayYmd: string): number | n
   return age === null ? null : Math.max(0, age);
 }
 
+// ---- The card chart's range control -------------------------------------------------
+// A ZOOM, not a query: the card has already downloaded this market's series, and 1M/3M
+// simply choose how much of it to draw. No request is made, nothing is refetched, and the
+// popup and the crop page keep showing the whole series — they are reading surfaces, not
+// scanning ones.
+
+/** The two windows the card offers. '3m' is the default: enough to see a season move. */
+export type ChartRange = '1m' | '3m';
+
+/** Window length in days. Calendar months vary; the label says "1 month" and the window is
+ *  30 days, which is the same promise a farmer reads from it. */
+export const CHART_RANGE_DAYS: Record<ChartRange, number> = { '1m': 30, '3m': 90 };
+
+/**
+ * The tail of a price series, `range` long.
+ *
+ * ANCHORED ON THE NEWEST OBSERVATION IN THE SERIES, not on today. A market that stopped
+ * publishing six weeks ago would answer "the last 30 days" with an EMPTY chart, and the
+ * empty chart says "no recent price data" — which would be false: the data exists, it is
+ * simply older than the window. Anchoring on the last point makes the control mean "the
+ * last month OF PUBLISHED PRICES", which is both useful and true, and it can never empty a
+ * chart that had rows in it.
+ *
+ * Pure and order-independent (it scans for the newest date rather than trusting the array
+ * to be sorted), so a series that arrives newest-first still zooms correctly.
+ */
+export function sliceHistoryByRange<T extends { date: string }>(
+  history: T[],
+  range: ChartRange,
+): T[] {
+  if (history.length === 0) return history;
+  let newest = '';
+  for (const p of history) if (p.date > newest) newest = p.date;
+  const anchor = parseYmdLocal(newest);
+  if (!anchor) return history;
+  anchor.setDate(anchor.getDate() - CHART_RANGE_DAYS[range]);
+  const cutoff = `${anchor.getFullYear()}-${String(anchor.getMonth() + 1).padStart(2, '0')}-${String(
+    anchor.getDate(),
+  ).padStart(2, '0')}`;
+  return history.filter((p) => p.date >= cutoff);
+}
+
 /**
  * Deep-link to the full national forecast for a crop (PRD §5.1 — the portfolio links to
  * My harvest, it never rebuilds the forecast screen).

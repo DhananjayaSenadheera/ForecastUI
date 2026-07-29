@@ -28,12 +28,24 @@ import { useTranslation } from 'react-i18next';
 import type { PortfolioDashboardMarket } from '../api/types';
 import { formatDate, formatPrice, formatRange, mapConfidenceString } from '../lib/format';
 import { isDeratedPrediction, showsNationalLabel, type DisplayPrediction } from '../lib/portfolio';
+import InfoHint from './InfoHint';
+
+/** How the same forecast is arranged.
+ *  - 'lines' — the stacked lines the crop page and the popup have always shown. The default,
+ *              so neither surface can be changed by a card decision.
+ *  - 'split' — the card's two-column block: the money on the left with its confidence, the
+ *              band, the harvest day and the labels on the right. Same facts, same strings,
+ *              same order of reading — a farmer glancing at ten cards needs the number to
+ *              be findable in one place on every one of them. */
+export type PredictionLayout = 'lines' | 'split';
 
 export default function PredictionBlock({
   prediction,
   market,
   lang,
   lowTrust = false,
+  layout = 'lines',
+  hintId,
 }: {
   prediction: DisplayPrediction | null;
   /** The market the prediction is shown BESIDE — it decides whether the "National forecast"
@@ -44,6 +56,11 @@ export default function PredictionBlock({
    *  number). ORed into the de-rating: a caution may always be ADDED by a second signal,
    *  never withdrawn by one. */
   lowTrust?: boolean;
+  layout?: PredictionLayout;
+  /** Set to attach the "what does confidence mean?" ⓘ beside the confidence word, with this
+   *  as its id root. Only the split layout uses it — the surfaces that show the lines have
+   *  the room to explain the word in prose. */
+  hintId?: string;
 }) {
   const { t } = useTranslation();
   const rs = t('common.rs');
@@ -60,6 +77,79 @@ export default function PredictionBlock({
 
   const conf = mapConfidenceString(p.confidence);
   const derated = isDeratedPrediction(p) || lowTrust;
+
+  const tags = (
+    <p className="pf-pred__tags">
+      {showsNationalLabel(market) && (
+        <span className="pf-tag pf-tag--national">{t('pages.portfolio.nationalForecast')}</span>
+      )}
+      {derated && (
+        <span className="pf-tag pf-tag--derated">
+          <span aria-hidden="true">⚠ </span>
+          {t('forecast.lowTrustTitle')}
+        </span>
+      )}
+    </p>
+  );
+
+  if (layout === 'split') {
+    return (
+      <div className={`pf-pred pf-pred--split${derated ? ' pf-pred--derated' : ''}`}>
+        <div className="pf-pred__money">
+          <p className={`pf-pred__about pf-pred__about--${conf.tone}`}>
+            {/* The whole sentence, once, for assistive tech — the SAME string the crop page
+                and the popup print. The three visible fragments beneath it are that
+                sentence laid out for the eye (a caption, the number at price size, a
+                caption) and are hidden from the accessibility tree so it is never read
+                twice. Translators are given the sentence, not the fragments' word order. */}
+            <span className="sr-only">
+              {t('pages.portfolio.predAbout', { price: formatPrice(p.predictedPrice, lang, rs) })}
+            </span>
+            <span className="pf-pred__icon" aria-hidden="true">
+              💰
+            </span>
+            <span className="pf-pred__cap" aria-hidden="true">
+              {t('pages.portfolio.predAboutCaption')}
+            </span>
+            <span className="pf-pred__big" aria-hidden="true">
+              {formatPrice(p.predictedPrice, lang, rs)}
+            </span>
+            <span className="pf-pred__cap" aria-hidden="true">
+              {t('pages.portfolio.predAtHarvestCaption')}
+            </span>
+          </p>
+          {/* The honesty gate, in the same words as everywhere else. It sits directly under
+              the number it qualifies — never below the fold of the block, never smaller
+              than the band beside it. */}
+          <p className={`pf-pred__confline pf-pred__confline--${conf.tone}`}>
+            {t('confidence.label')}: {t(conf.labelKey)}
+            {hintId && (
+              <InfoHint hint={t('pages.portfolio.confidenceHint')} id={`${hintId}-conf`} />
+            )}
+          </p>
+        </div>
+
+        <div className="pf-pred__facts">
+          {/* A band is always shown as a band — never collapsed into the single number. */}
+          <p className="pf-pred__band">
+            <span className="pf-pred__lab">{t('forecast.rangeTitle')}</span>
+            <span className="pf-pred__val">
+              {formatRange(p.lowerBound, p.upperBound, lang, rs)}
+            </span>
+          </p>
+          {p.harvestDate && (
+            <p className="pf-pred__when">
+              <span aria-hidden="true">📅 </span>
+              {t('forecast.harvestAround', { date: formatDate(p.harvestDate, lang) })}
+            </p>
+          )}
+          {tags}
+        </div>
+
+        {derated && <p className="pf-pred__derated-body">{t('forecast.lowTrustLead')}</p>}
+      </div>
+    );
+  }
 
   return (
     <div className={`pf-pred${derated ? ' pf-pred--derated' : ''}`}>
@@ -81,17 +171,7 @@ export default function PredictionBlock({
           {t('forecast.harvestAround', { date: formatDate(p.harvestDate, lang) })}
         </p>
       )}
-      <p className="pf-pred__tags">
-        {showsNationalLabel(market) && (
-          <span className="pf-tag pf-tag--national">{t('pages.portfolio.nationalForecast')}</span>
-        )}
-        {derated && (
-          <span className="pf-tag pf-tag--derated">
-            <span aria-hidden="true">⚠ </span>
-            {t('forecast.lowTrustTitle')}
-          </span>
-        )}
-      </p>
+      {tags}
       {derated && <p className="pf-pred__derated-body">{t('forecast.lowTrustLead')}</p>}
     </div>
   );

@@ -225,10 +225,14 @@ describe('The planting date — the forecast it anchors', () => {
     await waitFor(() => expect(api.getHarvestForecast).toHaveBeenCalledWith('c1', PLANTED));
     expect(await screen.findByText('Planted on ' + formatDate(PLANTED, 'en'))).toBeInTheDocument();
     // The number is the harvest route's, NOT the nightly snapshot's (Rs. 999 in the fixture).
+    // On the card the sentence is what assistive tech hears — the visible "About / Rs. 240 /
+    // at harvest" is that same sentence laid out for the eye — so it is asserted whole.
     expect(screen.getByText('About Rs. 240 at harvest')).toBeInTheDocument();
     expect(screen.queryByText(/Rs\. 999/)).toBeNull();
-    // A band is a band, and it says when the crop is ready.
-    expect(screen.getByText(/Likely price range: Rs\. 190 – 300/)).toBeInTheDocument();
+    // A band is a band (label over value in the card's split block), and it says when the
+    // crop is ready.
+    expect(screen.getByText('Likely price range')).toBeInTheDocument();
+    expect(screen.getByText('Rs. 190 – 300')).toBeInTheDocument();
     expect(
       screen.getByText('Harvest around ' + formatDate('2026-08-12', 'en')),
     ).toBeInTheDocument();
