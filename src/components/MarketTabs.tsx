@@ -27,6 +27,7 @@ import { useTranslation } from 'react-i18next';
 import type { PortfolioDashboardMarket } from '../api/types';
 import { marketCodeLabel } from '../lib/portfolio';
 import { useRovingTabs } from '../lib/tabs';
+import { onTipReveal } from '../lib/tooltip';
 
 /** Stable DOM id for one market's tab on one crop's card. */
 export function marketTabId(cropId: string, marketId: string): string {
@@ -70,7 +71,14 @@ export default function MarketTabs({
       {markets.map((m, i) => {
         const selected = m.marketId === selectedMarketId;
         return (
-          <span className="pf-mtab-wrap" key={m.marketId}>
+          <span
+            className="pf-mtab-wrap"
+            key={m.marketId}
+            // The full market name can be long enough to run off a phone screen from the
+            // third chip; clamp it back in as it is revealed (src/lib/tooltip.ts).
+            onPointerEnter={onTipReveal}
+            onFocus={onTipReveal}
+          >
             <button
               type="button"
               id={marketTabId(cropId, m.marketId)}
@@ -95,7 +103,7 @@ export default function MarketTabs({
             </button>
             {/* Visual only: this text IS the button's accessible name, so announcing it a
                 second time as a description would just double-speak. */}
-            <span className="pf-mtab-tip" aria-hidden="true">
+            <span className="pf-mtab-tip" aria-hidden="true" data-tip>
               {m.name}
             </span>
           </span>
@@ -113,7 +121,7 @@ function MarketCodeChip({ market }: { market: PortfolioDashboardMarket }) {
   const noteId = `pf-mcode-note-${market.marketId}`;
   return (
     <div className="pf-mcode-row">
-      <span className="pf-mtab-wrap">
+      <span className="pf-mtab-wrap" onPointerEnter={onTipReveal} onFocus={onTipReveal}>
         <button
           type="button"
           className="pf-mcode"
@@ -128,7 +136,7 @@ function MarketCodeChip({ market }: { market: PortfolioDashboardMarket }) {
         >
           {marketCodeLabel(market)}
         </button>
-        <span className="pf-mtab-tip" aria-hidden="true">
+        <span className="pf-mtab-tip" aria-hidden="true" data-tip>
           {market.name}
         </span>
       </span>
