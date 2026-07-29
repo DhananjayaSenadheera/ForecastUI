@@ -14,6 +14,12 @@
 // no market switcher of its own — the tabs on the card behind it are where a market is
 // chosen, and a second switcher would be a second answer to "which market is this about".
 //
+// Since the 2026-07-29 card simplification it is also the ONLY place three facts are shown:
+// the market's full name in plain words, the readiness badge and the price-swing pill. The
+// card kept the codes and the number; this popup is where "KEP" becomes "Keppetipola" for a
+// touch user who has no hover, and where the swing claim is made. None of the three may be
+// dropped from here without putting them back on the card.
+//
 // It re-uses, never re-implements: PriceBlock, PriceSwingBadge and PriceLineChart are the
 // card's own components fed the card's own already-fetched history (opening the popup costs
 // no request), PlantedDateSection is the same section the card shows, and the forecast state

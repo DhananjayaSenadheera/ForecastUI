@@ -15,6 +15,7 @@ import type {
   PortfolioDashboardMarket,
   PriceHistoryPoint,
 } from '../api/types';
+import type { CropReadinessStatus } from '../lib/readiness';
 
 // Real seeded short codes (Markets.ShortCode): DEC = Dambulla, KAN = Kandy. A fixture that
 // invents "DAM" would bless a chip the registry never serves.
@@ -116,13 +117,17 @@ function tomato(over: Partial<PortfolioDashboardItem> = {}): PortfolioDashboardI
   };
 }
 
-function renderCard(item: PortfolioDashboardItem, onToggleSelect = vi.fn()) {
+function renderCard(
+  item: PortfolioDashboardItem,
+  onToggleSelect = vi.fn(),
+  readiness: CropReadinessStatus | null = null,
+) {
   return render(
     <MemoryRouter>
       <ul>
         <WatchlistCard
           item={item}
-          readiness={null}
+          readiness={readiness}
           lang="en"
           todayYmd="2026-07-28"
           selected={false}
@@ -181,15 +186,48 @@ describe('WatchlistCard — market short-code tabs', () => {
     ).toBeInTheDocument();
   });
 
-  it('prints the selected market’s full name in plain text (the touch answer)', async () => {
-    // A tap on a tab SELECTS it, so a tap cannot also mean "explain this code". The name
-    // under the strip is what makes the codes readable without a hover.
+  it('reads "Tomato → KAN DEC": the name, an arrow, then the codes, in one header row', async () => {
     renderCard(tomato());
-    const named = () => document.querySelector('.pf-card__market-name')?.textContent;
-    await waitFor(() => expect(named()).toBe('Kandy (HARTI wholesale)'));
 
+    const ident = document.querySelector('.pf-card__ident') as HTMLElement;
+    expect(within(ident).getByRole('heading', { level: 3, name: 'Tomato' })).toBeInTheDocument();
+    expect(within(ident).getByRole('tablist')).toBeInTheDocument();
+    // The arrow is decoration: it says "read at" to the eye and nothing to a screen reader,
+    // which gets the relationship from the tablist's own name instead.
+    const arrow = ident.querySelector('.pf-card__arrow') as HTMLElement;
+    expect(arrow).toHaveTextContent('→');
+    expect(arrow).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByRole('tablist')).toHaveAccessibleName('Markets you watch Tomato at');
+  });
+
+  it('spells the selected market out in the POPUP — the card header carries codes only', async () => {
+    // A tap on a tab SELECTS it, so a tap cannot also mean "explain this code", and the
+    // hover tooltip does not exist on a touch screen. "More details" is where a farmer who
+    // has never seen "KEP" reads "Keppetipola", and it must follow the chosen tab.
+    renderCard(tomato());
+    await screen.findByText('Rs. 260');
+    // The card's own plain-text market line is gone; the only thing left on it that carries
+    // the full name is the pointer/keyboard tooltip, which is aria-hidden and invisible on
+    // touch. Nothing a farmer can read on the card says "Kandy".
+    expect(document.querySelector('.pf-card__market-name')).toBeNull();
+    expect(
+      screen
+        .getAllByText('Kandy (HARTI wholesale)')
+        .every((el) => el.getAttribute('aria-hidden') === 'true'),
+    ).toBe(true);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'More details for Tomato' }));
+    expect(
+      within(screen.getByRole('dialog')).getByText('Kandy (HARTI wholesale)'),
+    ).toBeInTheDocument();
+
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
     fireEvent.click(screen.getByRole('tab', { name: 'Dambulla Dedicated Economic Centre (DEC)' }));
-    await waitFor(() => expect(named()).toBe('Dambulla Dedicated Economic Centre'));
+    await screen.findByText('Rs. 210');
+    fireEvent.click(screen.getByRole('button', { name: 'More details for Tomato' }));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText('Dambulla Dedicated Economic Centre')).toBeInTheDocument();
+    expect(within(dialog).queryByText('Kandy (HARTI wholesale)')).toBeNull();
   });
 
   it('labels the market-scoped panel with the tab that owns it', async () => {
@@ -252,21 +290,50 @@ describe('WatchlistCard — a tab switch moves the WHOLE market-scoped block', (
     await screen.findByText('Rs. 260');
     expect(screen.getByText(/Price from Jul 26, 2026/)).toBeInTheDocument();
     expect(screen.getByText(/Down 3\.1% from Rs\. 268/)).toBeInTheDocument();
-    // The swing pill describes the SELECTED market's own series. Pinned independently of
-    // the chart: the two share a fetch today, but "Kandy moves a lot" printed under a
-    // Kandy price it does not describe is exactly the lie this card must not tell.
-    await screen.findByText('Price movement: steady');
 
     fireEvent.click(screen.getByRole('tab', { name: 'Dambulla Dedicated Economic Centre (DEC)' }));
 
     await screen.findByText('Rs. 210');
-    await screen.findByText('Price movement: moves a lot');
-    expect(screen.queryByText('Price movement: steady')).toBeNull();
     // Kandy's number is GONE, not merely joined by Dambulla's: two prices on one card is
     // two answers to "what does this crop fetch".
     expect(screen.queryByText('Rs. 260')).toBeNull();
     expect(screen.getByText(/Price from Jul 25, 2026/)).toBeInTheDocument();
     expect(screen.getByText(/Up 4\.2% from Rs\. 201/)).toBeInTheDocument();
+  });
+
+  it('keeps the price INSIDE the tabpanel, where the tab that changes it can name it', async () => {
+    // The price sits in the header row, visually beside the crop name — but it is the one
+    // number the tab governs, so it stays inside the panel the tab labels. (The layout does
+    // that with `display: contents`; the DOM relationship is what this pins.)
+    renderCard(tomato());
+
+    const panel = await screen.findByRole('tabpanel');
+    expect(within(panel).getByText('Rs. 260')).toBeInTheDocument();
+    expect(within(panel).getByText(/Price from Jul 26, 2026/)).toBeInTheDocument();
+    expect(within(panel).getByText(/Down 3\.1% from Rs\. 268/)).toBeInTheDocument();
+    // ...and the crop name, which does NOT change with the tab, stays outside it.
+    expect(within(panel).queryByRole('heading', { name: 'Tomato' })).toBeNull();
+  });
+
+  it('carries the swing pill into the popup, still following the selected tab', async () => {
+    // The pill left the card in the 2026-07-29 simplification, but the rule it obeys did
+    // not: "Kandy moves a lot" shown for a series that is Dambulla's is the lie this card
+    // must never tell, wherever the pill is read.
+    renderCard(tomato());
+    await screen.findByText('Rs. 260');
+    expect(screen.queryByText(/Price movement/)).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'More details for Tomato' }));
+    expect(await within(screen.getByRole('dialog')).findByText('Price movement: steady'))
+      .toBeInTheDocument();
+
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    fireEvent.click(screen.getByRole('tab', { name: 'Dambulla Dedicated Economic Centre (DEC)' }));
+    await screen.findByText('Rs. 210');
+    fireEvent.click(screen.getByRole('button', { name: 'More details for Tomato' }));
+    const dialog = screen.getByRole('dialog');
+    expect(await within(dialog).findByText('Price movement: moves a lot')).toBeInTheDocument();
+    expect(within(dialog).queryByText('Price movement: steady')).toBeNull();
   });
 
   it('re-draws the chart for the newly selected market, never the old one', async () => {
@@ -355,6 +422,64 @@ describe('WatchlistCard — the chart’s four states', () => {
     expect(document.querySelector('.pf-card__chart')).toBeNull();
     expect(api.getPriceHistory).not.toHaveBeenCalled();
     expect(document.querySelector('[aria-busy="true"]')).toBeNull();
+  });
+});
+
+describe('WatchlistCard — the simplified card: what MOVED to the popup', () => {
+  it('gives a one-market crop "Beans → DEC": name, arrow, one chip, price on the right', async () => {
+    renderCard(tomato({ cropName: 'Beans', markets: [DAMBULLA] }));
+
+    const ident = document.querySelector('.pf-card__ident') as HTMLElement;
+    expect(within(ident).getByRole('heading', { level: 3, name: 'Beans' })).toBeInTheDocument();
+    expect(ident.querySelector('.pf-card__arrow')).toHaveTextContent('→');
+    // A chip, not a tab: one market has nothing to select between.
+    expect(
+      within(ident).getByRole('button', { name: 'Dambulla Dedicated Economic Centre (DEC)' }),
+    ).toHaveTextContent('DEC');
+    expect(within(ident).queryByRole('tablist')).toBeNull();
+
+    // The price fact keeps PriceBlock's words wherever it is placed.
+    const cell = document.querySelector('.pf-card__pricecell') as HTMLElement;
+    expect(within(cell).getByText('Rs. 210')).toBeInTheDocument();
+    expect(within(cell).getByText('/kg')).toBeInTheDocument();
+    expect(within(cell).getByText('Price from Jul 25, 2026')).toBeInTheDocument();
+    // The trend is NOT in the price cell — it is its own full-width line under the header.
+    expect(within(cell).queryByText(/Up 4\.2%/)).toBeNull();
+    expect(await screen.findByText(/Up 4\.2% from Rs\. 201 on Jul 21, 2026/)).toBeInTheDocument();
+  });
+
+  it('drops the readiness badge and the market line from the card, and shows both in the popup', async () => {
+    renderCard(tomato({ markets: [DAMBULLA] }), vi.fn(), 'collecting');
+
+    await screen.findByText('Rs. 210');
+    // Nothing is lost, only moved: the card is for scanning ten crops, the popup for
+    // reading one.
+    expect(document.querySelector('.rdy-badge')).toBeNull();
+    expect(document.querySelector('.pf-card__market-name')).toBeNull();
+    expect(screen.queryByText('Market:')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'More details for Tomato' }));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.querySelector('.rdy-badge')).not.toBeNull();
+    expect(within(dialog).getByText('Collecting data')).toBeInTheDocument();
+    expect(within(dialog).getByText('Dambulla Dedicated Economic Centre')).toBeInTheDocument();
+  });
+
+  it('keeps the "no price here" note in the price slot, in its own honest words', async () => {
+    // The absence of a price is shown where the price would be — not tucked below the fold
+    // — and it still does not imply staleness.
+    renderCard(
+      tomato({
+        markets: [{ ...DAMBULLA, price: null, priceUnavailableReason: 'no_recent_price' }],
+      }),
+    );
+
+    const cell = (await screen.findByText('No price data for this market yet.')).closest(
+      '.pf-card__pricecell',
+    );
+    expect(cell).not.toBeNull();
+    // No trend line either: there is no price for it to describe.
+    expect(document.querySelector('.pf-trend')).toBeNull();
   });
 });
 
