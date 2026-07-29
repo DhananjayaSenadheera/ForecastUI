@@ -442,7 +442,7 @@
       "noDataYet": "No prices for your crops yet. We will show them as soon as the markets report.",
       "noPrediction": "No forecast for this crop yet.",
       "observedOn": "Price from {{date}}",
-      "priceFromHint": "This is the newest price this market has reported for this crop, on the day shown. It is not a promise of what you will get today.",
+      "priceFromHint": "This is the newest price this market has reported for this crop, on the day shown.",
       "priceFromHintAria": "What does the price date mean for {{crop}}?",
       "priceAge_one": "{{count}} day old",
       "priceAge_other": "{{count}} days old",

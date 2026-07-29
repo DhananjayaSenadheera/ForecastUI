@@ -139,54 +139,25 @@ export default function WatchlistCard({
   const { t } = useTranslation();
   const titleId = `pf-crop-${item.cropId}`;
   const rangeId = `pf-range-${item.cropId}`;
-
-  // Null = "the farmer has not chosen a tab", which resolves to markets[0] — the oldest
-  // chosen, exactly what the wire leads with. A selection naming a market this crop no
-  // longer has falls back the same way instead of blanking the card.
+  
   const [pickedMarketId, setPickedMarketId] = useState<string | null>(null);
   const market = selectedMarketFor(item, pickedMarketId);
   const marketId = market?.marketId ?? null;
   const hasTabs = item.markets.length > 1;
-
-  // A market with NO price has no history to draw either: the wire's price is the freshest
-  // observation that exists at that market and there is no staleness cutoff, so a null price
-  // means this market has published nothing for this crop at all. PriceBlock already says
-  // that in the farmer's words; a second, differently-worded empty chart under it would be
-  // noise, and the request would be a round trip on a rural connection for a series that
-  // cannot have rows. The day the contract grows a staleness cutoff, this has to change.
   const hasPrice = market?.price != null;
   const chartMarketId = hasPrice ? marketId : null;
   const history = useMarketHistory(item.cropId, chartMarketId);
-  // The swing describes the SAME series the chart draws, so it can never disagree with it.
-  // It is read in the "More details" popup rather than on the card — computed here because
-  // this is where the series lives, and because it must keep following the selected tab.
-  const swing = history ? classifyPriceSwing(history) : null;
 
-  // ONE fetch per (crop, planting date) for the whole card, shared with the popup: the two
-  // surfaces show the same forecast because they are literally reading the same state, not
-  // because two requests happened to agree.
+  const swing = history ? classifyPriceSwing(history) : null;
   const { state: plantedForecast, retry: retryForecast } = usePlantedForecast(
     item.cropId,
     item.plantedDate,
   );
   const [detailsOpen, setDetailsOpen] = useState(false);
-
-  // How much of the fetched series the chart draws. State, not a request: the card has the
-  // whole history already, so switching windows costs nothing and cannot fail. It is
-  // per-card and NOT per-market on purpose — "show me the last month" is a habit of
-  // reading, not a fact about Kandy, so it survives a tab switch.
+  
   const [range, setRange] = useState<ChartRange>('3m');
   const shownHistory = history === null ? null : sliceHistoryByRange(history, range);
 
-  // ONE definition, two homes: the price rides in its own header row, the "no price here"
-  // note rides inside the market panel (see the placement comments below). Written once so
-  // the two cases cannot drift into two differently-worded answers.
-  //
-  // The trend badge is part of this cell rather than a separate row: the movement is the
-  // price's second half ("Rs. 263, down 18% from Rs. 320"), and the two must never be able
-  // to describe different markets or different days. PriceBlock renders both halves from
-  // one `market`, and the badge returns nothing at all when there is no price — so the
-  // no-price case is one sentence in one cell, exactly as before.
   const priceCell = (
     <div className={`pf-card__pricecell${hasPrice ? '' : ' pf-card__pricecell--nodata'}`}>
       <PriceBlock
@@ -304,9 +275,6 @@ export default function WatchlistCard({
                     cropLabel={item.cropName}
                     marketName={market?.name ?? ''}
                     lang={lang}
-                    // The card is a scanning surface and the table is one tap away in
-                    // "More details"; the chart's own summary sentence changes with this
-                    // so it never promises a table that is not there.
                     hideTable
                     showUnitLabel
                     headerExtra={
