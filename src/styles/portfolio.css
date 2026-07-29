@@ -38,20 +38,40 @@
   gap: var(--sp-4);
   grid-template-columns: 1fr;
 }
+/* The column minimum is set BY the card's own layout bands, not by taste: the price and the
+   trend badge share a line only from 320px of query CONTAINER, which is a 354px CARD (the
+   container is the inner surface's content box: 2 x 16px padding + 2 x 1px border narrower).
+   A 300px minimum packed 311px cards into a maximised 1280px window — every desktop card
+   landed in the phone variant with the badge stacked under the price, which is what the
+   owner saw. 356px is the smallest minimum that clears 354 with a subpixel margin, so every
+   card auto-fill produces is wide enough for the side-by-side row; the tracks are 1fr, so
+   they only ever grow from there.
+
+   `min(100%, 356px)` and not a bare 356px: a fixed track minimum applies even when the grid
+   BOX is narrower than it, and the track then overflows its own container and scrolls the
+   whole PAGE sideways. Today the 700px media query keeps the grid comfortably wider than
+   356px, so this is a guard rather than a fix — but the guard costs nothing and the failure
+   it prevents (horizontal scrolling on a phone) is the worst bug on this surface, and any
+   narrower home for this grid would reintroduce it. Measured both ways in a 260px-wide grid
+   box: bare 356px gives a 356px card sticking out of it, min(100%, 356px) gives a 260px card
+   in the stacked arrangement it was designed for.
+
+   MEASURED in headless Chrome (the layout harness from the card PRs) on this markup at
+   360/375/700/800/900/1000/1280/1440 CSS px — see the PR table. */
 @media (min-width: 700px) {
   .pf-grid {
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 356px), 1fr));
   }
 }
 
 /* The card's INNER surface is the query container, so the header can lay itself out from
-   the width of the CARD rather than of the viewport: above 700px the grid packs 300px-wide
-   cards, which are phone-width columns on a desktop screen.
+   the width of the CARD rather than of the viewport: the grid packs columns of its own
+   choosing, and the card can be narrower on a desktop screen than the screen is.
 
    NOT the <li>: `container-type: inline-size` also applies LAYOUT containment, which makes
    the element a containing block for `position: fixed` descendants. The "More details"
    dialog is rendered inside the <li> (Modal does not portal), so a container on the <li>
-   would trap .pf-modal__backdrop inside one 300px card — backdrop over a single card, later
+   would trap .pf-modal__backdrop inside one grid card — backdrop over a single card, later
    cards painting over the open sheet. The dialog is a SIBLING of this <article>, so it
    escapes containment here. portfolio-card.test.tsx pins that relationship, because jsdom
    cannot see the CSS that depends on it.
