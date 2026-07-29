@@ -321,7 +321,8 @@
    pointer-events: none so it cannot steal its own hover.
 
    display: none when closed, NOT visibility: hidden — see the note on .pf-hint-tip below:
-   a hidden-but-laid-out box that overhangs the right edge widens the whole page. */
+   a hidden-but-laid-out box that overhangs the right edge widens the whole page on any
+   narrow HOVER-CAPABLE viewport (this one overflowed from 414px up). */
 .pf-mtab-tip {
   display: none;
   position: absolute;
@@ -345,9 +346,10 @@
 }
 /* Touch has no hover, and a tap on a tab SELECTS it — a single chip toggles its name
    inline, and a crop with several markets has its market spelled out in "More details", so
-   nothing depends on this tooltip. The whole reveal therefore lives inside (hover: hover):
-   this selector is more specific than the base rule, so a `@media (hover: none)` override
-   after it would NOT win. */
+   nothing depends on this tooltip. The whole reveal therefore lives inside (hover: hover),
+   which is about BEHAVIOUR only — the closed state is already gone for everyone above.
+   Gating it, rather than overriding it back for touch, because these selectors are more
+   specific than the base rule: a `@media (hover: none)` override after them would NOT win. */
 @media (hover: hover) {
   .pf-mtab-wrap:hover .pf-mtab-tip,
   .pf-mtab-wrap:focus-within .pf-mtab-tip {
@@ -636,17 +638,26 @@
   box-shadow: var(--focus-ring);
   border-radius: var(--r-pill);
 }
-/* THE CLOSED TOOLTIP MUST NOT BE LAID OUT. `visibility: hidden` keeps the box, and an
-   absolutely positioned box that overhangs the right edge of a 375px screen counts towards
-   the document's scrollable width: /portfolio laid out 457px wide with nothing visibly
-   wrong, the page dragged sideways, and the mobile initial containing block grew with it —
-   which stretched the details dialog's `position: fixed; inset: 0` backdrop to 457px and
-   carried its ✕ off the screen. So: display: none, pinned by tooltip-overflow.test.ts.
-   It stays in the DOM (aria-describedby needs it, and a directly referenced element's text
-   is used even while hidden), it just stops occupying space. There is no fade: display
-   cannot be transitioned on the browsers this app targets, and keeping the box alive to
-   fade it is exactly the bug. When it opens, src/lib/tooltip.ts shifts it back inside the
-   screen — CSS cannot express that clamp without anchor positioning. */
+/* THE CLOSED TOOLTIP MUST NOT BE LAID OUT — ON ANY DEVICE, WHICH IS THE POINT.
+   `visibility: hidden` keeps the box, and an absolutely positioned box that overhangs the
+   right edge of a 375px viewport counts towards the document's scrollable width: /portfolio
+   laid out 457px wide with nothing visibly wrong, the page dragged sideways, and the initial
+   containing block grew with it — which stretched the details dialog's `position: fixed;
+   inset: 0` backdrop to 457px and carried its ✕ off the screen.
+
+   That happened on narrow HOVER-CAPABLE viewports (measured in a desktop browser at 375px;
+   also a touchscreen laptop, a tablet with a trackpad). A true touch phone was already
+   protected, by the `@media (hover: none) { display: none }` override this change replaces
+   — do not read the (hover: hover) gate below as covering the closed state and relax this
+   `display: none` back to `visibility: hidden`; that is the bug, and the gate never touched
+   a hover-capable device.
+
+   The element stays in the DOM (aria-describedby needs it, and a directly referenced
+   element's text is used even while hidden), it just stops occupying space. There is no
+   fade: display cannot be transitioned on the browsers this app targets, and keeping the box
+   alive to fade it is exactly the bug. When it opens, src/lib/tooltip.ts shifts it back
+   inside the screen — CSS cannot express that clamp without anchor positioning.
+   Both halves are pinned by src/test/tooltip-overflow.test.tsx. */
 .pf-hint-tip {
   display: none;
   position: absolute;
@@ -669,7 +680,8 @@
   pointer-events: none;
 }
 /* Touch never sees the tooltip — it taps and reads the note below instead, so the reveal
-   itself is gated on (hover: hover). Gating the reveal, rather than overriding it back to
+   itself is gated on (hover: hover). This gate is about BEHAVIOUR, not overflow: the closed
+   state is already gone for everyone. Gating the reveal, rather than overriding it back to
    display: none for touch, is the only order that works: these selectors are more specific
    than the base rule and would win over any later `@media (hover: none)` block. */
 @media (hover: hover) {

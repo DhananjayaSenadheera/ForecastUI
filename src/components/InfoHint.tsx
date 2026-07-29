@@ -14,8 +14,9 @@
 // used for the description even while it is hidden — which is how touch devices, where the
 // tooltip is switched off entirely, have always announced this hint. It has to be display
 // (not visibility) because a laid-out box hanging off the right edge silently widened the
-// whole page; the reasoning and the shift that keeps an OPEN tooltip on screen are in
-// src/lib/tooltip.ts.
+// whole page on narrow hover-capable viewports — a desktop browser at 375px, a touchscreen
+// laptop — while touch was protected by its own override. The reasoning, and the shift that
+// keeps an OPEN tooltip on screen, are in src/lib/tooltip.ts.
 //
 // Everything it renders is INLINE-safe (the note is a <span role="note"> with
 // display:block, not a <p>), because the two places it is used sit inside paragraphs:
