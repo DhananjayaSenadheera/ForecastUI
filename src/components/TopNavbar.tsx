@@ -7,16 +7,6 @@ import MyCropsLink from './MyCropsLink';
 import LanguageSwitcher from './LanguageSwitcher';
 import TextSizeToggle from './TextSizeToggle';
 
-/**
- * App-wide top bar (banner landmark). Brand on the left, the signed-in identity and the
- * sign-out control on the right. It sits ALONGSIDE the tab navigation — the sidebar on
- * desktop, the bottom tab bar on mobile — which still owns moving between the four pages.
- *
- * Responsive disclosure, CSS-only: the identity panel is markup that is laid out inline on
- * >=600px and turns into a popover under an avatar button below 600px. Only one of the two
- * (trigger or inline panel) is ever `display:none`, so the accessible tree never carries a
- * duplicate "Sign out" and no JS breakpoint/matchMedia is needed.
- */
 export default function TopNavbar() {
   const { t } = useTranslation();
   const { session, isAuthenticated } = useAuth();
@@ -70,8 +60,8 @@ export default function TopNavbar() {
 
       {/* Shell affordances that live in the sidebar footer on desktop; the bar carries them
           on mobile, where the sidebar is hidden. */}
+      <MyCropsLink variant="mobile" />
       <div className="appbar__tools">
-        <MyCropsLink variant="mobile" />
         <LanguageSwitcher />
         <TextSizeToggle />
       </div>

@@ -8,7 +8,6 @@ import TextSizeToggle from './TextSizeToggle';
 import AudioHelpButton from './AudioHelpButton';
 import StalenessBanner from './StalenessBanner';
 import ErrorBoundary from './ErrorBoundary';
-import MyCropsLink from './MyCropsLink';
 
 // Dashboard shell: an app-wide top navbar (brand + identity + sign-out) over a dark teal
 // sidebar on desktop and tablet; below 600px the sidebar is replaced by a bottom tab bar
@@ -71,7 +70,6 @@ export default function AppShell() {
           </nav>
 
           <div className="sidebar__foot">
-            <MyCropsLink variant="sidebar" />
             <AudioHelpButton />
             <div className="sidebar__prefs">
               <LanguageSwitcher />

@@ -20,7 +20,7 @@
   gap: var(--sp-3);
   min-height: var(--appbar-h);
   padding: var(--sp-2) 22px;
-  background: #0b3b34; /* same dark teal as the sidebar / tab bar: one chrome */
+  background: #243123; /* same dark teal as the sidebar / tab bar: one chrome */
   color: #fff;
   position: sticky;
   top: 0;
@@ -191,10 +191,10 @@
 
 /* ============================ MOBILE (< 600px) ============================ */
 @media (max-width: 599px) {
-  .appbar {
-    gap: var(--sp-2);
-    padding: 6px 12px;
-    min-height: var(--appbar-h-sm);
+  .mycrops--mobile {
+    padding: 8px;
+    width: var(--touch-min);
+    justify-content: center;
   }
   /* No room for the wordmark next to language, text size and the account button; the leaf
      keeps the brand present and the name stays in the accessible tree. */
