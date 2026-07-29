@@ -131,7 +131,12 @@ export default function PredictionBlock({
               <InfoHint
                 hint={t('pages.portfolio.confidenceHint')}
                 id={`${hintId}-conf`}
-                label={t('pages.portfolio.confidenceHintAria', { crop: hintCrop ?? '' })}
+                // Gated, not defaulted — an empty crop would ask "What does confidence
+                // mean for ?". No crop means InfoHint's generic name, which is right for a
+                // surface that shows one.
+                label={
+                  hintCrop ? t('pages.portfolio.confidenceHintAria', { crop: hintCrop }) : undefined
+                }
               />
             )}
           </p>

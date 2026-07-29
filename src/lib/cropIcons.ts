@@ -166,15 +166,15 @@ const NAME_RULES: Array<[RegExp, string]> = [
 ];
 
 /**
- * Every glyph this module can return, for the ceiling test — the Emoji 12.0 (2019) rule in
- * the header is only worth writing down if something enforces it on the WHOLE table rather
- * than on a handful of names a test happens to probe. Adding a glyph to either table without
- * adding it here fails that test, which is the point: a new icon should be looked at.
+ * Every glyph this module can return — DERIVED from the two lookups above, never listed by
+ * hand. The Emoji 12.0 ceiling in the header is only a rule if something enforces it over
+ * the whole vocabulary, and a parallel hand-kept list enforces nothing: a glyph added to
+ * BY_CODE but missing from the list simply would not be scanned, which is exactly the case
+ * the check exists for. Reading the tables means a new icon reaches the ceiling test the
+ * moment it is added to either one.
  */
 export const CROP_ICONS: readonly string[] = [
-  '🍅', '🍆', '🥕', '🍠', '🥔', '🥦', '🥬', '🌿', '🌶️', '🧄', '🧅', '🥒',
-  '🎃', '🌽', '🍌', '🍍', '🥭', '🥑', '🍋', '🍉', '🍈', '🥥', '🥜', '🌾',
-  '🌳', FALLBACK_CROP_ICON,
+  ...new Set([...Object.values(BY_CODE), ...NAME_RULES.map(([, icon]) => icon), FALLBACK_CROP_ICON]),
 ];
 
 /**

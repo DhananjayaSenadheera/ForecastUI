@@ -179,15 +179,17 @@
 }
 /* MEASURED in headless Chrome on the real markup (the recipe from the card-simplify PR:
    render the component, load the real stylesheets, fix the width, read intrinsic widths),
-   never guessed. The container is the padded inner surface, so a card queries 32px narrower
-   than it looks: 279px of content is a 311px card — the narrowest the desktop 3-column grid
-   produces — and 328px is a 360px phone.
+   never guessed. The container is the padded AND bordered inner surface, so a card queries
+   34px narrower than it looks (2 x 16px padding + 2 x 1px border): 277px of container is a
+   311px card — the narrowest the desktop 3-column grid produces — and 326px is a 360px
+   phone.
 
    The one thing that does not fit at every width is the price row. Side by side it needs
    the price's own 134px (the number and "/kg", with the date line wrapping under it) plus
-   the badge's cap and the 12px gap — 320px of content, which is a 352px card. Below that
+   the badge's cap and the 12px gap — 320px of container, which is a 354px card. Below that
    the badge drops under the price and both take the full width: that is the mobile-first
-   default here, and the query only turns the side-by-side arrangement ON. */
+   default here, and the query only turns the side-by-side arrangement ON. Checked at the
+   boundary in Chrome: a 352px card still stacks, a 360px card does not. */
 @container pf-card (min-width: 320px) {
   .pf-card__pricecell:not(.pf-card__pricecell--nodata) {
     flex-wrap: nowrap;
@@ -559,13 +561,15 @@
    - stacked under the price, it takes the whole row — a badge indented to half a line reads
      as debris;
    - sharing the line, it is capped against the CARD so it can never take the row from the
-     price. Measured: at 328px of content (a 360px phone) it is 163px and its second line
-     runs to two; at 388px it is 193px. The price keeps what is left and its DATE line wraps
+     price. Measured: at 326px of container (a 360px phone) it is 163px and its second line
+     runs to two; at 386px it is 193px. The price keeps what is left and its DATE line wraps
      — the right thing to give up first, because a wrapped date is readable and a wrapped
      price is not.
+   The narrow band is written as the exact NEGATION of the wide one rather than as
+   `max-width: 319.98px`, which would leave a hairline of widths matching neither.
    A browser without container queries applies neither and the badge is auto-width inside a
    wrapping row, which is the stacked arrangement. */
-@container pf-card (max-width: 319.98px) {
+@container pf-card not (min-width: 320px) {
   .pf-trendbadge {
     max-width: 100%;
   }

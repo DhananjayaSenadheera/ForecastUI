@@ -133,7 +133,11 @@ export default function PriceBlock({
           <InfoHint
             hint={t('pages.portfolio.priceFromHint')}
             id={`${hintId}-pricefrom`}
-            label={t('pages.portfolio.priceFromHintAria', { crop: hintCrop ?? '' })}
+            // Gated, not defaulted: interpolating an empty crop would render "What does
+            // the price date mean for ?" — a malformed question. Without a crop the hint
+            // falls back to InfoHint's own generic name, which is correct on any surface
+            // that shows exactly one of these.
+            label={hintCrop ? t('pages.portfolio.priceFromHintAria', { crop: hintCrop }) : undefined}
           />
         )}
       </p>
