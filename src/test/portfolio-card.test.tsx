@@ -157,6 +157,7 @@ function renderCard(
           selected={false}
           onToggleSelect={onToggleSelect}
           onSavePlantedDate={vi.fn(async () => null)}
+          onClearPlantedDate={vi.fn(async () => null)}
           busy={false}
         />
       </ul>
@@ -598,6 +599,7 @@ describe('WatchlistCard — the header the 2026-07-29 mockup asked for', () => {
             selected
             onToggleSelect={vi.fn()}
             onSavePlantedDate={vi.fn(async () => null)}
+            onClearPlantedDate={vi.fn(async () => null)}
             busy={false}
           />
         </ul>

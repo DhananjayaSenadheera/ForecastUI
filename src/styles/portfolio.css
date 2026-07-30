@@ -4,10 +4,12 @@
    weighs on the four tabs.
 
    Rules this file obeys (they are laws, not preferences):
-   - NO RED, with exactly ONE exception: `.pf-confirm__yes`, the button that really does
-     delete crops from the farmer's list. Red is otherwise reserved app-wide for the
-     "Not recommended" verdict; a falling price and a swinging price are facts, not
-     failures, and neither is a ticked checkbox.
+   - NO RED except on a control that really DESTROYS the farmer's own data, and there are
+     exactly two shapes of that: `.pf-confirm__yes` (the button that answers a confirm —
+     both the one that deletes crops and the one that removes a planting date) and
+     `.pf-plant__link--danger` (the text button that OPENS the remove-date confirm). Red is
+     otherwise reserved app-wide for the "Not recommended" verdict; a falling price and a
+     swinging price are facts, not failures, and neither is a ticked checkbox.
    - Colour never carries meaning alone — every tinted thing here also ships a glyph
      and a word from the component.
    - No fixed-height text boxes: Sinhala ascenders and Tamil vowel marks get clipped.
@@ -1479,6 +1481,91 @@
 .pf-plant__msg--error {
   background: var(--warn-bg);
   color: var(--warn-fg); /* amber, not red: nothing was destroyed, nothing is forbidden */
+}
+/* The remove-date confirm. It lives inside the "More details" popup, so it is drawn as an
+   inset panel rather than a bar: the question, the reasons, the optional note and the two
+   answers read as ONE step, and the popup's own content does not look like part of it.
+   It reuses .pf-confirm__q / __actions / __yes / __no from the remove-crop confirm — one
+   confirm vocabulary, one set of manners. */
+.pf-plant__confirm {
+  margin: var(--sp-2) 0 0;
+  padding: var(--sp-3);
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--critical-fg); /* a second signal for the destructive step */
+  border-radius: var(--r-md);
+}
+.pf-clear__body {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  line-height: var(--lh-body);
+}
+/* A real fieldset, unstyled back to a block: the legend has to stay a legend so the group
+   is named for a screen reader before it reads the four options. */
+.pf-clear__reasons {
+  margin: 0 0 var(--sp-3);
+  padding: 0;
+  border: 0;
+}
+.pf-clear__legend {
+  padding: 0;
+  margin-bottom: var(--sp-2);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-1);
+}
+/* One tap each, thumb-sized, and the whole row is the target — not just the 20px circle. */
+.pf-clear__reason {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: var(--touch-min);
+  padding: 0 var(--sp-1);
+  line-height: var(--lh-body);
+  cursor: pointer;
+}
+.pf-clear__radio {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  accent-color: var(--brand);
+  cursor: pointer;
+}
+.pf-clear__radio:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.pf-clear__note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: 0 0 var(--sp-3);
+}
+/* Free text grows downwards and never clips: Sinhala ascenders and Tamil vowel marks are
+   the first thing a fixed-height box eats. */
+.pf-clear__input {
+  padding: var(--sp-2) var(--sp-3);
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--text-1);
+  font: inherit;
+  width: 100%;
+  min-height: var(--touch-primary);
+  resize: vertical;
+}
+.pf-clear__input:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+/* The note is too long to be accepted. Amber, not red: nothing is destroyed and nothing is
+   forbidden — the farmer is being asked to shorten a sentence. */
+.pf-clear__err {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--warn-fg);
+  font-weight: var(--fw-medium);
 }
 .pf-plant__fcerr {
   display: flex;

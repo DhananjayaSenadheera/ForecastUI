@@ -29,7 +29,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, ApiError } from '../api/client';
-import type { Crop, Market, PortfolioDashboard, WatchlistItem } from '../api/types';
+import type {
+  Crop,
+  Market,
+  PlantedDateClearRequest,
+  PortfolioDashboard,
+  WatchlistItem,
+} from '../api/types';
 import CropWatchTable from '../components/CropWatchTable';
 import WatchlistCard from '../components/WatchlistCard';
 import {
@@ -243,7 +249,7 @@ export default function PortfolioPage() {
   );
 
   /**
-   * The farmer's planting date for one crop: a real date to record it, null to remove it.
+   * The farmer's planting date for one crop.
    *
    * It goes through the same machinery as every other watchlist write — sequential, the
    * server's own error code mapped to its own sentence, the dashboard re-read afterwards so
@@ -255,12 +261,34 @@ export default function PortfolioPage() {
    * here would replace the crop's watched markets as a side effect of typing a date.
    */
   const onSavePlantedDate = useCallback(
-    async (cropId: string, plantedDate: string | null) => {
+    async (cropId: string, plantedDate: string) => {
       const { msg } = await runWrites(
         [{ cropId, run: () => api.updateWatchlistPlantedDate(cropId, plantedDate) }],
-        plantedDate === null
-          ? 'pages.portfolio.plantedClearedOk'
-          : 'pages.portfolio.plantedSavedOk',
+        'pages.portfolio.plantedSavedOk',
+        { silent: true },
+      );
+      return msg;
+    },
+    [runWrites],
+  );
+
+  /**
+   * REMOVING that date — a different request, not a variant of saving one.
+   *
+   * The server now records WHY (harvested / crop failed / entered by mistake / other, plus an
+   * optional note) and REFUSES a removal that does not say, so the reason travels with the
+   * write rather than being inferred. It reaches here only from the confirm in the
+   * "More details" popup: that is the one surface with the room to ask the question, and the
+   * only one where the answer is the farmer's own words rather than our guess.
+   *
+   * Same machinery, same silent reporting: with the popup open, the page's status region is
+   * behind the backdrop.
+   */
+  const onClearPlantedDate = useCallback(
+    async (cropId: string, clear: PlantedDateClearRequest) => {
+      const { msg } = await runWrites(
+        [{ cropId, run: () => api.clearWatchlistPlantedDate(cropId, clear) }],
+        'pages.portfolio.plantedClearedOk',
         { silent: true },
       );
       return msg;
@@ -404,6 +432,7 @@ export default function PortfolioPage() {
                       selected={selected.includes(item.cropId)}
                       onToggleSelect={toggleSelect}
                       onSavePlantedDate={onSavePlantedDate}
+                      onClearPlantedDate={onClearPlantedDate}
                       busy={busy}
                     />
                   ))}

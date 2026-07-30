@@ -46,6 +46,9 @@ import {
   type PortfolioDashboardItem,
   type PortfolioDashboardMarket,
   type PortfolioPriceDirection,
+  type PlantedDateClearRequest,
+  CLEAR_REASON_NOTE_MAX,
+  PLANTED_DATE_CLEAR_REASONS,
   type WatchlistAddResult,
   type WatchlistEntryUpdateResult,
   type WatchlistItem,
@@ -2111,8 +2114,29 @@ export function fxUpdateWatchlistMarkets(
   };
 }
 
-/** Sets or CLEARS one crop's planting date, and touches nothing else — the demo mirrors
- *  the wire's tri-state: null really removes the date, and the markets are left alone. */
+/** Removes one crop's planting date, with the reason the farmer gave. The demo keeps the
+ *  server's rule rather than a friendlier one: no date on the row means there is nothing to
+ *  remove and nothing a reason could explain, which is the live 400
+ *  (clear_reason_not_applicable). The reason itself is not stored — the demo has no audit
+ *  log to store it in, and inventing one would be inventing data. */
+export function fxClearWatchlistPlantedDate(
+  cropId: string,
+  clear: PlantedDateClearRequest,
+): WatchlistEntryUpdateResult {
+  const rows = fxWatchlistRows();
+  const row = rows.find((r) => r.cropId === cropId);
+  if (!row) throw new Error('watchlist_entry_not_found');
+  if (row.plantedDate === null) throw new Error('clear_reason_not_applicable');
+  if (!PLANTED_DATE_CLEAR_REASONS.includes(clear.reason)) throw new Error('invalid_clear_reason');
+  if ((clear.note ?? '').trim().length > CLEAR_REASON_NOTE_MAX) {
+    throw new Error('clear_reason_note_too_long');
+  }
+  row.plantedDate = null;
+  return { item: { ...row }, marketsChanged: false, plantedDateChanged: true };
+}
+
+/** Sets one crop's planting date, and touches nothing else. Clearing is
+ *  fxClearWatchlistPlantedDate above: it needs a reason, exactly as the wire does. */
 export function fxUpdateWatchlistPlantedDate(
   cropId: string,
   plantedDate: string | null,

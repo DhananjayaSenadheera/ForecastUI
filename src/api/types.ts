@@ -822,14 +822,20 @@ export const USER_ACTIVITY_PIPELINE_EVENT_TYPES = [
   'ingestionServiceStarted',
   'ingestionServiceStopRequested',
 ] as const;
+/** Farmer actions — the first events on this log whose ACTOR IS NOT AN ADMIN. A farmer
+ *  removing their own planting date is recorded with the reason they gave, so the log can
+ *  tell a harvested planting from a typo. Nothing about the row is admin-shaped: the actor
+ *  is the farmer's own user id and the target is empty. */
+export const USER_ACTIVITY_FARMER_EVENT_TYPES = ['plantedDateRemoved'] as const;
 
 /** Every wire string the client knows about (sign-in + user management + content +
- *  pipeline actions). */
+ *  pipeline actions + farmer actions). */
 export const USER_ACTIVITY_EVENT_TYPES = [
   ...USER_ACTIVITY_SIGN_IN_EVENT_TYPES,
   ...USER_ACTIVITY_USER_MGMT_EVENT_TYPES,
   ...USER_ACTIVITY_CONTENT_EVENT_TYPES,
   ...USER_ACTIVITY_PIPELINE_EVENT_TYPES,
+  ...USER_ACTIVITY_FARMER_EVENT_TYPES,
 ] as const;
 export type UserActivityEventType = (typeof USER_ACTIVITY_EVENT_TYPES)[number];
 
@@ -1071,14 +1077,60 @@ export interface WatchlistEntryUpdateResult {
   plantedDateChanged: boolean;
 }
 
-/** The machine-readable `error` codes the portfolio routes answer with (422, or 404 for the
- *  last one). Every one maps to its OWN farmer-language sentence: "we could not save" for a
- *  cap the farmer can actually act on would waste the only information in the response. */
+/**
+ * Why a farmer removed a planting date. FROZEN camelCase wire strings — the server accepts
+ * exactly these four and 400s anything else, so they are values, never display text (each one
+ * has its own translated label).
+ *
+ * The order here is the order the farmer reads them in: the two ordinary endings of a
+ * planting first, then the correction, then the escape hatch.
+ */
+export const PLANTED_DATE_CLEAR_REASONS = [
+  'harvested',
+  'cropFailed',
+  'enteredByMistake',
+  'other',
+] as const;
+export type PlantedDateClearReason = (typeof PLANTED_DATE_CLEAR_REASONS)[number];
+
+/** The server's own ceiling for the free-text note, measured on the TRIMMED value. It
+ *  REJECTS an over-long note rather than truncating it, so the UI must refuse it too — with
+ *  the same number, counted the same way, or the two disagree about one sentence. */
+export const CLEAR_REASON_NOTE_MAX = 300;
+
+/**
+ * What "remove this planting date" carries besides the null.
+ *
+ * The reason is REQUIRED by the server exactly when the request clears a date the entry
+ * really has, and REFUSED in every other case — which is why clearing has its own client
+ * method and its own request shape instead of an optional argument on the save path.
+ * The note is optional free text; a blank one is never sent at all.
+ */
+export interface PlantedDateClearRequest {
+  reason: PlantedDateClearReason;
+  note?: string;
+}
+
+/** The machine-readable `error` codes the portfolio routes answer with (422, 400 for the
+ *  clear-reason family, or 404 for watchlist_entry_not_found). Every one maps to its OWN
+ *  farmer-language sentence: "we could not save" for a cap the farmer can actually act on
+ *  would waste the only information in the response.
+ *
+ *  The five clear_reason_* codes are all states the UI is built to make impossible (it will
+ *  not send a note without a reason, nor a reason when nothing is being cleared). They still
+ *  get their own sentences: a "shouldn't happen" that reaches a farmer as a shrug is worse
+ *  than one that says what was missing. Server precedence: clear_reason_required is answered
+ *  before clear_reason_note_without_reason. */
 export type PortfolioErrorCode =
   | 'watchlist_full'
   | 'too_many_markets'
   | 'invalid_planted_date'
-  | 'watchlist_entry_not_found';
+  | 'watchlist_entry_not_found'
+  | 'clear_reason_required'
+  | 'clear_reason_not_applicable'
+  | 'invalid_clear_reason'
+  | 'clear_reason_note_without_reason'
+  | 'clear_reason_note_too_long';
 
 /** DELETE /api/portfolio/watchlist/{cropId}. A miss is a 404 with code
  *  "watchlist_entry_not_found", so a 200 always means a row really went away. */

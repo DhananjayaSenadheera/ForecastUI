@@ -35,6 +35,8 @@ const CONTENT_TYPES = [
 ];
 // Frozen spelling: "…StopRequested", because the API only ASKS for a cancellation.
 const PIPELINE_TYPES = ['ingestionServiceStarted', 'ingestionServiceStopRequested'];
+// Farmer actions — the first events here whose actor is NOT an admin.
+const FARMER_TYPES = ['plantedDateRemoved'];
 
 const groupTablist = () => screen.getByRole('tablist', { name: 'Activity type' });
 const groupTab = (name: string) => within(groupTablist()).getByRole('tab', { name });
@@ -236,7 +238,7 @@ describe('System log — group sub-tabs', () => {
   });
 
   // ARIA structure.
-  it('is a tablist of five tabs with All selected by default', async () => {
+  it('is a tablist of six tabs with All selected by default', async () => {
     renderPage();
     await table();
     const tabs = within(groupTablist()).getAllByRole('tab');
@@ -246,6 +248,7 @@ describe('System log — group sub-tabs', () => {
       'User management',
       'Content changes',
       'Pipeline actions',
+      'Farmer actions',
     ]);
     expect(groupTab('All')).toHaveAttribute('aria-selected', 'true');
     expect(groupTab('Sign-ins')).toHaveAttribute('aria-selected', 'false');
@@ -288,7 +291,7 @@ describe('System log — group sub-tabs', () => {
     expect(document.activeElement).toBe(groupTab('All'));
     // Left from the first tab wraps to the last.
     fireEvent.keyDown(document.activeElement as Element, { key: 'ArrowLeft' });
-    expect(document.activeElement).toBe(groupTab('Pipeline actions'));
+    expect(document.activeElement).toBe(groupTab('Farmer actions'));
   });
 
   it('Home/End jump to the first and last tab', async () => {
@@ -296,7 +299,7 @@ describe('System log — group sub-tabs', () => {
     await table();
     groupTab('All').focus();
     fireEvent.keyDown(document.activeElement as Element, { key: 'End' });
-    expect(document.activeElement).toBe(groupTab('Pipeline actions'));
+    expect(document.activeElement).toBe(groupTab('Farmer actions'));
     fireEvent.keyDown(document.activeElement as Element, { key: 'Home' });
     expect(document.activeElement).toBe(groupTab('All'));
   });
@@ -331,6 +334,57 @@ describe('System log — group sub-tabs', () => {
     await waitFor(() => expect(spy).toHaveBeenCalledWith(1, 25, { types: PIPELINE_TYPES }));
     expect(groupTab('Pipeline actions')).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByTestId('search')).toHaveTextContent('?group=pipeline-actions');
+  });
+
+  // Farmer actions: the first rows on this log an admin did not create.
+  it('labels, filters and deep-links the farmer-authored planting-date removal', async () => {
+    const spy = vi.mocked(api.getUserActivity);
+    renderPage();
+    await table();
+
+    fireEvent.click(groupTab('Farmer actions'));
+    await waitFor(() => expect(spy).toHaveBeenCalledWith(1, 25, { types: FARMER_TYPES }));
+    expect(groupTab('Farmer actions')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('search')).toHaveTextContent('?group=farmer-actions');
+    // Scoped dropdown: the one event this group can show, offered by its label.
+    await waitFor(() =>
+      expect(
+        [...(screen.getByLabelText('Event') as HTMLSelectElement).options].map((o) => o.value),
+      ).toEqual(['', ...FARMER_TYPES]),
+    );
+    expect(
+      within(screen.getByLabelText('Event') as HTMLSelectElement).getByRole('option', {
+        name: 'Planting date removed',
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it('renders a farmer-authored row without assuming an admin did it', async () => {
+    // The actor is the FARMER's own user id and there is no target user at all — the row must
+    // read as a fact, not as an admin action against someone.
+    vi.mocked(api.getUserActivity).mockResolvedValue(
+      page([
+        {
+          occurredUtc: '2026-07-30T04:12:00Z',
+          eventType: 'plantedDateRemoved',
+          actorUserId: LONG_GUID,
+          targetUserId: null,
+          usernameAttempted: null,
+          details: 'VEG000019 · Harvested',
+        },
+      ]),
+    );
+    renderPage();
+    const t = await table();
+    expect(within(t).getByText('Planting date removed')).toBeInTheDocument();
+    // Never the raw wire string in front of a reader.
+    expect(within(t).queryByText('plantedDateRemoved')).toBeNull();
+    // The reason the farmer gave travels in Details, verbatim.
+    expect(within(t).getByText('VEG000019 · Harvested')).toBeInTheDocument();
+    // No target user: a muted dash, not an invented one.
+    expect(within(t).getAllByText('—').length).toBeGreaterThan(0);
+    // Neutral badge: a farmer harvesting is neither good news nor a warning.
+    expect(within(t).getByText('Planting date removed')).toHaveClass('adm-status--neutral');
   });
 
   it('deep-links ?group=pipeline-actions on FIRST load (no all-events flash)', async () => {
@@ -384,7 +438,7 @@ describe('System log — group sub-tabs', () => {
     await table();
     const select = () => screen.getByLabelText('Event') as HTMLSelectElement;
     // All: every known event type is offered (+ the "All events" option).
-    expect(select().options).toHaveLength(13);
+    expect(select().options).toHaveLength(14);
 
     fireEvent.click(groupTab('Sign-ins'));
     await waitFor(() =>

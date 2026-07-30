@@ -169,6 +169,22 @@ export function watchlistErrorKey(code: string | null | undefined): string {
       return 'pages.portfolio.errInvalidPlantedDate';
     case 'watchlist_entry_not_found':
       return 'pages.portfolio.errEntryNotFound';
+    // The clear-reason family. Every one of these is a state the confirm is built to make
+    // impossible — it will not send a note without a reason, will not send a reason unless a
+    // date is really being removed, and refuses an over-long note before the request. They
+    // still get their own sentences: if one ever does reach a farmer, "something went wrong"
+    // would hide the one useful thing the server said. None of them blames the farmer, and
+    // none of them claims the date was removed.
+    case 'clear_reason_required':
+      return 'pages.portfolio.errClearReasonRequired';
+    case 'clear_reason_not_applicable':
+      return 'pages.portfolio.errClearReasonNotApplicable';
+    case 'invalid_clear_reason':
+      return 'pages.portfolio.errInvalidClearReason';
+    case 'clear_reason_note_without_reason':
+      return 'pages.portfolio.errClearReasonNoteWithoutReason';
+    case 'clear_reason_note_too_long':
+      return 'pages.portfolio.errClearReasonNoteTooLong';
     default:
       return 'common.errorBody';
   }

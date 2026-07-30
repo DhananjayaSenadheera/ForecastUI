@@ -55,13 +55,18 @@
 //    card therefore resolves its market through one function, selectedMarketFor().
 //  - The 1M/3M control is a ZOOM on data the card already has, never a different question:
 //    no request, no reload, and the price above it does not move when the window changes.
-//  - Nothing here is red except the two controls that DESTROY something: the remove flow's
-//    confirm button and "Remove date". Red is otherwise reserved app-wide for the "Not
-//    recommended" verdict — a falling price gets amber, which is caution, not failure.
+//  - Nothing on the card is red at all any more: the only destructive control it used to
+//    carry, "Remove date", has moved into the popup behind a confirm that asks why. Red is
+//    otherwise reserved app-wide for the "Not recommended" verdict — a falling price gets
+//    amber, which is caution, not failure.
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
-import type { PortfolioDashboardItem, PriceHistoryPoint } from '../api/types';
+import type {
+  PlantedDateClearRequest,
+  PortfolioDashboardItem,
+  PriceHistoryPoint,
+} from '../api/types';
 import { cropIcon } from '../lib/cropIcons';
 import { selectedMarketFor, sliceHistoryByRange, type ChartRange } from '../lib/portfolio';
 import { classifyPriceSwing } from '../lib/priceSwing';
@@ -85,9 +90,16 @@ export interface WatchlistCardProps {
   /** Ticked for removal. Selection lives on the page so one action can remove many. */
   selected: boolean;
   onToggleSelect: (cropId: string) => void;
-  /** Saves or clears this crop's planting date through the page's write machinery (the same
-   *  error mapping every other watchlist write uses), and answers with what to show. */
-  onSavePlantedDate: (cropId: string, plantedDate: string | null) => Promise<WriteMessage | null>;
+  /** Saves this crop's planting date through the page's write machinery (the same error
+   *  mapping every other watchlist write uses), and answers with what to show. */
+  onSavePlantedDate: (cropId: string, plantedDate: string) => Promise<WriteMessage | null>;
+  /** REMOVES this crop's planting date, with the reason the farmer gave. The card renders no
+   *  Remove control itself — this is for the "More details" popup it owns, which is the one
+   *  place the date can be removed (and the only place there is room to ask why). */
+  onClearPlantedDate: (
+    cropId: string,
+    clear: PlantedDateClearRequest,
+  ) => Promise<WriteMessage | null>;
   /** A write is in flight anywhere on the page. */
   busy: boolean;
 }
@@ -134,6 +146,7 @@ export default function WatchlistCard({
   selected,
   onToggleSelect,
   onSavePlantedDate,
+  onClearPlantedDate,
   busy,
 }: WatchlistCardProps) {
   const { t } = useTranslation();
@@ -313,6 +326,10 @@ export default function WatchlistCard({
           busy={busy}
           idPrefix="card"
           forecastLayout="split"
+          // NO Remove-date control on the card (2026-07-30): removing a date is a
+          // destructive, reason-needing action, and a card in a grid of ten is the wrong
+          // place for it. It lives in the popup below.
+          clearControl="none"
         />
 
         <p className="pf-card__more">
@@ -352,6 +369,7 @@ export default function WatchlistCard({
           forecast={plantedForecast}
           onRetryForecast={retryForecast}
           onSavePlantedDate={onSavePlantedDate}
+          onClearPlantedDate={onClearPlantedDate}
           busy={busy}
           onClose={() => setDetailsOpen(false)}
         />

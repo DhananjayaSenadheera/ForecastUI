@@ -105,17 +105,54 @@ describe('PUT /api/portfolio/watchlist/{cropId} — the planting-date body (tri-
     // but a present one is a FULL REPLACE and would silently drop markets.
     expect(Object.keys(body(calls[0]))).toEqual(['plantedDate']);
     expect(String(calls[0].init.body)).not.toContain('marketIds');
+    // A SET must never carry a clear reason: the server 400s a reason on a request that is
+    // not clearing anything (clear_reason_not_applicable).
+    expect(String(calls[0].init.body)).not.toContain('clearReason');
   });
 
-  it('clears the date with an EXPLICIT null, never by omitting the key', async () => {
-    // Omitting it means "leave it alone", which is the opposite of what "Remove date" asks
-    // for: the request would come back 200 with the date still on the row.
+  it('clears the date with an EXPLICIT null AND the reason the server now requires', async () => {
+    // Omitting the key means "leave it alone", which is the opposite of what "Remove date"
+    // asks for: the request would come back 200 with the date still on the row. And a bare
+    // { plantedDate: null } is now a 400 (clear_reason_required) — the removal has to say why.
     const { api, calls } = await liveApi();
-    await api.updateWatchlistPlantedDate('c1', null);
+    await api.clearWatchlistPlantedDate('c1', { reason: 'harvested' });
 
-    expect(body(calls[0])).toEqual({ plantedDate: null });
-    expect(Object.keys(body(calls[0]))).toEqual(['plantedDate']);
+    expect(calls[0].url).toBe('http://api.test/api/portfolio/watchlist/c1');
+    expect(calls[0].init.method).toBe('PUT');
+    expect(body(calls[0])).toEqual({ plantedDate: null, clearReason: 'harvested' });
+    expect(Object.keys(body(calls[0]))).toEqual(['plantedDate', 'clearReason']);
     expect(String(calls[0].init.body)).toContain('"plantedDate":null');
+    // No note key at all when the farmer wrote none — never an empty string, which would be
+    // a note with nothing in it.
+    expect(String(calls[0].init.body)).not.toContain('clearReasonNote');
+    expect(String(calls[0].init.body)).not.toContain('marketIds');
+  });
+
+  it('carries the farmer’s note TRIMMED, exactly as the server measures it', async () => {
+    const { api, calls } = await liveApi();
+    await api.clearWatchlistPlantedDate('c1', {
+      reason: 'cropFailed',
+      note: '  heavy rain in July  ',
+    });
+
+    expect(body(calls[0])).toEqual({
+      plantedDate: null,
+      clearReason: 'cropFailed',
+      clearReasonNote: 'heavy rain in July',
+    });
+    expect(Object.keys(body(calls[0]))).toEqual([
+      'plantedDate',
+      'clearReason',
+      'clearReasonNote',
+    ]);
+  });
+
+  it('drops a blank note rather than sending one with nothing in it', async () => {
+    const { api, calls } = await liveApi();
+    await api.clearWatchlistPlantedDate('c1', { reason: 'other', note: '   \n  ' });
+
+    expect(body(calls[0])).toEqual({ plantedDate: null, clearReason: 'other' });
+    expect(String(calls[0].init.body)).not.toContain('clearReasonNote');
   });
 });
 

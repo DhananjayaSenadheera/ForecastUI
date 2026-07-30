@@ -25,7 +25,12 @@
 // no request), PlantedDateSection is the same section the card shows, and the forecast state
 // is passed IN from the card so both copies show one fetch's answer.
 import { useTranslation } from 'react-i18next';
-import type { PortfolioDashboardItem, PortfolioDashboardMarket, PriceHistoryPoint } from '../api/types';
+import type {
+  PlantedDateClearRequest,
+  PortfolioDashboardItem,
+  PortfolioDashboardMarket,
+  PriceHistoryPoint,
+} from '../api/types';
 import type { CropReadinessStatus } from '../lib/readiness';
 import { cropIcon } from '../lib/cropIcons';
 import { cropDetailLink, marketCodeLabel } from '../lib/portfolio';
@@ -54,7 +59,14 @@ export interface CropDetailsDialogProps {
   swing: PriceSwing | null;
   forecast: PlantedForecastState;
   onRetryForecast: () => void;
-  onSavePlantedDate: (cropId: string, plantedDate: string | null) => Promise<WriteMessage | null>;
+  onSavePlantedDate: (cropId: string, plantedDate: string) => Promise<WriteMessage | null>;
+  /** Removes the planting date, with the reason the farmer picked. THIS surface owns removal:
+   *  it is the only one with room to ask why, and the only one where the question cannot be
+   *  mistaken for a control on nine other crops. */
+  onClearPlantedDate: (
+    cropId: string,
+    clear: PlantedDateClearRequest,
+  ) => Promise<WriteMessage | null>;
   busy: boolean;
   onClose: () => void;
 }
@@ -70,6 +82,7 @@ export default function CropDetailsDialog({
   forecast,
   onRetryForecast,
   onSavePlantedDate,
+  onClearPlantedDate,
   busy,
   onClose,
 }: CropDetailsDialogProps) {
@@ -142,9 +155,13 @@ export default function CropDetailsDialog({
           forecast={forecast}
           onRetryForecast={onRetryForecast}
           onSave={onSavePlantedDate}
+          onClear={onClearPlantedDate}
           busy={busy}
           idPrefix="dlg"
           headingLevel={3}
+          // The popup is where a planting date can be REMOVED (the card no longer offers it),
+          // behind a confirm that asks for a reason. See PlantedDateSection's header.
+          clearControl="confirm"
         />
       </div>
 

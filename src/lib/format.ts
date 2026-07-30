@@ -334,10 +334,16 @@ const USER_ACTIVITY_KEYS: Record<string, string> = {
   // starting a pass is a recorded action, not a success or a warning.
   ingestionServiceStarted: 'admin.logs.userActivity.event.ingestionServiceStarted',
   ingestionServiceStopRequested: 'admin.logs.userActivity.event.ingestionServiceStopRequested',
+  // Farmer actions — the farmer's own record, changed by the farmer. Neutral: a planting
+  // date removed because the crop was harvested is not good news or bad news, it is what
+  // happened, and the reason the farmer gave rides along in the Details column.
+  plantedDateRemoved: 'admin.logs.userActivity.event.plantedDateRemoved',
 };
 
 /** User-activity event type -> label + badge tone. loginFailed is amber (a failed,
- *  unverified attempt), userRegistered green, the rest neutral. Unknown wire strings
+ *  unverified attempt), userRegistered green, the rest neutral — including the farmer-
+ *  authored ones, which are records of what a farmer did with their own crops and are
+ *  neither a success nor a warning to an admin reading the log. Unknown wire strings
  *  degrade to a muted raw fallback (labelKey null). */
 export function mapUserActivityEvent(type: string): {
   labelKey: string | null;

@@ -24,6 +24,7 @@ import {
   FORECAST_MATURITY_STATES,
   USER_ACTIVITY_CONTENT_EVENT_TYPES,
   USER_ACTIVITY_EVENT_TYPES,
+  USER_ACTIVITY_FARMER_EVENT_TYPES,
   USER_ACTIVITY_PIPELINE_EVENT_TYPES,
   USER_ACTIVITY_SIGN_IN_EVENT_TYPES,
   USER_ACTIVITY_USER_MGMT_EVENT_TYPES,
@@ -169,7 +170,15 @@ describe('Logs P2 mappers — user activity', () => {
       // "…StopRequested", never "…Stopped": the API only ASKS for a cancellation.
       'ingestionServiceStopRequested',
     ]);
-    expect(USER_ACTIVITY_EVENT_TYPES).toHaveLength(12);
+    // The first farmer-authored type (2026-07-30). It joins the END of the known set: the
+    // groups above are frozen, and a farmer's own record change is not an admin edit.
+    expect(USER_ACTIVITY_FARMER_EVENT_TYPES).toEqual(['plantedDateRemoved']);
+    expect(USER_ACTIVITY_EVENT_TYPES).toHaveLength(13);
+    expect(USER_ACTIVITY_EVENT_TYPES[USER_ACTIVITY_EVENT_TYPES.length - 1]).toBe(
+      'plantedDateRemoved',
+    );
+    // A farmer harvesting is neither good news nor a warning to an admin reading the log.
+    expect(mapUserActivityEvent('plantedDateRemoved').tone).toBe('neutral');
     // Every known type has a label key — no badge can fall back to a raw wire string
     // for a type this build DOES know about.
     for (const ev of USER_ACTIVITY_EVENT_TYPES) {

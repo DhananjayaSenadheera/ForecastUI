@@ -32,6 +32,7 @@ import type {
   NewsEventCreateDto,
   NewsEventUpdateDto,
   PipelineHealth,
+  PlantedDateClearRequest,
   PolicyFlag,
   PolicyFlagMutationResult,
   PolicyFlagUpdateDto,
@@ -767,21 +768,59 @@ export const api = {
   //
   // The field is TRI-STATE and the three states are three different sentences:
   //   omitted        -> "leave it alone" (what updateWatchlistMarkets above sends);
-  //   "YYYY-MM-DD"   -> "I planted on this day";
-  //   null           -> "I have no planting date" — an explicit CLEAR, which is why this
-  //                     method builds { plantedDate: null } rather than dropping the key.
+  //   "YYYY-MM-DD"   -> "I planted on this day" — THIS method;
+  //   null           -> "I have no planting date" — an explicit CLEAR, which now needs a
+  //                     reason with it and so has its own method below.
   // marketIds is never sent from here for the mirror-image reason: a date edit that
-  // mentioned markets would replace the farmer's market picks as a side effect.
+  // mentioned markets would replace the farmer's market picks as a side effect. Nor does a
+  // SET ever carry clearReason: the server 400s (clear_reason_not_applicable) a reason on a
+  // request that is not clearing anything, which is why the two operations are two methods
+  // and not one optional argument.
   // 404 { error: "watchlist_entry_not_found" }, 422 { error: "invalid_planted_date" }
   // (before 2000-01-01, or later than the server's UTC-today + 1 day).
   async updateWatchlistPlantedDate(
     cropId: string,
-    plantedDate: string | null,
+    plantedDate: string,
   ): Promise<WatchlistEntryUpdateResult> {
     if (USE_FIXTURES) return fx.fxUpdateWatchlistPlantedDate(cropId, plantedDate);
     return request<WatchlistEntryUpdateResult>(`/api/portfolio/watchlist/${cropId}`, {
       method: 'PUT',
       body: JSON.stringify({ plantedDate }),
+    });
+  },
+
+  // PUT /api/portfolio/watchlist/{cropId} -> the same result shape, CLEARING the planting
+  // date and recording why.
+  //
+  // The body is { plantedDate: null, clearReason } plus clearReasonNote when the farmer
+  // wrote one. The server REQUIRES the reason exactly when the request clears a date the
+  // entry really has, and refuses it in every other case, so:
+  //   • this method is only ever called for a crop that HAS a date on screen;
+  //   • the reason is a required argument, never an optional one — a bare clear is a
+  //     400 (clear_reason_required) and the UI must not be able to build one;
+  //   • the note is TRIMMED here and dropped when it is blank. The server measures the
+  //     300-character limit on the trimmed value and rejects rather than truncates, so
+  //     sending the trimmed string is the only way the two agree about one sentence, and a
+  //     whitespace-only note would be a note with nothing in it
+  //     (clear_reason_note_without_reason is about a note with no REASON; a blank note is
+  //     simply not news).
+  // 400 { error: "clear_reason_required" | "clear_reason_not_applicable" |
+  //       "invalid_clear_reason" | "clear_reason_note_without_reason" |
+  //       "clear_reason_note_too_long" }, 404 { error: "watchlist_entry_not_found" }.
+  async clearWatchlistPlantedDate(
+    cropId: string,
+    clear: PlantedDateClearRequest,
+  ): Promise<WatchlistEntryUpdateResult> {
+    if (USE_FIXTURES) return fx.fxClearWatchlistPlantedDate(cropId, clear);
+    const note = (clear.note ?? '').trim();
+    const body: { plantedDate: null; clearReason: string; clearReasonNote?: string } = {
+      plantedDate: null,
+      clearReason: clear.reason,
+    };
+    if (note) body.clearReasonNote = note;
+    return request<WatchlistEntryUpdateResult>(`/api/portfolio/watchlist/${cropId}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
     });
   },
 
