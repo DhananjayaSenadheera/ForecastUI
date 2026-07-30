@@ -781,21 +781,88 @@ describe('PortfolioPage — the planting date goes through the page’s write ma
     await screen.findByText('That planting date cannot be used. Please choose another.');
   });
 
-  it('clears the date with an explicit null when the farmer removes it', async () => {
-    mockPage({ items: [tomato({ plantedDate: '2026-05-04' })] }, [
-      { ...watched('c1', 'Tomato', ['m1']), plantedDate: '2026-05-04' },
-    ]);
-    const put = vi
-      .spyOn(api, 'updateWatchlistPlantedDate')
-      .mockResolvedValue({} as never);
+  it('removes the date through its OWN route, with the reason, from inside the popup', async () => {
+    // The card offers no Remove control any more: the flow is More details -> Remove date ->
+    // pick a reason -> confirm. The page's job is to send the removal down the clearing
+    // route (never the saving one) and to re-read what really landed.
+    const dashboard = { items: [tomato({ plantedDate: '2026-05-04' })] };
+    mockPage(dashboard, [{ ...watched('c1', 'Tomato', ['m1']), plantedDate: '2026-05-04' }]);
+    const clear = vi.spyOn(api, 'clearWatchlistPlantedDate').mockResolvedValue({} as never);
+    const save = vi.spyOn(api, 'updateWatchlistPlantedDate');
+    // The re-read after the write answers with the date really gone, so the section that
+    // comes back is the invitation — which is where focus has to land.
+    vi.mocked(api.getPortfolioDashboard).mockResolvedValueOnce(dashboard).mockResolvedValue({
+      items: [tomato({ plantedDate: null })],
+    });
     vi.spyOn(api, 'getHarvestForecast').mockRejectedValue(new Error('not under test'));
     renderPage();
 
+    fireEvent.click(await screen.findByRole('button', { name: 'More details for Tomato' }));
+    const dialog = screen.getByRole('dialog');
     fireEvent.click(
-      await screen.findByRole('button', { name: 'Remove the planting date for Tomato' }),
+      within(dialog).getByRole('button', { name: 'Remove the planting date for Tomato' }),
     );
-    await waitFor(() => expect(put).toHaveBeenCalledWith('c1', null));
-    await screen.findByText('Planting date removed.');
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Harvested' }));
+    fireEvent.change(within(dialog).getByLabelText('Anything to add? (optional)'), {
+      target: { value: 'picked on Friday' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Yes, remove the date' }));
+
+    await waitFor(() =>
+      expect(clear).toHaveBeenCalledWith('c1', {
+        reason: 'harvested',
+        note: 'picked on Friday',
+      }),
+    );
+    // The saving route is NOT how a removal travels: it can no longer even express one.
+    expect(save).not.toHaveBeenCalled();
+    // Re-read after the write, reported beside the control, not in the page's status region
+    // (which is behind the backdrop).
+    await waitFor(() => expect(api.getPortfolioDashboard).toHaveBeenCalledTimes(2));
+    await within(dialog).findByText('Planting date removed.');
+    expect(document.querySelector('.pf-writemsg')).toHaveTextContent('');
+    // Focus lands on the field that replaced the date line — the pendingFocus discipline.
+    await waitFor(() =>
+      expect(document.activeElement).toBe(within(dialog).getByLabelText('Planting date')),
+    );
+  });
+
+  it('maps a refused removal to its own sentence, and never drops focus on <body>', async () => {
+    // clear_reason_not_applicable is the refusal that ALSO moves the ground: the server says
+    // there is no date to remove, the re-read afterwards agrees, and so the confirm, the
+    // Remove button and the date line all unmount together. The focus destination for a
+    // failed write ("the Yes button") no longer exists at that moment — it has to fall back
+    // outwards to whatever is still standing, or a keyboard user is dumped at <body> with a
+    // sentence they cannot find.
+    const withDate = { items: [tomato({ plantedDate: '2026-05-04' })] };
+    mockPage(withDate, [{ ...watched('c1', 'Tomato', ['m1']), plantedDate: '2026-05-04' }]);
+    vi.mocked(api.getPortfolioDashboard)
+      .mockResolvedValueOnce(withDate)
+      .mockResolvedValue({ items: [tomato({ plantedDate: null })] });
+    vi.spyOn(api, 'clearWatchlistPlantedDate').mockRejectedValue(
+      new ApiError('bad request', 400, 'clear_reason_not_applicable'),
+    );
+    vi.spyOn(api, 'getHarvestForecast').mockRejectedValue(new Error('not under test'));
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'More details for Tomato' }));
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Remove the planting date for Tomato' }),
+    );
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Entered by mistake' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Yes, remove the date' }));
+
+    // The server's own refusal keeps its own words, and never claims the date went away.
+    await within(dialog).findByText(
+      'This crop has no planting date to remove, so nothing was changed.',
+    );
+    // The question really has gone with the date it was about...
+    expect(within(dialog).queryByRole('alertdialog')).toBeNull();
+    // ...and focus landed on the invitation that replaced it, not on <body>.
+    await waitFor(() =>
+      expect(document.activeElement).toBe(within(dialog).getByLabelText('Planting date')),
+    );
   });
 });
 

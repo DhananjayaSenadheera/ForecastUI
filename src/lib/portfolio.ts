@@ -13,6 +13,7 @@ import { isRealYmd } from './plantDate';
 import type {
   HarvestForecast,
   Market,
+  PlantedDateClearReason,
   PortfolioDashboard,
   PortfolioDashboardItem,
   PortfolioDashboardMarket,
@@ -153,6 +154,29 @@ export function dashboardEmptyState(
 }
 
 /**
+ * May this removal be SENT? One rule, read by two consumers: the confirm's answer button
+ * (which is disabled while this is false) and the handler behind it (which returns early on
+ * the same condition).
+ *
+ * It is a named function rather than two inline conditions because the two must never drift:
+ * the disabled attribute is a courtesy to the farmer — it is not what keeps an unreasoned
+ * removal off the wire, and it cannot be, because the server refuses such a request outright
+ * (clear_reason_required). The rule itself is the guarantee, and this is where it is stated
+ * and tested.
+ *
+ * (A test cannot prove the handler's half by stripping `disabled` off the button in the DOM:
+ * React decides whether to deliver a click from the element's FIBER props, not the attribute,
+ * so a stripped click never reaches the handler at all — measured, 2026-07-30. Hence a rule
+ * with a name and its own test.)
+ */
+export function canSubmitClearReason(
+  reason: PlantedDateClearReason | null,
+  noteTooLong: boolean,
+): boolean {
+  return reason !== null && !noteTooLong;
+}
+
+/**
  * The farmer-language message for a portfolio error, as an i18n key. Each refusal the
  * PRODUCT makes gets its OWN sentence: "watchlist is full" and "too many markets" are things
  * the farmer can act on, and collapsing them into "could not save" throws away the only
@@ -169,6 +193,22 @@ export function watchlistErrorKey(code: string | null | undefined): string {
       return 'pages.portfolio.errInvalidPlantedDate';
     case 'watchlist_entry_not_found':
       return 'pages.portfolio.errEntryNotFound';
+    // The clear-reason family. Every one of these is a state the confirm is built to make
+    // impossible — it will not send a note without a reason, will not send a reason unless a
+    // date is really being removed, and refuses an over-long note before the request. They
+    // still get their own sentences: if one ever does reach a farmer, "something went wrong"
+    // would hide the one useful thing the server said. None of them blames the farmer, and
+    // none of them claims the date was removed.
+    case 'clear_reason_required':
+      return 'pages.portfolio.errClearReasonRequired';
+    case 'clear_reason_not_applicable':
+      return 'pages.portfolio.errClearReasonNotApplicable';
+    case 'invalid_clear_reason':
+      return 'pages.portfolio.errInvalidClearReason';
+    case 'clear_reason_note_without_reason':
+      return 'pages.portfolio.errClearReasonNoteWithoutReason';
+    case 'clear_reason_note_too_long':
+      return 'pages.portfolio.errClearReasonNoteTooLong';
     default:
       return 'common.errorBody';
   }

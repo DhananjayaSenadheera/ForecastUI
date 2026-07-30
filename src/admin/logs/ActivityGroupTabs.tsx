@@ -1,5 +1,5 @@
 // Sub-tab strip for the System log page (All / Sign-ins / User management / Content
-// changes). Same WAI-ARIA tabs pattern as LogsTabs, but these filter which events the
+// changes / Pipeline actions / Farmer actions). Same WAI-ARIA tabs pattern as LogsTabs, but these filter which events the
 // page shows instead of changing route; the active group is mirrored into ?group=.
 // The ids are namespaced `syslog-group-*` so they cannot collide with logsTabId(),
 // because this strip renders inside the hub's tabpanel.
@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { useRovingTabs } from '../../lib/tabs';
 import {
   USER_ACTIVITY_CONTENT_EVENT_TYPES,
+  USER_ACTIVITY_FARMER_EVENT_TYPES,
   USER_ACTIVITY_PIPELINE_EVENT_TYPES,
   USER_ACTIVITY_SIGN_IN_EVENT_TYPES,
   USER_ACTIVITY_USER_MGMT_EVENT_TYPES,
@@ -43,6 +44,14 @@ export const ACTIVITY_GROUPS: readonly ActivityGroup[] = [
     id: 'pipeline-actions',
     labelKey: 'admin.logs.userActivity.groups.pipelineActions',
     types: USER_ACTIVITY_PIPELINE_EVENT_TYPES,
+  },
+  // Farmer actions — the only group whose actor is NOT an admin. Kept separate from
+  // "Content changes" for exactly that reason: that group means an admin editing reference
+  // data, and filing a farmer's own record change under it would misname who did what.
+  {
+    id: 'farmer-actions',
+    labelKey: 'admin.logs.userActivity.groups.farmerActions',
+    types: USER_ACTIVITY_FARMER_EVENT_TYPES,
   },
 ];
 

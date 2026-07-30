@@ -23,7 +23,8 @@ import type {
   PriceHistoryPoint,
 } from '../api/types';
 import { formatDate, ymdLocal } from '../lib/format';
-import type { WriteMessage } from '../components/PlantedDateSection';
+import PlantedDateSection, { type WriteMessage } from '../components/PlantedDateSection';
+import type { PlantedDateClearRequest } from '../api/types';
 
 const TODAY = '2026-07-28';
 const PLANTED = '2026-05-04';
@@ -116,13 +117,16 @@ function forecast(over: Partial<HarvestForecast> = {}): HarvestForecast {
   };
 }
 
-type SaveFn = (cropId: string, plantedDate: string | null) => Promise<WriteMessage | null>;
+type SaveFn = (cropId: string, plantedDate: string) => Promise<WriteMessage | null>;
+type ClearFn = (cropId: string, clear: PlantedDateClearRequest) => Promise<WriteMessage | null>;
 const noopSave: SaveFn = async () => null;
+const noopClear: ClearFn = async () => null;
 
 function renderCard(
   item: PortfolioDashboardItem,
   onSavePlantedDate: SaveFn = noopSave,
   busy = false,
+  onClearPlantedDate: ClearFn = noopClear,
 ) {
   const utils = render(
     <MemoryRouter>
@@ -135,12 +139,19 @@ function renderCard(
           selected={false}
           onToggleSelect={vi.fn()}
           onSavePlantedDate={onSavePlantedDate}
+          onClearPlantedDate={onClearPlantedDate}
           busy={busy}
         />
       </ul>
     </MemoryRouter>,
   );
-  return { ...utils, onSavePlantedDate };
+  return { ...utils, onSavePlantedDate, onClearPlantedDate };
+}
+
+/** Open the "More details" popup — the ONE place a planting date can be removed. */
+async function openPopup() {
+  fireEvent.click(await screen.findByRole('button', { name: 'More details for Tomato' }));
+  return screen.getByRole('dialog');
 }
 
 beforeEach(async () => {
@@ -322,6 +333,7 @@ describe('The planting date — the forecast it anchors', () => {
             selected
             onToggleSelect={vi.fn()}
             onSavePlantedDate={noopSave}
+            onClearPlantedDate={noopClear}
             busy={false}
           />
         </ul>
@@ -356,6 +368,7 @@ describe('The planting date — the forecast it anchors', () => {
             selected={false}
             onToggleSelect={vi.fn()}
             onSavePlantedDate={noopSave}
+            onClearPlantedDate={noopClear}
             busy={false}
           />
         </ul>
@@ -382,20 +395,38 @@ describe('The planting date — a harvest that has already been and gone', () =>
     );
     renderCard(tomato({ plantedDate: '2026-01-02' }));
 
+    // The CARD's sentence, which names only the ways out the card really has: there is no
+    // Remove control on it any more, so pointing at one would send the farmer looking for a
+    // button that is not there.
     await screen.findByText(
-      `This planting was due for harvest around ${formatDate('2026-04-01', 'en')}. Change or remove the date to plan your next planting.`,
+      `This planting was due for harvest around ${formatDate('2026-04-01', 'en')}. Change the date to plan your next planting, or open More details to remove it.`,
     );
     expect(screen.queryByText(/at harvest/)).toBeNull();
     expect(screen.queryByText(/Confidence:/)).toBeNull();
     expect(screen.queryByText(/Likely price range/)).toBeNull();
     // And no link onward to a screen that would make the same claim.
     expect(screen.queryByRole('link', { name: /See the full forecast/ })).toBeNull();
-    // The two ways out stay on screen.
+    // The ways out the card DOES have stay on screen.
     expect(
       screen.getByRole('button', { name: 'Change the planting date for Tomato' }),
     ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'More details for Tomato' })).toBeInTheDocument();
+  });
+
+  it('names Change AND Remove in the popup, where both controls really are', async () => {
+    vi.spyOn(api, 'getHarvestForecast').mockResolvedValue(
+      forecast({ plantDate: '2026-01-02', harvestDate: '2026-04-01' }),
+    );
+    renderCard(tomato({ plantedDate: '2026-01-02' }));
+    const dialog = await openPopup();
+
     expect(
-      screen.getByRole('button', { name: 'Remove the planting date for Tomato' }),
+      within(dialog).getByText(
+        `This planting was due for harvest around ${formatDate('2026-04-01', 'en')}. Change or remove the date to plan your next planting.`,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('button', { name: 'Remove the planting date for Tomato' }),
     ).toBeInTheDocument();
   });
 
@@ -437,36 +468,21 @@ describe('The planting date — changing and removing it', () => {
     expect(screen.getByText('Planted on ' + formatDate(PLANTED, 'en'))).toBeInTheDocument();
   });
 
-  it('removes the date with an explicit null and returns to the invitation', async () => {
-    const onSave = vi.fn<SaveFn>(async () => ({
-      tone: 'ok',
-      key: 'pages.portfolio.plantedClearedOk',
-    }));
-    const item = tomato({ plantedDate: PLANTED });
-    const { rerender } = renderCard(item, onSave);
+  it('offers NO way to remove the date on the card itself', async () => {
+    // 2026-07-30: removing a date is destructive AND needs a reason, so it lives in the
+    // popup. Pinned by accessible NAME, not by class: what matters is that no control a
+    // farmer (or a screen reader) can find on the card destroys their date.
+    renderCard(tomato({ plantedDate: PLANTED }));
+    const card = (await screen.findByRole('button', {
+      name: 'Change the planting date for Tomato',
+    })).closest('.pf-card__inner') as HTMLElement;
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Remove the planting date for Tomato' }));
-    await waitFor(() => expect(onSave).toHaveBeenCalledWith('c1', null));
-
-    // The page re-reads the dashboard after the write; the card then has no date again.
-    rerender(
-      <MemoryRouter>
-        <ul>
-          <WatchlistCard
-            item={tomato({ plantedDate: null })}
-            readiness={null}
-            lang="en"
-            todayYmd={TODAY}
-            selected={false}
-            onToggleSelect={vi.fn()}
-            onSavePlantedDate={onSave}
-            busy={false}
-          />
-        </ul>
-      </MemoryRouter>,
-    );
-    expect(screen.getByText('When did you plant this crop?')).toBeInTheDocument();
-    expect(screen.queryByText(/at harvest/)).toBeNull();
+    expect(
+      within(card).queryByRole('button', { name: 'Remove the planting date for Tomato' }),
+    ).toBeNull();
+    expect(within(card).queryByText('Remove date')).toBeNull();
+    // ...and the card still shows the date and the way to change it.
+    expect(within(card).getByText('Planted on ' + formatDate(PLANTED, 'en'))).toBeInTheDocument();
   });
 
   it('defaults the empty field to today, so the common case is one tap', async () => {
@@ -654,5 +670,436 @@ describe('"More details" — the popup', () => {
     expect(dialog.querySelector('.pf-card__chart')).toBeNull();
     expect(api.getPriceHistory).not.toHaveBeenCalled();
     expect(dialog.querySelector('[aria-busy="true"]')).toBeNull();
+  });
+});
+
+describe('Removing the planting date — the confirm inside the popup', () => {
+  const REASONS = ['Harvested', 'Crop failed or removed', 'Entered by mistake', 'Other'];
+
+  /** Open the popup and press "Remove date" — the state every test below starts from. */
+  async function openConfirm(onClear: ClearFn = noopClear) {
+    renderCard(tomato({ plantedDate: PLANTED }), noopSave, false, onClear);
+    const dialog = await openPopup();
+    const remove = within(dialog).getByRole('button', {
+      name: 'Remove the planting date for Tomato',
+    });
+    fireEvent.click(remove);
+    return { dialog, remove };
+  }
+
+  it('asks before it removes: a question, the four reasons, and a disabled Yes', async () => {
+    const { dialog } = await openConfirm();
+    const confirm = within(dialog).getByRole('alertdialog');
+
+    // Named BY the question, so a screen reader hears what is being asked as focus arrives.
+    expect(confirm).toHaveAccessibleName('Remove the planting date for Tomato?');
+    expect(confirm).toHaveAccessibleDescription(
+      'This removes the date and the forecast that goes with it. You can add a new planting date at any time.',
+    );
+    // A real fieldset with a real legend: the group is NAMED for a screen reader, which is
+    // what turns four loose radios into one question. Found BY that name — a div with a
+    // paragraph over it would render the same pixels and lose the group entirely.
+    const group = within(confirm).getByRole('group', {
+      name: 'Why are you removing it? Please choose one.',
+    });
+    const radios = within(group).getAllByRole('radio');
+    expect(radios.map((r) => (r as HTMLInputElement).value)).toEqual([
+      'harvested',
+      'cropFailed',
+      'enteredByMistake',
+      'other',
+    ]);
+    REASONS.forEach((label) => {
+      expect(within(confirm).getByRole('radio', { name: label })).toBeInTheDocument();
+    });
+    // NOTHING is preselected: a preselected reason would be recorded as a fact the farmer
+    // never stated.
+    radios.forEach((r) => expect(r).not.toBeChecked());
+    // ...so the destructive answer cannot be given yet, and the legend says why in words.
+    expect(within(confirm).getByRole('button', { name: 'Yes, remove the date' })).toBeDisabled();
+    // The note is optional in its own label, not in fine print somewhere else.
+    expect(within(confirm).getByLabelText('Anything to add? (optional)')).toBeInTheDocument();
+    // Focus went to the first radio — the next thing to do — not to a button that cannot
+    // be pressed.
+    expect(document.activeElement).toBe(radios[0]);
+    // The removal has NOT happened by opening the question.
+    expect(within(dialog).getByText('Planted on ' + formatDate(PLANTED, 'en'))).toBeInTheDocument();
+  });
+
+  it('the radio group carries a surface-scoped name, so the card behind cannot share it', async () => {
+    const { dialog } = await openConfirm();
+    const names = new Set(
+      within(dialog)
+        .getAllByRole('radio')
+        .map((r) => (r as HTMLInputElement).name),
+    );
+    expect(names).toEqual(new Set(['dlg-clear-reason-c1']));
+  });
+
+  it('sends the reason the farmer picked, and no note when they wrote none', async () => {
+    const onClear = vi.fn<ClearFn>(async () => ({
+      tone: 'ok',
+      key: 'pages.portfolio.plantedClearedOk',
+    }));
+    const { dialog } = await openConfirm(onClear);
+
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Harvested' }));
+    const yes = within(dialog).getByRole('button', { name: 'Yes, remove the date' });
+    expect(yes).toBeEnabled();
+    fireEvent.click(yes);
+
+    await waitFor(() => expect(onClear).toHaveBeenCalledWith('c1', { reason: 'harvested' }));
+    // The reason travels as the frozen wire string, never as the label the farmer read.
+    expect(onClear.mock.calls[0][1]).not.toHaveProperty('note');
+    // Reported INSIDE the popup, where the farmer is looking.
+    await within(dialog).findByText('Planting date removed.');
+    // The question is answered and gone; nothing is left half-asked.
+    expect(within(dialog).queryByRole('alertdialog')).toBeNull();
+    // Focus is somewhere deliberate — never dropped on <body>.
+    expect(document.activeElement).not.toBe(document.body);
+    expect(dialog.contains(document.activeElement)).toBe(true);
+  });
+
+  it('carries the farmer’s note when there is one, trimmed', async () => {
+    const onClear = vi.fn<ClearFn>(async () => null);
+    const { dialog } = await openConfirm(onClear);
+
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Crop failed or removed' }));
+    fireEvent.change(within(dialog).getByLabelText('Anything to add? (optional)'), {
+      target: { value: '  wild boar  ' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Yes, remove the date' }));
+
+    await waitFor(() =>
+      expect(onClear).toHaveBeenCalledWith('c1', { reason: 'cropFailed', note: 'wild boar' }),
+    );
+  });
+
+  it('treats a whitespace-only note as no note at all', async () => {
+    const onClear = vi.fn<ClearFn>(async () => null);
+    const { dialog } = await openConfirm(onClear);
+
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Other' }));
+    fireEvent.change(within(dialog).getByLabelText('Anything to add? (optional)'), {
+      target: { value: '    ' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Yes, remove the date' }));
+
+    await waitFor(() => expect(onClear).toHaveBeenCalledWith('c1', { reason: 'other' }));
+    expect(onClear.mock.calls[0][1]).not.toHaveProperty('note');
+  });
+
+  it('refuses a note over 300 characters HERE, counted the way the server counts it', async () => {
+    // The server rejects and never truncates, so the UI must not post something it knows
+    // will bounce — and must say so in the farmer's own count.
+    const onClear = vi.fn<ClearFn>(async () => null);
+    const { dialog } = await openConfirm(onClear);
+    const note = within(dialog).getByLabelText('Anything to add? (optional)');
+
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Other' }));
+    fireEvent.change(note, { target: { value: `  ${'x'.repeat(301)}  ` } });
+
+    // Counted on the TRIMMED value: 301, not 305.
+    expect(
+      within(dialog).getByText('That note is too long: 301 characters. Please shorten it to 300 or fewer.'),
+    ).toBeInTheDocument();
+    expect(note).toHaveAttribute('aria-invalid', 'true');
+    // And the whole 306 characters are STILL THERE. maxLength would have cut the paste to 300
+    // behind the farmer's back — a silent truncation is the one thing this contract forbids,
+    // and it would also make the refusal above unreachable in a real browser.
+    expect(note).not.toHaveAttribute('maxlength');
+    expect((note as HTMLTextAreaElement).value).toHaveLength(305);
+    const yes = within(dialog).getByRole('button', { name: 'Yes, remove the date' });
+    expect(yes).toBeDisabled();
+    fireEvent.click(yes);
+    expect(onClear).not.toHaveBeenCalled();
+
+    // Exactly 300 is allowed — the limit is inclusive, and shortening clears the refusal.
+    fireEvent.change(note, { target: { value: 'x'.repeat(300) } });
+    expect(within(dialog).queryByText(/That note is too long/)).toBeNull();
+    expect(within(dialog).getByRole('button', { name: 'Yes, remove the date' })).toBeEnabled();
+  });
+
+  it('measures the limit on the TRIMMED note, not the raw one', async () => {
+    // 306 raw characters, 300 once trimmed. Measured raw this is refused; measured the way
+    // the server measures it, it is a perfectly good note — and it must travel as the bare
+    // 300, because that is the string the server will count.
+    const onClear = vi.fn<ClearFn>(async () => null);
+    const { dialog } = await openConfirm(onClear);
+    const body = 'x'.repeat(300);
+
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Other' }));
+    fireEvent.change(within(dialog).getByLabelText('Anything to add? (optional)'), {
+      target: { value: `   ${body}   ` },
+    });
+
+    expect(within(dialog).queryByText(/That note is too long/)).toBeNull();
+    const yes = within(dialog).getByRole('button', { name: 'Yes, remove the date' });
+    expect(yes).toBeEnabled();
+    fireEvent.click(yes);
+
+    await waitFor(() =>
+      expect(onClear).toHaveBeenCalledWith('c1', { reason: 'other', note: body }),
+    );
+  });
+
+  it('sends nothing while the question is unanswered, and says nothing either', async () => {
+    // The button's disabled state is one half of the reason gate; the handler's own guard is
+    // the other, and BOTH read canSubmitClearReason (pinned in portfolio-lib.test.ts). This
+    // test owns the wiring: with no reason picked, nothing can be sent and nothing is claimed.
+    //
+    // Note what this test deliberately does NOT do: strip `disabled` off the button and click
+    // it. React decides whether to deliver a click from the element's FIBER props, not from
+    // the DOM attribute, so such a click never reaches the handler at all and the probe would
+    // pass against any implementation (measured 2026-07-30).
+    const onClear = vi.fn<ClearFn>(async () => null);
+    const { dialog } = await openConfirm(onClear);
+    const yes = within(dialog).getByRole('button', { name: 'Yes, remove the date' });
+
+    expect(yes).toBeDisabled();
+    fireEvent.click(yes);
+    expect(onClear).not.toHaveBeenCalled();
+    // No false "removed", no error shouted at a farmer who has not done anything wrong.
+    expect(within(dialog).queryByText('Planting date removed.')).toBeNull();
+    expect(within(dialog).getByRole('alertdialog')).toBeInTheDocument();
+
+    // Answering the question is what opens the gate — the same rule, seen from the outside.
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Harvested' }));
+    expect(within(dialog).getByRole('button', { name: 'Yes, remove the date' })).toBeEnabled();
+  });
+
+  it('Cancel restores the section, forgets the answer, and gives focus back', async () => {
+    const onClear = vi.fn<ClearFn>(async () => null);
+    const { dialog } = await openConfirm(onClear);
+
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Harvested' }));
+    fireEvent.change(within(dialog).getByLabelText('Anything to add? (optional)'), {
+      target: { value: 'typed then thought better of it' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'No, keep the date' }));
+
+    expect(within(dialog).queryByRole('alertdialog')).toBeNull();
+    expect(onClear).not.toHaveBeenCalled();
+    // The date is untouched and the control that opened the question has focus again.
+    expect(within(dialog).getByText('Planted on ' + formatDate(PLANTED, 'en'))).toBeInTheDocument();
+    const remove = within(dialog).getByRole('button', {
+      name: 'Remove the planting date for Tomato',
+    });
+    expect(document.activeElement).toBe(remove);
+
+    // Re-opening asks again from scratch: no remembered reason, no remembered note.
+    fireEvent.click(remove);
+    within(dialog)
+      .getAllByRole('radio')
+      .forEach((r) => expect(r).not.toBeChecked());
+    expect(within(dialog).getByLabelText('Anything to add? (optional)')).toHaveValue('');
+  });
+
+  it('Escape cancels the confirm WITHOUT closing the popup around it', async () => {
+    const onClear = vi.fn<ClearFn>(async () => null);
+    const { dialog } = await openConfirm(onClear);
+    const confirm = within(dialog).getByRole('alertdialog');
+
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Entered by mistake' }));
+    fireEvent.keyDown(confirm, { key: 'Escape' });
+
+    // Same path as Cancel...
+    expect(within(dialog).queryByRole('alertdialog')).toBeNull();
+    expect(onClear).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(
+      within(dialog).getByRole('button', { name: 'Remove the planting date for Tomato' }),
+    );
+    // ...and the popup the farmer is working in is STILL open: one Escape, one thing
+    // dismissed.
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    // A second Escape, with no confirm open, closes the popup as it always did.
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('keeps the question and the answer on screen when the write is refused', async () => {
+    const onClear = vi.fn<ClearFn>(async () => ({
+      tone: 'error',
+      key: 'pages.portfolio.errClearReasonRequired',
+    }));
+    const { dialog } = await openConfirm(onClear);
+
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Harvested' }));
+    fireEvent.change(within(dialog).getByLabelText('Anything to add? (optional)'), {
+      target: { value: 'sold at the fair' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Yes, remove the date' }));
+
+    await within(dialog).findByText(
+      'Removing a planting date needs a reason. Please choose one and try again.',
+    );
+    // Trying again is one tap, not a re-typed note, and focus is on the button that failed.
+    expect(within(dialog).getByRole('alertdialog')).toBeInTheDocument();
+    expect(within(dialog).getByRole('radio', { name: 'Harvested' })).toBeChecked();
+    expect(within(dialog).getByLabelText('Anything to add? (optional)')).toHaveValue(
+      'sold at the fair',
+    );
+    expect(document.activeElement).toBe(
+      within(dialog).getByRole('button', { name: 'Yes, remove the date' }),
+    );
+  });
+
+  it('disables the whole question while the removal is in flight', async () => {
+    // A HELD-OPEN write, so this asserts the window a waitFor after the fact cannot see:
+    // nothing in the confirm may be pressed twice, and Cancel must not race the request.
+    let release: (m: WriteMessage | null) => void = () => {};
+    const held: ClearFn = () =>
+      new Promise((res) => {
+        release = res;
+      });
+    const { dialog } = await openConfirm(held);
+
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Harvested' }));
+    const yes = within(dialog).getByRole('button', { name: 'Yes, remove the date' });
+    fireEvent.click(yes);
+
+    await waitFor(() => expect(yes).toBeDisabled());
+    expect(within(dialog).getByRole('button', { name: 'No, keep the date' })).toBeDisabled();
+    within(dialog)
+      .getAllByRole('radio')
+      .forEach((r) => expect(r).toBeDisabled());
+    expect(within(dialog).getByLabelText('Anything to add? (optional)')).toBeDisabled();
+
+    release({ tone: 'ok', key: 'pages.portfolio.plantedClearedOk' });
+    await within(dialog).findByText('Planting date removed.');
+  });
+
+  it('offers no Remove control at all while a write is in flight elsewhere', async () => {
+    renderCard(tomato({ plantedDate: PLANTED }), noopSave, true, noopClear);
+    const dialog = await openPopup();
+    expect(
+      within(dialog).getByRole('button', { name: 'Remove the planting date for Tomato' }),
+    ).toBeDisabled();
+  });
+
+  it('swallows Escape WHILE the removal is in flight, so the outcome still has a home', async () => {
+    // The request cannot be recalled, so Escape has nothing to cancel — but if the key were
+    // allowed to bubble it would close the popup, and this write reports SILENTLY (the page's
+    // status region is deliberately unused while the popup is open). The farmer would be left
+    // with no answer anywhere about a removal that is really happening.
+    let release: (m: WriteMessage | null) => void = () => {};
+    const held: ClearFn = () =>
+      new Promise((res) => {
+        release = res;
+      });
+    const { dialog } = await openConfirm(held);
+
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Harvested' }));
+    const confirm = within(dialog).getByRole('alertdialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Yes, remove the date' }));
+    await waitFor(() =>
+      expect(within(dialog).getByRole('button', { name: 'Yes, remove the date' })).toBeDisabled(),
+    );
+
+    fireEvent.keyDown(confirm, { key: 'Escape' });
+
+    // The popup is STILL open and the question is still standing — nothing was cancelled,
+    // and nothing was closed out from under the write.
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(within(dialog).getByRole('alertdialog')).toBeInTheDocument();
+
+    // ...and when the write lands, its answer is on screen where the farmer can read it.
+    release({ tone: 'ok', key: 'pages.portfolio.plantedClearedOk' });
+    await within(dialog).findByText('Planting date removed.');
+  });
+
+  it('does not resurrect a stale confirm when the farmer goes to Change instead', async () => {
+    // The confirm is only HIDDEN while the editor is open. Left standing underneath, pressing
+    // Cancel on the editor would put a question the farmer walked away from — with the reason
+    // they had already picked — straight back on screen, aimed at a date they just came back to.
+    const { dialog } = await openConfirm();
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Harvested' }));
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Change the planting date for Tomato' }));
+    expect(within(dialog).queryByRole('alertdialog')).toBeNull();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(within(dialog).queryByRole('alertdialog')).toBeNull();
+    expect(within(dialog).getByText('Planted on ' + formatDate(PLANTED, 'en'))).toBeInTheDocument();
+
+    // Re-opening asks from scratch — the abandoned answer is not remembered either.
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Remove the planting date for Tomato' }),
+    );
+    within(dialog)
+      .getAllByRole('radio')
+      .forEach((r) => expect(r).not.toBeChecked());
+  });
+
+  it('adds no tooltip: a confirm explains itself in the question, not behind an ⓘ', async () => {
+    const { dialog } = await openConfirm();
+    const confirm = within(dialog).getByRole('alertdialog');
+    expect(confirm.querySelector('[data-tip]')).toBeNull();
+    expect(within(confirm).queryByRole('button', { name: /What/ })).toBeNull();
+  });
+});
+
+describe('PlantedDateSection — the clearControl default is fail-closed', () => {
+  it('renders NO Remove control when no surface has claimed removal', async () => {
+    // Mounted WITH a working onClear but WITHOUT clearControl — the shape a new surface gets
+    // by wiring the handlers and forgetting the one prop. The default must be "this surface
+    // does not remove dates": a component that destroys the farmer's data unless a prop says
+    // otherwise is one forgotten prop away from a red button in a place nobody designed for
+    // it. Handing it a real handler is what makes this test discriminate the DEFAULT rather
+    // than the missing handler (the next test owns that half).
+    const onClear = vi.fn<ClearFn>(async () => null);
+    render(
+      <MemoryRouter>
+        <PlantedDateSection
+          item={tomato({ plantedDate: PLANTED })}
+          market={DAMBULLA}
+          lang="en"
+          todayYmd={TODAY}
+          forecast={{ status: 'idle' }}
+          onRetryForecast={vi.fn()}
+          onSave={noopSave}
+          onClear={onClear}
+          busy={false}
+          idPrefix="bare"
+        />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('Planted on ' + formatDate(PLANTED, 'en'))).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Change the planting date for Tomato' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Remove the planting date for Tomato' }),
+    ).toBeNull();
+    expect(screen.queryByText('Remove date')).toBeNull();
+    expect(onClear).not.toHaveBeenCalled();
+  });
+
+  it('still renders no Remove control when a surface asks for the confirm but wires no handler', async () => {
+    // Half-wired is not "nearly wired": with no onClear there is nothing behind the button,
+    // so the button must not exist. A rendered Remove that cannot remove is a lie.
+    render(
+      <MemoryRouter>
+        <PlantedDateSection
+          item={tomato({ plantedDate: PLANTED })}
+          market={DAMBULLA}
+          lang="en"
+          todayYmd={TODAY}
+          forecast={{ status: 'idle' }}
+          onRetryForecast={vi.fn()}
+          onSave={noopSave}
+          busy={false}
+          idPrefix="half"
+          clearControl="confirm"
+        />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('Planted on ' + formatDate(PLANTED, 'en'))).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Remove the planting date for Tomato' }),
+    ).toBeNull();
   });
 });

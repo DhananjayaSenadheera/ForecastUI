@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import i18n from '../i18n';
 import { RecommendationLevel } from '../api/types';
 import type {
   HarvestForecast,
@@ -34,6 +35,7 @@ import {
   toggleMarketSelection,
   trendGlyph,
   trendLabelKey,
+  canSubmitClearReason,
   watchlistErrorKey,
   watchlistErrorParams,
 } from '../lib/portfolio';
@@ -267,6 +269,27 @@ describe('lib/portfolio — the cap sentences read the constants, never a hardco
   });
 });
 
+describe('lib/portfolio — a removal may only be sent when it can be answered for', () => {
+  // The rule the confirm's answer button and its handler BOTH read. It is tested here rather
+  // than through the button because React decides whether to deliver a click from the
+  // element's fiber props: stripping `disabled` in the DOM never reaches the handler, so a
+  // DOM-level probe would pass no matter what the handler does (measured 2026-07-30).
+  it('needs a reason — no reason, no request, whatever the button looks like', () => {
+    expect(canSubmitClearReason(null, false)).toBe(false);
+    expect(canSubmitClearReason('harvested', false)).toBe(true);
+    expect(canSubmitClearReason('cropFailed', false)).toBe(true);
+    expect(canSubmitClearReason('enteredByMistake', false)).toBe(true);
+    expect(canSubmitClearReason('other', false)).toBe(true);
+  });
+
+  it('refuses an over-long note even with a good reason, and never the other way round', () => {
+    // The note is optional; being too long is still a refusal, because the server rejects it
+    // outright rather than shortening it.
+    expect(canSubmitClearReason('harvested', true)).toBe(false);
+    expect(canSubmitClearReason(null, true)).toBe(false);
+  });
+});
+
 describe('lib/portfolio — every refusal keeps its own sentence', () => {
   it('maps each wire code to its OWN key, never a shared "could not save"', () => {
     const keys = [
@@ -282,6 +305,36 @@ describe('lib/portfolio — every refusal keeps its own sentence', () => {
       'pages.portfolio.errEntryNotFound',
     ]);
     expect(new Set(keys).size).toBe(4);
+  });
+
+  it('gives each clear-reason refusal its own sentence too, and never blames the farmer', () => {
+    // These five are states the confirm is built to make impossible. If one ever does reach a
+    // farmer it must still say what was missing — a "shouldn't happen" that arrives as a
+    // shrug throws away the only useful thing the server said.
+    const keys = [
+      watchlistErrorKey('clear_reason_required'),
+      watchlistErrorKey('clear_reason_not_applicable'),
+      watchlistErrorKey('invalid_clear_reason'),
+      watchlistErrorKey('clear_reason_note_without_reason'),
+      watchlistErrorKey('clear_reason_note_too_long'),
+    ];
+    expect(keys).toEqual([
+      'pages.portfolio.errClearReasonRequired',
+      'pages.portfolio.errClearReasonNotApplicable',
+      'pages.portfolio.errInvalidClearReason',
+      'pages.portfolio.errClearReasonNoteWithoutReason',
+      'pages.portfolio.errClearReasonNoteTooLong',
+    ]);
+    expect(new Set(keys).size).toBe(5);
+    // Every one of them exists in English and reads as a sentence a farmer can act on: it
+    // says what is needed, never "you did something wrong", and never claims the date went.
+    for (const key of keys) {
+      const sentence = i18n.getResource('en', 'translation', key) as string;
+      expect(typeof sentence).toBe('string');
+      expect(sentence.length).toBeGreaterThan(20);
+      expect(sentence).not.toMatch(/\byou (must|failed|cannot)\b/i);
+      expect(sentence).not.toMatch(/removed successfully|date was removed/i);
+    }
   });
 
   it('falls back to the generic sentence for a code it has never seen, or none at all', () => {
