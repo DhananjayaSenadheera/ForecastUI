@@ -13,6 +13,7 @@ import { isRealYmd } from './plantDate';
 import type {
   HarvestForecast,
   Market,
+  PlantedDateClearReason,
   PortfolioDashboard,
   PortfolioDashboardItem,
   PortfolioDashboardMarket,
@@ -150,6 +151,29 @@ export function dashboardEmptyState(
     (i) => i.prediction !== null || i.markets.some((m) => m.price !== null),
   );
   return anyData ? 'ok' : 'no-data';
+}
+
+/**
+ * May this removal be SENT? One rule, read by two consumers: the confirm's answer button
+ * (which is disabled while this is false) and the handler behind it (which returns early on
+ * the same condition).
+ *
+ * It is a named function rather than two inline conditions because the two must never drift:
+ * the disabled attribute is a courtesy to the farmer — it is not what keeps an unreasoned
+ * removal off the wire, and it cannot be, because the server refuses such a request outright
+ * (clear_reason_required). The rule itself is the guarantee, and this is where it is stated
+ * and tested.
+ *
+ * (A test cannot prove the handler's half by stripping `disabled` off the button in the DOM:
+ * React decides whether to deliver a click from the element's FIBER props, not the attribute,
+ * so a stripped click never reaches the handler at all — measured, 2026-07-30. Hence a rule
+ * with a name and its own test.)
+ */
+export function canSubmitClearReason(
+  reason: PlantedDateClearReason | null,
+  noteTooLong: boolean,
+): boolean {
+  return reason !== null && !noteTooLong;
 }
 
 /**

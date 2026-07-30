@@ -859,7 +859,7 @@
       },
       "userActivity": {
         "title": "System log",
-      "explainer": "Everything the system and its users did — sign-ins, user changes, admin edits, and changes farmers make to their own crop records. Failed sign-ins show the username that was tried — an unverified attempt, not a confirmed account.",
+        "explainer": "Everything the system and its users did — sign-ins, user changes, admin edits, and changes farmers make to their own crop records. Failed sign-ins show the username that was tried — an unverified attempt, not a confirmed account.",
         "groups": {
           "label": "Activity type",
           "all": "All",
@@ -867,7 +867,7 @@
           "userManagement": "User management",
           "contentChanges": "Content changes",
           "pipelineActions": "Pipeline actions",
-        "farmerActions": "Farmer actions"
+          "farmerActions": "Farmer actions"
         },
         "filterType": "Event",
         "filterAll": "All events",
@@ -889,7 +889,7 @@
           "marketChanged": "Market changed",
           "ingestionServiceStarted": "Ingestion started",
           "ingestionServiceStopRequested": "Ingestion stop requested",
-        "plantedDateRemoved": "Planting date removed"
+          "plantedDateRemoved": "Planting date removed"
         },
         "attemptedUser": "“{{username}}”",
         "unverifiedAttempt": "(unverified attempt)",

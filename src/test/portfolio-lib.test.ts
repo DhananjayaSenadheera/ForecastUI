@@ -35,6 +35,7 @@ import {
   toggleMarketSelection,
   trendGlyph,
   trendLabelKey,
+  canSubmitClearReason,
   watchlistErrorKey,
   watchlistErrorParams,
 } from '../lib/portfolio';
@@ -265,6 +266,27 @@ describe('lib/portfolio — the cap sentences read the constants, never a hardco
   it('passes nothing to a sentence that names no cap', () => {
     expect(watchlistErrorParams('pages.portfolio.errEntryNotFound')).toEqual({});
     expect(watchlistErrorParams('common.errorBody')).toEqual({});
+  });
+});
+
+describe('lib/portfolio — a removal may only be sent when it can be answered for', () => {
+  // The rule the confirm's answer button and its handler BOTH read. It is tested here rather
+  // than through the button because React decides whether to deliver a click from the
+  // element's fiber props: stripping `disabled` in the DOM never reaches the handler, so a
+  // DOM-level probe would pass no matter what the handler does (measured 2026-07-30).
+  it('needs a reason — no reason, no request, whatever the button looks like', () => {
+    expect(canSubmitClearReason(null, false)).toBe(false);
+    expect(canSubmitClearReason('harvested', false)).toBe(true);
+    expect(canSubmitClearReason('cropFailed', false)).toBe(true);
+    expect(canSubmitClearReason('enteredByMistake', false)).toBe(true);
+    expect(canSubmitClearReason('other', false)).toBe(true);
+  });
+
+  it('refuses an over-long note even with a good reason, and never the other way round', () => {
+    // The note is optional; being too long is still a refusal, because the server rejects it
+    // outright rather than shortening it.
+    expect(canSubmitClearReason('harvested', true)).toBe(false);
+    expect(canSubmitClearReason(null, true)).toBe(false);
   });
 });
 

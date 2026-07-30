@@ -165,3 +165,46 @@ describe('DELETE /api/portfolio/watchlist/{cropId}', () => {
     expect(calls[0].init.body).toBeUndefined();
   });
 });
+
+// Demo mode is the same product with no server behind it, so it must refuse what the server
+// refuses. If the fixture happily "removed" a date that was not there, a demo would teach a
+// farmer (and a reviewer) a rule the live route does not have.
+describe('fixtures — the demo mirrors the wire’s refusals, it does not smooth them over', () => {
+  it('refuses a removal when there is no date to remove (clear_reason_not_applicable)', async () => {
+    const fx = await import('../api/fixtures');
+    const cropId = 'c0000003-0000-0000-0000-000000000003'; // Tomato, seeded with no date
+
+    // Nothing planted yet: there is no date the reason could explain.
+    expect(() => fx.fxClearWatchlistPlantedDate(cropId, { reason: 'harvested' })).toThrow(
+      'clear_reason_not_applicable',
+    );
+
+    // Record one, and the SAME call now succeeds and really clears it...
+    fx.fxUpdateWatchlistPlantedDate(cropId, '2026-05-04');
+    const result = fx.fxClearWatchlistPlantedDate(cropId, { reason: 'harvested' });
+    expect(result.item.plantedDate).toBeNull();
+    expect(result.plantedDateChanged).toBe(true);
+
+    // ...and a second removal is refused again, because the row is back to having no date.
+    expect(() => fx.fxClearWatchlistPlantedDate(cropId, { reason: 'harvested' })).toThrow(
+      'clear_reason_not_applicable',
+    );
+  });
+
+  it('refuses an unknown reason and an over-long note, exactly as the route does', async () => {
+    const fx = await import('../api/fixtures');
+    const cropId = 'c0000002-0000-0000-0000-000000000002'; // Beans
+    fx.fxUpdateWatchlistPlantedDate(cropId, '2026-05-04');
+
+    expect(() =>
+      // A reason no build knows: the demo must not invent an acceptance for it.
+      fx.fxClearWatchlistPlantedDate(cropId, { reason: 'soldTheField' as never }),
+    ).toThrow('invalid_clear_reason');
+    expect(() =>
+      fx.fxClearWatchlistPlantedDate(cropId, { reason: 'other', note: 'x'.repeat(301) }),
+    ).toThrow('clear_reason_note_too_long');
+    // Refused means UNCHANGED: the date is still on the row.
+    const rows = fx.fxWatchlist();
+    expect(rows.find((r) => r.cropId === cropId)?.plantedDate).toBe('2026-05-04');
+  });
+});

@@ -55,10 +55,11 @@
 //    card therefore resolves its market through one function, selectedMarketFor().
 //  - The 1M/3M control is a ZOOM on data the card already has, never a different question:
 //    no request, no reload, and the price above it does not move when the window changes.
-//  - Nothing on the card is red at all any more: the only destructive control it used to
-//    carry, "Remove date", has moved into the popup behind a confirm that asks why. Red is
-//    otherwise reserved app-wide for the "Not recommended" verdict — a falling price gets
-//    amber, which is caution, not failure.
+//  - Nothing on the CARD SURFACE is red any more: the only destructive control it used to
+//    carry, "Remove date", has moved into the "More details" popup — which this file still
+//    renders, so the red control does exist in this component's subtree, one layer deeper and
+//    behind a confirm that asks why. Red is otherwise reserved app-wide for the "Not
+//    recommended" verdict — a falling price gets amber, which is caution, not failure.
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';

@@ -54,6 +54,7 @@ import {
 import { formatDate } from '../lib/format';
 import {
   PLANTED_DATE_MIN,
+  canSubmitClearReason,
   harvestLinkFor,
   isPlantedDateAllowed,
   plantedDateMax,
@@ -226,16 +227,34 @@ export default function PlantedDateSection({
   const reasonGroupName = `${idPrefix}-clear-reason-${item.cropId}`;
   const Heading = headingLevel === 3 ? 'h3' : 'h4';
 
+  /**
+   * Send focus somewhere deliberate, ALWAYS.
+   *
+   * Every destination is a CHAIN, not a single node, because the section this component
+   * renders can change under the focus move: a refused write can be answered by a parent
+   * refresh that takes the whole confirm away (clear_reason_not_applicable is exactly that —
+   * the server says "there is no date to remove" and the refreshed item has none, so the
+   * question, the Remove button and the date line all unmount at once). A single ref would be
+   * null at that moment and the keyboard user would be dropped on <body>, back at the top of
+   * the document. Each chain therefore falls back OUTWARDS, from the most specific control to
+   * whatever is still standing:
+   *   yes    -> the confirm's own answer, else the control that opened it, else the date line,
+   *             else the invitation's field;
+   *   remove -> the Remove button, else the date line's Change, else the field;
+   *   reason -> the first radio, else the answer, else Change, else the field;
+   *   input  -> the invitation's field, else Change (the parent has not caught up yet);
+   *   edit   -> Change, else the field.
+   */
   useEffect(() => {
     if (pendingFocus === null) return;
-    // The invitation's field, or — if the parent has not caught up with the removal yet and
-    // the date line is still on screen — "Change", which is where that line's focus belongs.
-    // Either way a deliberate destination: never <body>, and never a node that has just gone.
-    if (pendingFocus === 'input') (inputRef.current ?? editBtn.current)?.focus();
-    else if (pendingFocus === 'remove') removeBtn.current?.focus();
-    else if (pendingFocus === 'reason') firstReasonRef.current?.focus();
-    else if (pendingFocus === 'yes') yesBtn.current?.focus();
-    else editBtn.current?.focus();
+    const chain: Record<typeof pendingFocus & string, (HTMLElement | null)[]> = {
+      input: [inputRef.current, editBtn.current],
+      edit: [editBtn.current, inputRef.current],
+      remove: [removeBtn.current, editBtn.current, inputRef.current],
+      reason: [firstReasonRef.current, yesBtn.current, editBtn.current, inputRef.current],
+      yes: [yesBtn.current, removeBtn.current, editBtn.current, inputRef.current],
+    };
+    chain[pendingFocus].find((el) => el !== null)?.focus();
     setPendingFocus(null);
   }, [pendingFocus]);
 
@@ -296,14 +315,17 @@ export default function PlantedDateSection({
   }, []);
 
   const doClear = useCallback(async () => {
-    // Both guards are also expressed in the button's disabled state; they are repeated here
-    // because a request the server will refuse must not leave this component at all.
-    if (!reason || !onClear || noteTooLong) return;
+    // The SAME rule the answer button reads for its disabled state — stated once, in
+    // lib/portfolio, so the two can never drift apart. It is repeated here rather than trusted
+    // to the attribute because the attribute is a courtesy, not a guarantee: a request the
+    // server will refuse (clear_reason_required) must not leave this component at all.
+    if (!onClear || !canSubmitClearReason(reason, noteTooLong)) return;
     setSaving(true);
     setMsg(null);
     try {
       const result = await onClear(item.cropId, {
-        reason,
+        // Non-null by the guard above; named so the guard is the single place that decides.
+        reason: reason as PlantedDateClearReason,
         // Never a note without something in it: a blank one is not news, and the wire says so.
         ...(trimmedNote ? { note: trimmedNote } : {}),
       });
@@ -361,6 +383,15 @@ export default function PlantedDateSection({
             onClick={() => {
               setMsg(null);
               setDraft(plantedDate);
+              // Changing the date ANSWERS the removal question by walking away from it. The
+              // confirm is only hidden while the editor is open (showClear is false), so
+              // without this its state — the open flag AND the reason already picked — would
+              // survive underneath and reappear the moment the farmer pressed Cancel, asking
+              // to destroy the date they had just come back to. Same law as the page's
+              // toggleSelect: any change to the subject cancels a pending confirm.
+              setConfirming(false);
+              setReason(null);
+              setNote('');
               setEditing(true);
               setPendingFocus('input');
             }}
@@ -402,9 +433,16 @@ export default function PlantedDateSection({
           announces text while telling a screen-reader user nothing about the choice they are
           standing in — the same reading the remove-crop confirm made. It is NOT aria-modal
           and traps nothing: it is a step inside the popup, and the popup already owns the
-          modality contract. Escape backs out of the confirm by the same path as Cancel and is
-          STOPPED here, so the key that dismisses the question does not also close the popup
-          the farmer is working in. */}
+          modality contract.
+
+          ESCAPE IS SWALLOWED HERE UNCONDITIONALLY, and only the ACTION is conditional. While
+          the removal is in flight there is nothing to cancel — the request cannot be recalled —
+          but letting the key bubble would close the popup around it, and this write reports
+          SILENTLY (the page's status region is deliberately not used while the popup is open),
+          so the farmer would be left with no answer anywhere on screen about a removal that is
+          really happening. Stopping the key costs one ignored keypress; letting it through
+          costs the outcome. preventDefault goes with it so the key's native meanings do not
+          fire either. */}
       {showClear && confirming && (
         <div
           className="pf-confirm pf-plant__confirm"
@@ -412,10 +450,10 @@ export default function PlantedDateSection({
           aria-labelledby={confirmQId}
           aria-describedby={confirmBodyId}
           onKeyDown={(e) => {
-            if (e.key === 'Escape' && !disabled) {
-              e.stopPropagation();
-              cancelClear();
-            }
+            if (e.key !== 'Escape') return;
+            e.stopPropagation();
+            e.preventDefault();
+            if (!disabled) cancelClear();
           }}
         >
           <p className="pf-confirm__q" id={confirmQId}>
@@ -459,9 +497,13 @@ export default function PlantedDateSection({
               id={noteId}
               className="pf-clear__input"
               rows={2}
-              // The browser's own ceiling AND our own check: maxLength stops typing past 300,
-              // the check below catches a paste (and jsdom, which enforces neither).
-              maxLength={CLEAR_REASON_NOTE_MAX}
+              // NO maxLength, deliberately. A browser enforces maxLength by TRUNCATING a paste
+              // — silently dropping the end of what the farmer wrote — which is the one thing
+              // this contract forbids: the server rejects an over-long note and never shortens
+              // it, and neither may we. The trimmed check below is the live gate, and it says
+              // so in words with the farmer's own count. (With maxLength here the paste is cut
+              // to 300 before that check can ever see it, so the refusal would only exist in
+              // jsdom, which enforces no such attribute.)
               value={note}
               disabled={disabled}
               aria-invalid={noteTooLong || undefined}
@@ -493,8 +535,8 @@ export default function PlantedDateSection({
               className="btn-primary pf-confirm__yes"
               // Disabled until the farmer has said why. The reason is not decoration: the
               // server refuses the removal without one, so an enabled button here would be a
-              // promise the request cannot keep.
-              disabled={disabled || reason === null || noteTooLong}
+              // promise the request cannot keep. Same rule as the handler's guard, by name.
+              disabled={disabled || !canSubmitClearReason(reason, noteTooLong)}
               onClick={() => void doClear()}
             >
               {t('pages.portfolio.clearConfirmYes')}

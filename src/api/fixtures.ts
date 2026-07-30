@@ -2139,7 +2139,9 @@ export function fxClearWatchlistPlantedDate(
  *  fxClearWatchlistPlantedDate above: it needs a reason, exactly as the wire does. */
 export function fxUpdateWatchlistPlantedDate(
   cropId: string,
-  plantedDate: string | null,
+  // SET-only, exactly like the real client: a null here would be a clear with no reason, which
+  // the live route refuses. The demo must not be able to express a request the wire cannot.
+  plantedDate: string,
 ): WatchlistEntryUpdateResult {
   const rows = fxWatchlistRows();
   const row = rows.find((r) => r.cropId === cropId);

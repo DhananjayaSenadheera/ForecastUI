@@ -827,10 +827,18 @@ describe('PortfolioPage — the planting date goes through the page’s write ma
     );
   });
 
-  it('maps a refused removal to its own sentence, beside the control', async () => {
-    mockPage({ items: [tomato({ plantedDate: '2026-05-04' })] }, [
-      { ...watched('c1', 'Tomato', ['m1']), plantedDate: '2026-05-04' },
-    ]);
+  it('maps a refused removal to its own sentence, and never drops focus on <body>', async () => {
+    // clear_reason_not_applicable is the refusal that ALSO moves the ground: the server says
+    // there is no date to remove, the re-read afterwards agrees, and so the confirm, the
+    // Remove button and the date line all unmount together. The focus destination for a
+    // failed write ("the Yes button") no longer exists at that moment — it has to fall back
+    // outwards to whatever is still standing, or a keyboard user is dumped at <body> with a
+    // sentence they cannot find.
+    const withDate = { items: [tomato({ plantedDate: '2026-05-04' })] };
+    mockPage(withDate, [{ ...watched('c1', 'Tomato', ['m1']), plantedDate: '2026-05-04' }]);
+    vi.mocked(api.getPortfolioDashboard)
+      .mockResolvedValueOnce(withDate)
+      .mockResolvedValue({ items: [tomato({ plantedDate: null })] });
     vi.spyOn(api, 'clearWatchlistPlantedDate').mockRejectedValue(
       new ApiError('bad request', 400, 'clear_reason_not_applicable'),
     );
@@ -848,6 +856,12 @@ describe('PortfolioPage — the planting date goes through the page’s write ma
     // The server's own refusal keeps its own words, and never claims the date went away.
     await within(dialog).findByText(
       'This crop has no planting date to remove, so nothing was changed.',
+    );
+    // The question really has gone with the date it was about...
+    expect(within(dialog).queryByRole('alertdialog')).toBeNull();
+    // ...and focus landed on the invitation that replaced it, not on <body>.
+    await waitFor(() =>
+      expect(document.activeElement).toBe(within(dialog).getByLabelText('Planting date')),
     );
   });
 });
