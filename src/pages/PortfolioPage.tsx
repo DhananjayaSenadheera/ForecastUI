@@ -27,6 +27,7 @@
 // one ever shows a placeholder number. The table stays on screen for both — with an empty
 // watchlist it IS the next step.
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api, ApiError } from '../api/client';
 import type {
@@ -395,12 +396,28 @@ export default function PortfolioPage() {
         ) : (
           <>
             {/* The cap is stated as a fact, always, not as an error once it is reached. */}
-            <p className="pf-count">
-              {t('pages.portfolio.watchingCount', {
-                count: watchlist.length,
-                max: MAX_WATCHED_CROPS,
-              })}
-            </p>
+            <div className="pf-countrow">
+              <p className="pf-count">
+                {t('pages.portfolio.watchingCount', {
+                  count: watchlist.length,
+                  max: MAX_WATCHED_CROPS,
+                })}
+              </p>
+              {/* The way into the farmer's own sales book. It lives beside the counter rather
+                  than inside a card, because the book spans every crop — and it is shown even
+                  with nothing recorded yet, so the feature is discoverable rather than
+                  something a farmer only meets after they have already used it. Recording a
+                  sale still happens on the crop it is about (More details), never here. */}
+              <p className="pf-saleslink">
+                <Link
+                  className="pf-card__link"
+                  to="/portfolio/sales"
+                  aria-label={t('pages.sales.seeAllAria')}
+                >
+                  {t('pages.sales.openLog')}
+                </Link>
+              </p>
+            </div>
 
             {emptyState === 'no-watchlist' ? (
               <div className="pf-state pf-state--empty">
@@ -433,6 +450,9 @@ export default function PortfolioPage() {
                       onToggleSelect={toggleSelect}
                       onSavePlantedDate={onSavePlantedDate}
                       onClearPlantedDate={onClearPlantedDate}
+                      // For the popup's sales form only: a farmer can sell at a market they
+                      // do not watch this crop at, and this page has the registry already.
+                      allMarkets={markets}
                       busy={busy}
                     />
                   ))}

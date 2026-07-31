@@ -170,15 +170,23 @@ describe('Logs P2 mappers — user activity', () => {
       // "…StopRequested", never "…Stopped": the API only ASKS for a cancellation.
       'ingestionServiceStopRequested',
     ]);
-    // The first farmer-authored type (2026-07-30). It joins the END of the known set: the
-    // groups above are frozen, and a farmer's own record change is not an admin edit.
-    expect(USER_ACTIVITY_FARMER_EVENT_TYPES).toEqual(['plantedDateRemoved']);
-    expect(USER_ACTIVITY_EVENT_TYPES).toHaveLength(13);
-    expect(USER_ACTIVITY_EVENT_TYPES[USER_ACTIVITY_EVENT_TYPES.length - 1]).toBe(
+    // The farmer-authored types, in the order they were added and never re-ordered:
+    // the planting-date removal (2026-07-30), then the three sale events (Phase 2). They join
+    // the END of the known set — the groups above are frozen, and a farmer's own record
+    // change is not an admin edit.
+    expect(USER_ACTIVITY_FARMER_EVENT_TYPES).toEqual([
       'plantedDateRemoved',
-    );
-    // A farmer harvesting is neither good news nor a warning to an admin reading the log.
-    expect(mapUserActivityEvent('plantedDateRemoved').tone).toBe('neutral');
+      'saleRecorded',
+      'saleUpdated',
+      'saleDeleted',
+    ]);
+    expect(USER_ACTIVITY_EVENT_TYPES).toHaveLength(16);
+    expect(USER_ACTIVITY_EVENT_TYPES.slice(-4)).toEqual([...USER_ACTIVITY_FARMER_EVENT_TYPES]);
+    // Neither good news nor a warning to an admin reading the log: these are records of what
+    // a farmer did with their own crops and their own book.
+    for (const ev of USER_ACTIVITY_FARMER_EVENT_TYPES) {
+      expect(mapUserActivityEvent(ev).tone).toBe('neutral');
+    }
     // Every known type has a label key — no badge can fall back to a raw wire string
     // for a type this build DOES know about.
     for (const ev of USER_ACTIVITY_EVENT_TYPES) {

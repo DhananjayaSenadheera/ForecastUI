@@ -825,8 +825,17 @@ export const USER_ACTIVITY_PIPELINE_EVENT_TYPES = [
 /** Farmer actions — the first events on this log whose ACTOR IS NOT AN ADMIN. A farmer
  *  removing their own planting date is recorded with the reason they gave, so the log can
  *  tell a harvested planting from a typo. Nothing about the row is admin-shaped: the actor
- *  is the farmer's own user id and the target is empty. */
-export const USER_ACTIVITY_FARMER_EVENT_TYPES = ['plantedDateRemoved'] as const;
+ *  is the farmer's own user id and the target is empty.
+ *
+ *  APPEND-ONLY, and the order is part of the contract: this array is what the "Farmer
+ *  actions" tab sends as `types` and what its dropdown lists, so re-ordering it silently
+ *  re-orders a control an admin has learned. The three sale events joined it in Phase 2. */
+export const USER_ACTIVITY_FARMER_EVENT_TYPES = [
+  'plantedDateRemoved',
+  'saleRecorded',
+  'saleUpdated',
+  'saleDeleted',
+] as const;
 
 /** Every wire string the client knows about (sign-in + user management + content +
  *  pipeline actions + farmer actions). */
@@ -1206,3 +1215,92 @@ export interface PortfolioDashboardItem {
 export interface PortfolioDashboard {
   items: PortfolioDashboardItem[];
 }
+
+// =============================================================================
+// The farmer's own sales log (PRD Phase 2) — api/portfolio/sales.
+// A sale is the farmer's RECORD OF A PAST TRANSACTION, not a market observation and not
+// an input to any forecast: nothing here reaches the model, and the UI must never imply
+// that recording a sale moves a price.
+// =============================================================================
+
+/** One recorded sale, exactly as the wire sends it.
+ *
+ *  The three market fields are NULL TOGETHER (the farmer did not say where they sold) —
+ *  `marketName` present with a null `marketId` is not a state the contract produces, so the
+ *  UI reads `marketId` as the single "was a market recorded?" answer.
+ *  `quantityKg` and `note` are independently optional. `saleDate` is a calendar day
+ *  ("yyyy-MM-dd"); the two timestamps are Z-suffixed UTC instants. */
+export interface SaleItem {
+  id: string;
+  cropId: string;
+  cropName: string;
+  cropCode: string | null;
+  marketId: string | null;
+  marketName: string | null;
+  marketShortCode: string | null;
+  saleDate: string; // yyyy-MM-dd
+  pricePerKg: number;
+  quantityKg: number | null;
+  note: string | null;
+  createdAtUtc: string; // ISO Z
+  updatedAtUtc: string; // ISO Z
+}
+
+/** GET /api/portfolio/sales — server-paged envelope, the same shape as every other paged
+ *  route. `page`/`pageSize` are the server's CLAMPED values echoed back (pageSize max 50),
+ *  so the UI trusts them over what it asked for. Order is SaleDate DESC, then
+ *  CreatedAtUtc DESC — two sales on one day stay in the order they were entered. */
+export interface SalesPage {
+  items: SaleItem[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+/** The mutable body of a sale, shared by POST and PUT.
+ *
+ *  Every optional field means "absent" and never "null" on the wire:
+ *   - POST: an absent key is simply not recorded;
+ *   - PUT: the body is a FULL REPLACE, so an absent key CLEARS whatever was stored.
+ *  That asymmetry is why the client builds one body from one shape — an edit form that
+ *  omitted a field it did not render would erase it. */
+export interface SaleInput {
+  /** Where the farmer sold. Blank/absent is a normal answer, not missing data. */
+  marketId?: string | null;
+  saleDate: string; // yyyy-MM-dd
+  pricePerKg: number;
+  quantityKg?: number | null;
+  note?: string | null;
+}
+
+/** POST /api/portfolio/sales. `cropId` is only ever set at creation: it is IMMUTABLE and the
+ *  PUT route does not accept it, so a sale recorded against the wrong crop is removed and
+ *  recorded again rather than quietly re-pointed. */
+export interface SaleCreateInput extends SaleInput {
+  cropId: string;
+}
+
+/** The server's ceiling for a sale note, measured on the TRIMMED value. It REJECTS an
+ *  over-long note rather than truncating it, so the UI must refuse it the same way, counted
+ *  the same way — and must never carry a maxLength attribute, which truncates a paste. */
+export const SALE_NOTE_MAX = 500;
+
+/** The ceiling shared by pricePerKg and quantityKg. Above it the server refuses
+ *  (price_out_of_range / invalid_quantity); the UI says so before the round trip. */
+export const SALE_AMOUNT_MAX = 100000;
+
+/** The machine-readable `error` codes the sales routes answer with: 400 for the eight
+ *  validation refusals, 404 for `sale_not_found`. Every one gets its OWN farmer-language
+ *  sentence — "could not save" would throw away the only useful part of the response.
+ *  There is no separate out-of-range code for quantity: a quantity over the ceiling comes
+ *  back as `invalid_quantity`. */
+export type SaleErrorCode =
+  | 'invalid_price'
+  | 'price_out_of_range'
+  | 'invalid_sale_date'
+  | 'sale_date_future'
+  | 'invalid_quantity'
+  | 'note_too_long'
+  | 'unknown_crop'
+  | 'unknown_market'
+  | 'sale_not_found';

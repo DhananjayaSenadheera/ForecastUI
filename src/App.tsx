@@ -17,6 +17,9 @@ import RequireAdmin from './admin/RequireAdmin';
 // four tabs every farmer does use. Same chunking precedent as the admin console.
 const PortfolioPage = lazy(() => import('./pages/PortfolioPage'));
 const PortfolioCropPage = lazy(() => import('./pages/PortfolioCropPage'));
+// The farmer's sales book. Also non-tab, also lazy: it is reached from the crop popup's
+// "See all sales" and the link beside the crop counter, never from the four-tab nav.
+const SalesLogPage = lazy(() => import('./pages/SalesLogPage'));
 
 // Admin pages are lazy-loaded, so none of their code is in the farmer bundle.
 const AdminLayout = lazy(() => import('./admin/AdminLayout'));
@@ -79,6 +82,10 @@ export default function App() {
               wild land on the page that now does the job, instead of the catch-all. */}
           <Route path="/portfolio/settings" element={<Navigate to="/portfolio" replace />} />
           <Route path="/portfolio/crop/:cropId" element={lazyPage(<PortfolioCropPage />)} />
+          {/* The sales book. There is deliberately no /portfolio/sales/new: a sale is
+              recorded on the crop it is about (My crops -> More details), where the crop is
+              already the subject and cannot be picked wrongly. */}
+          <Route path="/portfolio/sales" element={lazyPage(<SalesLogPage />)} />
 
           {/* Admin console — role-gated by RequireAdmin. It renders inside the shell so
               admins keep the nav, and a farmer who reaches it gets an honest "no access"

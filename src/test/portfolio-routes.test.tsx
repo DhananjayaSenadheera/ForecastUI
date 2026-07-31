@@ -36,6 +36,7 @@ beforeEach(async () => {
   vi.spyOn(api, 'getWatchlist').mockResolvedValue([]);
   vi.spyOn(api, 'getCropReadiness').mockResolvedValue(NO_READINESS);
   vi.spyOn(api, 'getPriceHistory').mockResolvedValue([]);
+  vi.spyOn(api, 'getSales').mockResolvedValue({ items: [], page: 1, pageSize: 10, total: 0 });
 });
 afterEach(() => {
   vi.restoreAllMocks();
@@ -61,5 +62,29 @@ describe('the dissolved settings route', () => {
   it('serves /portfolio itself with the same page (the redirect is not a loop)', async () => {
     await renderAt('/portfolio');
     expect(await screen.findByRole('heading', { name: 'My crops', level: 1 })).toBeInTheDocument();
+  });
+});
+
+// The sales book is a NON-TAB route like the rest of My crops: it is reached from the crop
+// popup and from the link beside the crop counter, and it is lazy, so none of it weighs on
+// the first paint of the four tabs.
+describe('the sales book route', () => {
+  it('serves /portfolio/sales', async () => {
+    await renderAt('/portfolio/sales');
+    expect(await screen.findByRole('heading', { name: 'My sales', level: 1 })).toBeInTheDocument();
+  });
+
+  it('is reachable from My crops, even with nothing recorded yet', async () => {
+    await renderAt('/portfolio');
+    await screen.findByRole('heading', { name: 'My crops', level: 1 });
+    expect(
+      await screen.findByRole('link', { name: 'See all the sales you have recorded' }),
+    ).toHaveAttribute('href', '/portfolio/sales');
+  });
+
+  it('has no separate "new sale" route — recording happens on the crop', async () => {
+    // A stray /portfolio/sales/new must not quietly become a page; the catch-all owns it.
+    await renderAt('/portfolio/sales/new');
+    expect(await screen.findByRole('heading', { level: 1 })).not.toHaveTextContent('My sales');
   });
 });

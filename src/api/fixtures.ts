@@ -47,8 +47,14 @@ import {
   type PortfolioDashboardMarket,
   type PortfolioPriceDirection,
   type PlantedDateClearRequest,
+  type SaleCreateInput,
+  type SaleInput,
+  type SaleItem,
+  type SalesPage,
   CLEAR_REASON_NOTE_MAX,
   PLANTED_DATE_CLEAR_REASONS,
+  SALE_AMOUNT_MAX,
+  SALE_NOTE_MAX,
   type WatchlistAddResult,
   type WatchlistEntryUpdateResult,
   type WatchlistItem,
@@ -2234,4 +2240,209 @@ function fxDashboardItem(row: WatchlistItem): PortfolioDashboardItem {
 
 export function fxPortfolioDashboard(): PortfolioDashboard {
   return { items: fxSortWatchlist(fxWatchlistRows()).map(fxDashboardItem) };
+}
+
+// =============================================================================
+// The farmer's sales log (PRD Phase 2). DEMO DATA — fixtures mode only.
+//
+// This store REFUSES WHAT THE SERVER REFUSES. That is the whole reason it is written out
+// rather than accepting everything: a demo that happily saved a price of 0, a sale dated
+// next week or a note of 600 characters would teach a farmer (and a reviewer, and the next
+// developer) rules the live route does not have, and the first live save would be the first
+// time anyone met the real ones. Every refusal below is a code the wire really answers.
+//
+// The order the checks run in is the order the fields appear on the wire. Where the contract
+// does not state a precedence between two simultaneous faults, neither does this file claim
+// one — the tests only ever assert single-fault cases.
+// =============================================================================
+
+/** Thrown by the store; the CLIENT turns it into the ApiError the live path produces, so
+ *  fixtures mode reaches the same copy through the same mapping. fixtures.ts must not import
+ *  the client (it would be a cycle), so the code travels as the message — the same idiom the
+ *  watchlist fixtures use. */
+function fxSaleRefusal(code: string): Error {
+  return new Error(code);
+}
+
+let fxSalesWorking: SaleItem[] | null = null;
+let fxSaleSeq = 0;
+
+/** Seeded sales for the two seeded watchlist crops, so the demo has something to show and
+ *  the ordering rule (SaleDate DESC, then CreatedAtUtc DESC) is visible: the two 2026-07-18
+ *  rows differ only by when they were entered. */
+const FX_SALES_SEED: ReadonlyArray<{
+  cropId: string;
+  marketId: string | null;
+  saleDate: string;
+  pricePerKg: number;
+  quantityKg: number | null;
+  note: string | null;
+  createdAtUtc: string;
+}> = [
+  {
+    cropId: 'c0000003-0000-0000-0000-000000000003', // Tomato
+    marketId: DAMBULLA_ID,
+    saleDate: '2026-07-20',
+    pricePerKg: 215,
+    quantityKg: 60,
+    note: null,
+    createdAtUtc: '2026-07-20T11:05:00Z',
+  },
+  {
+    cropId: 'c0000003-0000-0000-0000-000000000003', // Tomato
+    marketId: null, // sold at the farm gate — "no market" is a real answer
+    saleDate: '2026-07-18',
+    pricePerKg: 198,
+    quantityKg: null,
+    note: 'Sold at the gate.',
+    createdAtUtc: '2026-07-18T09:40:00Z',
+  },
+  {
+    cropId: 'c0000002-0000-0000-0000-000000000002', // Beans
+    marketId: 'm0000003-0000-0000-0000-000000000003',
+    saleDate: '2026-07-18',
+    pricePerKg: 340,
+    quantityKg: 25,
+    note: null,
+    createdAtUtc: '2026-07-18T07:15:00Z',
+  },
+];
+
+/** The three market fields, resolved TOGETHER from the registry — they are null together on
+ *  the wire and an unknown id never becomes a half-filled market. */
+function fxSaleMarket(marketId: string | null): Pick<
+  SaleItem,
+  'marketId' | 'marketName' | 'marketShortCode'
+> {
+  const m = marketId ? fxMarkets.find((x) => x.id === marketId) : undefined;
+  if (!m) return { marketId: null, marketName: null, marketShortCode: null };
+  return { marketId: m.id, marketName: m.name, marketShortCode: m.shortCode };
+}
+
+function fxSalesRows(): SaleItem[] {
+  if (!fxSalesWorking) {
+    fxSalesWorking = FX_SALES_SEED.map((s) => {
+      const crop = fxCrops.find((c) => c.id === s.cropId);
+      return {
+        id: `sale-seed-${++fxSaleSeq}`,
+        cropId: s.cropId,
+        cropName: crop?.name ?? s.cropId,
+        cropCode: crop?.cropCode ?? null,
+        ...fxSaleMarket(s.marketId),
+        saleDate: s.saleDate,
+        pricePerKg: s.pricePerKg,
+        quantityKg: s.quantityKg,
+        note: s.note,
+        createdAtUtc: s.createdAtUtc,
+        updatedAtUtc: s.createdAtUtc,
+      };
+    });
+  }
+  return fxSalesWorking;
+}
+
+/** The server's order: SaleDate DESC, then CreatedAtUtc DESC. Two sales on one day stay in
+ *  the order they were entered (newest entry first). */
+function fxSortSales(rows: SaleItem[]): SaleItem[] {
+  return [...rows].sort((a, b) => {
+    if (a.saleDate !== b.saleDate) return a.saleDate < b.saleDate ? 1 : -1;
+    if (a.createdAtUtc !== b.createdAtUtc) return a.createdAtUtc < b.createdAtUtc ? 1 : -1;
+    return 0;
+  });
+}
+
+/** The server's own clamps, mirrored: page floors at 1, pageSize is held to 1..50, and BOTH
+ *  are echoed back as clamped — a page that asked for 200 rows must be told it got 50. */
+function fxClampPaging(page: number, pageSize: number): { page: number; pageSize: number } {
+  const p = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
+  const s = Number.isFinite(pageSize) ? Math.min(50, Math.max(1, Math.floor(pageSize))) : 20;
+  return { page: p, pageSize: s };
+}
+
+export function fxGetSales(page = 1, pageSize = 20, cropId?: string): SalesPage {
+  const clamped = fxClampPaging(page, pageSize);
+  let rows = fxSortSales(fxSalesRows());
+  // Case-insensitive, like every other id comparison here: GUIDs travel in mixed case.
+  if (cropId) rows = rows.filter((r) => r.cropId.toLowerCase() === cropId.toLowerCase());
+  const total = rows.length;
+  const start = (clamped.page - 1) * clamped.pageSize;
+  return {
+    items: rows.slice(start, start + clamped.pageSize).map((r) => ({ ...r })),
+    page: clamped.page,
+    pageSize: clamped.pageSize,
+    total,
+  };
+}
+
+/** Every refusal the routes make, in wire-field order. `todayYmd` is the demo's own local
+ *  today, so a "future" sale means the same thing here as it does on the phone. */
+function fxValidateSale(input: SaleInput): void {
+  if (input.marketId != null && !fxMarkets.some((m) => m.id === input.marketId)) {
+    throw fxSaleRefusal('unknown_market');
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.saleDate ?? '')) throw fxSaleRefusal('invalid_sale_date');
+  const parsed = new Date(input.saleDate + 'T00:00:00');
+  if (Number.isNaN(parsed.getTime())) throw fxSaleRefusal('invalid_sale_date');
+  if (input.saleDate > ymdLocal(new Date())) throw fxSaleRefusal('sale_date_future');
+  if (typeof input.pricePerKg !== 'number' || !Number.isFinite(input.pricePerKg) || input.pricePerKg <= 0) {
+    throw fxSaleRefusal('invalid_price');
+  }
+  if (input.pricePerKg > SALE_AMOUNT_MAX) throw fxSaleRefusal('price_out_of_range');
+  if (input.quantityKg != null) {
+    const q = input.quantityKg;
+    // ONE code for both shapes of a bad quantity: the contract has no
+    // quantity_out_of_range, so an over-ceiling quantity is an invalid one.
+    if (!Number.isFinite(q) || q <= 0 || q > SALE_AMOUNT_MAX) throw fxSaleRefusal('invalid_quantity');
+  }
+  if ((input.note ?? '').trim().length > SALE_NOTE_MAX) throw fxSaleRefusal('note_too_long');
+}
+
+export function fxRecordSale(input: SaleCreateInput): SaleItem {
+  const crop = fxCrops.find((c) => c.id === input.cropId);
+  if (!crop) throw fxSaleRefusal('unknown_crop');
+  fxValidateSale(input);
+  const now = new Date().toISOString();
+  const row: SaleItem = {
+    id: `sale-new-${++fxSaleSeq}-${Date.now()}`,
+    cropId: input.cropId,
+    cropName: crop.name,
+    cropCode: crop.cropCode ?? null,
+    ...fxSaleMarket(input.marketId ?? null),
+    saleDate: input.saleDate,
+    pricePerKg: input.pricePerKg,
+    quantityKg: input.quantityKg ?? null,
+    note: (input.note ?? '').trim() || null,
+    createdAtUtc: now,
+    updatedAtUtc: now,
+  };
+  fxSalesRows().push(row);
+  return { ...row };
+}
+
+/** FULL REPLACE, exactly like the route: an absent optional field CLEARS what was stored.
+ *  cropId is untouched because the wire does not accept it — a sale stays about the crop it
+ *  was recorded against. */
+export function fxUpdateSale(id: string, input: SaleInput): SaleItem {
+  const row = fxSalesRows().find((r) => r.id === id);
+  if (!row) throw fxSaleRefusal('sale_not_found');
+  fxValidateSale(input);
+  const market = fxSaleMarket(input.marketId ?? null);
+  row.marketId = market.marketId;
+  row.marketName = market.marketName;
+  row.marketShortCode = market.marketShortCode;
+  row.saleDate = input.saleDate;
+  row.pricePerKg = input.pricePerKg;
+  row.quantityKg = input.quantityKg ?? null;
+  row.note = (input.note ?? '').trim() || null;
+  row.updatedAtUtc = new Date().toISOString();
+  return { ...row };
+}
+
+/** 204 on the way out; a sale that is already gone is a 404 (sale_not_found), never a
+ *  polite success — "removed" must always mean a row really went away. */
+export function fxDeleteSale(id: string): void {
+  const rows = fxSalesRows();
+  const i = rows.findIndex((r) => r.id === id);
+  if (i < 0) throw fxSaleRefusal('sale_not_found');
+  rows.splice(i, 1);
 }
