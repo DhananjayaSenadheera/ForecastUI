@@ -21,8 +21,15 @@
   color: var(--text-2);
 }
 
-/* ---- "Watching X of 10" --------------------------------------------------- */
+/* ---- "Watching X of 10" ---------------------------------------------------
+   A flex row since Phase 2, because it now carries the link into the sales book at its far
+   end (.pf-count__link). It wraps rather than squeezing: at 360px the link drops onto its own
+   line under the count, and both keep their full touch target. */
 .pf-count {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
   margin: 0 0 var(--sp-4);
   padding: var(--sp-2) var(--sp-3);
   background: var(--brand-tint);
@@ -1734,4 +1741,199 @@
   margin: 0 0 var(--sp-2);
   color: var(--text-2);
   font-size: var(--fs-sm);
+}
+
+/* ---- The farmer's sales log (Phase 2) -------------------------------------
+   Two surfaces, one vocabulary: the "Sales you have recorded" section inside the More-details
+   popup, and the My-sales page at /portfolio/sales.
+
+   NOTHING IN HERE IS RED, and that is a rule rather than a preference. This is money
+   vocabulary: a low price the farmer got is a fact about a market, not a failure, and even
+   "Remove" only discards a note the farmer can type again in ten seconds. The two reds this
+   file allows (.pf-confirm__yes, .pf-plant__link--danger) are deliberately NOT reused here —
+   the delete answer below is the ordinary primary button, and it says "Yes, remove this sale"
+   in words, which is the signal that actually survives sunlight and colour blindness.
+
+   Everything else follows the file's existing laws: >=44px targets, no fixed-height text
+   boxes, colour never alone. */
+
+/* The way into the sales book, inside the "Watching 3 of 10" strip. The strip became a flex
+   row for it (see .pf-count above): the link sits at the far end on a wide screen and wraps
+   under the count on a phone, rather than either one being squeezed. */
+.pf-count__link {
+  margin-left: auto;
+}
+
+.pf-sales {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+/* The basket sits in the same disc the seedling uses, in the same place on the surface, so
+   "the money part" is found the same way "the planting part" is. */
+.pf-sales__glyph {
+  background: var(--brand-tint);
+}
+/* Said once, plainly: this book changes nothing but itself. */
+.pf-sales__note {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+}
+.pf-sales__empty {
+  margin: 0;
+  color: var(--text-2);
+}
+.pf-sales__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+/* On the page the rows carry more (the crop name, a wider note), so they breathe. */
+.pf-sales__list--page {
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+}
+.pf-sales__cta,
+.pf-sales__all {
+  margin: 0;
+}
+/* Rows still on screen while a newer page is being fetched: they answer the PREVIOUS query,
+   and must not read as the new one's result. aria-busy says so to assistive tech. */
+.pf-stale {
+  opacity: 0.6;
+}
+
+/* One recorded sale. A card, not a table row: at 360px a five-column table is unreadable,
+   and every fact here is short enough to label in words. */
+.pf-sale {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+/* The two facts a farmer scans for — when, and how much — on one line, the money at the end.
+   They stack on a narrow phone rather than letting a long crop name crush the price. */
+.pf-sale__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+.pf-sale__when {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+.pf-sale__date {
+  font-weight: var(--fw-medium);
+}
+.pf-sale__crop {
+  color: var(--text-2);
+}
+.pf-sale__price {
+  margin: 0;
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: var(--fvn-tabular);
+}
+.pf-sale__unit {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-2);
+}
+.pf-sale__meta {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-4);
+  color: var(--text-1);
+  font-size: var(--fs-sm);
+}
+.pf-sale__metalabel {
+  color: var(--text-2);
+}
+.pf-sale__note {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+  overflow-wrap: anywhere; /* a long unbroken note must not widen the popup */
+}
+.pf-sale__actions {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+}
+/* The delete question, inset inside the row it is about. It reuses .pf-confirm__q /
+   __actions / __no from the confirm vocabulary, but NOT .pf-confirm__yes: see the header —
+   removing a sale is not the destruction that colour is reserved for. */
+.pf-sale__confirm {
+  margin: 0;
+  padding: var(--sp-3);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+}
+.pf-sale__yes,
+.pf-sale__save,
+.pf-sale__cancel {
+  width: auto;
+  min-width: 160px;
+  min-height: var(--touch-primary);
+}
+/* A row that has become a form. */
+.pf-sale--editing {
+  background: var(--surface);
+  border-color: var(--line-strong);
+}
+.pf-sale__edithead {
+  margin: 0;
+  font-size: var(--fs-body);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-heading);
+}
+.pf-sale__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.pf-sale__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+/* The market picker: the phone's own select, sized like every other field on the surface. */
+.pf-sale__select {
+  min-height: var(--touch-primary);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--text-1);
+  font: inherit;
+  width: 100%;
+}
+.pf-sale__select:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+/* An answer that cannot be saved yet. AMBER, never red: nothing is destroyed and nothing is
+   forbidden — the farmer is being asked to write a number differently. */
+.pf-sale__err {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--warn-fg);
+  font-weight: var(--fw-medium);
 }

@@ -64,6 +64,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import type {
+  Market,
   PlantedDateClearRequest,
   PortfolioDashboardItem,
   PriceHistoryPoint,
@@ -101,6 +102,11 @@ export interface WatchlistCardProps {
     cropId: string,
     clear: PlantedDateClearRequest,
   ) => Promise<WriteMessage | null>;
+  /** The full market registry the page already holds. The card itself does not use it — it is
+   *  handed to the "More details" popup, whose sales form must be able to offer a market the
+   *  farmer does not watch this crop at. Defaults to empty so a caller that has no registry
+   *  loses one picker group rather than crashing. */
+  allMarkets?: Market[];
   /** A write is in flight anywhere on the page. */
   busy: boolean;
 }
@@ -148,6 +154,7 @@ export default function WatchlistCard({
   onToggleSelect,
   onSavePlantedDate,
   onClearPlantedDate,
+  allMarkets = [],
   busy,
 }: WatchlistCardProps) {
   const { t } = useTranslation();
@@ -359,6 +366,7 @@ export default function WatchlistCard({
         <CropDetailsDialog
           item={item}
           market={market}
+          allMarkets={allMarkets}
           readiness={readiness}
           lang={lang}
           todayYmd={todayYmd}

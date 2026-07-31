@@ -38,6 +38,10 @@ import type {
   PolicyFlagUpdateDto,
   PortfolioDashboard,
   PriceHistoryPoint,
+  SaleCreateInput,
+  SaleInput,
+  SaleItem,
+  SalesPage,
   SeriesCatalogEntry,
   SystemErrorPage,
   TrainingRunPage,
@@ -842,6 +846,101 @@ export const api = {
     if (USE_FIXTURES) return fx.fxPortfolioDashboard();
     return request<PortfolioDashboard>('/api/portfolio/dashboard');
   },
+
+  // ---------------------------------------------------------------------------
+  // The farmer's sales log (PRD Phase 2). Owner-scoped by the JWT like the rest of
+  // api/portfolio: no user id travels in any path, body or query.
+  // ---------------------------------------------------------------------------
+
+  // GET /api/portfolio/sales -> the server-paged {items,page,pageSize,total} envelope,
+  // ordered SaleDate DESC then CreatedAtUtc DESC. page/pageSize come back CLAMPED (pageSize
+  // max 50), so a caller reads the echo rather than what it asked for. `cropId` narrows the
+  // list to one crop — that is what the popup's "sales for this crop" list sends, so the
+  // phone never downloads a whole book to show three rows.
+  async getSales(page = 1, pageSize = 20, cropId?: string): Promise<SalesPage> {
+    if (USE_FIXTURES) return fxSales(() => fx.fxGetSales(page, pageSize, cropId));
+    const q = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (cropId) q.set('cropId', cropId);
+    return request<SalesPage>(`/api/portfolio/sales?${q.toString()}`);
+  },
+
+  // POST /api/portfolio/sales -> 201 with the created sale.
+  //
+  // Every optional key is ABSENT when the farmer left it blank — never null and never "".
+  // A blank market is "I am not saying where", not "market: nothing", and the wire spells
+  // that as silence.
+  // 400 { error: invalid_price | price_out_of_range | invalid_sale_date | sale_date_future |
+  //       invalid_quantity | note_too_long | unknown_crop | unknown_market }.
+  async recordSale(input: SaleCreateInput): Promise<SaleItem> {
+    if (USE_FIXTURES) return fxSales(() => fx.fxRecordSale(input));
+    return request<SaleItem>('/api/portfolio/sales', {
+      method: 'POST',
+      body: JSON.stringify({ cropId: input.cropId, ...saleBody(input) }),
+    });
+  },
+
+  // PUT /api/portfolio/sales/{id} -> 200 with the updated sale.
+  //
+  // A FULL REPLACE: an absent optional key CLEARS the stored value, which is precisely what
+  // must happen when the farmer empties the quantity box on the edit form. That is why the
+  // body is built from the SAME function as the POST — an edit that omitted a field because
+  // it did not think about it would erase it silently.
+  // cropId is NOT accepted here: a sale stays about the crop it was recorded against.
+  // 404 { error: "sale_not_found" }, plus the same 400 family as POST.
+  async updateSale(id: string, input: SaleInput): Promise<SaleItem> {
+    if (USE_FIXTURES) return fxSales(() => fx.fxUpdateSale(id, input));
+    return request<SaleItem>(`/api/portfolio/sales/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(saleBody(input)),
+    });
+  },
+
+  // DELETE /api/portfolio/sales/{id} -> 204. A sale that is already gone answers 404
+  // (sale_not_found) rather than a polite success, so a 204 always means a row really went.
+  async deleteSale(id: string): Promise<void> {
+    if (USE_FIXTURES) return fxSales(() => fx.fxDeleteSale(id));
+    return request<void>(`/api/portfolio/sales/${id}`, { method: 'DELETE' });
+  },
 };
+
+/**
+ * The mutable half of a sale body, built ONCE for both writes.
+ *
+ * The rule, in one place: an optional answer the farmer did not give is an ABSENT KEY.
+ * `marketId` blank, `quantityKg` null and a whitespace-only `note` all mean "nothing to
+ * record", and the note is TRIMMED because that is the value the server measures its 500
+ * against (it rejects an over-long note and never truncates one, so the two sides have to be
+ * counting the same characters).
+ */
+function saleBody(input: SaleInput): Record<string, unknown> {
+  const marketId = (input.marketId ?? '').trim();
+  const note = (input.note ?? '').trim();
+  return {
+    ...(marketId ? { marketId } : {}),
+    saleDate: input.saleDate,
+    pricePerKg: input.pricePerKg,
+    ...(input.quantityKg != null ? { quantityKg: input.quantityKg } : {}),
+    ...(note ? { note } : {}),
+  };
+}
+
+/**
+ * Run a fixtures-mode sales call and shape its refusal like the live one.
+ *
+ * The store throws `Error(code)` (it cannot import ApiError without a cycle), which would
+ * reach the UI with `.code === null` and collapse eight distinct, actionable sentences into
+ * "something went wrong" — in the one mode a reviewer reads the copy. Mapping it here means
+ * the demo shows the SAME sentence the live route earns, through the same mapper. Same
+ * shaping the ingestion-service 409s get, for the same reason.
+ */
+async function fxSales<T>(run: () => T): Promise<T> {
+  try {
+    return run();
+  } catch (e) {
+    const code = e instanceof Error ? e.message : '';
+    const status = code === 'sale_not_found' ? 404 : 400;
+    throw new ApiError(`HTTP ${status}`, status, code || null);
+  }
+}
 
 export const apiMode = USE_FIXTURES ? 'fixtures' : 'live';

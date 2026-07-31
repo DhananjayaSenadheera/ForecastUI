@@ -338,6 +338,11 @@ const USER_ACTIVITY_KEYS: Record<string, string> = {
   // date removed because the crop was harvested is not good news or bad news, it is what
   // happened, and the reason the farmer gave rides along in the Details column.
   plantedDateRemoved: 'admin.logs.userActivity.event.plantedDateRemoved',
+  // The sales log (Phase 2). Neutral for the same reason: a farmer recording what they got
+  // for their crop is a record of what happened, not a success or a warning to an admin.
+  saleRecorded: 'admin.logs.userActivity.event.saleRecorded',
+  saleUpdated: 'admin.logs.userActivity.event.saleUpdated',
+  saleDeleted: 'admin.logs.userActivity.event.saleDeleted',
 };
 
 /** User-activity event type -> label + badge tone. loginFailed is amber (a failed,
@@ -461,6 +466,35 @@ export function formatPointsAbs(
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   }).format(Math.abs(value) * 100);
+}
+
+/**
+ * How many decimals a figure the FARMER recorded is printed with: none when it is whole
+ * (60 kg, not 60.00 kg), two otherwise (215.50, never 216).
+ *
+ * THE ONLY definition of that rule. It is exported because the price on a sale row goes
+ * through formatPrice (which owns the "Rs." label and its spacing) while the quantity goes
+ * through formatExactAmount below — two call sites, one rule, so they can never disagree
+ * about what precision a recorded number is shown at.
+ */
+export function exactDigits(value: number): 0 | 2 {
+  return Number.isInteger(value) ? 0 : 2;
+}
+
+/**
+ * A number the FARMER themselves recorded, printed exactly (see exactDigits).
+ *
+ * Deliberately not formatPrice's default rounding. That rounding is right for a forecast —
+ * nobody gains from "Rs. 214.83 at harvest" — but rounding a figure the farmer typed into
+ * their own book misstates what they told us, which is the one thing their own records may
+ * never do. Locale-aware, like every other number in the app.
+ */
+export function formatExactAmount(value: number, lang: string): string {
+  const digits = exactDigits(value);
+  return new Intl.NumberFormat(resolveLocale(lang), {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(value);
 }
 
 /** Plain integer count (null -> null, so the caller shows a no-data marker). */

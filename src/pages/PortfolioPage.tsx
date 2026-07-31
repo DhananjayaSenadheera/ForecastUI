@@ -27,6 +27,7 @@
 // one ever shows a placeholder number. The table stays on screen for both — with an empty
 // watchlist it IS the next step.
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api, ApiError } from '../api/client';
 import type {
@@ -400,6 +401,20 @@ export default function PortfolioPage() {
                 count: watchlist.length,
                 max: MAX_WATCHED_CROPS,
               })}
+              {/* The way into the farmer's own sales book, beside the counter rather than
+                  inside a card, because the book spans every crop. Shown even with nothing
+                  recorded yet, so the feature is discoverable rather than something a farmer
+                  meets only after they have already used it. Recording a sale still happens on
+                  the crop it is about (More details), never here.
+                  The name OPENS with the visible words (WCAG 2.5.3) and then says where it
+                  goes, which also keeps it distinct from the popup's "See all sales". */}
+              <Link
+                className="pf-card__link pf-count__link"
+                to="/portfolio/sales"
+                aria-label={t('pages.sales.openLogAria')}
+              >
+                {t('pages.sales.openLog')}
+              </Link>
             </p>
 
             {emptyState === 'no-watchlist' ? (
@@ -433,6 +448,9 @@ export default function PortfolioPage() {
                       onToggleSelect={toggleSelect}
                       onSavePlantedDate={onSavePlantedDate}
                       onClearPlantedDate={onClearPlantedDate}
+                      // For the popup's sales form only: a farmer can sell at a market they
+                      // do not watch this crop at, and this page has the registry already.
+                      allMarkets={markets}
                       busy={busy}
                     />
                   ))}

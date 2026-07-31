@@ -890,6 +890,40 @@ function twoWatchedIds(): WatchlistItem[] {
   return [watched('c1', 'Tomato', ['m1']), watched('c2', 'Beans', ['m1'])];
 }
 
+// The sales book lives one level down (the popup records, the page links), but TWO of its
+// wirings are this page's to keep: the link into the book, and the market registry it hands
+// to the popup so a farmer can record a sale at a market they do not watch this crop at.
+// Neither shows up in a SalesSection-level test — deleting `allMarkets={markets}` here would
+// silently drop the "Other markets" group with the whole suite still green.
+describe('PortfolioPage — the way into the sales book', () => {
+  it('offers the book beside the crop counter, named so it is not the popup’s link', async () => {
+    mockPage({ items: [tomato()] }, [watched('c1', 'Tomato', ['m1'])]);
+    renderPage();
+    const link = await screen.findByRole('link', { name: 'My sales — every sale you have recorded' });
+    expect(link).toHaveAttribute('href', '/portfolio/sales');
+    // WCAG 2.5.3: the visible words open the accessible name, so voice control can say them.
+    expect(link).toHaveTextContent('My sales');
+  });
+
+  it('hands the market registry to the popup, so "somewhere else" is really offered', async () => {
+    mockPage({ items: [tomato()] }, [watched('c1', 'Tomato', ['m1'])]);
+    vi.spyOn(api, 'getSales').mockResolvedValue({ items: [], page: 1, pageSize: 3, total: 0 });
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'More details for Tomato' }));
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(
+      await within(dialog).findByRole('button', { name: 'Record a sale of Tomato' }),
+    );
+
+    const select = within(dialog).getByLabelText('Where you sold (optional)') as HTMLSelectElement;
+    // Kandy is in the registry but is NOT one of this crop's watched markets, so it can only
+    // be here if the page really passed the registry down.
+    const other = within(select).getByRole('group', { name: 'Other markets' });
+    expect(within(other).getByRole('option', { name: 'Kandy' })).toBeInTheDocument();
+  });
+});
+
 // The swing pill is read in "More details" now (the 2026-07-29 card simplification), so
 // these open the popup to reach it. What is under test is unchanged: the pill appears only
 // when the series is long enough to support the claim.

@@ -35,8 +35,11 @@ const CONTENT_TYPES = [
 ];
 // Frozen spelling: "…StopRequested", because the API only ASKS for a cancellation.
 const PIPELINE_TYPES = ['ingestionServiceStarted', 'ingestionServiceStopRequested'];
-// Farmer actions — the first events here whose actor is NOT an admin.
-const FARMER_TYPES = ['plantedDateRemoved'];
+// Farmer actions — the first events here whose actor is NOT an admin. APPEND-ONLY and in
+// this order: the array is what the tab sends as `types` and what its dropdown lists, so a
+// re-ordering would silently re-order a control an admin has learned. The three sale events
+// joined the planting-date removal in Phase 2.
+const FARMER_TYPES = ['plantedDateRemoved', 'saleRecorded', 'saleUpdated', 'saleDeleted'];
 
 const groupTablist = () => screen.getByRole('tablist', { name: 'Activity type' });
 const groupTab = (name: string) => within(groupTablist()).getByRole('tab', { name });
@@ -336,8 +339,8 @@ describe('System log — group sub-tabs', () => {
     expect(screen.getByTestId('search')).toHaveTextContent('?group=pipeline-actions');
   });
 
-  // Farmer actions: the first rows on this log an admin did not create.
-  it('labels, filters and deep-links the farmer-authored planting-date removal', async () => {
+  // Farmer actions: the rows on this log an admin did not create.
+  it('labels, filters and deep-links every farmer-authored event, in wire order', async () => {
     const spy = vi.mocked(api.getUserActivity);
     renderPage();
     await table();
@@ -346,17 +349,44 @@ describe('System log — group sub-tabs', () => {
     await waitFor(() => expect(spy).toHaveBeenCalledWith(1, 25, { types: FARMER_TYPES }));
     expect(groupTab('Farmer actions')).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByTestId('search')).toHaveTextContent('?group=farmer-actions');
-    // Scoped dropdown: the one event this group can show, offered by its label.
+    // Scoped dropdown: exactly the four events this group can show, in the frozen order.
     await waitFor(() =>
       expect(
         [...(screen.getByLabelText('Event') as HTMLSelectElement).options].map((o) => o.value),
       ).toEqual(['', ...FARMER_TYPES]),
     );
+    // ...and every one of them offered by its LABEL, never its wire string.
     expect(
-      within(screen.getByLabelText('Event') as HTMLSelectElement).getByRole('option', {
-        name: 'Planting date removed',
-      }),
-    ).toBeInTheDocument();
+      [...(screen.getByLabelText('Event') as HTMLSelectElement).options].map((o) => o.textContent),
+    ).toEqual([
+      'All events',
+      'Planting date removed',
+      'Sale recorded',
+      'Sale updated',
+      'Sale deleted',
+    ]);
+  });
+
+  it('renders a sale event as a neutral, farmer-authored record', async () => {
+    // Recording what a farmer got for their crop is neither good news nor a warning to an
+    // admin reading the log; it is what happened.
+    vi.mocked(api.getUserActivity).mockResolvedValue(
+      page([
+        {
+          occurredUtc: '2026-07-30T05:20:00Z',
+          eventType: 'saleRecorded',
+          actorUserId: LONG_GUID,
+          targetUserId: null,
+          usernameAttempted: null,
+          details: 'VEG000065',
+        },
+      ]),
+    );
+    renderPage();
+    const t = await table();
+    expect(within(t).getByText('Sale recorded')).toBeInTheDocument();
+    expect(within(t).queryByText('saleRecorded')).toBeNull();
+    expect(within(t).getByText('Sale recorded')).toHaveClass('adm-status--neutral');
   });
 
   it('renders a farmer-authored row without assuming an admin did it', async () => {
@@ -437,8 +467,18 @@ describe('System log — group sub-tabs', () => {
     renderPage();
     await table();
     const select = () => screen.getByLabelText('Event') as HTMLSelectElement;
-    // All: every known event type is offered (+ the "All events" option).
-    expect(select().options).toHaveLength(14);
+    // All: every known event type is offered (+ the "All events" option). Counted from the
+    // groups themselves rather than hardcoded, so adding an event type to a group updates
+    // this with it — the assertion is "All offers every group's events", not "there are 14".
+    const KNOWN = [
+      ...SIGN_IN_TYPES,
+      ...USER_MGMT_TYPES,
+      ...CONTENT_TYPES,
+      ...PIPELINE_TYPES,
+      ...FARMER_TYPES,
+    ];
+    expect(select().options).toHaveLength(KNOWN.length + 1);
+    expect([...select().options].map((o) => o.value)).toEqual(['', ...KNOWN]);
 
     fireEvent.click(groupTab('Sign-ins'));
     await waitFor(() =>

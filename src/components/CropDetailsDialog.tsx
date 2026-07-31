@@ -26,6 +26,7 @@
 // is passed IN from the card so both copies show one fetch's answer.
 import { useTranslation } from 'react-i18next';
 import type {
+  Market,
   PlantedDateClearRequest,
   PortfolioDashboardItem,
   PortfolioDashboardMarket,
@@ -43,6 +44,7 @@ import PriceLineChart from './PriceLineChart';
 import PriceSwingBadge from './PriceSwingBadge';
 import ReadinessBadge from './ReadinessBadge';
 import PriceBlock from './PriceBlock';
+import SalesSection from './SalesSection';
 import { Link } from 'react-router-dom';
 import type { PriceSwing } from '../lib/priceSwing';
 
@@ -50,6 +52,10 @@ export interface CropDetailsDialogProps {
   item: PortfolioDashboardItem;
   /** The market the card was showing when this opened — the whole popup is about it. */
   market: PortfolioDashboardMarket | null;
+  /** The full market registry, handed down for the sales form's "somewhere else" picker: a
+   *  farmer can sell at a market they do not watch this crop at. The page has already loaded
+   *  it, so the popup costs no extra request. */
+  allMarkets: Market[];
   readiness: CropReadinessStatus | null;
   lang: string;
   todayYmd: string;
@@ -74,6 +80,7 @@ export interface CropDetailsDialogProps {
 export default function CropDetailsDialog({
   item,
   market,
+  allMarkets,
   readiness,
   lang,
   todayYmd,
@@ -165,8 +172,22 @@ export default function CropDetailsDialog({
         />
       </div>
 
-      {/* Phase 2 (selling price, fertiliser cost, labour cost) slots in HERE as further
-          <section className="pf-dlg__section"> blocks, above the way-out links. */}
+      {/* Phase 2, first block: what the farmer really GOT for this crop. It sits under the
+          planting section because that is the order of the season — plant, then sell — and
+          above the way-out links. Fertiliser and labour costs join it here later.
+          A DIV wrapper for the same reason as the planting one: SalesSection is already a
+          section labelled by its own heading, and a second nameless one would add an unnamed
+          region to the dialog for a class name. */}
+      <div className="pf-dlg__section">
+        <SalesSection
+          item={item}
+          allMarkets={allMarkets}
+          lang={lang}
+          todayYmd={todayYmd}
+          busy={busy}
+          idPrefix="dlg"
+        />
+      </div>
 
       <p className="pf-dlg__links">
         <Link

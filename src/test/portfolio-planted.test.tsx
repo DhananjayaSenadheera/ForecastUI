@@ -669,7 +669,11 @@ describe('"More details" — the popup', () => {
     expect(within(dialog).getByText('No price data for this market yet.')).toBeInTheDocument();
     expect(dialog.querySelector('.pf-card__chart')).toBeNull();
     expect(api.getPriceHistory).not.toHaveBeenCalled();
-    expect(dialog.querySelector('[aria-busy="true"]')).toBeNull();
+    // Nothing is left ANNOUNCING work that will never happen. Scoped to the price section,
+    // because the popup now also holds the sales section, which legitimately reports
+    // aria-busy while ITS own (real, in-flight) request resolves.
+    const priceSection = dialog.querySelector('.pf-dlg__section') as HTMLElement;
+    expect(priceSection.querySelector('[aria-busy="true"]')).toBeNull();
   });
 });
 
