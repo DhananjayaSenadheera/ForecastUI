@@ -27,6 +27,12 @@ import { SALE_AMOUNT_MAX, SALE_NOTE_MAX, type SaleErrorCode } from '../api/types
  * 15 or 1.5 would put a number the farmer never typed into their own book. A refusal costs
  * one correction; a misread price is wrong forever.
  *
+ * AT MOST TWO DECIMALS, for the same reason one step further on: everything that displays a
+ * recorded figure prints it at two (lib/format exactDigits), so accepting "215.555" would
+ * store a number that comes back on screen as "215.56" — a figure the farmer never typed,
+ * shown to them as their own record. Refusing it while they are still looking at the field is
+ * the only point at which that is cheap.
+ *
  * Returns null for blank input: "nothing typed" is the caller's decision to interpret
  * (optional for quantity, a missing answer for price), not this function's.
  */
@@ -34,9 +40,9 @@ export function parseFarmerAmount(raw: string): number | null {
   const trimmed = (raw ?? '').trim();
   if (trimmed === '') return null;
   // Plain form first, then the grouped form; anything else (currency words, minus signs,
-  // two dots, a comma out of position) is not a number we may interpret.
-  const plain = /^\d+(\.\d+)?$/.test(trimmed);
-  const grouped = /^\d{1,3}(,\d{3})+(\.\d+)?$/.test(trimmed);
+  // two dots, a third decimal, a comma out of position) is not a number we may interpret.
+  const plain = /^\d+(\.\d{1,2})?$/.test(trimmed);
+  const grouped = /^\d{1,3}(,\d{3})+(\.\d{1,2})?$/.test(trimmed);
   if (!plain && !grouped) return null;
   const n = Number(grouped ? trimmed.replace(/,/g, '') : trimmed);
   return Number.isFinite(n) ? n : null;
@@ -180,7 +186,12 @@ export function saleInputFromDraft(
 
 /** A recorded sale read back INTO the form, for an edit. The numbers become the strings the
  *  farmer sees, so re-saving an untouched form sends back exactly what was stored — a
- *  round trip that changes nothing must really change nothing. */
+ *  round trip that changes nothing must really change nothing.
+ *
+ *  (A stored figure with MORE than two decimals — which the money contract does not produce —
+ *  would come back into the field as itself and be refused by the gate until the farmer
+ *  retypes it. That is the honest failure: the alternative is quietly rounding their record
+ *  on their behalf.) */
 export function saleDraftFrom(sale: {
   saleDate: string;
   pricePerKg: number;

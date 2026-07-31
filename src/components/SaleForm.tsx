@@ -260,8 +260,12 @@ export default function SaleForm({
           {t('pages.sales.noteHint', { max: SALE_NOTE_MAX })}
         </p>
         {noteBad && (
+          // `n`, never `count`: i18next reads `count` as a PLURAL SELECTOR, so the day si/ta
+          // add _one/_other forms for this sentence the selector would silently pick them by
+          // the farmer's character count. The number here is a measurement, not a quantity of
+          // things.
           <p className="pf-sale__err" id={noteErrId} role="alert">
-            {t('pages.sales.noteTooLong', { count: trimmedNote.length, max: SALE_NOTE_MAX })}
+            {t('pages.sales.noteTooLong', { n: trimmedNote.length, max: SALE_NOTE_MAX })}
           </p>
         )}
       </div>

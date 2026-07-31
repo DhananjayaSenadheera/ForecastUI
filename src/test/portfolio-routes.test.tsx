@@ -78,7 +78,7 @@ describe('the sales book route', () => {
     await renderAt('/portfolio');
     await screen.findByRole('heading', { name: 'My crops', level: 1 });
     expect(
-      await screen.findByRole('link', { name: 'See all the sales you have recorded' }),
+      await screen.findByRole('link', { name: 'My sales — every sale you have recorded' }),
     ).toHaveAttribute('href', '/portfolio/sales');
   });
 

@@ -16,8 +16,15 @@
 // numbers do not support.
 //
 // Paging is the SERVER's (the same {items,page,pageSize,total} envelope as every other paged
-// surface) and the page never client-slices: it refetches on page/size change, and reads the
-// clamped page/pageSize the server echoes back rather than what it asked for.
+// surface) and the page never client-slices: it refetches on page/size change and renders
+// exactly the rows that came back.
+//
+// It does NOT read the server's echoed page/pageSize back into its own cursor, and does not
+// need to: every size this page can ask for is one of TablePagination's three (10/25/50), all
+// of which are at or under the server's 50 ceiling, so the echo can only ever repeat what was
+// asked. `total` is the one field of the envelope the pager really consumes — it derives the
+// page count from it and self-clamps a stale cursor when the book shrinks. If a fourth page
+// size is ever added above 50, THIS is the line that has to change first.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -250,6 +257,10 @@ export default function SalesLogPage() {
                       setMsg(null);
                       setEditingId(null);
                       setConfirmId(sale.id);
+                      // The Remove button is being UNMOUNTED by this state change (the confirm
+                      // replaces the actions row), so focus travels with it — otherwise the
+                      // keyboard user lands on <body>.
+                      setPendingFocus('yes');
                     }}
                     onCancelDelete={() => setConfirmId(null)}
                     onConfirmDelete={() => {
@@ -258,9 +269,15 @@ export default function SalesLogPage() {
                           () => api.deleteSale(sale.id),
                           'pages.sales.deletedOk',
                         );
+                        if (!ok) {
+                          // The sale is still there, so its question stays answerable; focus
+                          // returns to the answer the farmer pressed.
+                          setPendingFocus('yes');
+                          return;
+                        }
                         setConfirmId(null);
                         // The row the farmer pressed in is gone; the result message is not.
-                        setPendingFocus(ok ? 'status' : 'yes');
+                        setPendingFocus('status');
                       })();
                     }}
                   />

@@ -245,15 +245,25 @@ export default function SalesSection({
                   setMsg(null);
                   setEditor('none');
                   setConfirmId(sale.id);
+                  // The Remove button the farmer just pressed is being UNMOUNTED by this very
+                  // state change — the confirm replaces the actions row — so focus has to be
+                  // sent with it or the keyboard user is dropped on <body>, back at the top of
+                  // the document. Same move as the planting-date Remove.
+                  setPendingFocus('yes');
                 }}
                 onCancelDelete={() => setConfirmId(null)}
                 onConfirmDelete={() => {
                   void (async () => {
                     const ok = await run(() => api.deleteSale(sale.id), 'pages.sales.deletedOk');
-                    // Either way the question is answered and must not stay on screen; on a
-                    // refusal the message says what happened.
+                    if (!ok) {
+                      // The question STAYS on screen: the sale is still there, so the choice
+                      // the farmer made is still available, and trying again is one tap rather
+                      // than a re-opened confirm. Focus goes back to the answer they pressed.
+                      setPendingFocus('yes');
+                      return;
+                    }
                     setConfirmId(null);
-                    setPendingFocus(ok ? 'record' : 'yes');
+                    setPendingFocus('record');
                   })();
                 }}
               />
@@ -331,7 +341,14 @@ export default function SalesSection({
           so "see all sales" is never an empty promise. The count is the truth about THIS crop
           and is only claimed once the list has really loaded. */}
       <p className="pf-sales__all">
-        <Link className="pf-card__link" to="/portfolio/sales" aria-label={t('pages.sales.seeAllAria')}>
+        {/* NO aria-label. The visible text already says exactly where this goes, and an
+            aria-label would have to REPEAT it verbatim to satisfy WCAG 2.5.3 (label in name)
+            — a farmer using voice control says "see all sales", and a name that does not
+            contain those words is a control they cannot address. Letting the contents be the
+            name also keeps it honest when the text carries the count. It is distinct from the
+            "My sales" link on the page behind, so the two never read as one control said
+            twice. */}
+        <Link className="pf-card__link" to="/portfolio/sales">
           {sales !== null && total > sales.length
             ? t('pages.sales.seeAllCount', { count: total })
             : t('pages.sales.seeAll')}

@@ -2314,7 +2314,11 @@ function fxSaleMarket(marketId: string | null): Pick<
   SaleItem,
   'marketId' | 'marketName' | 'marketShortCode'
 > {
-  const m = marketId ? fxMarkets.find((x) => x.id === marketId) : undefined;
+  // Case-insensitive, like the crop filter and every other id comparison here: GUIDs travel
+  // in mixed case, and a demo that "did not know" a market only because of its casing would
+  // refuse a request the live route accepts.
+  const wanted = marketId?.toLowerCase();
+  const m = wanted ? fxMarkets.find((x) => x.id.toLowerCase() === wanted) : undefined;
   if (!m) return { marketId: null, marketName: null, marketShortCode: null };
   return { marketId: m.id, marketName: m.name, marketShortCode: m.shortCode };
 }
@@ -2377,7 +2381,10 @@ export function fxGetSales(page = 1, pageSize = 20, cropId?: string): SalesPage 
 /** Every refusal the routes make, in wire-field order. `todayYmd` is the demo's own local
  *  today, so a "future" sale means the same thing here as it does on the phone. */
 function fxValidateSale(input: SaleInput): void {
-  if (input.marketId != null && !fxMarkets.some((m) => m.id === input.marketId)) {
+  if (
+    input.marketId != null &&
+    !fxMarkets.some((m) => m.id.toLowerCase() === input.marketId?.toLowerCase())
+  ) {
     throw fxSaleRefusal('unknown_market');
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.saleDate ?? '')) throw fxSaleRefusal('invalid_sale_date');

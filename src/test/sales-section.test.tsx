@@ -187,7 +187,7 @@ describe('the sales section — what it shows', () => {
   it('links to the whole book, with a name that says so', async () => {
     vi.spyOn(api, 'getSales').mockResolvedValue(page([sale()], 9));
     renderSection();
-    const link = await screen.findByRole('link', { name: 'See all the sales you have recorded' });
+    const link = await screen.findByRole('link', { name: /See all sales/ });
     expect(link).toHaveAttribute('href', '/portfolio/sales');
     // The count claim is about THIS crop and is only made once the list has really loaded.
     expect(link).toHaveTextContent('See all sales (9 for this crop)');
@@ -293,6 +293,46 @@ describe('recording a sale', () => {
     expect(save).toBeEnabled();
   });
 
+  it('says WHY a number cannot be used, beside the field, and wires it to the input', async () => {
+    // A disabled Save with no explanation is a dead end for a farmer who is not sure what
+    // went wrong. "1,5" is the interesting case: it is refused precisely because it could
+    // mean 15 or 1.5, so the form must say what a number looks like instead of guessing.
+    renderSection();
+    const save = await openForm();
+    const price = screen.getByLabelText('Price you got (Rs. per kg)');
+
+    fireEvent.change(price, { target: { value: '1,5' } });
+    expect(save).toBeDisabled();
+    const err = screen.getByText(
+      'Please write this in numbers, like 250 or 250.50, up to 100,000.',
+    );
+    expect(price).toHaveAttribute('aria-invalid', 'true');
+    expect(price).toHaveAttribute('aria-describedby', err.id);
+
+    // A good number clears both the sentence and the flag.
+    fireEvent.change(price, { target: { value: '1,250' } });
+    expect(price).not.toHaveAttribute('aria-invalid');
+    expect(price).not.toHaveAttribute('aria-describedby');
+    expect(save).toBeEnabled();
+
+    // The quantity says the same thing for the same reason.
+    const qty = screen.getByLabelText('How much you sold in kg (optional)');
+    fireEvent.change(qty, { target: { value: 'a lot' } });
+    expect(qty).toHaveAttribute('aria-invalid', 'true');
+    expect(qty).toHaveAttribute('aria-describedby', screen.getAllByText(/like 250 or 250\.50/)[0].id);
+  });
+
+  it('will not offer a day that has not happened — the field says so itself', async () => {
+    renderSection();
+    await openForm();
+    const date = screen.getByLabelText('Day you sold') as HTMLInputElement;
+    // The browser's own picker refuses the future before the gate ever has to.
+    expect(date).toHaveAttribute('max', TODAY);
+    // ...and no floor is invented: the wire states none, so the field refuses nothing the
+    // server would have accepted.
+    expect(date).not.toHaveAttribute('min');
+  });
+
   it('refuses an over-long note by COUNT, never by truncating the paste', async () => {
     renderSection();
     const save = await openForm();
@@ -381,7 +421,7 @@ describe('changing and removing a recorded sale', () => {
     fireEvent.change(screen.getByLabelText('How much you sold in kg (optional)'), {
       target: { value: '' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Save the changes to this sale of Tomato' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes to this sale of Tomato' }));
 
     await waitFor(() =>
       expect(update).toHaveBeenCalledWith('s1', {
@@ -432,26 +472,92 @@ describe('changing and removing a recorded sale', () => {
     await screen.findByText('That sale is no longer saved.');
   });
 
-  it('closes a pending remove-question when the farmer starts editing instead', async () => {
+  it('closes a pending remove-question when the farmer starts editing ANOTHER row', async () => {
     // A confirm merely HIDDEN by an editor comes back stale and asks to destroy something the
-    // farmer has since moved on from.
+    // farmer has since moved on from. It takes TWO rows to catch: with one row the confirm
+    // has replaced the very Change button that would reset it, so a one-row test can never
+    // exercise the cross-row path.
+    const other = sale({ id: 's2', saleDate: '2026-07-18', pricePerKg: 198 });
+    vi.spyOn(api, 'getSales').mockResolvedValue(page([sale(), other]));
+    renderSection();
+
+    const whenA = formatDate('2026-07-20', 'en');
+    const whenB = formatDate('2026-07-18', 'en');
+    fireEvent.click(
+      await screen.findByRole('button', { name: `Remove the sale of Tomato on ${whenA}` }),
+    );
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      `Remove the sale of Tomato on ${whenA}?`,
+    );
+
+    // Row B's Change is still on screen — pressing it must take row A's question away.
+    fireEvent.click(screen.getByRole('button', { name: `Change the sale of Tomato on ${whenB}` }));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+
+    // ...and cancelling that editor does not resurrect it.
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+  });
+
+  it('sends focus to the question the moment it replaces the button that opened it', async () => {
+    // The Remove button is UNMOUNTED by the state change that opens the confirm. Without a
+    // deliberate move, focus lands on <body> and a keyboard user is back at the top of the
+    // document, with a destructive question on screen they were never taken to.
     vi.spyOn(api, 'getSales').mockResolvedValue(page([sale()]));
     renderSection();
 
-    const when = formatDate('2026-07-20', 'en');
     fireEvent.click(
-      await screen.findByRole('button', { name: `Remove the sale of Tomato on ${when}` }),
+      await screen.findByRole('button', {
+        name: `Remove the sale of Tomato on ${formatDate('2026-07-20', 'en')}`,
+      }),
     );
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Yes, remove this sale' })).toHaveFocus(),
+    );
+    expect(document.activeElement).not.toBe(document.body);
+  });
+
+  it('keeps the question standing when the removal is refused, focus back on the answer', async () => {
+    // The sale is still there, so the choice is still available: re-trying is one tap, not a
+    // re-opened confirm. This is also what makes the 'yes' focus chain reachable at all.
+    vi.spyOn(api, 'getSales').mockResolvedValue(page([sale()]));
+    let reject: (e: unknown) => void = () => {};
+    vi.spyOn(api, 'deleteSale').mockImplementation(
+      () =>
+        new Promise<void>((_res, rej) => {
+          reject = rej;
+        }),
+    );
+    renderSection();
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: `Remove the sale of Tomato on ${formatDate('2026-07-20', 'en')}`,
+      }),
+    );
+    const yes = screen.getByRole('button', {
+      name: 'Yes, remove this sale',
+    }) as HTMLButtonElement;
+    fireEvent.click(yes);
+    await waitFor(() => expect(yes).toBeDisabled());
+
+    // A REAL BROWSER drops focus to <body> the moment the focused control is disabled, which
+    // is exactly what happens to this button while the delete is in flight. jsdom does
+    // NEITHER — it does not blur on disable, and it refuses blur() on a disabled element
+    // (probed) — so the browser's own sequence is staged here. Without this the assertion
+    // below passes for the wrong reason (focus simply never moved) and the restore it exists
+    // to pin could be deleted with the suite still green.
+    yes.disabled = false;
+    yes.blur();
+    yes.disabled = true;
+    expect(document.activeElement).toBe(document.body);
+
+    reject(new ApiError('HTTP 400', 400, 'bad_thing'));
+    await screen.findByText('Something went wrong. Please try again.');
     expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-
-    // The Change button is inside the row; the confirm replaced the actions, so cancel first.
-    fireEvent.click(screen.getByRole('button', { name: 'No, keep this sale' }));
-    fireEvent.click(screen.getByRole('button', { name: `Change the sale of Tomato on ${when}` }));
-    expect(screen.queryByRole('alertdialog')).toBeNull();
-
-    // ...and cancelling the editor does not resurrect it.
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(screen.queryByRole('alertdialog')).toBeNull();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Yes, remove this sale' })).toHaveFocus(),
+    );
   });
 });
 
@@ -567,6 +673,44 @@ describe('inside the "More details" popup', () => {
       await within(dialog).findByRole('button', { name: 'Record a sale of Tomato' }),
     ).toBeInTheDocument();
     await waitFor(() => expect(api.getSales).toHaveBeenCalledWith(1, 3, 'c1'));
+  });
+
+  it('swallows Escape WHILE the removal is in flight, so the outcome still has a home', async () => {
+    // The request cannot be recalled, so Escape has nothing to cancel — but if the key were
+    // allowed to bubble it would close the popup, and this write reports only INSIDE this
+    // section. The farmer would be left with no answer anywhere about a removal that is
+    // really happening. stopPropagation is therefore UNCONDITIONAL and only the cancel is
+    // conditional; this is the test that says so.
+    vi.spyOn(api, 'getSales').mockResolvedValue(page([sale()]));
+    let release: () => void = () => {};
+    vi.spyOn(api, 'deleteSale').mockImplementation(
+      () =>
+        new Promise<void>((res) => {
+          release = res;
+        }),
+    );
+    renderCard();
+    fireEvent.click(await screen.findByRole('button', { name: 'More details for Tomato' }));
+
+    const when = formatDate('2026-07-20', 'en');
+    fireEvent.click(
+      await screen.findByRole('button', { name: `Remove the sale of Tomato on ${when}` }),
+    );
+    const confirm = screen.getByRole('alertdialog');
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Yes, remove this sale' }));
+    await waitFor(() =>
+      expect(within(confirm).getByRole('button', { name: 'Yes, remove this sale' })).toBeDisabled(),
+    );
+
+    fireEvent.keyDown(confirm, { key: 'Escape' });
+    // Mid-flight: the key is swallowed, the popup stays, and the question stays with it —
+    // there is nothing to cancel and everything to report.
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+
+    release();
+    await screen.findByText('Sale removed.');
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
   it('does not let Escape inside the remove-question close the popup around it', async () => {

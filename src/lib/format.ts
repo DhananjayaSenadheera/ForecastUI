@@ -469,8 +469,20 @@ export function formatPointsAbs(
 }
 
 /**
- * A number the FARMER themselves recorded, printed exactly: a whole number stays whole
- * (60 kg, not 60.00 kg) and anything else keeps its two decimals (215.50, never 216).
+ * How many decimals a figure the FARMER recorded is printed with: none when it is whole
+ * (60 kg, not 60.00 kg), two otherwise (215.50, never 216).
+ *
+ * THE ONLY definition of that rule. It is exported because the price on a sale row goes
+ * through formatPrice (which owns the "Rs." label and its spacing) while the quantity goes
+ * through formatExactAmount below — two call sites, one rule, so they can never disagree
+ * about what precision a recorded number is shown at.
+ */
+export function exactDigits(value: number): 0 | 2 {
+  return Number.isInteger(value) ? 0 : 2;
+}
+
+/**
+ * A number the FARMER themselves recorded, printed exactly (see exactDigits).
  *
  * Deliberately not formatPrice's default rounding. That rounding is right for a forecast —
  * nobody gains from "Rs. 214.83 at harvest" — but rounding a figure the farmer typed into
@@ -478,7 +490,7 @@ export function formatPointsAbs(
  * never do. Locale-aware, like every other number in the app.
  */
 export function formatExactAmount(value: number, lang: string): string {
-  const digits = Number.isInteger(value) ? 0 : 2;
+  const digits = exactDigits(value);
   return new Intl.NumberFormat(resolveLocale(lang), {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,

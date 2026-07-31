@@ -19,7 +19,7 @@
 //    to destroy something the farmer has since moved on from.
 import { useTranslation } from 'react-i18next';
 import type { SaleItem } from '../api/types';
-import { formatDate, formatExactAmount, formatPrice } from '../lib/format';
+import { exactDigits, formatDate, formatExactAmount, formatPrice } from '../lib/format';
 
 export interface SaleRowProps {
   sale: SaleItem;
@@ -35,16 +35,10 @@ export interface SaleRowProps {
   onAskDelete: () => void;
   onCancelDelete: () => void;
   onConfirmDelete: () => void;
-  /** Focus lands here after a refused delete: the answer the farmer pressed. */
+  /** The confirm's "Yes". Focus is sent here when the confirm OPENS (the Remove button the
+   *  farmer pressed is being unmounted by that very state change) and again after a refused
+   *  delete, which leaves the question standing. */
   yesRef?: React.Ref<HTMLButtonElement>;
-  /** The row's own "Change" button, so focus can come back to it after an edit. */
-  editRef?: React.Ref<HTMLButtonElement>;
-}
-
-/** The exact recorded amount as text: whole numbers stay whole, anything else keeps its two
- *  decimals. Never rounds a farmer's own figure away. */
-function exactDigits(value: number): number {
-  return Number.isInteger(value) ? 0 : 2;
 }
 
 export default function SaleRow({
@@ -58,7 +52,6 @@ export default function SaleRow({
   onCancelDelete,
   onConfirmDelete,
   yesRef,
-  editRef,
 }: SaleRowProps) {
   const { t } = useTranslation();
   const when = formatDate(sale.saleDate, lang);
@@ -136,7 +129,6 @@ export default function SaleRow({
         <p className="pf-sale__actions">
           <button
             type="button"
-            ref={editRef}
             className="pf-plant__link"
             disabled={busy}
             onClick={onEdit}

@@ -143,6 +143,75 @@ describe('the sales book — paging', () => {
     await screen.findByText('1 sale recorded');
     expect(screen.queryByRole('navigation', { name: 'Table pages' })).toBeNull();
   });
+
+  it('never lets a slow FIRST page overwrite the second one the farmer already asked for', async () => {
+    // Two loads in flight at once: page 1 resolves LAST. Without the request-sequence guard
+    // its rows would land on top of page 2's and the farmer would be reading page 1 under a
+    // pager that says 2 — the classic stale-response overwrite.
+    let releaseSecond: (v: SalesPage) => void = () => {};
+    vi.spyOn(api, 'getSales')
+      // Page 1 lands normally, so the pager is on screen to be pressed.
+      .mockResolvedValueOnce(pageOf([sale({ cropName: 'Tomato' })], 25, 1))
+      // Page 2 is held open — this is the response that will be overtaken.
+      .mockImplementationOnce(
+        () =>
+          new Promise<SalesPage>((res) => {
+            releaseSecond = res;
+          }),
+      )
+      // Page 3 answers while page 2 is still in the air.
+      .mockResolvedValue(
+        pageOf([sale({ id: 's3', cropName: 'Beans', saleDate: '2026-07-18' })], 25, 3),
+      );
+
+    renderPage();
+    await screen.findByText('Tomato');
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
+    await screen.findByText('Beans');
+
+    // The overtaken page-2 response now arrives — and is DROPPED.
+    releaseSecond(pageOf([sale({ id: 's2', cropName: 'Carrot', saleDate: '2026-07-19' })], 25, 2));
+    await waitFor(() => expect(screen.getByText('Beans')).toBeInTheDocument());
+    expect(screen.queryByText('Carrot')).toBeNull();
+  });
+});
+
+// The date bound is computed from the LOCAL calendar day, and this is the test that says so.
+// Sri Lanka is UTC+5:30, so between 18:30 and 24:00 UTC the ISO form of "now" is YESTERDAY
+// there: a page that reached for toISOString().slice(0,10) would refuse a sale the farmer
+// made this morning, every evening, for five and a half hours.
+describe('the sales book — "today" is the farmer’s today', () => {
+  const realTz = process.env.TZ;
+  // 2026-07-31 20:00 UTC == 2026-08-01 01:30 in Colombo. The two calendar days really differ.
+  const INSTANT = new Date('2026-07-31T20:00:00Z');
+
+  beforeEach(() => {
+    process.env.TZ = 'Asia/Colombo';
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(INSTANT);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    process.env.TZ = realTz;
+  });
+
+  it('bounds the date field by the LOCAL day, not the UTC one', async () => {
+    renderPage();
+    fireEvent.click(
+      await screen.findByRole('button', { name: `Change the sale of Tomato on ${WHEN}` }),
+    );
+
+    // The oracle is Intl in the same zone — never ymdLocal, which is the thing under test.
+    const localDay = new Intl.DateTimeFormat('en-CA', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(INSTANT);
+    expect(localDay).toBe('2026-08-01');
+    expect(INSTANT.toISOString().slice(0, 10)).toBe('2026-07-31'); // the trap, spelled out
+    expect(screen.getByLabelText('Day you sold')).toHaveAttribute('max', localDay);
+  });
 });
 
 describe('the sales book — changing and removing', () => {
@@ -156,7 +225,7 @@ describe('the sales book — changing and removing', () => {
     fireEvent.change(screen.getByLabelText('Price you got (Rs. per kg)'), {
       target: { value: '230' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Save the changes to this sale of Tomato' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes to this sale of Tomato' }));
 
     await waitFor(() =>
       expect(update).toHaveBeenCalledWith('s1', {
@@ -210,6 +279,102 @@ describe('the sales book — changing and removing', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Yes, remove this sale' }));
     await screen.findByText('That sale is no longer saved.');
+  });
+
+  it('sends focus to the question the moment it replaces the button that opened it', async () => {
+    // Same defect as on the popup surface: the Remove button unmounts as the confirm appears,
+    // so focus must travel with it or land on <body>.
+    renderPage();
+    fireEvent.click(
+      await screen.findByRole('button', { name: `Remove the sale of Tomato on ${WHEN}` }),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Yes, remove this sale' })).toHaveFocus(),
+    );
+    expect(document.activeElement).not.toBe(document.body);
+  });
+
+  it('keeps the question standing when the removal is refused, focus back on the answer', async () => {
+    let reject: (e: unknown) => void = () => {};
+    vi.spyOn(api, 'deleteSale').mockImplementation(
+      () =>
+        new Promise<void>((_res, rej) => {
+          reject = rej;
+        }),
+    );
+    renderPage();
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: `Remove the sale of Tomato on ${WHEN}` }),
+    );
+    const yes = screen.getByRole('button', {
+      name: 'Yes, remove this sale',
+    }) as HTMLButtonElement;
+    fireEvent.click(yes);
+    await waitFor(() => expect(yes).toBeDisabled());
+
+    // Same jsdom blind spot as on the popup surface (see there): a real browser blurs a
+    // focused control the instant it is disabled, and jsdom does not, so the sequence is
+    // staged. Without it this test would pass whether or not the refusal restores focus.
+    yes.disabled = false;
+    yes.blur();
+    yes.disabled = true;
+    expect(document.activeElement).toBe(document.body);
+
+    reject(new ApiError('HTTP 400', 400, 'bad_thing'));
+    await screen.findByText('Something went wrong. Please try again.');
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Yes, remove this sale' })).toHaveFocus(),
+    );
+  });
+
+  it('closes a pending remove-question when the farmer starts editing ANOTHER row', async () => {
+    // The cross-row path, which a one-row fixture cannot reach: with one row the confirm has
+    // replaced the very Change button that would reset it.
+    vi.spyOn(api, 'getSales').mockResolvedValue(
+      pageOf([sale(), sale({ id: 's2', cropName: 'Beans', saleDate: '2026-07-18' })]),
+    );
+    renderPage();
+
+    const whenB = formatDate('2026-07-18', 'en');
+    fireEvent.click(
+      await screen.findByRole('button', { name: `Remove the sale of Tomato on ${WHEN}` }),
+    );
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      `Remove the sale of Tomato on ${WHEN}?`,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: `Change the sale of Beans on ${whenB}` }));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+  });
+
+  it('swallows Escape WHILE the removal is in flight, keeping the question and its answer', async () => {
+    // There is nothing to cancel once the request has gone, and the row must not disappear
+    // from under the farmer while it is still resolving.
+    let release: () => void = () => {};
+    vi.spyOn(api, 'deleteSale').mockImplementation(
+      () =>
+        new Promise<void>((res) => {
+          release = res;
+        }),
+    );
+    renderPage();
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: `Remove the sale of Tomato on ${WHEN}` }),
+    );
+    const confirm = screen.getByRole('alertdialog');
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Yes, remove this sale' }));
+    await waitFor(() =>
+      expect(within(confirm).getByRole('button', { name: 'Yes, remove this sale' })).toBeDisabled(),
+    );
+
+    fireEvent.keyDown(confirm, { key: 'Escape' });
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+
+    release();
+    await screen.findByText('Sale removed.');
   });
 
   it('sends focus to the result when the row the farmer pressed in has gone', async () => {

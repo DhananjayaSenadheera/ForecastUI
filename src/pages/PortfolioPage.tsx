@@ -396,28 +396,26 @@ export default function PortfolioPage() {
         ) : (
           <>
             {/* The cap is stated as a fact, always, not as an error once it is reached. */}
-            <div className="pf-countrow">
-              <p className="pf-count">
-                {t('pages.portfolio.watchingCount', {
-                  count: watchlist.length,
-                  max: MAX_WATCHED_CROPS,
-                })}
-              </p>
-              {/* The way into the farmer's own sales book. It lives beside the counter rather
-                  than inside a card, because the book spans every crop — and it is shown even
-                  with nothing recorded yet, so the feature is discoverable rather than
-                  something a farmer only meets after they have already used it. Recording a
-                  sale still happens on the crop it is about (More details), never here. */}
-              <p className="pf-saleslink">
-                <Link
-                  className="pf-card__link"
-                  to="/portfolio/sales"
-                  aria-label={t('pages.sales.seeAllAria')}
-                >
-                  {t('pages.sales.openLog')}
-                </Link>
-              </p>
-            </div>
+            <p className="pf-count">
+              {t('pages.portfolio.watchingCount', {
+                count: watchlist.length,
+                max: MAX_WATCHED_CROPS,
+              })}
+              {/* The way into the farmer's own sales book, beside the counter rather than
+                  inside a card, because the book spans every crop. Shown even with nothing
+                  recorded yet, so the feature is discoverable rather than something a farmer
+                  meets only after they have already used it. Recording a sale still happens on
+                  the crop it is about (More details), never here.
+                  The name OPENS with the visible words (WCAG 2.5.3) and then says where it
+                  goes, which also keeps it distinct from the popup's "See all sales". */}
+              <Link
+                className="pf-card__link pf-count__link"
+                to="/portfolio/sales"
+                aria-label={t('pages.sales.openLogAria')}
+              >
+                {t('pages.sales.openLog')}
+              </Link>
+            </p>
 
             {emptyState === 'no-watchlist' ? (
               <div className="pf-state pf-state--empty">

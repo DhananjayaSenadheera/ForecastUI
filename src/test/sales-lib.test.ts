@@ -7,6 +7,7 @@
 // sides — a rule tested only where it passes is a rule that has never been tested.
 import { describe, it, expect } from 'vitest';
 import { SALE_AMOUNT_MAX, SALE_NOTE_MAX, type SaleErrorCode } from '../api/types';
+import { exactDigits, formatExactAmount } from '../lib/format';
 import {
   canSubmitSale,
   isAllowedAmount,
@@ -53,6 +54,17 @@ describe('parseFarmerAmount — forgiving, never guessing', () => {
     for (const bad of ['', '   ', 'abc', '25o', '-5', '1.2.3', '250.', '1e3', '٢٥٠', 'Rs. 250']) {
       expect(parseFarmerAmount(bad)).toBeNull();
     }
+  });
+
+  it('refuses a THIRD decimal, because nothing can display one honestly', () => {
+    // Every surface prints a recorded figure at two decimals (format.exactDigits), so
+    // accepting 215.555 would store a number that comes back to the farmer as "215.56" —
+    // their own record, showing something they never typed. Refusing it while they are still
+    // looking at the field is the only cheap moment.
+    expect(parseFarmerAmount('215.55')).toBe(215.55);
+    expect(parseFarmerAmount('215.555')).toBeNull();
+    expect(parseFarmerAmount('1,250.555')).toBeNull();
+    expect(parseFarmerAmount('0.5')).toBe(0.5);
   });
 });
 
@@ -115,6 +127,8 @@ describe('canSubmitSale — the gate the button and the handler both read', () =
     expect(canSubmitSale(draft({ price: '0.01' }), TODAY)).toBe(true);
     expect(canSubmitSale(draft({ price: '100000' }), TODAY)).toBe(true);
     expect(canSubmitSale(draft({ price: '100000.01' }), TODAY)).toBe(false);
+    // A third decimal is not an amount this app can show back, so it is not one it accepts.
+    expect(canSubmitSale(draft({ price: '215.555' }), TODAY)).toBe(false);
   });
 
   it('treats a BLANK quantity as a real answer, but a typed nonsense one as a stop', () => {
@@ -137,6 +151,19 @@ describe('canSubmitSale — the gate the button and the handler both read', () =
   it('measures the note trimmed — 506 raw / 500 trimmed passes, 501 trimmed does not', () => {
     expect(canSubmitSale(draft({ note: `   ${'x'.repeat(500)}   ` }), TODAY)).toBe(true);
     expect(canSubmitSale(draft({ note: 'x'.repeat(501) }), TODAY)).toBe(false);
+  });
+});
+
+describe('a recorded figure is printed exactly, by ONE rule', () => {
+  it('keeps a whole number whole and everything else at two decimals', () => {
+    expect(exactDigits(60)).toBe(0);
+    expect(exactDigits(215.5)).toBe(2);
+    expect(formatExactAmount(60, 'en')).toBe('60');
+    expect(formatExactAmount(215.5, 'en')).toBe('215.50');
+    // The rule the parser enforces and the rule the display obeys are the SAME rule: every
+    // amount the gate accepts survives a round trip through the display unchanged.
+    const typed = parseFarmerAmount('215.55') as number;
+    expect(formatExactAmount(typed, 'en')).toBe('215.55');
   });
 });
 

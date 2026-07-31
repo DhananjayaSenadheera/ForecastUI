@@ -282,6 +282,19 @@ describe('fixtures — the demo mirrors the wire’s refusals', () => {
     expect(fx.fxGetSales(0, 20).page).toBe(1);
   });
 
+  it('recognises a market whatever case its GUID arrives in', async () => {
+    // Ids travel in mixed case between a route, a select and the wire. A demo that "did not
+    // know" Dambulla because the caller shouted its id would refuse a sale the live route
+    // accepts — a rule the product does not have, taught by the demo.
+    const fx = await fxMod();
+    const saved = fx.fxRecordSale({ ...good, marketId: DAMBULLA.toUpperCase() });
+    expect(saved.marketId).toBe(DAMBULLA);
+    expect(saved.marketName).toBe('Dambulla Dedicated Economic Centre');
+    // The three market fields are still null TOGETHER when there is no market at all.
+    const none = fx.fxRecordSale(good);
+    expect([none.marketId, none.marketName, none.marketShortCode]).toEqual([null, null, null]);
+  });
+
   it('narrows to one crop, case-insensitively, without touching the others', async () => {
     const fx = await fxMod();
     const all = fx.fxGetSales(1, 50).total;
