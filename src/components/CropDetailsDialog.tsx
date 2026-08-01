@@ -177,8 +177,9 @@ export default function CropDetailsDialog({
           above the way-out links. Fertiliser and labour costs join it here later.
           A DIV wrapper for the same reason as the planting one: SalesSection is already a
           section labelled by its own heading, and a second nameless one would add an unnamed
-          region to the dialog for a class name. */}
-      <div className="pf-dlg__section">
+          region to the dialog for a class name. It is --flush because the sales section draws
+          its own separator above its heading — two rules 12px apart read as a mistake. */}
+      <div className="pf-dlg__section pf-dlg__section--flush">
         <SalesSection
           item={item}
           allMarkets={allMarkets}

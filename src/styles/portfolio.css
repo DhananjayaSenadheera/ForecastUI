@@ -1710,6 +1710,12 @@
   padding-top: var(--sp-3);
   border-top: 1px solid var(--line);
 }
+/* A section that draws its OWN top rule (the sales table, which carries the separator the
+   owner asked for). Two lines 12px apart read as a mistake, so the wrapper gives up its. */
+.pf-dlg__section--flush {
+  padding-top: 0;
+  border-top: 0;
+}
 .pf-dlg__h {
   margin: 0;
   font-size: var(--fs-h3);
@@ -1764,10 +1770,28 @@
   margin-left: auto;
 }
 
+/* The section is its OWN SURFACE inside the popup: --surface-2 (the page background token)
+   over the popup's white, a hairline and the standard radius. It is the only part of the sheet
+   the farmer WRITES in, and a second surface says so before a word is read — quiet enough to
+   stay a background at arm's length in sunlight, distinct enough to find without reading.
+   The page's own table is NOT tinted: there it is the whole content of a white panel, and a
+   panel inside a panel is a box for its own sake. */
 .pf-sales {
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
+  padding: var(--sp-3);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+/* The divider the owner asked for, above the heading. A real <hr> (role="separator"): the
+   break between "what the market says" and "what you got" is a fact about the document, not a
+   decoration, so it is stated in the markup rather than painted on with a border. */
+.pf-sales__sep {
+  margin: 0 0 var(--sp-1);
+  border: 0;
+  border-top: 1px solid var(--line-strong);
 }
 /* The basket sits in the same disc the seedling uses, in the same place on the surface, so
    "the money part" is found the same way "the planting part" is. */
@@ -1785,20 +1809,6 @@
   margin: 0;
   color: var(--text-2);
 }
-.pf-sales__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-}
-/* On the page the rows carry more (the crop name, a wider note), so they breathe. */
-.pf-sales__list--page {
-  gap: var(--sp-3);
-  margin-top: var(--sp-3);
-}
-.pf-sales__cta,
 .pf-sales__all {
   margin: 0;
 }
@@ -1808,74 +1818,187 @@
   opacity: 0.6;
 }
 
-/* One recorded sale. A card, not a table row: at 360px a five-column table is unreadable,
-   and every fact here is short enough to label in words. */
-.pf-sale {
+/* ---- The sales TABLE (both surfaces) --------------------------------------
+   One table, two surfaces, and DevExpress-style row editing: "+" inserts an empty row at the
+   top, "Change" turns an existing row into the same cells in place, and the last column
+   carries the actions either way.
+
+   It reuses .pf-table (the crop table's own shape and its <600px stacking) rather than
+   restating it: one table vocabulary, one set of manners. What is added here is what row
+   EDITING needs — inputs sized to a cell, a full-width row for the sentences a cell cannot
+   hold, and an actions column that stays a thumb target when the columns get tight. */
+.pf-stbl {
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
-  padding: var(--sp-3);
-  background: var(--surface-3);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
 }
-/* The two facts a farmer scans for — when, and how much — on one line, the money at the end.
-   They stack on a narrow phone rather than letting a long crop name crush the price. */
-.pf-sale__head {
+/* The "+" sits at the end of the bar above the table, so the row it creates appears directly
+   under the control that made it. */
+.pf-stbl__bar {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--sp-2);
+  justify-content: flex-end;
 }
-.pf-sale__when {
-  margin: 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--sp-2);
+/* Small BY REQUEST, but never under the 44px the rest of this file holds every control to:
+   a farmer taps this outdoors, one-handed. The glyph is decorative; the accessible name is
+   the whole sentence "Record a sale of X". */
+.pf-stbl__add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  padding: 0;
+  border: 1.5px solid var(--brand);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--brand-strong);
+  cursor: pointer;
 }
-.pf-sale__date {
-  font-weight: var(--fw-medium);
+.pf-stbl__add:hover {
+  background: var(--brand-tint);
 }
-.pf-sale__crop {
+.pf-stbl__add:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.pf-stbl__add:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+/* The popup is 560px wide whatever the screen is, and a11y-large lifts every string a notch:
+   past some point six columns genuinely cannot shrink further. The house policy for that band
+   is already written down in tokens.css — 600–1023px, "tables scroll" — so the wrapper scrolls
+   rather than clipping a field. Under 600px it never engages: the rows have stacked by then. */
+.pf-stbl > .pf-tablewrap {
+  overflow-x: auto;
+}
+/* Dense by table standards, because six columns have to live inside a 560px popup: the type
+   steps down one notch and the cells tighten. Nothing shrinks below --fs-sm, which is the
+   smallest size this app will print a fact at. */
+.pf-stbl__table {
+  font-size: var(--fs-sm);
+}
+/* No uppercasing here, unlike the admin tables: these headings are farmer words ("Price
+   (Rs./kg)"), and upper-casing plus letter-spacing does nothing for Sinhala or Tamil — which
+   have no case — except loosen scripts that read worse spaced out. */
+.pf-stbl__table thead th {
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: var(--fs-sm);
   color: var(--text-2);
 }
-.pf-sale__price {
-  margin: 0;
-  font-size: var(--fs-h3);
-  font-weight: var(--fw-bold);
+.pf-stbl__table th,
+.pf-stbl__table td {
+  padding: var(--sp-2) var(--sp-1);
+  vertical-align: top;
+}
+/* A long market name or an unbroken note must wrap inside its column rather than widen the
+   table past the popup. */
+.pf-stbl__table td {
+  overflow-wrap: anywhere;
+}
+/* Money and weights line up digit under digit — the whole point of a table of numbers. */
+.pf-stbl__num {
   font-variant-numeric: var(--fvn-tabular);
+  white-space: nowrap;
 }
-.pf-sale__unit {
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-medium);
+.pf-stbl__note {
   color: var(--text-2);
 }
-.pf-sale__meta {
-  margin: 0;
+.pf-stbl__act {
+  white-space: nowrap;
+}
+/* The row's controls: side by side where there is room, stacked when the column is narrow,
+   with a real gap in BOTH directions (the .adm-actions lesson). */
+.pf-stbl__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--sp-1) var(--sp-4);
-  color: var(--text-1);
+  align-items: center;
+  gap: var(--sp-1) var(--sp-2);
+}
+/* A row that has become a form: white against the section's tint, so the row being typed in
+   is obvious at a glance, and a left rule so it is still obvious in greyscale. */
+.pf-stbl__edit > td {
+  background: var(--surface);
+}
+.pf-stbl__edit > td:first-child {
+  box-shadow: inset 3px 0 0 0 var(--brand);
+}
+/* Fields sized to a cell, never to a page: full width of whatever column they land in, and
+   min-width:0 so a native date input cannot force the table wider than its container. */
+.pf-stbl__input {
+  width: 100%;
+  min-width: 0;
+  padding: var(--sp-1) var(--sp-2);
   font-size: var(--fs-sm);
 }
-.pf-sale__metalabel {
-  color: var(--text-2);
+textarea.pf-stbl__input {
+  min-height: var(--touch-primary);
+  resize: vertical;
 }
-.pf-sale__note {
-  margin: 0;
-  color: var(--text-2);
+.pf-stbl__save,
+.pf-stbl__cancel {
+  width: auto;
+  min-width: 0;
+  min-height: var(--touch-min);
+  padding: var(--sp-1) var(--sp-3);
   font-size: var(--fs-sm);
-  line-height: var(--lh-body);
-  overflow-wrap: anywhere; /* a long unbroken note must not widen the popup */
 }
-.pf-sale__actions {
-  margin: 0;
+/* A row that spans every column: the refusal sentences under the row being typed in, and the
+   remove-question under the row it is about. Neither fits in a cell, and both must be read in
+   full before the farmer acts. */
+.pf-stbl__wide > td {
+  background: var(--surface);
+}
+.pf-stbl__msgs > td {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-3);
+  flex-direction: column;
+  gap: var(--sp-1);
 }
+.pf-stbl__edit > td,
+.pf-stbl__wide > td {
+  border-bottom: 1px solid var(--line-strong);
+}
+
+@media (max-width: 600px) {
+  /* Under 600px the .pf-table rules turn every row into a key/value card. Two extra things
+     are true of THIS table: a spanning row must not print an empty "" label from its
+     data-label, and a cell with nothing in it (an empty note, the actions cell while the
+     remove-question is open) must not leave a labelled blank in the card. */
+  .pf-stbl__wide > td::before {
+    display: none;
+  }
+  .pf-stbl__table tbody td:empty {
+    display: none;
+  }
+  .pf-stbl__act {
+    white-space: normal;
+  }
+  .pf-stbl__save,
+  .pf-stbl__cancel {
+    flex: 1 1 auto;
+    min-height: var(--touch-primary);
+  }
+  /* The stacked editing row keeps its rule down the left, where the cells now sit under one
+     another rather than beside. */
+  .pf-stbl__edit {
+    border-left: 3px solid var(--brand);
+  }
+  .pf-stbl__edit > td:first-child {
+    box-shadow: none;
+  }
+  /* Stacked, a spanning row is a block of its own under the card it belongs to. The rule down
+     its left says which card that is — brand for the row being typed in, a plain line for the
+     remove-question — so neither reads as a loose paragraph in the middle of the list. */
+  .pf-stbl__wide > td {
+    border-left: 3px solid var(--line-strong);
+    border-radius: var(--r-md);
+  }
+  .pf-stbl__msgs > td {
+    border-left-color: var(--brand);
+  }
+}
+
 /* The delete question, inset inside the row it is about. It reuses .pf-confirm__q /
    __actions / __no from the confirm vocabulary, but NOT .pf-confirm__yes: see the header —
    removing a sale is not the destruction that colour is reserved for. */
@@ -1886,35 +2009,13 @@
   border: 1px solid var(--line-strong);
   border-radius: var(--r-md);
 }
-.pf-sale__yes,
-.pf-sale__save,
-.pf-sale__cancel {
+.pf-sale__yes {
   width: auto;
   min-width: 160px;
   min-height: var(--touch-primary);
 }
-/* A row that has become a form. */
-.pf-sale--editing {
-  background: var(--surface);
-  border-color: var(--line-strong);
-}
-.pf-sale__edithead {
-  margin: 0;
-  font-size: var(--fs-body);
-  font-weight: var(--fw-medium);
-  line-height: var(--lh-heading);
-}
-.pf-sale__form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-}
-.pf-sale__field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
-}
-/* The market picker: the phone's own select, sized like every other field on the surface. */
+/* The market picker: the phone's own select, sized like every other field on the surface
+   (the table shrinks it to its cell with .pf-stbl__input). */
 .pf-sale__select {
   min-height: var(--touch-primary);
   padding: var(--sp-2) var(--sp-3);
