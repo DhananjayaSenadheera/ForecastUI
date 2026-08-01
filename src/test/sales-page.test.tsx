@@ -94,7 +94,59 @@ describe('the sales book — reading it', () => {
   it('has no "new sale" control at all — a sale is recorded on its crop', async () => {
     renderPage();
     await screen.findByText('1 sale recorded');
+    // Neither the old disclosure button nor the table's "+": this page cannot know which crop
+    // a new sale belongs to, and asking would invite the one mistake nobody notices later.
     expect(screen.queryByRole('button', { name: /Record a sale/ })).toBeNull();
+  });
+
+  it('is the SAME table as the popup, with one column more: the crop', async () => {
+    // One book, two surfaces, one presentation. The crop column is the only difference, and it
+    // exists because this list holds every crop.
+    renderPage();
+    const table = await screen.findByRole('table');
+    const heads = within(table).getAllByRole('columnheader');
+    expect(heads.map((h) => h.textContent)).toEqual([
+      'Day sold',
+      'Crop',
+      'Price (Rs./kg)',
+      'Amount (kg)',
+      'Market',
+      'Note',
+      'Actions',
+    ]);
+    for (const h of heads) expect(h).toHaveAttribute('scope', 'col');
+
+    // Every cell still carries its column heading, which is what lets the CSS stack the row
+    // into a labelled card under 600px instead of scrolling it sideways.
+    const bodyRow = within(table).getAllByRole('row')[1];
+    expect(within(bodyRow).getAllByRole('cell').map((c) => c.getAttribute('data-label'))).toEqual(
+      heads.map((h) => h.textContent),
+    );
+  });
+
+  it('labels the EDITING row’s cells too — all seven, crop column included', async () => {
+    // This is the only surface with the crop column, so it is the only place the seven-column
+    // editing row exists. A stacked editing row that lost its labels would be five unnamed
+    // boxes on a 360px phone, and the crop cell — text, not a field, because a sale's crop is
+    // immutable — has to keep its heading like every other.
+    renderPage();
+    fireEvent.click(
+      await screen.findByRole('button', { name: `Change the sale of Tomato on ${WHEN}` }),
+    );
+    const table = screen.getByRole('table');
+    const heads = within(table).getAllByRole('columnheader').map((h) => h.textContent);
+    const editRow = within(table).getAllByRole('row')[1];
+    expect(within(editRow).getAllByRole('cell').map((c) => c.getAttribute('data-label'))).toEqual(
+      heads,
+    );
+    // The crop is stated, never offered: it cannot be changed after the fact.
+    expect(within(editRow).getByText('Tomato')).toBeInTheDocument();
+    expect(within(editRow).queryByLabelText('Crop')).toBeNull();
+    // ...and the spanning message row under it carries all seven columns.
+    expect(within(within(table).getAllByRole('row')[2]).getAllByRole('cell')[0]).toHaveAttribute(
+      'colspan',
+      '7',
+    );
   });
 
   it('shows an empty book as an invitation with the way to act on it', async () => {
@@ -193,7 +245,11 @@ describe('the sales book — "today" is the farmer’s today', () => {
   });
   afterEach(() => {
     vi.useRealTimers();
-    process.env.TZ = realTz;
+    // `process.env.TZ = undefined` stores the STRING "undefined", which Node reads as UTC —
+    // so a suite that ran with no TZ set would leave every later file in a zone it never
+    // chose. Restoring "absent" means DELETING the variable.
+    if (realTz === undefined) delete process.env.TZ;
+    else process.env.TZ = realTz;
   });
 
   it('bounds the date field by the LOCAL day, not the UTC one', async () => {
@@ -210,7 +266,7 @@ describe('the sales book — "today" is the farmer’s today', () => {
     }).format(INSTANT);
     expect(localDay).toBe('2026-08-01');
     expect(INSTANT.toISOString().slice(0, 10)).toBe('2026-07-31'); // the trap, spelled out
-    expect(screen.getByLabelText('Day you sold')).toHaveAttribute('max', localDay);
+    expect(screen.getByLabelText('Day sold')).toHaveAttribute('max', localDay);
   });
 });
 
@@ -222,7 +278,7 @@ describe('the sales book — changing and removing', () => {
     fireEvent.click(
       await screen.findByRole('button', { name: `Change the sale of Tomato on ${WHEN}` }),
     );
-    fireEvent.change(screen.getByLabelText('Price you got (Rs. per kg)'), {
+    fireEvent.change(screen.getByLabelText('Price (Rs./kg)'), {
       target: { value: '230' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save changes to this sale of Tomato' }));
@@ -271,6 +327,24 @@ describe('the sales book — changing and removing', () => {
   });
 
   it('reports a refusal in the server’s own words, and keeps the row', async () => {
+    // Any refusal the row can still act on leaves the question standing — the sale is there,
+    // so answering again is one tap.
+    vi.spyOn(api, 'deleteSale').mockRejectedValue(new ApiError('HTTP 400', 400, 'bad_thing'));
+    renderPage();
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: `Remove the sale of Tomato on ${WHEN}` }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, remove this sale' }));
+    await screen.findByText('Something went wrong. Please try again.');
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+  });
+
+  it('treats a sale that was ALREADY gone as done: says so, closes, and re-reads', async () => {
+    // Done-and-continue, the shape PortfolioPage.runWrites uses for watchlist_entry_not_found.
+    // The farmer asked for the row to go and it is gone; a question left standing over it can
+    // be pressed again and again against nothing.
+    const getSales = vi.spyOn(api, 'getSales').mockResolvedValue(pageOf([sale()]));
     vi.spyOn(api, 'deleteSale').mockRejectedValue(new ApiError('HTTP 404', 404, 'sale_not_found'));
     renderPage();
 
@@ -278,7 +352,34 @@ describe('the sales book — changing and removing', () => {
       await screen.findByRole('button', { name: `Remove the sale of Tomato on ${WHEN}` }),
     );
     fireEvent.click(screen.getByRole('button', { name: 'Yes, remove this sale' }));
+
     await screen.findByText('That sale is no longer saved.');
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    await waitFor(() => expect(getSales).toHaveBeenCalledTimes(2));
+  });
+
+  it('gives the row’s own Change button the focus back after an edit is saved', async () => {
+    vi.spyOn(api, 'updateSale').mockResolvedValue(sale());
+    renderPage();
+
+    const change = `Change the sale of Tomato on ${WHEN}`;
+    fireEvent.click(await screen.findByRole('button', { name: change }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes to this sale of Tomato' }));
+
+    await screen.findByText('Sale updated.');
+    await waitFor(() => expect(screen.getByRole('button', { name: change })).toHaveFocus());
+  });
+
+  it('hands focus BACK to Remove when the farmer answers "No"', async () => {
+    // The page has no "+" to fall back on, so if the per-row destination were missing this
+    // would land on the status line — or on <body>. It goes to the control that asked.
+    renderPage();
+    const remove = `Remove the sale of Tomato on ${WHEN}`;
+    fireEvent.click(await screen.findByRole('button', { name: remove }));
+    fireEvent.click(screen.getByRole('button', { name: 'No, keep this sale' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: remove })).toHaveFocus());
+    expect(document.activeElement).not.toBe(document.body);
   });
 
   it('sends focus to the question the moment it replaces the button that opened it', async () => {

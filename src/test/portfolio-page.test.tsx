@@ -916,7 +916,7 @@ describe('PortfolioPage — the way into the sales book', () => {
       await within(dialog).findByRole('button', { name: 'Record a sale of Tomato' }),
     );
 
-    const select = within(dialog).getByLabelText('Where you sold (optional)') as HTMLSelectElement;
+    const select = within(dialog).getByLabelText('Market') as HTMLSelectElement;
     // Kandy is in the registry but is NOT one of this crop's watched markets, so it can only
     // be here if the page really passed the registry down.
     const other = within(select).getByRole('group', { name: 'Other markets' });

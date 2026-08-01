@@ -29,12 +29,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api, ApiError } from '../api/client';
-import type { Market, SaleItem, SalesPage } from '../api/types';
-import SaleForm from '../components/SaleForm';
-import SaleRow from '../components/SaleRow';
+import type { Market, SalesPage } from '../api/types';
+import SalesTable, { type SaleWriteInput } from '../components/SalesTable';
 import TablePagination, { useServerPagination } from '../components/TablePagination';
 import { ymdLocal } from '../lib/format';
-import { saleDraftFrom, saleErrorKey, saleErrorParams } from '../lib/salesLog';
+import { saleErrorKey, saleErrorParams } from '../lib/salesLog';
 import '../styles/portfolio.css';
 
 const SALES_PAGE_SIZE = 10;
@@ -56,14 +55,12 @@ export default function SalesLogPage() {
   const { page, perPage, totalPages, setPage, setPerPage } = pager;
   const req = useRef(0); // stale-response guard for overlapping page loads
 
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [confirmId, setConfirmId] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ tone: 'ok' | 'error'; key: string } | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Where focus goes when the control that had it has gone (a removed row) and this surface
+  // has no "+" of its own to fall back on. The table owns every other destination.
   const statusRef = useRef<HTMLParagraphElement>(null);
-  const yesBtn = useRef<HTMLButtonElement>(null);
-  const [pendingFocus, setPendingFocus] = useState<'status' | 'yes' | null>(null);
 
   const load = useCallback(async () => {
     const id = ++req.current;
@@ -103,38 +100,54 @@ export default function SalesLogPage() {
     };
   }, []);
 
-  /** Every destination is a CHAIN: a delete empties a row, an edit closes a form, and the
-   *  control the farmer pressed can be gone by the time focus moves. */
-  useEffect(() => {
-    if (pendingFocus === null) return;
-    const chain: Record<'status' | 'yes', (HTMLElement | null)[]> = {
-      status: [statusRef.current],
-      yes: [yesBtn.current, statusRef.current],
-    };
-    chain[pendingFocus].find((el) => el !== null)?.focus();
-    setPendingFocus(null);
-  }, [pendingFocus]);
-
-  /** One write, one answer, the server's own code mapped to its own sentence. The re-read is
-   *  outside the failure path: a list that could not refresh is not a write that failed. */
+  /**
+   * One write, one answer, the server's own code mapped to its own sentence. The re-read is
+   * outside the failure path: a list that could not refresh is not a write that failed.
+   *
+   * `alreadyDoneCode` is the done-and-continue case (the shape PortfolioPage.runWrites uses
+   * for `watchlist_entry_not_found`): a delete answered "that sale is no longer saved" has
+   * already achieved what the farmer asked for, so the question closes and the page re-reads
+   * — the sentence still explains why the book just changed under them.
+   */
   const run = useCallback(
-    async (write: () => Promise<unknown>, okKey: string): Promise<boolean> => {
+    async (
+      write: () => Promise<unknown>,
+      okKey: string,
+      opts: { alreadyDoneCode?: string } = {},
+    ): Promise<boolean> => {
       setSaving(true);
       setMsg(null);
+      let outcome: { tone: 'ok' | 'error'; key: string } = { tone: 'ok', key: okKey };
       try {
         await write();
       } catch (e) {
         const code = e instanceof ApiError ? e.code : null;
-        setMsg({ tone: 'error', key: saleErrorKey(code) });
-        return false;
+        if (!(opts.alreadyDoneCode && code === opts.alreadyDoneCode)) {
+          setMsg({ tone: 'error', key: saleErrorKey(code) });
+          return false;
+        }
+        outcome = { tone: 'error', key: saleErrorKey(code) };
       } finally {
         setSaving(false);
       }
       await load();
-      setMsg({ tone: 'ok', key: okKey });
+      setMsg(outcome);
       return true;
     },
     [load],
+  );
+
+  const onUpdate = useCallback(
+    (saleId: string, input: SaleWriteInput) =>
+      run(() => api.updateSale(saleId, input), 'pages.sales.updatedOk'),
+    [run],
+  );
+  const onDelete = useCallback(
+    (saleId: string) =>
+      run(() => api.deleteSale(saleId), 'pages.sales.deletedOk', {
+        alreadyDoneCode: 'sale_not_found',
+      }),
+    [run],
   );
 
   const items = data?.items ?? [];
@@ -194,96 +207,31 @@ export default function SalesLogPage() {
             )}
             <p className="pf-count">{t('pages.sales.total', { count: data.total })}</p>
 
-            <ul className="pf-sales__list pf-sales__list--page">
-              {items.map((sale: SaleItem) =>
-                editingId === sale.id ? (
-                  <li className="pf-sale pf-sale--editing" key={sale.id}>
-                    <h2 className="pf-sale__edithead">{t('pages.sales.editHeading')}</h2>
-                    <SaleForm
-                      key={`edit-${sale.id}`}
-                      idPrefix={`log-${sale.id}`}
-                      cropName={sale.cropName}
-                      // On this page the sale's OWN market is the one context we have: the
-                      // page does not know which markets the farmer watches this crop at, and
-                      // guessing would put a market in front of them that means nothing here.
-                      watchedMarkets={
-                        sale.marketId
-                          ? [{ marketId: sale.marketId, name: sale.marketName ?? sale.marketId }]
-                          : []
-                      }
-                      allMarkets={markets}
-                      todayYmd={todayYmd}
-                      initialDraft={saleDraftFrom(sale)}
-                      initialMarketId={sale.marketId ?? ''}
-                      mode="edit"
-                      busy={busy}
-                      autoFocus
-                      onSubmit={(input) => {
-                        void (async () => {
-                          const ok = await run(
-                            () => api.updateSale(sale.id, input),
-                            'pages.sales.updatedOk',
-                          );
-                          if (!ok) return; // the form keeps the farmer's numbers
-                          setEditingId(null);
-                          setPendingFocus('status');
-                        })();
-                      }}
-                      onCancel={() => {
-                        setMsg(null);
-                        setEditingId(null);
-                        setPendingFocus('status');
-                      }}
-                    />
-                  </li>
-                ) : (
-                  <SaleRow
-                    key={sale.id}
-                    sale={sale}
-                    lang={lang}
-                    showCrop
-                    busy={busy}
-                    confirming={confirmId === sale.id}
-                    yesRef={confirmId === sale.id ? yesBtn : undefined}
-                    onEdit={() => {
-                      setMsg(null);
-                      // Opening an editor RESETS any pending confirm inline: a question about
-                      // removing a sale the farmer has since started editing is a question
-                      // about something they did not ask.
-                      setConfirmId(null);
-                      setEditingId(sale.id);
-                    }}
-                    onAskDelete={() => {
-                      setMsg(null);
-                      setEditingId(null);
-                      setConfirmId(sale.id);
-                      // The Remove button is being UNMOUNTED by this state change (the confirm
-                      // replaces the actions row), so focus travels with it — otherwise the
-                      // keyboard user lands on <body>.
-                      setPendingFocus('yes');
-                    }}
-                    onCancelDelete={() => setConfirmId(null)}
-                    onConfirmDelete={() => {
-                      void (async () => {
-                        const ok = await run(
-                          () => api.deleteSale(sale.id),
-                          'pages.sales.deletedOk',
-                        );
-                        if (!ok) {
-                          // The sale is still there, so its question stays answerable; focus
-                          // returns to the answer the farmer pressed.
-                          setPendingFocus('yes');
-                          return;
-                        }
-                        setConfirmId(null);
-                        // The row the farmer pressed in is gone; the result message is not.
-                        setPendingFocus('status');
-                      })();
-                    }}
-                  />
-                ),
-              )}
-            </ul>
+            {/* The SAME table the popup shows, with one column more (the crop, because this
+                book holds every crop) and no "+" (a sale is recorded on its crop). Two
+                presentations of one book would drift the day either gained a field. */}
+            <SalesTable
+              sales={items}
+              lang={lang}
+              todayYmd={todayYmd}
+              showCrop
+              // On this page the sale's OWN market is the one context we have: the page does
+              // not know which markets the farmer watches this crop at, and guessing would put
+              // a market in front of them that means nothing here.
+              watchedMarketsFor={(sale) =>
+                sale?.marketId
+                  ? [{ marketId: sale.marketId, name: sale.marketName ?? sale.marketId }]
+                  : []
+              }
+              allMarkets={markets}
+              busy={busy}
+              idPrefix="log"
+              caption={t('pages.sales.tableCaption')}
+              onUpdate={onUpdate}
+              onDelete={onDelete}
+              onEditorOpen={() => setMsg(null)}
+              fallbackFocusRef={statusRef}
+            />
 
             <TablePagination
               page={page}

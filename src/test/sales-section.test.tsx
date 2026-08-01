@@ -1,10 +1,10 @@
-// Recording a sale — the section inside the "More details" popup.
+// Recording a sale — the section inside the "More details" popup, now a table with row editing.
 //
 // Most tests render SalesSection directly: what is under test is its own state machine (which
-// editor is open, what has been written, where focus went), and the card around it would only
-// add noise to the call counts. ONE test goes the whole way through WatchlistCard, because
-// "the section is really mounted in the popup" and "Escape does not escape past the confirm"
-// are facts about the two of them together.
+// row is being edited, what has been written, where focus went), and the card around it would
+// only add noise to the call counts. ONE group goes the whole way through WatchlistCard,
+// because "the section is really mounted in the popup" and "Escape does not escape past the
+// row or the confirm" are facts about the two of them together.
 //
 // Dates are asserted through formatDate, never as hardcoded locale strings: under Node's ICU
 // en-LK renders "Jul 20, 2026" where a phone renders "20 Jul 2026", and a test that pins one
@@ -121,10 +121,16 @@ function renderSection(item = tomato(), busy = false) {
   );
 }
 
-/** Open the record form and fill it in. */
-async function openForm() {
+/** Press "+" — which inserts an empty editable row at the top of the table — and hand back
+ *  that row's Save. */
+async function openInsertRow() {
   fireEvent.click(await screen.findByRole('button', { name: 'Record a sale of Tomato' }));
   return screen.getByRole('button', { name: 'Save this sale of Tomato' });
+}
+
+/** The <tr>s of the sales table, header row first. */
+function rows() {
+  return within(screen.getByRole('table')).getAllByRole('row');
 }
 
 beforeEach(async () => {
@@ -150,22 +156,28 @@ describe('the sales section — what it shows', () => {
       await screen.findByText('You have not recorded a sale for this crop yet.'),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Rs\./)).toBeNull();
+    // No empty table under the sentence: a header row with nothing beneath it is a promise of
+    // rows that do not exist.
+    expect(screen.queryByRole('table')).toBeNull();
   });
 
-  it('prints a recorded sale exactly as it was written down', async () => {
+  it('prints a recorded sale exactly as it was written down, one fact per column', async () => {
     vi.spyOn(api, 'getSales').mockResolvedValue(
       page([sale({ pricePerKg: 215.5, quantityKg: 60, note: 'same buyer as last time' })]),
     );
     renderSection();
 
-    expect(
-      await screen.findByText('Sold on ' + formatDate('2026-07-20', 'en')),
-    ).toBeInTheDocument();
+    const table = await screen.findByRole('table');
+    // The table names itself; the popup can hold more than one region of numbers.
+    expect(within(table).getByText('Your recorded sales, newest first')).toBeInTheDocument();
+
+    const cells = within(rows()[1]).getAllByRole('cell');
+    expect(cells[0]).toHaveTextContent(formatDate('2026-07-20', 'en'));
     // 215.50, NOT "Rs. 216": rounding the farmer's own figure misstates what they told us.
-    expect(screen.getByText(/Rs\. 215\.50/)).toBeInTheDocument();
-    expect(screen.getByText(/60 kg/)).toBeInTheDocument();
-    expect(screen.getByText(/Dambulla Dedicated Economic Centre/)).toBeInTheDocument();
-    expect(screen.getByText('same buyer as last time')).toBeInTheDocument();
+    expect(cells[1]).toHaveTextContent('Rs. 215.50');
+    expect(cells[2]).toHaveTextContent('60 kg');
+    expect(cells[3]).toHaveTextContent('Dambulla Dedicated Economic Centre');
+    expect(cells[4]).toHaveTextContent('same buyer as last time');
   });
 
   it('calls "no market" what it is — an answer, not missing data', async () => {
@@ -192,9 +204,107 @@ describe('the sales section — what it shows', () => {
     // The count claim is about THIS crop and is only made once the list has really loaded.
     expect(link).toHaveTextContent('See all sales (9 for this crop)');
   });
+
+  it('is set apart from the rest of the popup: a separator, then its own surface', async () => {
+    // The owner's two asks, and they are structural rather than decorative — this is the only
+    // part of the sheet the farmer WRITES in, and it says so before a word is read.
+    const { container } = renderSection();
+    await screen.findByText('You have not recorded a sale for this crop yet.');
+
+    const section = screen.getByRole('region', { name: 'Sales you have recorded' });
+    expect(section).toHaveClass('pf-sales'); // the class that carries the tinted surface
+    const sep = container.querySelector('hr.pf-sales__sep');
+    expect(sep).not.toBeNull();
+    // The divider comes BEFORE the heading it separates, not after it.
+    expect(sep?.compareDocumentPosition(screen.getByRole('heading', { name: 'Sales you have recorded' })))
+      .toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
 });
 
-describe('recording a sale', () => {
+describe('the sales table — the shape a phone can read', () => {
+  it('is a real table: column headers with scope, and every cell labelled for stacking', async () => {
+    // Under 600px the CSS turns each row into a labelled card using data-label. That is the
+    // ONLY thing standing between a 360px phone and a six-column horizontal scroll, and it is
+    // markup, so it is testable here even though the media query is not.
+    vi.spyOn(api, 'getSales').mockResolvedValue(page([sale({ note: 'a note' })]));
+    renderSection();
+
+    const table = await screen.findByRole('table');
+    expect(table).toHaveClass('pf-table'); // the class the <600px stacking rules hang off
+    const heads = within(table).getAllByRole('columnheader');
+    expect(heads.map((h) => h.textContent)).toEqual([
+      'Day sold',
+      'Price (Rs./kg)',
+      'Amount (kg)',
+      'Market',
+      'Note',
+      'Actions',
+    ]);
+    for (const h of heads) expect(h).toHaveAttribute('scope', 'col');
+
+    // Each data cell carries its own column's heading, so a stacked cell still says what it is.
+    const cells = within(rows()[1]).getAllByRole('cell');
+    expect(cells.map((c) => c.getAttribute('data-label'))).toEqual(
+      heads.map((h) => h.textContent),
+    );
+  });
+
+  it('gives the editing row the same labels — the cells are still their columns', async () => {
+    renderSection();
+    await openInsertRow();
+    const editRow = rows()[1];
+    expect(within(editRow).getAllByRole('cell').map((c) => c.getAttribute('data-label'))).toEqual([
+      'Day sold',
+      'Price (Rs./kg)',
+      'Amount (kg)',
+      'Market',
+      'Note',
+      'Actions',
+    ]);
+    // Every input is named by its own column heading — the visible heading IS its label.
+    for (const label of ['Day sold', 'Price (Rs./kg)', 'Amount (kg)', 'Market', 'Note']) {
+      expect(within(editRow).getByLabelText(label)).toBeInTheDocument();
+    }
+  });
+
+  it('spans the whole table for anything a cell cannot hold, and prints no empty label', async () => {
+    renderSection();
+    await openInsertRow();
+    const msgRow = rows()[2];
+    const wide = within(msgRow).getAllByRole('cell');
+    expect(wide).toHaveLength(1);
+    expect(wide[0]).toHaveAttribute('colspan', '6');
+    // An empty data-label would print a blank heading above the sentence once stacked.
+    expect(wide[0]).toHaveAttribute('data-label', '');
+    // The sentences stack on a DIV INSIDE the cell, never on the cell. A <td> whose display is
+    // not table-cell is torn out of its row into an anonymous cell and its colSpan is DISCARDED
+    // with it — the block would collapse into column one and drag the Day-sold column out of
+    // shape. jsdom computes no layout, so this markup is the only place that bug is catchable
+    // here: the flex lives on .pf-stbl__msgbox and the cell stays a cell.
+    expect(wide[0].firstElementChild).toHaveClass('pf-stbl__msgbox');
+    expect(wide[0]).not.toHaveClass('pf-stbl__msgbox');
+  });
+});
+
+describe('recording a sale — the "+" row', () => {
+  it('inserts an EMPTY row at the TOP of the table and puts the cursor in it', async () => {
+    vi.spyOn(api, 'getSales').mockResolvedValue(page([sale()]));
+    renderSection();
+    fireEvent.click(await screen.findByRole('button', { name: 'Record a sale of Tomato' }));
+
+    // Row 0 is the header; the new row is the FIRST body row, above the sale already recorded.
+    const first = rows()[1];
+    const date = within(first).getByLabelText('Day sold') as HTMLInputElement;
+    expect((within(first).getByLabelText('Price (Rs./kg)') as HTMLInputElement).value).toBe('');
+    expect((within(first).getByLabelText('Amount (kg)') as HTMLInputElement).value).toBe('');
+    // The one thing assumed: a farmer recording a sale has usually just made it.
+    expect(date.value).toBe(TODAY);
+    // The "+" they pressed is still on screen but no longer the place to be.
+    await waitFor(() => expect(date).toHaveFocus());
+    // ...and the recorded row is still there, below.
+    expect(within(rows()[3]).getByText(formatDate('2026-07-20', 'en'))).toBeInTheDocument();
+  });
+
   it('sends what the farmer typed, refreshes the list and says so', async () => {
     const getSales = vi
       .spyOn(api, 'getSales')
@@ -203,14 +313,10 @@ describe('recording a sale', () => {
     const record = vi.spyOn(api, 'recordSale').mockResolvedValue(sale());
     renderSection();
 
-    const save = await openForm();
-    fireEvent.change(screen.getByLabelText('Day you sold'), { target: { value: '2026-07-20' } });
-    fireEvent.change(screen.getByLabelText('Price you got (Rs. per kg)'), {
-      target: { value: '215.50' },
-    });
-    fireEvent.change(screen.getByLabelText('How much you sold in kg (optional)'), {
-      target: { value: '60' },
-    });
+    const save = await openInsertRow();
+    fireEvent.change(screen.getByLabelText('Day sold'), { target: { value: '2026-07-20' } });
+    fireEvent.change(screen.getByLabelText('Price (Rs./kg)'), { target: { value: '215.50' } });
+    fireEvent.change(screen.getByLabelText('Amount (kg)'), { target: { value: '60' } });
     fireEvent.click(save);
 
     await waitFor(() =>
@@ -225,17 +331,17 @@ describe('recording a sale', () => {
     );
     await screen.findByText('Sale saved.');
     expect(getSales).toHaveBeenCalledTimes(2); // the list is re-read, never patched locally
+    // The row closes once it has really landed.
+    expect(screen.queryByLabelText('Price (Rs./kg)')).toBeNull();
   });
 
   it('sends NO market when the farmer says they did not sell at one', async () => {
     const record = vi.spyOn(api, 'recordSale').mockResolvedValue(sale());
     renderSection();
 
-    const save = await openForm();
-    fireEvent.change(screen.getByLabelText('Where you sold (optional)'), { target: { value: '' } });
-    fireEvent.change(screen.getByLabelText('Price you got (Rs. per kg)'), {
-      target: { value: '200' },
-    });
+    const save = await openInsertRow();
+    fireEvent.change(screen.getByLabelText('Market'), { target: { value: '' } });
+    fireEvent.change(screen.getByLabelText('Price (Rs./kg)'), { target: { value: '200' } });
     fireEvent.click(save);
 
     await waitFor(() => expect(record).toHaveBeenCalledWith(expect.objectContaining({ marketId: null })));
@@ -243,8 +349,8 @@ describe('recording a sale', () => {
 
   it('offers the crop’s own markets first and the rest under their own heading', async () => {
     renderSection();
-    await openForm();
-    const select = screen.getByLabelText('Where you sold (optional)') as HTMLSelectElement;
+    await openInsertRow();
+    const select = screen.getByLabelText('Market') as HTMLSelectElement;
     const groups = within(select).getAllByRole('group');
     expect(groups.map((g) => g.getAttribute('label'))).toEqual([
       'Markets you watch',
@@ -257,11 +363,27 @@ describe('recording a sale', () => {
     expect(select.options[0].textContent).toBe('No market');
   });
 
-  it('will not save until the answers are ones the server accepts', async () => {
+  it('cancels the insert without a request, and gives the "+" its focus back', async () => {
+    const record = vi.spyOn(api, 'recordSale');
     renderSection();
-    const save = await openForm();
-    const price = screen.getByLabelText('Price you got (Rs. per kg)');
-    const date = screen.getByLabelText('Day you sold');
+    await openInsertRow();
+    fireEvent.change(screen.getByLabelText('Price (Rs./kg)'), { target: { value: '215' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(record).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText('Price (Rs./kg)')).toBeNull();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Record a sale of Tomato' })).toHaveFocus(),
+    );
+  });
+
+  it('will not save until the answers are ones the server accepts', async () => {
+    // The gate is the named rule canSubmitSale, read by BOTH this button's `disabled` and its
+    // handler — the attribute is a courtesy, the rule is the guarantee.
+    renderSection();
+    const save = await openInsertRow();
+    const price = screen.getByLabelText('Price (Rs./kg)');
+    const date = screen.getByLabelText('Day sold');
 
     // No price yet: nothing to save.
     expect(save).toBeDisabled();
@@ -273,7 +395,7 @@ describe('recording a sale', () => {
     fireEvent.change(price, { target: { value: '100000' } });
     expect(save).toBeEnabled();
 
-    // A day that has not come yet is not a sale, and the field says why.
+    // A day that has not come yet is not a sale, and the row says why.
     fireEvent.change(date, { target: { value: '2026-07-29' } });
     expect(save).toBeDisabled();
     expect(
@@ -283,23 +405,21 @@ describe('recording a sale', () => {
     expect(save).toBeEnabled();
 
     // A typed-but-unreadable quantity blocks the save rather than being dropped.
-    fireEvent.change(screen.getByLabelText('How much you sold in kg (optional)'), {
-      target: { value: 'a lot' },
-    });
+    fireEvent.change(screen.getByLabelText('Amount (kg)'), { target: { value: 'a lot' } });
     expect(save).toBeDisabled();
-    fireEvent.change(screen.getByLabelText('How much you sold in kg (optional)'), {
-      target: { value: '' },
-    });
+    fireEvent.change(screen.getByLabelText('Amount (kg)'), { target: { value: '' } });
     expect(save).toBeEnabled();
   });
 
-  it('says WHY a number cannot be used, beside the field, and wires it to the input', async () => {
-    // A disabled Save with no explanation is a dead end for a farmer who is not sure what
-    // went wrong. "1,5" is the interesting case: it is refused precisely because it could
-    // mean 15 or 1.5, so the form must say what a number looks like instead of guessing.
+  it('says WHY a number cannot be used in the row BELOW, wired to the field it is about', async () => {
+    // A disabled Save with no explanation is a dead end for a farmer who is not sure what went
+    // wrong. A cell is far too narrow for the sentence, so it moves to a full-width row
+    // directly under the one being typed in — and stays the FIELD'S sentence via
+    // aria-describedby, which is what makes it reachable at all for a screen reader.
+    // "1,5" is the interesting case: refused precisely because it could mean 15 or 1.5.
     renderSection();
-    const save = await openForm();
-    const price = screen.getByLabelText('Price you got (Rs. per kg)');
+    const save = await openInsertRow();
+    const price = screen.getByLabelText('Price (Rs./kg)');
 
     fireEvent.change(price, { target: { value: '1,5' } });
     expect(save).toBeDisabled();
@@ -308,6 +428,10 @@ describe('recording a sale', () => {
     );
     expect(price).toHaveAttribute('aria-invalid', 'true');
     expect(price).toHaveAttribute('aria-describedby', err.id);
+    // The sentence really is in the spanning row under the editing one, not squeezed into a
+    // cell beside the input.
+    expect(err.closest('tr')).toBe(rows()[2]);
+    expect(err.closest('tr')).not.toBe(price.closest('tr'));
 
     // A good number clears both the sentence and the flag.
     fireEvent.change(price, { target: { value: '1,250' } });
@@ -315,8 +439,8 @@ describe('recording a sale', () => {
     expect(price).not.toHaveAttribute('aria-describedby');
     expect(save).toBeEnabled();
 
-    // The quantity says the same thing for the same reason.
-    const qty = screen.getByLabelText('How much you sold in kg (optional)');
+    // The quantity says the same thing for the same reason, in its own sentence.
+    const qty = screen.getByLabelText('Amount (kg)');
     fireEvent.change(qty, { target: { value: 'a lot' } });
     expect(qty).toHaveAttribute('aria-invalid', 'true');
     expect(qty).toHaveAttribute('aria-describedby', screen.getAllByText(/like 250 or 250\.50/)[0].id);
@@ -324,8 +448,8 @@ describe('recording a sale', () => {
 
   it('will not offer a day that has not happened — the field says so itself', async () => {
     renderSection();
-    await openForm();
-    const date = screen.getByLabelText('Day you sold') as HTMLInputElement;
+    await openInsertRow();
+    const date = screen.getByLabelText('Day sold') as HTMLInputElement;
     // The browser's own picker refuses the future before the gate ever has to.
     expect(date).toHaveAttribute('max', TODAY);
     // ...and no floor is invented: the wire states none, so the field refuses nothing the
@@ -335,14 +459,12 @@ describe('recording a sale', () => {
 
   it('refuses an over-long note by COUNT, never by truncating the paste', async () => {
     renderSection();
-    const save = await openForm();
-    const note = screen.getByLabelText('Anything to add? (optional)') as HTMLTextAreaElement;
+    const save = await openInsertRow();
+    const note = screen.getByLabelText('Note') as HTMLTextAreaElement;
     // A browser enforces maxLength by cutting a paste; the contract rejects instead.
     expect(note).not.toHaveAttribute('maxlength');
 
-    fireEvent.change(screen.getByLabelText('Price you got (Rs. per kg)'), {
-      target: { value: '200' },
-    });
+    fireEvent.change(screen.getByLabelText('Price (Rs./kg)'), { target: { value: '200' } });
     // 506 raw / 500 trimmed is INSIDE the limit — the two must really disagree here.
     fireEvent.change(note, { target: { value: `   ${'x'.repeat(500)}   ` } });
     expect(note.value).toHaveLength(506);
@@ -355,33 +477,54 @@ describe('recording a sale', () => {
     ).toBeInTheDocument();
   });
 
-  it('keeps the farmer’s numbers on the screen when the server refuses them', async () => {
+  it('wires the note to its hint, and to its refusal once it is too long', async () => {
+    // The note is the one field whose description is TWO ids: the standing hint (the limit)
+    // and, when it is breached, the sentence saying by how much. Losing the hint id when the
+    // error appears would take the limit off the screen at the exact moment it matters.
+    renderSection();
+    await openInsertRow();
+    const note = screen.getByLabelText('Note') as HTMLTextAreaElement;
+    const hint = screen.getByText('You can write up to 500 characters, or leave this empty.');
+    expect(note).toHaveAttribute('aria-describedby', hint.id);
+    expect(note).not.toHaveAttribute('aria-invalid');
+
+    fireEvent.change(note, { target: { value: 'x'.repeat(501) } });
+    const err = screen.getByText(
+      'That note is too long: 501 characters. Please shorten it to 500 or fewer.',
+    );
+    expect(note).toHaveAttribute('aria-invalid', 'true');
+    expect(note.getAttribute('aria-describedby')?.split(' ')).toEqual([hint.id, err.id]);
+  });
+
+  it('says which answers are optional, since a column heading cannot', async () => {
+    renderSection();
+    await openInsertRow();
+    expect(
+      screen.getByText('Only the day and the price are needed. You can leave the rest empty.'),
+    ).toBeInTheDocument();
+  });
+
+  it('keeps the farmer’s numbers in the row when the server refuses them', async () => {
     vi.spyOn(api, 'recordSale').mockRejectedValue(new ApiError('HTTP 400', 400, 'sale_date_future'));
     renderSection();
 
-    const save = await openForm();
-    fireEvent.change(screen.getByLabelText('Price you got (Rs. per kg)'), {
-      target: { value: '215' },
-    });
+    const save = await openInsertRow();
+    fireEvent.change(screen.getByLabelText('Price (Rs./kg)'), { target: { value: '215' } });
     fireEvent.click(save);
 
     // The server's own refusal, in the farmer's words — not "something went wrong".
     await screen.findByText(
       'That day has not come yet. A sale is something that has already happened.',
     );
-    expect((screen.getByLabelText('Price you got (Rs. per kg)') as HTMLInputElement).value).toBe(
-      '215',
-    );
+    expect((screen.getByLabelText('Price (Rs./kg)') as HTMLInputElement).value).toBe('215');
   });
 
-  it('sends focus back to the control that opened the form once the sale is saved', async () => {
+  it('sends focus back to the "+" once the sale is saved', async () => {
     vi.spyOn(api, 'recordSale').mockResolvedValue(sale());
     renderSection();
 
-    const save = await openForm();
-    fireEvent.change(screen.getByLabelText('Price you got (Rs. per kg)'), {
-      target: { value: '215' },
-    });
+    const save = await openInsertRow();
+    fireEvent.change(screen.getByLabelText('Price (Rs./kg)'), { target: { value: '215' } });
     fireEvent.click(save);
 
     await screen.findByText('Sale saved.');
@@ -394,10 +537,50 @@ describe('recording a sale', () => {
     renderSection(tomato(), true);
     expect(await screen.findByRole('button', { name: 'Record a sale of Tomato' })).toBeDisabled();
   });
+
+  it('takes the previous result off the screen the moment a new action starts', async () => {
+    // "Sale saved." is an answer about something the farmer has FINISHED. Left standing over a
+    // row they have just opened, it reads as the outcome of what they are doing NOW — and the
+    // next thing they see may be a refusal sitting under a tick. All three openings clear it,
+    // and each arm is re-armed with a fresh result first: once the strip is empty, an
+    // assertion that it is empty proves nothing.
+    vi.spyOn(api, 'getSales')
+      .mockResolvedValueOnce(page([]))
+      .mockResolvedValue(page([sale()]));
+    vi.spyOn(api, 'recordSale').mockResolvedValue(sale());
+    vi.spyOn(api, 'updateSale').mockResolvedValue(sale());
+    renderSection();
+    const when = formatDate('2026-07-20', 'en');
+
+    // ARM 1 — the "+". Armed by recording a sale.
+    const save = await openInsertRow();
+    fireEvent.change(screen.getByLabelText('Price (Rs./kg)'), { target: { value: '215' } });
+    fireEvent.click(save);
+    await screen.findByText('Sale saved.');
+    fireEvent.click(screen.getByRole('button', { name: 'Record a sale of Tomato' }));
+    expect(screen.queryByText('Sale saved.')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    // ARM 2 — Change. Re-armed by saving an edit.
+    const reArm = async () => {
+      fireEvent.click(screen.getByRole('button', { name: `Change the sale of Tomato on ${when}` }));
+      fireEvent.click(screen.getByRole('button', { name: 'Save changes to this sale of Tomato' }));
+      await screen.findByText('Sale updated.');
+    };
+    await reArm();
+    fireEvent.click(screen.getByRole('button', { name: `Change the sale of Tomato on ${when}` }));
+    expect(screen.queryByText('Sale updated.')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    // ARM 3 — Remove. Re-armed the same way.
+    await reArm();
+    fireEvent.click(screen.getByRole('button', { name: `Remove the sale of Tomato on ${when}` }));
+    expect(screen.queryByText('Sale updated.')).toBeNull();
+  });
 });
 
 describe('changing and removing a recorded sale', () => {
-  it('opens the SAME form, filled in with what was stored, and PUTs the whole record', async () => {
+  it('turns the row itself into the same cells, filled in, and PUTs the whole record', async () => {
     vi.spyOn(api, 'getSales').mockResolvedValue(page([sale({ note: 'first buyer' })]));
     const update = vi.spyOn(api, 'updateSale').mockResolvedValue(sale());
     renderSection();
@@ -408,19 +591,15 @@ describe('changing and removing a recorded sale', () => {
       }),
     );
 
-    expect((screen.getByLabelText('Day you sold') as HTMLInputElement).value).toBe('2026-07-20');
-    expect((screen.getByLabelText('Price you got (Rs. per kg)') as HTMLInputElement).value).toBe(
-      '215',
-    );
-    expect((screen.getByLabelText('Anything to add? (optional)') as HTMLTextAreaElement).value).toBe(
-      'first buyer',
-    );
+    // Edited IN PLACE: the record's own row became the fields, in the same columns.
+    const editRow = rows()[1];
+    expect((within(editRow).getByLabelText('Day sold') as HTMLInputElement).value).toBe('2026-07-20');
+    expect((within(editRow).getByLabelText('Price (Rs./kg)') as HTMLInputElement).value).toBe('215');
+    expect((within(editRow).getByLabelText('Note') as HTMLTextAreaElement).value).toBe('first buyer');
 
     // Empty the quantity: on a full-replace route that CLEARS it, and the client says so by
-    // leaving the key out.
-    fireEvent.change(screen.getByLabelText('How much you sold in kg (optional)'), {
-      target: { value: '' },
-    });
+    // sending null.
+    fireEvent.change(within(editRow).getByLabelText('Amount (kg)'), { target: { value: '' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save changes to this sale of Tomato' }));
 
     await waitFor(() =>
@@ -435,6 +614,56 @@ describe('changing and removing a recorded sale', () => {
     await screen.findByText('Sale updated.');
   });
 
+  it('gives the row’s own Change button the focus back after it is saved', async () => {
+    // The cells the farmer was typing in have just become a row again: focus belongs on the
+    // control that opened them, not on <body> and not at the top of the popup.
+    vi.spyOn(api, 'getSales').mockResolvedValue(page([sale()]));
+    vi.spyOn(api, 'updateSale').mockResolvedValue(sale());
+    renderSection();
+
+    const change = `Change the sale of Tomato on ${formatDate('2026-07-20', 'en')}`;
+    fireEvent.click(await screen.findByRole('button', { name: change }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes to this sale of Tomato' }));
+
+    await screen.findByText('Sale updated.');
+    await waitFor(() => expect(screen.getByRole('button', { name: change })).toHaveFocus());
+  });
+
+  it('cancels an edit in place, leaving the record alone', async () => {
+    vi.spyOn(api, 'getSales').mockResolvedValue(page([sale()]));
+    const update = vi.spyOn(api, 'updateSale');
+    renderSection();
+
+    const change = `Change the sale of Tomato on ${formatDate('2026-07-20', 'en')}`;
+    fireEvent.click(await screen.findByRole('button', { name: change }));
+    fireEvent.change(screen.getByLabelText('Price (Rs./kg)'), { target: { value: '999' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(update).not.toHaveBeenCalled();
+    expect(screen.getByText('Rs. 215')).toBeInTheDocument(); // the row is back, as it was
+    await waitFor(() => expect(screen.getByRole('button', { name: change })).toHaveFocus());
+  });
+
+  it('cancels an editing row on Escape, without letting the key travel', async () => {
+    // Same manners as the remove-question: Escape leaves the row alone, and stopPropagation is
+    // UNCONDITIONAL because on this surface the row sits inside a dialog.
+    vi.spyOn(api, 'getSales').mockResolvedValue(page([sale()]));
+    renderSection();
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: `Change the sale of Tomato on ${formatDate('2026-07-20', 'en')}`,
+      }),
+    );
+    const editRow = rows()[1];
+    let escaped = false;
+    document.addEventListener('keydown', () => (escaped = true));
+
+    fireEvent.keyDown(within(editRow).getByLabelText('Price (Rs./kg)'), { key: 'Escape' });
+    expect(screen.queryByLabelText('Price (Rs./kg)')).toBeNull();
+    expect(escaped).toBe(false);
+  });
+
   it('asks before removing, and removes nothing until the farmer answers', async () => {
     vi.spyOn(api, 'getSales').mockResolvedValue(page([sale()]));
     const del = vi.spyOn(api, 'deleteSale').mockResolvedValue(undefined);
@@ -447,6 +676,8 @@ describe('changing and removing a recorded sale', () => {
 
     const confirm = screen.getByRole('alertdialog');
     expect(confirm).toHaveTextContent(`Remove the sale of Tomato on ${when}?`);
+    // It spans the whole table, under the row it is about — a cell cannot hold a question.
+    expect(confirm.closest('td')).toHaveAttribute('colspan', '6');
     // The confirm's two answers are worded for THIS question — they are never the
     // remove-crop or remove-date pair, which can be on screen at the same time.
     fireEvent.click(within(confirm).getByRole('button', { name: 'No, keep this sale' }));
@@ -459,8 +690,11 @@ describe('changing and removing a recorded sale', () => {
     await screen.findByText('Sale removed.');
   });
 
-  it('says what happened when the sale was already gone, in its own words', async () => {
-    vi.spyOn(api, 'getSales').mockResolvedValue(page([sale()]));
+  it('treats a sale that was ALREADY gone as done: says so, closes, and re-reads', async () => {
+    // Done-and-continue, the shape PortfolioPage.runWrites uses for watchlist_entry_not_found.
+    // What the farmer asked for has happened, so leaving the question open — pressable again,
+    // against a row that no longer exists — would be the app arguing with itself.
+    const getSales = vi.spyOn(api, 'getSales').mockResolvedValue(page([sale()]));
     vi.spyOn(api, 'deleteSale').mockRejectedValue(new ApiError('HTTP 404', 404, 'sale_not_found'));
     renderSection();
 
@@ -469,7 +703,10 @@ describe('changing and removing a recorded sale', () => {
       await screen.findByRole('button', { name: `Remove the sale of Tomato on ${when}` }),
     );
     fireEvent.click(screen.getByRole('button', { name: 'Yes, remove this sale' }));
+
     await screen.findByText('That sale is no longer saved.');
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    await waitFor(() => expect(getSales).toHaveBeenCalledTimes(2));
   });
 
   it('closes a pending remove-question when the farmer starts editing ANOTHER row', async () => {
@@ -499,10 +736,46 @@ describe('changing and removing a recorded sale', () => {
     expect(screen.queryByRole('alertdialog')).toBeNull();
   });
 
-  it('sends focus to the question the moment it replaces the button that opened it', async () => {
-    // The Remove button is UNMOUNTED by the state change that opens the confirm. Without a
-    // deliberate move, focus lands on <body> and a keyboard user is back at the top of the
-    // document, with a destructive question on screen they were never taken to.
+  it('closes a pending remove-question when the farmer presses "+" instead', async () => {
+    // The third arm of the same rule, and the only one reachable with ONE row: the "+" is
+    // outside the table, so it survives the confirm that replaced the row's own buttons.
+    vi.spyOn(api, 'getSales').mockResolvedValue(page([sale()]));
+    renderSection();
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: `Remove the sale of Tomato on ${formatDate('2026-07-20', 'en')}`,
+      }),
+    );
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Record a sale of Tomato' }));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    // ...and the farmer really is in the new row, not left staring at a closed question.
+    expect(screen.getByLabelText('Day sold')).toBeInTheDocument();
+  });
+
+  it('hands focus BACK to Remove when the farmer answers "No"', async () => {
+    // "No" is not a no-op for focus: the actions cell is remounted, so the Remove button that
+    // opened the question is a brand-new element that has never held focus. Without a
+    // deliberate move the keyboard user is dropped on <body> — the same defect the "Yes" path
+    // was fixed for, on the path a cautious farmer is far more likely to take.
+    vi.spyOn(api, 'getSales').mockResolvedValue(page([sale()]));
+    renderSection();
+
+    const remove = `Remove the sale of Tomato on ${formatDate('2026-07-20', 'en')}`;
+    fireEvent.click(await screen.findByRole('button', { name: remove }));
+    fireEvent.click(screen.getByRole('button', { name: 'No, keep this sale' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: remove })).toHaveFocus());
+    expect(document.activeElement).not.toBe(document.body);
+  });
+
+  it('sends focus to the question the moment it replaces the buttons that opened it', async () => {
+    // The Remove button is UNMOUNTED by the state change that opens the confirm (the actions
+    // cell empties). Without a deliberate move, focus lands on <body> and a keyboard user is
+    // back at the top of the document, with a destructive question on screen they were never
+    // taken to.
     vi.spyOn(api, 'getSales').mockResolvedValue(page([sale()]));
     renderSection();
 
@@ -515,6 +788,8 @@ describe('changing and removing a recorded sale', () => {
       expect(screen.getByRole('button', { name: 'Yes, remove this sale' })).toHaveFocus(),
     );
     expect(document.activeElement).not.toBe(document.body);
+    // The row's own controls really are gone while the question stands.
+    expect(screen.queryByRole('button', { name: /^Change the sale/ })).toBeNull();
   });
 
   it('keeps the question standing when the removal is refused, focus back on the answer', async () => {
@@ -562,7 +837,7 @@ describe('changing and removing a recorded sale', () => {
 });
 
 describe('the sales section — accessible names', () => {
-  it('names every new control, and never leaves one called after a glyph', async () => {
+  it('names every control, and never leaves one called after a glyph', async () => {
     vi.spyOn(api, 'getSales').mockResolvedValue(page([sale()]));
     renderSection();
     const when = formatDate('2026-07-20', 'en');
@@ -571,41 +846,33 @@ describe('the sales section — accessible names', () => {
     const region = screen.getByRole('region', { name: 'Sales you have recorded' });
     expect(region).toBeInTheDocument();
 
+    // The "+" is a glyph, so its NAME has to be the whole sentence: nobody can say "plus" to a
+    // voice assistant and nobody can hear it from a screen reader.
+    const add = await screen.findByRole('button', { name: 'Record a sale of Tomato' });
+    expect(add).toHaveTextContent(''); // no visible text at all — the name is doing the work
+
     // Row controls name the sale they act on — a book of twenty rows must not offer twenty
     // identical "Change" buttons.
     expect(
-      await screen.findByRole('button', { name: `Change the sale of Tomato on ${when}` }),
+      screen.getByRole('button', { name: `Change the sale of Tomato on ${when}` }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: `Remove the sale of Tomato on ${when}` }),
     ).toBeInTheDocument();
 
-    // Every field in the form is reachable by its own label, and the save button names its
-    // crop (two of these forms can be on screen at once).
-    fireEvent.click(screen.getByRole('button', { name: 'Record a sale of Tomato' }));
-    for (const label of [
-      'Day you sold',
-      'Price you got (Rs. per kg)',
-      'How much you sold in kg (optional)',
-      'Where you sold (optional)',
-      'Anything to add? (optional)',
-    ]) {
+    // Every cell in the editing row is reachable by its own column heading, and Save names its
+    // sale while still SHOWING the word a voice user would say (WCAG 2.5.3).
+    fireEvent.click(add);
+    for (const label of ['Day sold', 'Price (Rs./kg)', 'Amount (kg)', 'Market', 'Note']) {
       expect(screen.getByLabelText(label)).toBeInTheDocument();
     }
-    expect(screen.getByRole('button', { name: 'Save this sale of Tomato' })).toHaveAccessibleName(
-      'Save this sale of Tomato',
-    );
+    const save = screen.getByRole('button', { name: 'Save this sale of Tomato' });
+    expect(save).toHaveTextContent('Save');
 
     // And nothing anywhere in the section is a nameless control.
     for (const button of within(region).getAllByRole('button')) {
       expect(button).toHaveAccessibleName();
     }
-  });
-
-  it('moves focus into the form when it opens, instead of dropping it on the body', async () => {
-    renderSection();
-    fireEvent.click(await screen.findByRole('button', { name: 'Record a sale of Tomato' }));
-    await waitFor(() => expect(screen.getByLabelText('Day you sold')).toHaveFocus());
   });
 });
 
@@ -675,6 +942,24 @@ describe('inside the "More details" popup', () => {
     await waitFor(() => expect(api.getSales).toHaveBeenCalledWith(1, 3, 'c1'));
   });
 
+  it('does not let Escape inside an editing ROW close the popup around it', async () => {
+    // The row's own Escape cancels the row and stops there. If the key bubbled it would take
+    // the whole popup — and the sale being typed into it — away with it.
+    vi.spyOn(api, 'getSales').mockResolvedValue(page([sale()]));
+    renderCard();
+    fireEvent.click(await screen.findByRole('button', { name: 'More details for Tomato' }));
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: `Change the sale of Tomato on ${formatDate('2026-07-20', 'en')}`,
+      }),
+    );
+    fireEvent.keyDown(screen.getByLabelText('Price (Rs./kg)'), { key: 'Escape' });
+
+    expect(screen.queryByLabelText('Price (Rs./kg)')).toBeNull();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
   it('swallows Escape WHILE the removal is in flight, so the outcome still has a home', async () => {
     // The request cannot be recalled, so Escape has nothing to cancel — but if the key were
     // allowed to bubble it would close the popup, and this write reports only INSIDE this
@@ -710,6 +995,41 @@ describe('inside the "More details" popup', () => {
 
     release();
     await screen.findByText('Sale removed.');
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('swallows Escape WHILE a row is being saved, for the same reason', async () => {
+    // The pattern the remove-question already had, carried over to row editing: a mid-flight
+    // Escape must not close the only surface that can report what happened to the write.
+    vi.spyOn(api, 'getSales').mockResolvedValue(page([sale()]));
+    let release: (s: SaleItem) => void = () => {};
+    vi.spyOn(api, 'updateSale').mockImplementation(
+      () =>
+        new Promise<SaleItem>((res) => {
+          release = res;
+        }),
+    );
+    renderCard();
+    fireEvent.click(await screen.findByRole('button', { name: 'More details for Tomato' }));
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: `Change the sale of Tomato on ${formatDate('2026-07-20', 'en')}`,
+      }),
+    );
+    const price = screen.getByLabelText('Price (Rs./kg)');
+    fireEvent.change(price, { target: { value: '230' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes to this sale of Tomato' }));
+    await waitFor(() => expect(price).toBeDisabled());
+
+    fireEvent.keyDown(price, { key: 'Escape' });
+    // Nothing to cancel, nothing lost: the row is still there with the numbers in it, and so
+    // is the popup that will report the answer.
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByLabelText('Price (Rs./kg)')).toBeInTheDocument();
+
+    release(sale({ pricePerKg: 230 }));
+    await screen.findByText('Sale updated.');
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
