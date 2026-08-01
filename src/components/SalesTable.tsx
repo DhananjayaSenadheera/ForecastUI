@@ -74,7 +74,30 @@ interface ColumnLabels {
   actions: string;
 }
 
-export interface SalesTableProps {
+/**
+ * Recording is an ALL-OR-NOTHING pair, expressed as a union so the halves cannot come apart.
+ * A surface either offers "+" — and then it must say which crop an inserted sale belongs to,
+ * because that name IS the control's accessible name — or it offers no "+" at all. With two
+ * independent optional props, `onInsert` without `insertCropName` type-checks and ships a
+ * button called "Record a sale of " with a trailing space; here that state cannot be written.
+ */
+type SalesTableInsert =
+  | {
+      /** Given ⇒ this surface can RECORD a sale. Resolves true when the sale really landed. */
+      onInsert: (input: SaleWriteInput) => Promise<boolean>;
+      /** The crop an inserted sale belongs to — it names the "+" control. */
+      insertCropName: string;
+    }
+  | {
+      /** The page passes neither: a sale is recorded where its crop is already the subject, so
+       *  it cannot be filed against the wrong one. */
+      onInsert?: undefined;
+      insertCropName?: undefined;
+    };
+
+export type SalesTableProps = SalesTableBaseProps & SalesTableInsert;
+
+interface SalesTableBaseProps {
   sales: SaleItem[];
   lang: string;
   todayYmd: string;
@@ -95,12 +118,6 @@ export interface SalesTableProps {
   /** Shown instead of an empty table when there is nothing recorded and nothing being typed.
    *  Omitted on the page, which has a whole empty state of its own. */
   emptyText?: string;
-  /** Given ⇒ this surface can RECORD a sale, and the "+" appears. The page passes none: a sale
-   *  is recorded where its crop is already the subject, so it cannot be filed against the
-   *  wrong one. Resolves true when the sale really landed. */
-  onInsert?: (input: SaleWriteInput) => Promise<boolean>;
-  /** The crop an inserted sale belongs to — it names the "+" control. Required with onInsert. */
-  insertCropName?: string;
   onUpdate: (saleId: string, input: SaleWriteInput) => Promise<boolean>;
   /** Resolves true when the row is GONE — including the case where it was already gone, which
    *  is done-and-continue rather than a failure. */
@@ -119,24 +136,29 @@ function emptyDraft(todayYmd: string): SaleDraft {
   return { saleDate: todayYmd, price: '', quantity: '', note: '' };
 }
 
-export default function SalesTable({
-  sales,
-  lang,
-  todayYmd,
-  showCrop,
-  watchedMarketsFor,
-  allMarkets,
-  busy,
-  idPrefix,
-  caption,
-  emptyText,
-  onInsert,
-  insertCropName,
-  onUpdate,
-  onDelete,
-  onEditorOpen,
-  fallbackFocusRef,
-}: SalesTableProps) {
+export default function SalesTable(props: SalesTableProps) {
+  const {
+    sales,
+    lang,
+    todayYmd,
+    showCrop,
+    watchedMarketsFor,
+    allMarkets,
+    busy,
+    idPrefix,
+    caption,
+    emptyText,
+    onUpdate,
+    onDelete,
+    onEditorOpen,
+    fallbackFocusRef,
+  } = props;
+  // Narrowed off `props` rather than destructured: destructuring two members of a union breaks
+  // the correlation between them, and it is exactly that correlation ("a + always has a crop
+  // name") this type exists to keep.
+  const insert = props.onInsert
+    ? { record: props.onInsert, cropName: props.insertCropName }
+    : null;
   const { t } = useTranslation();
 
   // Which editor is open: none, the insert row, or one existing sale's id. One at a time,
@@ -146,28 +168,46 @@ export default function SalesTable({
 
   const addBtn = useRef<HTMLButtonElement>(null);
   const yesBtn = useRef<HTMLButtonElement>(null);
-  // The per-row "Change" buttons, so focus can go back to the row that was just saved. A single
-  // ref cannot do it: the destination is one of many rows and is chosen at runtime.
+  // The per-row "Change" and "Remove" buttons, so focus can go back to the row it came from.
+  // A single ref cannot do it: the destination is one of many rows, chosen at runtime.
   const editBtns = useRef(new Map<string, HTMLButtonElement>());
+  const delBtns = useRef(new Map<string, HTMLButtonElement>());
   const [pendingFocus, setPendingFocus] = useState<
-    { kind: 'add' } | { kind: 'yes' } | { kind: 'edit'; saleId: string } | null
+    | { kind: 'add' }
+    | { kind: 'yes' }
+    | { kind: 'edit'; saleId: string }
+    | { kind: 'remove'; saleId: string }
+    | null
   >(null);
 
   /**
-   * Focus goes somewhere deliberate, always, and every destination is a CHAIN.
-   * The control the farmer pressed can unmount under them — the confirm replaces the actions,
-   * a saved row can vanish from a re-read page, and the "+" does not exist on every surface —
-   * so a single ref would be null at that moment and a keyboard user would land on <body>.
+   * Focus goes somewhere deliberate, ALWAYS, and every destination is a CHAIN.
+   * The control the farmer pressed can unmount under them — the confirm replaces the whole
+   * actions cell, a saved row can vanish from a re-read page, and the "+" does not exist on
+   * every surface — so a single ref would be null at that moment and a keyboard user would
+   * land on <body>.
+   *
+   * Answering the remove-question with "No" counts. It does not merely re-show the actions:
+   * React REMOUNTS them, so the Remove button the farmer opened the question from is a
+   * different element that has never held focus, and without this the whole surface silently
+   * drops them on <body> — the exact defect the "Yes" path was fixed for.
    */
   useEffect(() => {
     if (pendingFocus === null) return;
-    const row = pendingFocus.kind === 'edit' ? editBtns.current.get(pendingFocus.saleId) : null;
+    const rowBtn =
+      pendingFocus.kind === 'edit'
+        ? editBtns.current.get(pendingFocus.saleId)
+        : pendingFocus.kind === 'remove'
+          ? // The button they pressed, then its neighbour: a refused delete on a page that
+            // re-read may have taken the whole row away.
+            (delBtns.current.get(pendingFocus.saleId) ?? editBtns.current.get(pendingFocus.saleId))
+          : null;
     const chain: (HTMLElement | null | undefined)[] =
       pendingFocus.kind === 'add'
         ? [addBtn.current, fallbackFocusRef?.current]
         : pendingFocus.kind === 'yes'
           ? [yesBtn.current, addBtn.current, fallbackFocusRef?.current]
-          : [row, addBtn.current, fallbackFocusRef?.current];
+          : [rowBtn, addBtn.current, fallbackFocusRef?.current];
     chain.find((el) => el !== null && el !== undefined)?.focus();
     setPendingFocus(null);
   }, [pendingFocus, fallbackFocusRef]);
@@ -197,7 +237,7 @@ export default function SalesTable({
 
   return (
     <div className="pf-stbl">
-      {onInsert && (
+      {insert && (
         // Above the table, at its end: the row it creates appears immediately below, so the
         // control and its effect are next to each other. It is small BY REQUEST, which is why
         // the glyph is decorative and the accessible name is a whole sentence — "+" is not a
@@ -208,7 +248,7 @@ export default function SalesTable({
             ref={addBtn}
             className="pf-stbl__add"
             disabled={busy || inserting}
-            aria-label={t('pages.sales.recordCtaAria', { crop: insertCropName ?? '' })}
+            aria-label={t('pages.sales.recordCtaAria', { crop: insert.cropName })}
             onClick={() => {
               onEditorOpen?.();
               setConfirmId(null);
@@ -242,14 +282,14 @@ export default function SalesTable({
               </tr>
             </thead>
             <tbody>
-              {inserting && onInsert && (
+              {inserting && insert && (
                 <SaleEditRow
                   key="insert"
                   idPrefix={`${idPrefix}-new`}
                   labels={labels}
                   colCount={colCount}
                   showCrop={showCrop}
-                  cropName={insertCropName ?? ''}
+                  cropName={insert.cropName}
                   initialDraft={emptyDraft(todayYmd)}
                   initialMarketId={watchedMarketsFor(null)[0]?.marketId ?? ''}
                   watchedMarkets={watchedMarketsFor(null)}
@@ -259,7 +299,7 @@ export default function SalesTable({
                   mode="create"
                   onSubmit={(input) => {
                     void (async () => {
-                      const ok = await onInsert(input);
+                      const ok = await insert.record(input);
                       if (!ok) return; // never discard what the farmer typed on a refusal
                       closeEditors();
                       setPendingFocus({ kind: 'add' });
@@ -318,6 +358,10 @@ export default function SalesTable({
                       if (el) editBtns.current.set(sale.id, el);
                       else editBtns.current.delete(sale.id);
                     }}
+                    deleteRef={(el) => {
+                      if (el) delBtns.current.set(sale.id, el);
+                      else delBtns.current.delete(sale.id);
+                    }}
                     onEdit={() => {
                       onEditorOpen?.();
                       setConfirmId(null);
@@ -333,7 +377,14 @@ export default function SalesTable({
                       // top of the document.
                       setPendingFocus({ kind: 'yes' });
                     }}
-                    onCancelDelete={() => setConfirmId(null)}
+                    onCancelDelete={() => {
+                      setConfirmId(null);
+                      // "No" is not a no-op for focus. The actions cell is REMOUNTED by this
+                      // state change, so the Remove button that opened the question is a new
+                      // element that has never held focus — leaving it alone drops a keyboard
+                      // user on <body>, which is the same defect the "Yes" path was fixed for.
+                      setPendingFocus({ kind: 'remove', saleId: sale.id });
+                    }}
                     onConfirmDelete={() => {
                       void (async () => {
                         const gone = await onDelete(sale.id);
@@ -375,6 +426,7 @@ function SaleViewRow({
   confirming,
   yesRef,
   editRef,
+  deleteRef,
   onEdit,
   onAskDelete,
   onCancelDelete,
@@ -389,6 +441,8 @@ function SaleViewRow({
   confirming: boolean;
   yesRef?: React.Ref<HTMLButtonElement>;
   editRef: (el: HTMLButtonElement | null) => void;
+  /** The row's own Remove, so "No" can hand focus back to the control that asked. */
+  deleteRef: (el: HTMLButtonElement | null) => void;
   onEdit: () => void;
   onAskDelete: () => void;
   onCancelDelete: () => void;
@@ -400,7 +454,7 @@ function SaleViewRow({
 
   return (
     <Fragment>
-      <tr className="pf-row pf-stbl__row">
+      <tr className="pf-row">
         <td data-label={labels.date}>{when}</td>
         {showCrop && <td data-label={labels.crop}>{sale.cropName}</td>}
         <td className="pf-stbl__num" data-label={labels.price}>
@@ -435,6 +489,7 @@ function SaleViewRow({
               </button>
               <button
                 type="button"
+                ref={deleteRef}
                 className="pf-plant__link"
                 disabled={busy}
                 onClick={onAskDelete}
@@ -723,39 +778,45 @@ function SaleEditRow({
           what went wrong — but a table cell has no room for a sentence, so the sentence moves
           here and stays wired to its own field with aria-describedby. */}
       <tr className="pf-stbl__wide pf-stbl__msgs">
+        {/* The cell stays a plain table-cell and the stacking happens on the div INSIDE it. A
+            <td> given `display: flex` (or block, or grid) is pulled out of the row into an
+            anonymous cell and its colSpan goes with it — the sentences would land in column one
+            and pull the Day-sold column out of shape on every editing row. */}
         <td colSpan={colCount} data-label="">
-          {/* The column headings cannot carry "(optional)" — they are frozen, short and shared
-              with the read-only rows — so the row says once, in words, which answers it really
-              needs. Without it an empty Market or Amount looks like something the farmer failed
-              to fill in. */}
-          <p className="pf-plant__hint">{t('pages.sales.editRowHint')}</p>
-          <p className="pf-plant__hint" id={noteHintId}>
-            {t('pages.sales.noteHint', { max: SALE_NOTE_MAX })}
-          </p>
-          {dateBad && (
-            <p className="pf-sale__err" id={dateErrId} role="alert">
-              {t('pages.sales.errSaleDateFuture')}
+          <div className="pf-stbl__msgbox">
+            {/* The column headings cannot carry "(optional)" — they are frozen, short and
+                shared with the read-only rows — so the row says once, in words, which answers
+                it really needs. Without it an empty Market or Amount looks like something the
+                farmer failed to fill in. */}
+            <p className="pf-plant__hint">{t('pages.sales.editRowHint')}</p>
+            <p className="pf-plant__hint" id={noteHintId}>
+              {t('pages.sales.noteHint', { max: SALE_NOTE_MAX })}
             </p>
-          )}
-          {priceBad && (
-            <p className="pf-sale__err" id={priceErrId} role="alert">
-              {t('pages.sales.hintAmount', { max: SALE_AMOUNT_MAX })}
-            </p>
-          )}
-          {qtyBad && (
-            <p className="pf-sale__err" id={qtyErrId} role="alert">
-              {t('pages.sales.hintAmount', { max: SALE_AMOUNT_MAX })}
-            </p>
-          )}
-          {noteBad && (
-            // `n`, never `count`: i18next reads `count` as a PLURAL SELECTOR, so the day si/ta
-            // add _one/_other forms for this sentence the selector would silently pick them by
-            // the farmer's character count. The number here is a measurement, not a quantity
-            // of things.
-            <p className="pf-sale__err" id={noteErrId} role="alert">
-              {t('pages.sales.noteTooLong', { n: trimmedNote.length, max: SALE_NOTE_MAX })}
-            </p>
-          )}
+            {dateBad && (
+              <p className="pf-sale__err" id={dateErrId} role="alert">
+                {t('pages.sales.errSaleDateFuture')}
+              </p>
+            )}
+            {priceBad && (
+              <p className="pf-sale__err" id={priceErrId} role="alert">
+                {t('pages.sales.hintAmount', { max: SALE_AMOUNT_MAX })}
+              </p>
+            )}
+            {qtyBad && (
+              <p className="pf-sale__err" id={qtyErrId} role="alert">
+                {t('pages.sales.hintAmount', { max: SALE_AMOUNT_MAX })}
+              </p>
+            )}
+            {noteBad && (
+              // `n`, never `count`: i18next reads `count` as a PLURAL SELECTOR, so the day
+              // si/ta add _one/_other forms for this sentence the selector would silently pick
+              // them by the farmer's character count. The number here is a measurement, not a
+              // quantity of things.
+              <p className="pf-sale__err" id={noteErrId} role="alert">
+                {t('pages.sales.noteTooLong', { n: trimmedNote.length, max: SALE_NOTE_MAX })}
+              </p>
+            )}
+          </div>
         </td>
       </tr>
     </Fragment>

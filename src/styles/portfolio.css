@@ -1950,7 +1950,12 @@ textarea.pf-stbl__input {
 .pf-stbl__wide > td {
   background: var(--surface);
 }
-.pf-stbl__msgs > td {
+/* The stack of sentences lives on an INNER div, never on the <td> itself. A cell whose
+   `display` is not table-cell is torn out of the row and wrapped in an anonymous cell, and its
+   colSpan is DISCARDED with it — the block would collapse into column one and drag the
+   Day-sold column out of shape on every editing row. (Invisible to jsdom, which computes no
+   layout: this rule is the test.) */
+.pf-stbl__msgbox {
   display: flex;
   flex-direction: column;
   gap: var(--sp-1);

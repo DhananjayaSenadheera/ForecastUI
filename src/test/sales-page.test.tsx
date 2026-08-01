@@ -124,6 +124,31 @@ describe('the sales book — reading it', () => {
     );
   });
 
+  it('labels the EDITING row’s cells too — all seven, crop column included', async () => {
+    // This is the only surface with the crop column, so it is the only place the seven-column
+    // editing row exists. A stacked editing row that lost its labels would be five unnamed
+    // boxes on a 360px phone, and the crop cell — text, not a field, because a sale's crop is
+    // immutable — has to keep its heading like every other.
+    renderPage();
+    fireEvent.click(
+      await screen.findByRole('button', { name: `Change the sale of Tomato on ${WHEN}` }),
+    );
+    const table = screen.getByRole('table');
+    const heads = within(table).getAllByRole('columnheader').map((h) => h.textContent);
+    const editRow = within(table).getAllByRole('row')[1];
+    expect(within(editRow).getAllByRole('cell').map((c) => c.getAttribute('data-label'))).toEqual(
+      heads,
+    );
+    // The crop is stated, never offered: it cannot be changed after the fact.
+    expect(within(editRow).getByText('Tomato')).toBeInTheDocument();
+    expect(within(editRow).queryByLabelText('Crop')).toBeNull();
+    // ...and the spanning message row under it carries all seven columns.
+    expect(within(within(table).getAllByRole('row')[2]).getAllByRole('cell')[0]).toHaveAttribute(
+      'colspan',
+      '7',
+    );
+  });
+
   it('shows an empty book as an invitation with the way to act on it', async () => {
     vi.spyOn(api, 'getSales').mockResolvedValue(pageOf([]));
     renderPage();
@@ -343,6 +368,18 @@ describe('the sales book — changing and removing', () => {
 
     await screen.findByText('Sale updated.');
     await waitFor(() => expect(screen.getByRole('button', { name: change })).toHaveFocus());
+  });
+
+  it('hands focus BACK to Remove when the farmer answers "No"', async () => {
+    // The page has no "+" to fall back on, so if the per-row destination were missing this
+    // would land on the status line — or on <body>. It goes to the control that asked.
+    renderPage();
+    const remove = `Remove the sale of Tomato on ${WHEN}`;
+    fireEvent.click(await screen.findByRole('button', { name: remove }));
+    fireEvent.click(screen.getByRole('button', { name: 'No, keep this sale' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: remove })).toHaveFocus());
+    expect(document.activeElement).not.toBe(document.body);
   });
 
   it('sends focus to the question the moment it replaces the button that opened it', async () => {

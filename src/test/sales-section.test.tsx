@@ -276,6 +276,13 @@ describe('the sales table — the shape a phone can read', () => {
     expect(wide[0]).toHaveAttribute('colspan', '6');
     // An empty data-label would print a blank heading above the sentence once stacked.
     expect(wide[0]).toHaveAttribute('data-label', '');
+    // The sentences stack on a DIV INSIDE the cell, never on the cell. A <td> whose display is
+    // not table-cell is torn out of its row into an anonymous cell and its colSpan is DISCARDED
+    // with it — the block would collapse into column one and drag the Day-sold column out of
+    // shape. jsdom computes no layout, so this markup is the only place that bug is catchable
+    // here: the flex lives on .pf-stbl__msgbox and the cell stays a cell.
+    expect(wide[0].firstElementChild).toHaveClass('pf-stbl__msgbox');
+    expect(wide[0]).not.toHaveClass('pf-stbl__msgbox');
   });
 });
 
@@ -470,6 +477,25 @@ describe('recording a sale — the "+" row', () => {
     ).toBeInTheDocument();
   });
 
+  it('wires the note to its hint, and to its refusal once it is too long', async () => {
+    // The note is the one field whose description is TWO ids: the standing hint (the limit)
+    // and, when it is breached, the sentence saying by how much. Losing the hint id when the
+    // error appears would take the limit off the screen at the exact moment it matters.
+    renderSection();
+    await openInsertRow();
+    const note = screen.getByLabelText('Note') as HTMLTextAreaElement;
+    const hint = screen.getByText('You can write up to 500 characters, or leave this empty.');
+    expect(note).toHaveAttribute('aria-describedby', hint.id);
+    expect(note).not.toHaveAttribute('aria-invalid');
+
+    fireEvent.change(note, { target: { value: 'x'.repeat(501) } });
+    const err = screen.getByText(
+      'That note is too long: 501 characters. Please shorten it to 500 or fewer.',
+    );
+    expect(note).toHaveAttribute('aria-invalid', 'true');
+    expect(note.getAttribute('aria-describedby')?.split(' ')).toEqual([hint.id, err.id]);
+  });
+
   it('says which answers are optional, since a column heading cannot', async () => {
     renderSection();
     await openInsertRow();
@@ -510,6 +536,46 @@ describe('recording a sale — the "+" row', () => {
   it('disables the invitation while another write is in flight on the page', async () => {
     renderSection(tomato(), true);
     expect(await screen.findByRole('button', { name: 'Record a sale of Tomato' })).toBeDisabled();
+  });
+
+  it('takes the previous result off the screen the moment a new action starts', async () => {
+    // "Sale saved." is an answer about something the farmer has FINISHED. Left standing over a
+    // row they have just opened, it reads as the outcome of what they are doing NOW — and the
+    // next thing they see may be a refusal sitting under a tick. All three openings clear it,
+    // and each arm is re-armed with a fresh result first: once the strip is empty, an
+    // assertion that it is empty proves nothing.
+    vi.spyOn(api, 'getSales')
+      .mockResolvedValueOnce(page([]))
+      .mockResolvedValue(page([sale()]));
+    vi.spyOn(api, 'recordSale').mockResolvedValue(sale());
+    vi.spyOn(api, 'updateSale').mockResolvedValue(sale());
+    renderSection();
+    const when = formatDate('2026-07-20', 'en');
+
+    // ARM 1 — the "+". Armed by recording a sale.
+    const save = await openInsertRow();
+    fireEvent.change(screen.getByLabelText('Price (Rs./kg)'), { target: { value: '215' } });
+    fireEvent.click(save);
+    await screen.findByText('Sale saved.');
+    fireEvent.click(screen.getByRole('button', { name: 'Record a sale of Tomato' }));
+    expect(screen.queryByText('Sale saved.')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    // ARM 2 — Change. Re-armed by saving an edit.
+    const reArm = async () => {
+      fireEvent.click(screen.getByRole('button', { name: `Change the sale of Tomato on ${when}` }));
+      fireEvent.click(screen.getByRole('button', { name: 'Save changes to this sale of Tomato' }));
+      await screen.findByText('Sale updated.');
+    };
+    await reArm();
+    fireEvent.click(screen.getByRole('button', { name: `Change the sale of Tomato on ${when}` }));
+    expect(screen.queryByText('Sale updated.')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    // ARM 3 — Remove. Re-armed the same way.
+    await reArm();
+    fireEvent.click(screen.getByRole('button', { name: `Remove the sale of Tomato on ${when}` }));
+    expect(screen.queryByText('Sale updated.')).toBeNull();
   });
 });
 
@@ -668,6 +734,41 @@ describe('changing and removing a recorded sale', () => {
     // ...and cancelling that editor does not resurrect it.
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByRole('alertdialog')).toBeNull();
+  });
+
+  it('closes a pending remove-question when the farmer presses "+" instead', async () => {
+    // The third arm of the same rule, and the only one reachable with ONE row: the "+" is
+    // outside the table, so it survives the confirm that replaced the row's own buttons.
+    vi.spyOn(api, 'getSales').mockResolvedValue(page([sale()]));
+    renderSection();
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: `Remove the sale of Tomato on ${formatDate('2026-07-20', 'en')}`,
+      }),
+    );
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Record a sale of Tomato' }));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    // ...and the farmer really is in the new row, not left staring at a closed question.
+    expect(screen.getByLabelText('Day sold')).toBeInTheDocument();
+  });
+
+  it('hands focus BACK to Remove when the farmer answers "No"', async () => {
+    // "No" is not a no-op for focus: the actions cell is remounted, so the Remove button that
+    // opened the question is a brand-new element that has never held focus. Without a
+    // deliberate move the keyboard user is dropped on <body> — the same defect the "Yes" path
+    // was fixed for, on the path a cautious farmer is far more likely to take.
+    vi.spyOn(api, 'getSales').mockResolvedValue(page([sale()]));
+    renderSection();
+
+    const remove = `Remove the sale of Tomato on ${formatDate('2026-07-20', 'en')}`;
+    fireEvent.click(await screen.findByRole('button', { name: remove }));
+    fireEvent.click(screen.getByRole('button', { name: 'No, keep this sale' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: remove })).toHaveFocus());
+    expect(document.activeElement).not.toBe(document.body);
   });
 
   it('sends focus to the question the moment it replaces the buttons that opened it', async () => {
