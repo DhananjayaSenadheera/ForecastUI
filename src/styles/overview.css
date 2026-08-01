@@ -164,36 +164,20 @@
   color: var(--text-2);
   margin: 0 0 var(--sp-3);
 }
-.ov-tablewrap {
-  overflow-x: auto;
-}
+/* The panel, the hairlines, the header row and the numeric alignment are the app-wide table
+   skin (styles/tables.css). This table used --chart-grid for its row separators, which was a
+   lighter line than every other grid in the product drew — it is now the same --line as the
+   rest. What stays here is this table's own density and the one thing that is really true of
+   it: a row is a market price beside a sparkline, so the cells centre on each other. */
 .ov-table {
-  width: 100%;
-  border-collapse: collapse;
   font-size: var(--fs-sm);
 }
-.ov-table th {
-  text-align: left;
-  font-size: var(--fs-xs);
-  color: var(--text-3);
-  font-weight: var(--fw-bold);
-  padding: var(--sp-2) var(--sp-3);
-  border-bottom: 1px solid var(--line);
-}
-.ov-table td {
-  padding: var(--sp-2) var(--sp-3);
-  border-bottom: 1px solid var(--chart-grid);
+.ov-table tbody td,
+.ov-table tbody th {
   vertical-align: middle;
 }
 .ov-table tbody th[scope='row'] {
-  padding: var(--sp-2) var(--sp-3);
-  border-bottom: 1px solid var(--chart-grid);
   font-weight: var(--fw-bold);
-  text-align: left;
-}
-.ov-table__num {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
 }
 .ov-c-market,
 .ov-c-date {

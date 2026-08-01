@@ -5,6 +5,10 @@ import './i18n';
 import './styles/fonts.css';
 import './styles/tokens.css';
 import './styles/base.css';
+// The app-wide table skin. It sits directly after base.css and BEFORE every feature
+// stylesheet on purpose: a family's own file (portfolio.css, admin.css, …) must be able to
+// override the skin's density and structure on a tie, and later-in-the-cascade is how.
+import './styles/tables.css';
 import './styles/shell.css';
 import './styles/navbar.css';
 import './styles/overview.css';

@@ -284,6 +284,53 @@ describe('the sales table — the shape a phone can read', () => {
     expect(wide[0].firstElementChild).toHaveClass('pf-stbl__msgbox');
     expect(wide[0]).not.toHaveClass('pf-stbl__msgbox');
   });
+
+  it('carries the row actions as ICON-ONLY buttons that kept their whole spoken name', async () => {
+    // The app-wide table skin. The actions column is the one the six data columns squeeze
+    // first, so Change/Remove became a pencil and a bin — but the NAME did not move: the
+    // aria-label was already the whole sentence and it overrode the visible word before this,
+    // so a screen reader, a voice command and every test query hear exactly what they did.
+    // The visible word survives as the title, from the SAME i18n key: zero new keys.
+    vi.spyOn(api, 'getSales').mockResolvedValue(page([sale()]));
+    renderSection();
+    const when = formatDate('2026-07-20', 'en');
+
+    const change = await screen.findByRole('button', { name: `Change the sale of Tomato on ${when}` });
+    const remove = screen.getByRole('button', { name: `Remove the sale of Tomato on ${when}` });
+
+    for (const [btn, word] of [[change, 'Change'], [remove, 'Remove']] as const) {
+      expect(btn).toHaveClass('tbl-iconbtn'); // the skin's 44px teal target
+      expect(btn).toHaveAttribute('title', word);
+      // Icon-only: no text node of its own, and the glyph is hidden from the accessibility
+      // tree — an exposed "pencil" would join the button's name and say nothing useful.
+      expect(btn.textContent).toBe('');
+      const svg = btn.querySelector('svg');
+      expect(svg).not.toBeNull();
+      expect(svg).toHaveAttribute('aria-hidden', 'true');
+      // 20px, not the admin console's 14px: this is read at arm's length, in sunlight.
+      expect(svg).toHaveAttribute('width', '20');
+    }
+  });
+
+  it('keeps Save, Cancel and both answers to the remove-question as WORDS', async () => {
+    // Farmer clarity outranks tidiness here. A pencil is a safe guess; a glyph that means
+    // "yes, destroy this record" is not, and neither is one that means "keep what I typed".
+    vi.spyOn(api, 'getSales').mockResolvedValue(page([sale()]));
+    renderSection();
+    const when = formatDate('2026-07-20', 'en');
+
+    await openInsertRow();
+    expect(screen.getByRole('button', { name: 'Save this sale of Tomato' })).toHaveTextContent('Save');
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveTextContent('Cancel');
+
+    fireEvent.click(screen.getByRole('button', { name: `Remove the sale of Tomato on ${when}` }));
+    expect(screen.getByRole('button', { name: 'Yes, remove this sale' })).toHaveTextContent(
+      'Yes, remove this sale',
+    );
+    expect(screen.getByRole('button', { name: 'No, keep this sale' })).toHaveTextContent(
+      'No, keep this sale',
+    );
+  });
 });
 
 describe('recording a sale — the "+" row', () => {

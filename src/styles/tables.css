@@ -1,0 +1,284 @@
+/* =============================================================================
+   AgriForecast — THE table skin. One file, every grid in the product.
+   -----------------------------------------------------------------------------
+   The owner asked for one look, the DevExpress DataGrid ("Fluent") demo grid,
+   everywhere: farmer watchlist, sales book, and the whole admin console. Before
+   this file each family had grown its own answer to the same five questions —
+   .pf-table uppercased muted headers, .adm-table and .ing-table drew a 2px
+   --line-strong rule under theirs, .ov-table used --chart-grid for its row
+   separators, .bc-table repeated the 2px rule again — so "the tables" was five
+   near-identical blocks that drifted every time one of them was touched.
+
+   The rule now: EVERY visual decision about a table lives here. The per-family
+   stylesheets keep only what is genuinely theirs — breakpoints, the stacked-card
+   modes, column widths, semantic row tints, density. If you find yourself typing
+   a border, a header weight or a hover colour into portfolio.css / admin.css /
+   overview.css / bestcrops.css, it belongs in this file instead. There is a
+   tripwire (src/test/table-skin.test.ts) that fails the build when it does not.
+
+   The look, translated into house tokens (light theme only, teal is the only
+   brand hue — the demo's indigo icons are teal here):
+     · a white --surface panel with a 1px --line border and --r-md corners; the
+       panel owns the horizontal scroll, so a wide grid never widens the page
+     · a WHITE header row in dark --text, bold, SENTENCE CASE, closed by a single
+       hairline. No uppercase, no letter-spacing: text-transform is banned
+       app-wide (tokens.css §5) because Sinhala and Tamil have no case and
+       letter-spacing only loosens scripts that read worse spaced out
+     · horizontal hairlines between rows and NOTHING else — no vertical rules, no
+       zebra stripes. The last row draws none: the panel's own border closes the
+       box, and a line 1px above it is a double rule
+     · hover washes the row --surface-3 wherever the row is something you act on
+     · numbers stay right-aligned with tabular figures, so a column of prices
+       lines up digit under digit
+
+   WHY GROUPED SELECTORS rather than one shared class in the markup: the tables
+   are already named (.pf-table, .adm-table, .ing-table, .ov-table, .bc-table)
+   and every one of them is queried by those names in the test suite. Grouping
+   re-skinned all five without editing a single page, which is also why this
+   file can be reverted in one commit if the owner changes their mind.
+
+   CASCADE: this file is imported from main.tsx, i.e. in the eager bundle, and
+   the family stylesheets load after it (portfolio.css / admin.css ride their
+   lazy chunks). So a family override of equal specificity wins — which is what
+   the density overrides below rely on. Where a family override MUST win it is
+   written with a class more than the skin's rule, never with !important.
+   ========================================================================= */
+
+/* -----------------------------------------------------------------------------
+   1 · The panel a grid sits on.
+   The wrapper, not the table, owns the border and the scroll: a <table> cannot
+   scroll itself, and border-collapse eats a border drawn on the table anyway.
+----------------------------------------------------------------------------- */
+.pf-tablewrap,
+.adm-tablewrap,
+.ov-tablewrap,
+.bc-tablewrap {
+  width: 100%;
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+/* Where a page puts its pager INSIDE the panel, the pager is the grid's footer:
+   it lines up with the cells above it and keeps the top rule it already draws. */
+.pf-tablewrap > .tpg,
+.adm-tablewrap > .tpg,
+.ov-tablewrap > .tpg,
+.bc-tablewrap > .tpg {
+  margin-top: 0;
+  padding: var(--sp-3) var(--sp-4);
+}
+
+/* -----------------------------------------------------------------------------
+   2 · The grid itself.
+----------------------------------------------------------------------------- */
+.pf-table,
+.adm-table,
+.ing-table,
+.ov-table,
+.bc-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  background: var(--surface);
+}
+
+/* -----------------------------------------------------------------------------
+   3 · Cells. Horizontal hairlines ONLY — the vertical rules and the zebra
+   stripes a spreadsheet uses are noise here: the columns are already separated
+   by the space between them, and a farmer reading in sunlight needs contrast
+   spent on the numbers, not on the grid.
+----------------------------------------------------------------------------- */
+.pf-table th,
+.pf-table td,
+.adm-table th,
+.adm-table td,
+.ing-table th,
+.ing-table td,
+.ov-table th,
+.ov-table td,
+.bc-table th,
+.bc-table td {
+  padding: var(--sp-3) var(--sp-4);
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+}
+
+/* -----------------------------------------------------------------------------
+   4 · The header row: white, dark, bold, sentence case, one hairline under it.
+   `font-size: inherit` keeps a header the same size as the facts beneath it —
+   the old --fs-xs headers read as fine print above --fs-body data, which is
+   backwards. Middle-aligned so a plain-text header sits on the same line as a
+   sortable button-in-th header, whose 44px touch target centres its own label
+   (owner redline 2026-07-13, kept).
+----------------------------------------------------------------------------- */
+.pf-table thead th,
+.adm-table thead th,
+.ing-table thead th,
+.ov-table thead th,
+.bc-table thead th {
+  background: var(--surface);
+  color: var(--text);
+  font-size: inherit;
+  font-weight: var(--fw-bold);
+  text-transform: none;
+  letter-spacing: normal;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--line);
+}
+
+/* -----------------------------------------------------------------------------
+   5 · The last row draws no line: the panel's border closes the box, and a
+   hairline 1px above it reads as a mistake. Only while the rows really ARE rows
+   — under each family's own breakpoint every row becomes a card and those same
+   cell borders are the card's internal separators (see §8).
+----------------------------------------------------------------------------- */
+@media (min-width: 601px) {
+  .pf-table tbody tr:last-child > td,
+  .pf-table tbody tr:last-child > th,
+  .ing-table tbody tr:last-child > td,
+  .ing-table tbody tr:last-child > th,
+  .ov-table tbody tr:last-child > td,
+  .ov-table tbody tr:last-child > th,
+  .bc-table tbody tr:last-child > td,
+  .bc-table tbody tr:last-child > th {
+    border-bottom: 0;
+  }
+}
+/* The admin console's own cards start at 720px, not 600px. */
+@media (min-width: 721px) {
+  .adm-table tbody tr:last-child > td,
+  .adm-table tbody tr:last-child > th {
+    border-bottom: 0;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   6 · Hover, on the grids whose rows are something you DO something to (tick a
+   crop, change a sale, edit a market, open a run's detail). The overview's
+   latest-prices table is a read-out and gets none: a hover that promises an
+   action there would be a lie.
+
+   Semantic row tints outrank it. "Not recommended" and low-confidence rows on
+   Best crops, and a watched crop on My crops, are FACTS the row is carrying —
+   those families re-assert them with :hover so a passing cursor cannot wash an
+   honesty signal off the screen.
+----------------------------------------------------------------------------- */
+.pf-table tbody tr:hover,
+.adm-table tbody tr:hover,
+.ing-table tbody tr:hover,
+.bc-table tbody tr:hover {
+  background: var(--surface-3);
+}
+
+/* -----------------------------------------------------------------------------
+   7 · Numbers. Right-aligned with tabular figures so a column of prices lines up
+   digit under digit — and the HEADER goes with its column. Scoped with the
+   table's own class so these beat the §4 header rule; before this file they were
+   bare single-class selectors that silently lost to `.adm-table thead th`, and
+   every numeric header in the product was left-aligned over a right-aligned
+   column.
+
+   .bc-th--num is deliberately NOT in this list: Best crops draws its price cells
+   as a bar with the number inside, left-aligned, so right-aligning that column's
+   header alone would make the two disagree. It stays where it is until the
+   column itself changes.
+----------------------------------------------------------------------------- */
+.pf-table .pf-stbl__num,
+.adm-table .adm-th--num,
+.adm-table .adm-td--num,
+.ing-table .ing-th--num,
+.ing-table .ing-td--num,
+.ov-table .ov-table__num {
+  text-align: right;
+  font-variant-numeric: var(--fvn-tabular);
+}
+
+/* -----------------------------------------------------------------------------
+   8 · Stacked mode. Below its own breakpoint every family turns its rows into
+   key-value cards (CSS only — no matchMedia deciding layout in JavaScript), and
+   each card draws its own border. The panel around them would then be a box of
+   boxes, so it steps back and lets the cards be the shapes on screen.
+
+   .ing-tablewrap exists for exactly one reason: the ingestion and logs tables
+   share .adm-tablewrap with the admin pages but stack at 600px rather than
+   720px, and a wrapper cannot read the class of the table inside it. The second
+   class lets the two breakpoints part company without :has().
+----------------------------------------------------------------------------- */
+@media (max-width: 600px) {
+  .pf-tablewrap,
+  .ov-tablewrap,
+  .bc-tablewrap,
+  .adm-tablewrap {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+  }
+}
+@media (max-width: 720px) {
+  .adm-tablewrap {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+  }
+}
+/* …and back on for the 600–720px band, where an ingestion/logs table is still a
+   real grid. Declared last so it wins the tie with the rule above. */
+@media (min-width: 601px) {
+  .ing-tablewrap {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   9 · Row actions: an icon-only button, teal, on transparent, with a --brand-tint
+   wash under the pointer. The whole 44px is the target (the farmer app's floor,
+   and no worse for a mouse); the glyph inside is 20px so it is still legible in
+   sunlight at arm's length.
+
+   The icon is DECORATIVE — aria-hidden — and the button carries the whole
+   sentence as its accessible name ("Change the sale of Tomato on 20 July 2026").
+   An icon-only control with no name is unusable by voice control and by a screen
+   reader, and "pencil" would be a name for the glyph rather than for the act.
+----------------------------------------------------------------------------- */
+.tbl-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--brand);
+  cursor: pointer;
+}
+.tbl-iconbtn:hover:not(:disabled) {
+  background: var(--brand-tint);
+  color: var(--brand-strong);
+}
+.tbl-iconbtn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.tbl-iconbtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+/* The glyph is the button's only child and must not be squeezed by the flex box around it. */
+.tbl-iconbtn__ico {
+  flex: none;
+}
+
+/* The "+" above a grid: the same bare button, at the end of the bar, so the row
+   it inserts appears directly under the control that made it. */
+.tbl-addbar {
+  display: flex;
+  justify-content: flex-end;
+}

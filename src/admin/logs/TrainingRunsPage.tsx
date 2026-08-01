@@ -73,7 +73,7 @@ export default function TrainingRunsPage() {
               {t('common.errorBody')}
             </p>
           )}
-          <div className="adm-tablewrap">
+          <div className="adm-tablewrap ing-tablewrap">
             <table className="ing-table">
               <caption className="sr-only">{t('admin.logs.training.runsTitle')}</caption>
               <thead>
@@ -95,15 +95,15 @@ export default function TrainingRunsPage() {
                 ))}
               </tbody>
             </table>
+            <AdminPagination
+              page={page}
+              totalPages={totalPages}
+              perPage={perPage}
+              total={runs.total}
+              setPage={setPage}
+              setPerPage={setPerPage}
+            />
           </div>
-          <AdminPagination
-            page={page}
-            totalPages={totalPages}
-            perPage={perPage}
-            total={runs.total}
-            setPage={setPage}
-            setPerPage={setPerPage}
-          />
         </>
       ) : null}
     </section>

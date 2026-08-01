@@ -36,6 +36,10 @@
 // editing cells keep their aria-labels either way.
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+// The app's one action-icon set (already its own shared chunk). The pencil and the trash the
+// admin console uses are the pencil and the trash a farmer uses — sized up to 20px here,
+// because the farmer app reads at arm's length in sunlight.
+import { IconEdit, IconTrash } from '../admin/icons';
 import { SALE_AMOUNT_MAX, SALE_NOTE_MAX, type Market, type SaleItem } from '../api/types';
 import { exactDigits, formatDate, formatExactAmount, formatPrice } from '../lib/format';
 import {
@@ -242,11 +246,11 @@ export default function SalesTable(props: SalesTableProps) {
         // control and its effect are next to each other. It is small BY REQUEST, which is why
         // the glyph is decorative and the accessible name is a whole sentence — "+" is not a
         // name anybody could say to a voice assistant or hear from a screen reader.
-        <div className="pf-stbl__bar">
+        <div className="tbl-addbar">
           <button
             type="button"
             ref={addBtn}
-            className="pf-stbl__add"
+            className="tbl-iconbtn"
             disabled={busy || inserting}
             aria-label={t('pages.sales.recordCtaAria', { crop: insert.cropName })}
             onClick={() => {
@@ -477,25 +481,35 @@ function SaleViewRow({
               away from a question the farmer was just asked. */}
           {!confirming && (
             <div className="pf-stbl__actions">
+              {/* Icon-only, because the actions column is the one the six data columns squeeze
+                  first and a pencil says "change this row" in every language this app speaks.
+                  What did NOT change is the name: the aria-label was already the whole
+                  sentence ("Change the sale of Tomato on 20 July 2026") — it OVERRODE the
+                  visible word before this and it is the accessible name now, unedited, from
+                  the same key. The word itself is not lost either: it is the `title`, so a
+                  mouse user gets it on hover and the string keeps its home in the catalogue.
+                  Zero new i18n keys. */}
               <button
                 type="button"
                 ref={editRef}
-                className="pf-plant__link"
+                className="tbl-iconbtn"
                 disabled={busy}
                 onClick={onEdit}
+                title={t('pages.sales.edit')}
                 aria-label={t('pages.sales.editAria', { crop: sale.cropName, date: when })}
               >
-                {t('pages.sales.edit')}
+                <IconEdit width={20} height={20} className="tbl-iconbtn__ico" />
               </button>
               <button
                 type="button"
                 ref={deleteRef}
-                className="pf-plant__link"
+                className="tbl-iconbtn"
                 disabled={busy}
                 onClick={onAskDelete}
+                title={t('pages.sales.delete')}
                 aria-label={t('pages.sales.deleteAria', { crop: sale.cropName, date: when })}
               >
-                {t('pages.sales.delete')}
+                <IconTrash width={20} height={20} className="tbl-iconbtn__ico" />
               </button>
             </div>
           )}
@@ -828,7 +842,7 @@ function SaleEditRow({
 function PlusIcon() {
   return (
     <svg
-      className="pf-icon"
+      className="tbl-iconbtn__ico"
       viewBox="0 0 24 24"
       width="20"
       height="20"

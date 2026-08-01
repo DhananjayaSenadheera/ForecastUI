@@ -159,7 +159,7 @@ export default function UserActivityPage() {
                 {t('common.errorBody')}
               </p>
             )}
-            <div className="adm-tablewrap">
+            <div className="adm-tablewrap ing-tablewrap">
               <table className="ing-table">
                 <caption className="sr-only">{t('admin.logs.userActivity.title')}</caption>
                 <thead>
@@ -177,15 +177,15 @@ export default function UserActivityPage() {
                   ))}
                 </tbody>
               </table>
+              <AdminPagination
+                page={page}
+                totalPages={totalPages}
+                perPage={perPage}
+                total={data.total}
+                setPage={setPage}
+                setPerPage={setPerPage}
+              />
             </div>
-            <AdminPagination
-              page={page}
-              totalPages={totalPages}
-              perPage={perPage}
-              total={data.total}
-              setPage={setPage}
-              setPerPage={setPerPage}
-            />
           </div>
         ) : null}
       </div>

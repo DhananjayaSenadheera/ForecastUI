@@ -537,9 +537,12 @@
   border-bottom: 1px solid var(--line);
   text-align: left;
 }
+/* Same header treatment as every grid in the product (styles/tables.css): dark, bold,
+   sentence case, one hairline under it. It keeps its own compact size, because this table is
+   the chart's alternative reading and lives inside a <details> beside it. */
 .fc-table__grid thead th {
   font-size: var(--fs-xs);
-  color: var(--text-3);
+  color: var(--text);
   font-weight: var(--fw-bold);
 }
 .fc-table__grid tbody th {
@@ -1027,7 +1030,7 @@
 }
 .tl-table__grid thead th {
   font-size: var(--fs-xs);
-  color: var(--text-3);
+  color: var(--text);
   font-weight: var(--fw-bold);
 }
 .tl-table__grid tbody th {

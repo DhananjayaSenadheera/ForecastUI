@@ -126,45 +126,26 @@
   gap: var(--sp-2);
 }
 
-/* Tables -------------------------------------------------------------------- */
-.adm-tablewrap {
-  width: 100%;
-  overflow-x: auto;
-}
+/* Tables --------------------------------------------------------------------
+   The panel, the hairlines, the header treatment, the hover wash and the numeric
+   right-alignment all come from the app-wide table skin (src/styles/tables.css) — the admin
+   console and the farmer app wear ONE grid. What is left here is what is true of the admin
+   console alone: it is a dense internal desktop tool, so its type steps down a notch and its
+   headers stay on one line. */
 .adm-table {
-  width: 100%;
-  border-collapse: collapse;
   font-size: var(--fs-sm);
 }
 .adm-table caption {
   text-align: left;
 }
-.adm-table th,
-.adm-table td {
-  padding: var(--sp-3);
-  text-align: left;
-  vertical-align: top;
-  border-bottom: 1px solid var(--line);
-}
-.adm-table thead th {
-  border-bottom: 2px solid var(--line-strong);
-  color: var(--text-2);
-  font-weight: var(--fw-medium);
+.adm-table thead th,
+.ing-table thead th {
+  /* A header wraps to two lines only where the column is genuinely narrow; on a desktop
+     console with a scrolling wrapper, one line per heading is easier to scan. */
   white-space: nowrap;
-  /* middle-align so plain-text headers (e.g. Source) sit on the same line as the
-     sortable button-in-th headers (owner redline 2026-07-13). */
-  vertical-align: middle;
 }
 .adm-table thead th .adm-sort {
   vertical-align: middle;
-}
-.adm-th--num,
-.adm-table td.adm-td--num {
-  text-align: right;
-  font-variant-numeric: var(--fvn-tabular);
-}
-.adm-table tbody tr:hover {
-  background: var(--surface-3);
 }
 .adm-c-title {
   min-width: 220px;
@@ -191,6 +172,8 @@
 }
 
 /* Sortable header button ---------------------------------------------------- */
+/* A sortable heading is still a HEADING: it inherits the skin's weight and colour rather than
+   restating them, so a sortable column and a plain one read as the same row of labels. */
 .adm-sort {
   display: inline-flex;
   align-items: center;
@@ -199,8 +182,7 @@
   border: none;
   padding: 0;
   font: inherit;
-  font-weight: var(--fw-medium);
-  color: var(--text-2);
+  color: inherit;
   cursor: pointer;
 }
 .adm-sort.is-active {
@@ -432,10 +414,17 @@
      left with no vertical space. Wrapping (not nowrap) keeps every table within the
      viewport instead of pushing a button off-screen behind a horizontal scroll. */
 }
+/* A row action, in the same teal-on-transparent treatment the farmer's sales table wears
+   (.tbl-iconbtn in styles/tables.css): a bare glyph + word that stops competing with the data,
+   with a --brand-tint wash under the pointer. The admin console keeps its WORDS where the
+   farmer app drops to an icon — an internal tool has the column width for them, and "Edit
+   role" / "Delete" name things a pencil and a bin cannot tell apart on their own (which market
+   flag, whose account).
+
+   inline-flex + a shared min-width so paired row actions render at the same width and their
+   icon + label stay centred regardless of label length. Spacing between buttons is owned by
+   the .adm-actions wrapper's gap, never a margin. */
 .adm-rowbtn {
-  /* inline-flex + a shared min-width so paired row actions (Edit / Delete) render at the
-     same width and their icon + label stay centred, regardless of label length.
-     Spacing between buttons is owned by the .adm-actions wrapper's gap, not a margin. */
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -444,21 +433,35 @@
   min-height: 36px;
   padding: var(--sp-1) var(--sp-3);
   border-radius: var(--r-sm);
-  border: 1px solid var(--line-strong);
-  background: var(--surface);
-  color: var(--text);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--brand);
   font: inherit;
   font-size: var(--fs-xs);
   cursor: pointer;
 }
-.adm-rowbtn:hover {
-  background: var(--surface-3);
+.adm-rowbtn:hover:not(:disabled) {
+  background: var(--brand-tint);
+  color: var(--brand-strong);
+}
+.adm-rowbtn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 /* Icon inside a row button: sized to the text, never shrinks, optically aligned. */
 .adm-btn-ico {
   flex: 0 0 auto;
 }
+/* THE ONE PLACE THE SKIN'S TEAL IS NOT WORN. Deleting a market, a user or a policy flag is
+   irreversible and off-screen from whoever it affects, so the destructive action keeps its own
+   colour and its own wash — colour is not carrying the meaning alone (there is a bin and the
+   word "Delete"), it is carrying the WEIGHT. Flip these two declarations to inherit and the
+   admin console is pure teal, if the owner would rather have that. */
 .adm-rowbtn--danger {
+  color: var(--critical-fg);
+}
+.adm-rowbtn--danger:hover:not(:disabled) {
+  background: var(--critical-bg);
   color: var(--critical-fg);
 }
 .adm-rowbtn:disabled {
@@ -1059,54 +1062,34 @@
 .ing-filter {
   min-width: 12rem;
 }
+/* Skin (styles/tables.css) owns the panel, the hairlines, the header and the hover. The runs
+   and logs tables keep only their density and their column widths. */
 .ing-table {
-  width: 100%;
-  border-collapse: collapse;
   font-size: var(--fs-sm);
-}
-.ing-table th,
-.ing-table td {
-  padding: var(--sp-3);
-  text-align: left;
-  vertical-align: top;
-  border-bottom: 1px solid var(--line);
-}
-.ing-table thead th {
-  border-bottom: 2px solid var(--line-strong);
-  color: var(--text-2);
-  font-weight: var(--fw-medium);
-  white-space: nowrap;
-  vertical-align: middle;
-}
-.ing-th--num,
-.ing-td--num {
-  text-align: right;
-  font-variant-numeric: var(--fvn-tabular);
 }
 .ing-th-toggle,
 .ing-td-toggle {
   width: 2.5rem;
   padding-right: 0;
 }
-.ing-row:hover {
-  background: var(--surface-3);
-}
 .ing-src {
   font-variant-numeric: var(--fvn-tabular);
 }
+/* The row expander wears the same bare-teal treatment as every other in-row control. */
 .ing-toggle {
   min-width: 32px;
   min-height: 32px;
-  border: 1px solid var(--line-strong);
+  border: 0;
   border-radius: var(--r-sm);
-  background: var(--surface);
-  color: var(--text-2);
+  background: transparent;
+  color: var(--brand);
   font-size: var(--fs-sm);
   line-height: 1;
   cursor: pointer;
 }
 .ing-toggle:hover {
-  background: var(--surface-3);
+  background: var(--brand-tint);
+  color: var(--brand-strong);
 }
 .ing-toggle:focus-visible {
   outline: none;

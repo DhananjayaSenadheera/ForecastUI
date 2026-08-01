@@ -70,7 +70,7 @@ export default function SystemErrorsPage() {
               {t('common.errorBody')}
             </p>
           )}
-          <div className="adm-tablewrap">
+          <div className="adm-tablewrap ing-tablewrap">
             <table className="ing-table">
               <caption className="sr-only">{t('admin.logs.errors.title')}</caption>
               <thead>
@@ -91,15 +91,15 @@ export default function SystemErrorsPage() {
                 ))}
               </tbody>
             </table>
+            <AdminPagination
+              page={page}
+              totalPages={totalPages}
+              perPage={perPage}
+              total={data.total}
+              setPage={setPage}
+              setPerPage={setPerPage}
+            />
           </div>
-          <AdminPagination
-            page={page}
-            totalPages={totalPages}
-            perPage={perPage}
-            total={data.total}
-            setPage={setPage}
-            setPerPage={setPerPage}
-          />
         </>
       ) : null}
     </section>
