@@ -172,11 +172,6 @@
 }
 /* In the top bar the label would not fit; the icon keeps a 44px target and the text stays
    in the a11y tree rather than being dropped. */
-.mycrops--mobile {
-  padding: 8px;
-  width: var(--touch-min);
-  justify-content: center;
-}
 .mycrops--mobile .wrap-label {
   position: absolute;
   width: 1px;
