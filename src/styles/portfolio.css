@@ -1728,6 +1728,82 @@
   margin: 0;
 }
 
+/* ---- The popup's two columns (owner, 2026-08-02) --------------------------
+   "When the browser is maximised … remove the entire section underneath 'See the full
+   forecast' and show it on the same row, in another column."
+
+   BELOW 1024px NOTHING CHANGES, and that is enforced rather than hoped for: the wrapper and
+   both columns are `display: contents`, so the sections inside them stay the direct flex
+   children of .pf-modal__body they were before the wrappers existed — same order, same
+   var(--sp-4) gaps, same 560px sheet. (Safe on these two: `display: contents` drops an element
+   from the accessibility tree, and neither wrapper carries a role, a name or a landmark. The
+   sections that DO — the price section, the planting and sales regions — are untouched inside
+   them.) The phone is the majority case, so it is the case that gets no new CSS at all. */
+.pf-dlg__cols,
+.pf-dlg__col {
+  display: contents;
+}
+
+/* From the desktop tier (tokens.css §8: ">=1024px … 2–3 column layouts") the sheet becomes
+   what the owner drew. Neither column is a scroll container: .pf-modal keeps its ONE
+   scrollbar, so a farmer never has to work out which of two panes their answer is hiding in. */
+@media (min-width: 1024px) {
+  /* Room for two columns, and no more: `min(…, 100vw - 48px)` reserves a little MORE than
+     the backdrop's own var(--sp-4)-per-side padding (32px total) on a 1024px laptop, where
+     1060 would otherwise touch both edges. Opt-in via --wide, so a future one-column dialog
+     in this shell still gets 560. */
+  .pf-modal--wide {
+    max-width: min(1060px, calc(100vw - 48px));
+  }
+  .pf-dlg__cols {
+    display: grid;
+    /* A 537px FLOOR on the sales track. The floor is a measured number, not taste: the sales
+       grid's EDIT row (six columns of inputs + Save/Cancel) has a min-content of 509px —
+       measured live at 1024 and 1280 — and the card adds 28px of chrome (.pf-sales padding
+       + its border + the wrapper's own borders, which clientWidth excludes), so anything
+       under 537px opens a horizontal scrollbar the moment the farmer starts recording. With
+       the floor, editing never scrolls at any desktop width; what narrows instead is the
+       LEFT column — 372px at exactly 1024 with the modal's own ~15px scrollbar in play
+       (387 without it), 456/537 at 1280 — whose chart is fully fluid.
+
+       The 10fr/11fr ratio is currently INERT: 11fr only beats the floor once the track
+       space passes 537 × 21/11 ≈ 1025px, i.e. a sheet over ~1077px, and .pf-modal--wide is
+       capped at 1060. So the side column is a constant 537px at every reachable width today;
+       the ratio wakes up only if that cap ever rises. Kept because it costs nothing and
+       states the intended split for that future.
+
+       If the table ever grows a column: re-measure the EDIT row's min-content (509 today),
+       add the 28px chrome, and raise the floor. min(537px, 100%) so the floor can never
+       exceed the container; minmax(0, …) stays on the LEFT track because a grid item's
+       automatic minimum is its CONTENT — without it the sales table's scroll wrapper would
+       widen its track instead of scrolling (a definite min like the floor suppresses the
+       automatic minimum the same way). */
+    grid-template-columns: minmax(0, 10fr) minmax(min(537px, 100%), 11fr);
+    gap: var(--sp-5);
+    /* Top-aligned, never stretched: the sales card is as tall as the sales it holds. Stretch
+       would inflate an empty book to the height of the chart column and put a farmer's three
+       rows in the middle of a tall empty box. */
+    align-items: start;
+  }
+  .pf-dlg__col {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+    /* The same automatic-minimum guard on the item itself: minmax(0, …) stops the TRACK from
+       growing, this stops the column's content from spilling out of it. */
+    min-width: 0;
+  }
+  /* The <hr> above "Sales you have recorded" separates it from the sections ABOVE it in the
+     stacked sheet. In the side column there is nothing above it — the rule would open the
+     column as a second line 13px under the card's own border, separating nothing (and the
+     owner's reference layout shows none). Stacked widths keep it; its rationale in
+     SalesSection.tsx is a statement about vertical sequence and still holds there.
+     (.pf-dlg__col--side gains its first styling here; --main stays a test-hook only.) */
+  .pf-dlg__col--side .pf-sales__sep {
+    display: none;
+  }
+}
+
 /* A planting whose harvest day has already passed: a plain note where the numbers were.
    Neutral, never alarm — the date is not a mistake, it is simply behind us. */
 .pf-plant__past {

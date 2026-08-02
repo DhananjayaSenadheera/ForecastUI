@@ -30,10 +30,19 @@ export interface ModalProps {
    * markup this shell rendered before the prop existed.
    */
   icon?: string;
+  /**
+   * OPT-IN desktop width. The shell is a 560px sheet because that is what a single column of
+   * farmer content wants to be, and every dialog that stays one column must keep it. A caller
+   * that lays its own content out in COLUMNS on a wide screen (the crop popup) says so here,
+   * and the ≥1024px rule in portfolio.css gives that sheet the room those columns need.
+   * Omitted (the default) renders exactly the sheet this shell rendered before the prop
+   * existed — including on desktop, where a narrow confirm has no business being 1060px wide.
+   */
+  wide?: boolean;
   children: ReactNode;
 }
 
-export default function Modal({ title, onClose, titleId, icon, children }: ModalProps) {
+export default function Modal({ title, onClose, titleId, icon, wide, children }: ModalProps) {
   const { t } = useTranslation();
   const panel = useRef<HTMLDivElement>(null);
   const { onKeyDown } = useDialogBehaviour(panel, onClose);
@@ -45,7 +54,7 @@ export default function Modal({ title, onClose, titleId, icon, children }: Modal
     // dialog the farmer is using.
     <div className="pf-modal__backdrop" onClick={onClose}>
       <div
-        className="pf-modal"
+        className={wide ? 'pf-modal pf-modal--wide' : 'pf-modal'}
         role="dialog"
         aria-modal="true"
         aria-labelledby={headingId}
