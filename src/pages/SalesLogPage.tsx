@@ -231,15 +231,19 @@ export default function SalesLogPage() {
               onDelete={onDelete}
               onEditorOpen={() => setMsg(null)}
               fallbackFocusRef={statusRef}
-            />
-
-            <TablePagination
-              page={page}
-              totalPages={totalPages}
-              perPage={perPage}
-              total={data.total}
-              setPage={setPage}
-              setPerPage={setPerPage}
+              // Inside the grid panel, like every other paged table in the product — the
+              // wrapper is SalesTable's own markup, so the pager rides in through its footer
+              // slot rather than trailing the panel as a sibling.
+              footer={
+                <TablePagination
+                  page={page}
+                  totalPages={totalPages}
+                  perPage={perPage}
+                  total={data.total}
+                  setPage={setPage}
+                  setPerPage={setPerPage}
+                />
+              }
             />
           </div>
         ) : null}

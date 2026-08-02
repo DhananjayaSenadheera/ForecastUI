@@ -159,8 +159,8 @@ export default function NewsPage() {
                   })}
                 </tbody>
               </table>
+              <AdminPagination {...pager} />
             </div>
-            <AdminPagination {...pager} />
           </>
         )}
       </section>

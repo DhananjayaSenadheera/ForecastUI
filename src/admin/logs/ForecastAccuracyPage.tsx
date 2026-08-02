@@ -254,15 +254,15 @@ export default function ForecastAccuracyPage() {
                   ))}
                 </tbody>
               </table>
+              <AdminPagination
+                page={page}
+                totalPages={totalPages}
+                perPage={perPage}
+                total={snapshots.total}
+                setPage={setPage}
+                setPerPage={setPerPage}
+              />
             </div>
-            <AdminPagination
-              page={page}
-              totalPages={totalPages}
-              perPage={perPage}
-              total={snapshots.total}
-              setPage={setPage}
-              setPerPage={setPerPage}
-            />
           </>
         ) : null}
       </section>

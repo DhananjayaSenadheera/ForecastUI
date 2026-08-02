@@ -177,15 +177,15 @@ export default function UserActivityPage() {
                   ))}
                 </tbody>
               </table>
+              <AdminPagination
+                page={page}
+                totalPages={totalPages}
+                perPage={perPage}
+                total={data.total}
+                setPage={setPage}
+                setPerPage={setPerPage}
+              />
             </div>
-            <AdminPagination
-              page={page}
-              totalPages={totalPages}
-              perPage={perPage}
-              total={data.total}
-              setPage={setPage}
-              setPerPage={setPerPage}
-            />
           </div>
         ) : null}
       </div>

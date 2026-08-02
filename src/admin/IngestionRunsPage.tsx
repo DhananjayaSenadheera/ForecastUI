@@ -29,7 +29,7 @@ import {
 } from './adminShared';
 import IngestionServiceControl from './IngestionServiceControl';
 import { usePolledSnapshot } from './usePolledSnapshot';
-import { IconRefresh } from './icons';
+import { IconRefresh } from '../components/icons';
 
 // Status cadence: 30s, backing off to 120s while the endpoint is failing. The polling
 // mechanics live in usePolledSnapshot (shared with the pipeline-health banner).
@@ -188,15 +188,15 @@ export default function IngestionRunsPage() {
                   ))}
                 </tbody>
               </table>
+              <AdminPagination
+                page={page}
+                totalPages={totalPages}
+                perPage={perPage}
+                total={runs.total}
+                setPage={setPage}
+                setPerPage={setPerPage}
+              />
             </div>
-            <AdminPagination
-              page={page}
-              totalPages={totalPages}
-              perPage={perPage}
-              total={runs.total}
-              setPage={setPage}
-              setPerPage={setPerPage}
-            />
           </>
         ) : null}
       </section>

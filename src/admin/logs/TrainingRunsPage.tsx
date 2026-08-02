@@ -95,15 +95,15 @@ export default function TrainingRunsPage() {
                 ))}
               </tbody>
             </table>
+            <AdminPagination
+              page={page}
+              totalPages={totalPages}
+              perPage={perPage}
+              total={runs.total}
+              setPage={setPage}
+              setPerPage={setPerPage}
+            />
           </div>
-          <AdminPagination
-            page={page}
-            totalPages={totalPages}
-            perPage={perPage}
-            total={runs.total}
-            setPage={setPage}
-            setPerPage={setPerPage}
-          />
         </>
       ) : null}
     </section>

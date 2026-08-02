@@ -89,30 +89,23 @@
   box-shadow: var(--focus-ring);
 }
 
-/* ---- table ---- */
-.bc-tablewrap {
-  width: 100%;
-}
+/* ---- table ----
+   The panel, the hairlines, the header treatment (white, dark, bold, sentence case,
+   middle-aligned so a plain header sits level with a sortable button-in-th) and the hover wash
+   are the app-wide table skin, styles/tables.css. Only this table's own density and its honest
+   row accents live here. */
 .bc-table {
-  width: 100%;
-  border-collapse: collapse;
   font-size: var(--fs-sm);
 }
 .bc-table thead th {
-  text-align: left;
-  /* middle-align so plain-text headers (Our take / Price trend) sit on the same
-     line as the sortable button-in-th headers, whose 48px touch-target button
-     centres its label — bottom-align dropped the plain labels visibly lower
-     (same fix as the admin tables, owner redline 2026-07-13). */
-  vertical-align: middle;
-  padding: var(--sp-2) var(--sp-3);
-  border-bottom: 2px solid var(--line-strong);
-  font-size: var(--fs-xs);
-  color: var(--text-3);
-  font-weight: var(--fw-bold);
   white-space: nowrap;
 }
-.bc-th--num { text-align: right; }
+/* NOT in the skin's right-aligned numeric group on purpose — and deliberately carrying NO
+   alignment rule of its own: this column's cells draw the price as a left-aligned bar with
+   the number inside it, and the bare `.bc-th--num { text-align: right }` that used to sit
+   here never actually won against `.bc-table thead th { text-align: left }` (0,1,0 vs 0,1,2),
+   so the heading has always sat left, over the bar. If the cell ever becomes a plain number,
+   add `.bc-table .bc-th--num` to the skin's §7 group. */
 
 /* sortable header button-in-th */
 .bc-sort {
@@ -124,10 +117,10 @@
   padding: 0 var(--sp-1);
   border: none;
   background: transparent;
+  /* A sortable heading is still a HEADING: it inherits the skin's size, weight and colour
+     rather than restating them, so sortable and plain columns read as one row of labels. */
   font: inherit;
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-bold);
-  color: var(--text-2);
+  color: inherit;
   cursor: pointer;
 }
 .bc-sort:hover { color: var(--brand-strong); }
@@ -140,22 +133,17 @@
 .bc-sort__caret { font-size: 10px; color: var(--text-3); }
 .bc-sort.is-active .bc-sort__caret { color: var(--brand); }
 
-.bc-table tbody td,
-.bc-table tbody th {
-  padding: var(--sp-3);
-  border-bottom: 1px solid var(--line);
-  vertical-align: top;
-  text-align: left;
-}
-
-/* honest-row accents */
-.bc-row.is-notrec {
+/* honest-row accents. :hover is spelled out on each of them: these tints are the row's own
+   VERDICT, and the skin's hover wash must never be able to rub one off under a cursor. */
+.bc-row.is-notrec,
+.bc-row.is-notrec:hover {
   background: var(--critical-bg);
 }
 .bc-row.is-notrec > th {
   box-shadow: inset 3px 0 0 var(--critical);
 }
-.bc-row.is-lowconf:not(.is-notrec) {
+.bc-row.is-lowconf:not(.is-notrec),
+.bc-row.is-lowconf:not(.is-notrec):hover {
   background: var(--warn-bg);
 }
 .bc-row.is-lowconf:not(.is-notrec) > th {
@@ -371,9 +359,10 @@
     padding: var(--sp-2);
     margin-bottom: var(--sp-4);
   }
+  /* Card density only — the hairline between the lines of a card is the skin's, the same one
+     that separates rows on a wide screen. */
   .bc-table tbody td,
   .bc-table tbody th {
-    border-bottom: 1px solid var(--line);
     padding: var(--sp-3) var(--sp-2);
   }
   .bc-row > *:last-child { border-bottom: none; }

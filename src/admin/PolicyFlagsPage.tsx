@@ -24,7 +24,7 @@ import {
   TrainingWarningBanner,
   usePagination,
 } from './adminShared';
-import { IconEdit, IconTrash } from './icons';
+import { IconEdit, IconTrash } from '../components/icons';
 
 type SortKey = 'type' | 'title' | 'direction' | 'from' | 'to' | 'status';
 type SortDir = 'asc' | 'desc';

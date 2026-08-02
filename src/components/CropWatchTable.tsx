@@ -356,16 +356,17 @@ export default function CropWatchTable({
                 })}
               </tbody>
             </table>
+            {/* Inside the panel, as the grid's footer — the same place every other paged table
+                in the product puts it now that the wrapper draws a real panel around them. */}
+            <TablePagination
+              page={pager.page}
+              totalPages={pager.totalPages}
+              perPage={pager.perPage}
+              total={pager.total}
+              setPage={pager.setPage}
+              setPerPage={pager.setPerPage}
+            />
           </div>
-
-          <TablePagination
-            page={pager.page}
-            totalPages={pager.totalPages}
-            perPage={pager.perPage}
-            total={pager.total}
-            setPage={pager.setPage}
-            setPerPage={pager.setPerPage}
-          />
         </>
       )}
 

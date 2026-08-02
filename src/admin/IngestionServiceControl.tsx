@@ -17,7 +17,7 @@ import { api, ApiError } from '../api/client';
 import { isIngestionServiceError, type IngestionServiceErrorCode, type IngestionState } from '../api/types';
 import { truncateId } from '../lib/format';
 import { AdminDialog } from './adminShared';
-import { IconPlay, IconStop } from './icons';
+import { IconPlay, IconStop } from '../components/icons';
 
 type Action = 'start' | 'stop';
 

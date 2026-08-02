@@ -257,10 +257,12 @@
   text-align: right;
   font-variant-numeric: var(--fvn-tabular);
 }
+/* One hairline, like every other grid in the product — the 2px --line-strong rule this
+   header used to draw was the last of the heavy header rules (styles/tables.css). */
 .cmp-table__grid thead th {
-  border-bottom: 2px solid var(--line-strong);
+  border-bottom: 1px solid var(--line);
   font-size: var(--fs-xs);
-  color: var(--text-3);
+  color: var(--text);
   font-weight: var(--fw-bold);
 }
 .cmp-table__note {

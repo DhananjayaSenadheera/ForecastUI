@@ -15,7 +15,7 @@ import {
   DemoNote,
   TrainingWarningBanner,
 } from './adminShared';
-import { IconEdit, IconTrash } from './icons';
+import { IconEdit, IconTrash } from '../components/icons';
 
 const FESTIVAL_KEYS = ['AVURUDU', 'THAI_PONGAL', 'VESAK', 'DEEPAVALI', 'CHRISTMAS'] as const;
 const DEFAULT_LEAD_UP = 14;

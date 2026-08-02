@@ -393,37 +393,42 @@ function LatestPricesPanel({ prices, readiness, lang, t }: { prices: MarketLates
               <span aria-hidden="true">📋 </span>
               {t('pages.overview.tableToggle')}
             </summary>
-            <table className="ov-table ov-table--alt">
-              <caption className="sr-only">{t('pages.overview.tableTrendCaption')}</caption>
-              <thead>
-                <tr>
-                  <th scope="col">{t('pages.overview.colCrop')}</th>
-                  <th scope="col" className="ov-table__num">{t('pages.overview.tableDays')}</th>
-                  <th scope="col" className="ov-table__num">{t('pages.overview.tableEarliest')}</th>
-                  <th scope="col" className="ov-table__num">{t('pages.overview.tableLatest')}</th>
-                  <th scope="col" className="ov-table__num">{t('pages.overview.tableLow')}</th>
-                  <th scope="col" className="ov-table__num">{t('pages.overview.tableHigh')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pager.pageRows.map((p) => {
-                  const sparkPrices = p.spark.map((s) => s.price);
-                  const earliest = sparkPrices[0] ?? p.price;
-                  const lo = sparkPrices.length ? Math.min(...sparkPrices) : p.minPrice;
-                  const hi = sparkPrices.length ? Math.max(...sparkPrices) : p.maxPrice;
-                  return (
-                    <tr key={`${p.cropId}-${p.marketName}-alt`}>
-                      <th scope="row">{p.cropName}</th>
-                      <td className="ov-table__num">{p.spark.length}</td>
-                      <td className="ov-table__num">{formatPrice(earliest, lang, rs)}</td>
-                      <td className="ov-table__num">{formatPrice(p.price, lang, rs)}</td>
-                      <td className="ov-table__num">{formatPrice(lo, lang, rs)}</td>
-                      <td className="ov-table__num">{formatPrice(hi, lang, rs)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            {/* Its own wrapper, like every other grid in the product: the panel and the
+                horizontal scroll are the table skin's and they live on the wrapper, never on
+                the <table> (border-collapse eats a border drawn there). */}
+            <div className="ov-tablewrap">
+              <table className="ov-table ov-table--alt">
+                <caption className="sr-only">{t('pages.overview.tableTrendCaption')}</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">{t('pages.overview.colCrop')}</th>
+                    <th scope="col" className="ov-table__num">{t('pages.overview.tableDays')}</th>
+                    <th scope="col" className="ov-table__num">{t('pages.overview.tableEarliest')}</th>
+                    <th scope="col" className="ov-table__num">{t('pages.overview.tableLatest')}</th>
+                    <th scope="col" className="ov-table__num">{t('pages.overview.tableLow')}</th>
+                    <th scope="col" className="ov-table__num">{t('pages.overview.tableHigh')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pager.pageRows.map((p) => {
+                    const sparkPrices = p.spark.map((s) => s.price);
+                    const earliest = sparkPrices[0] ?? p.price;
+                    const lo = sparkPrices.length ? Math.min(...sparkPrices) : p.minPrice;
+                    const hi = sparkPrices.length ? Math.max(...sparkPrices) : p.maxPrice;
+                    return (
+                      <tr key={`${p.cropId}-${p.marketName}-alt`}>
+                        <th scope="row">{p.cropName}</th>
+                        <td className="ov-table__num">{p.spark.length}</td>
+                        <td className="ov-table__num">{formatPrice(earliest, lang, rs)}</td>
+                        <td className="ov-table__num">{formatPrice(p.price, lang, rs)}</td>
+                        <td className="ov-table__num">{formatPrice(lo, lang, rs)}</td>
+                        <td className="ov-table__num">{formatPrice(hi, lang, rs)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </details>
         </>
       )}

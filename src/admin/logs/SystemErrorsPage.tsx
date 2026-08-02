@@ -91,15 +91,15 @@ export default function SystemErrorsPage() {
                 ))}
               </tbody>
             </table>
+            <AdminPagination
+              page={page}
+              totalPages={totalPages}
+              perPage={perPage}
+              total={data.total}
+              setPage={setPage}
+              setPerPage={setPerPage}
+            />
           </div>
-          <AdminPagination
-            page={page}
-            totalPages={totalPages}
-            perPage={perPage}
-            total={data.total}
-            setPage={setPage}
-            setPerPage={setPerPage}
-          />
         </>
       ) : null}
     </section>
