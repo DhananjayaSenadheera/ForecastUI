@@ -272,8 +272,9 @@ describe('the two columns exist in CSS, and only above the desktop tier', () => 
     // sheet): the left track by minmax(0, …), the right by a bounded min(…, 100%) floor.
     const tracks = /grid-template-columns:\s*([^;]+)/.exec(grid[0].body)?.[1] ?? '';
     // The exact tracks are measured numbers, not taste: 537px = the edit row's 509px
-    // min-content + the .pf-sales card's 26px chrome, the width below which recording a sale
-    // opens a horizontal scrollbar; 10fr/11fr splits whatever is left. A silent flip to
+    // min-content + 28px of card and wrapper chrome, the width below which recording a sale
+    // opens a horizontal scrollbar. (The 10fr/11fr ratio is inert under the current 1060px
+    // sheet cap — the floor binds everywhere; see the CSS comment.) A silent flip to
     // 1fr/1fr (or dropping the floor) re-opens the round-1 edit-row squeeze.
     expect(tracks).toMatch(
       /minmax\(\s*0\s*,\s*10fr\s*\)\s*minmax\(\s*min\(\s*537px\s*,\s*100%\s*\)\s*,\s*11fr\s*\)/,

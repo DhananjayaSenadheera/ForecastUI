@@ -1757,17 +1757,27 @@
   }
   .pf-dlg__cols {
     display: grid;
-    /* 10fr / 11fr with a 535px FLOOR on the sales track. The floor is a measured number,
-       not taste: the sales grid's EDIT row (six columns of inputs + Save/Cancel) has a
-       min-content of 509px — measured live at 1024 and 1280 — and the .pf-sales card adds
-       28px of chrome (card padding+borders, plus the wrapper's own borders, which clientWidth excludes), so anything under 537px opens a horizontal scrollbar the moment the
-       farmer starts recording. With the floor, editing never scrolls at any desktop width;
-       what narrows instead is the LEFT column (389px at exactly 1024, converging to ~47/53
-       from 1280 up), whose chart is fully fluid. The wrapper's horizontal scroll remains the
-       escape hatch if the table ever grows a column — re-measure and raise the floor then.
-       min(537px, 100%) so the floor can never exceed the container; minmax(0, …) stays on
-       the LEFT track because a grid item's automatic minimum is its CONTENT — without it the
-       sales table's scroll wrapper would widen its track instead of scrolling. */
+    /* A 537px FLOOR on the sales track. The floor is a measured number, not taste: the sales
+       grid's EDIT row (six columns of inputs + Save/Cancel) has a min-content of 509px —
+       measured live at 1024 and 1280 — and the card adds 28px of chrome (.pf-sales padding
+       + its border + the wrapper's own borders, which clientWidth excludes), so anything
+       under 537px opens a horizontal scrollbar the moment the farmer starts recording. With
+       the floor, editing never scrolls at any desktop width; what narrows instead is the
+       LEFT column — 372px at exactly 1024 with the modal's own ~15px scrollbar in play
+       (387 without it), 456/537 at 1280 — whose chart is fully fluid.
+
+       The 10fr/11fr ratio is currently INERT: 11fr only beats the floor once the track
+       space passes 537 × 21/11 ≈ 1025px, i.e. a sheet over ~1077px, and .pf-modal--wide is
+       capped at 1060. So the side column is a constant 537px at every reachable width today;
+       the ratio wakes up only if that cap ever rises. Kept because it costs nothing and
+       states the intended split for that future.
+
+       If the table ever grows a column: re-measure the EDIT row's min-content (509 today),
+       add the 28px chrome, and raise the floor. min(537px, 100%) so the floor can never
+       exceed the container; minmax(0, …) stays on the LEFT track because a grid item's
+       automatic minimum is its CONTENT — without it the sales table's scroll wrapper would
+       widen its track instead of scrolling (a definite min like the floor suppresses the
+       automatic minimum the same way). */
     grid-template-columns: minmax(0, 10fr) minmax(min(537px, 100%), 11fr);
     gap: var(--sp-5);
     /* Top-aligned, never stretched: the sales card is as tall as the sales it holds. Stretch
