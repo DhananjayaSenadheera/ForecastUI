@@ -63,9 +63,14 @@
 /* …except inside a .panel card, where the panel IS the box: a second identical hairline,
    18px inside the first around white-on-white, draws information-free geometry (round-1
    review, overruling this file's first cut). The grid keeps its radius so a hover wash can
-   never poke a square corner past a rounded card. The one boxed-grid site left is the sales
-   popup, whose .pf-sales section is --surface-2 — white carries real tone there, and that
-   wrapper has no .panel above it. */
+   never poke a square corner past a rounded card.
+
+   REACH WARNING: this is a descendant selector and the app portals no modal, so it also
+   reaches a dialog's grid whenever the dialog's trigger lives inside a page .panel — which
+   is how the sales popup's wrapper matches it too. That one site WANTS its box (.pf-sales is
+   --surface-2, white carries real tone there), so portfolio.css re-asserts it on
+   `.pf-sales .pf-tablewrap`, same specificity, later file. Any future in-dialog grid needs
+   the same re-assert or a portal. */
 .panel .pf-tablewrap,
 .panel .adm-tablewrap,
 .panel .ov-tablewrap,
@@ -145,8 +150,11 @@
 }
 
 /* -----------------------------------------------------------------------------
-   5 · The last row draws no line: the panel's border closes the box, and a
-   hairline 1px above it reads as a mistake. Only while the rows really ARE rows
+   5 · The last row draws no line: the grid ends flush. In a boxed wrapper (the
+   sales popup, or a grid with no .panel above it) the wrapper's own border sits
+   1px below and a hairline above it reads as a double rule; inside a page card
+   the .panel's border closes the shape a padding lower, and the flush edge is
+   the DevExpress look the owner asked for. Only while the rows really ARE rows
    — under each family's own breakpoint every row becomes a card and those same
    cell borders are the card's internal separators (see §8).
 ----------------------------------------------------------------------------- */
@@ -217,11 +225,12 @@
    each card draws its own border. The panel around them would then be a box of
    boxes, so it steps back and lets the cards be the shapes on screen.
 
-   .ing-tablewrap exists for exactly one reason: the ingestion and logs tables
-   share .adm-tablewrap with the admin pages but stack at 600px rather than
-   720px, and a wrapper cannot read the class of the table inside it. The second
-   class lets the two breakpoints part company without :has().
------------------------------------------------------------------------------ */
+   (A first cut carried an .ing-tablewrap second class so the ingestion/logs
+   tables — which stack at 600px, not admin's 720px — could re-box for the
+   600–720px band. The .panel unbox in §1 made that rule unreachable at every
+   site: all six of those wrappers live inside a .panel, where a grid draws no
+   box at any width. The class and the rule are gone; if an ingestion table
+   ever renders OUTSIDE a panel, it will need that idea back.) */
 @media (max-width: 600px) {
   .pf-tablewrap,
   .ov-tablewrap,
@@ -237,15 +246,6 @@
     background: transparent;
     border: 0;
     border-radius: 0;
-  }
-}
-/* …and back on for the 600–720px band, where an ingestion/logs table is still a
-   real grid. Declared last so it wins the tie with the rule above. */
-@media (min-width: 601px) {
-  .ing-tablewrap {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--r-md);
   }
 }
 

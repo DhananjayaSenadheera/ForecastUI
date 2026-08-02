@@ -70,7 +70,7 @@ export default function SystemErrorsPage() {
               {t('common.errorBody')}
             </p>
           )}
-          <div className="adm-tablewrap ing-tablewrap">
+          <div className="adm-tablewrap">
             <table className="ing-table">
               <caption className="sr-only">{t('admin.logs.errors.title')}</caption>
               <thead>

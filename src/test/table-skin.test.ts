@@ -90,7 +90,7 @@ describe('the table skin is declared once, in styles/tables.css', () => {
     expect({ hardCodedColours: literals ?? [] }).toEqual({ hardCodedColours: [] });
   });
 
-  it('declares `display` for NO table, row or cell outside stacked mode (the colSpan law)', () => {
+  it('declares `display` on NO family-named selector or bare row/cell subject outside stacked mode (the colSpan law)', () => {
     // One grouped rule now styles every cell in the product, so a single `display: flex`
     // typed into it would discard colSpan on the sales table's spanning message rows on BOTH
     // surfaces at once — the sales-log phase-2 hard law, invisible to jsdom, and a mutation
@@ -165,10 +165,27 @@ const CHART_GRIDS = {
   '.pr-table__grid': resolve(SRC, 'styles/prices.css'),
 } as const;
 
+/** Matches the grid's class as a whole token — `.cmp-table__grid` must not be satisfied by a
+ *  prefix-extending rename like `.cmp-table__gridX` (round-2 review find). */
+function selectorHasToken(selector: string, cls: string): boolean {
+  return new RegExp(`${cls.replace(/[.\\]/g, '\\$&')}(?![\\w-])`).test(selector);
+}
+
 describe('the chart table-views stay aligned with the skin', () => {
+  it('cannot go vacuous: the chart-grid map is complete', () => {
+    // Same hole as FAMILY_SHEETS, reproduced in the same commit that fixed it there (round-2
+    // review): `it.each` over an emptied map produces no cases, not a failure.
+    expect(Object.keys(CHART_GRIDS).sort()).toEqual([
+      '.cmp-table__grid',
+      '.fc-table__grid',
+      '.pr-table__grid',
+      '.tl-table__grid',
+    ]);
+  });
+
   it.each(Object.entries(CHART_GRIDS))('%s', (grid, path) => {
     const rs = rules(readFileSync(path, 'utf8')).filter((r) =>
-      r.selectors.some((s) => s.includes(grid)),
+      r.selectors.some((s) => selectorHasToken(s, grid)),
     );
     // The sheet really still styles this grid — a rename would otherwise pass vacuously.
     expect({ grid, rulesFound: rs.length }).not.toEqual({ grid, rulesFound: 0 });
@@ -182,7 +199,7 @@ describe('the chart table-views stay aligned with the skin', () => {
     const headerColours = rs
       .filter(
         (r) =>
-          r.selectors.some((s) => s.includes(`${grid} thead th`)) &&
+          r.selectors.some((s) => selectorHasToken(s, grid) && /thead\s+th/.test(s)) &&
           /(^|[^-\w])color\s*:/.test(r.body),
       )
       .map((r) => /(?:^|[^-\w])color\s*:\s*([^;]+)/.exec(r.body)![1].trim());

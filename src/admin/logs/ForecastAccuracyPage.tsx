@@ -229,7 +229,7 @@ export default function ForecastAccuracyPage() {
                 {t('common.errorBody')}
               </p>
             )}
-            <div className="adm-tablewrap ing-tablewrap">
+            <div className="adm-tablewrap">
               <table className="ing-table">
                 <caption className="sr-only">{t('admin.forecastAccuracy.snapshotsTitle')}</caption>
                 <thead>
@@ -366,7 +366,7 @@ function SummaryBody({
           <p className="adm-caption">
             {t('admin.forecastAccuracy.metricsWindow', { days: summary.windowDays })}
           </p>
-          <div className="adm-tablewrap ing-tablewrap">
+          <div className="adm-tablewrap">
             <table className="ing-table">
               <caption className="sr-only">{t('admin.forecastAccuracy.byVersionTitle')}</caption>
               <thead>

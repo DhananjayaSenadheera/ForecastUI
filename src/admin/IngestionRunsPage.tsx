@@ -163,7 +163,7 @@ export default function IngestionRunsPage() {
                 {t('common.errorBody')}
               </p>
             )}
-            <div className="adm-tablewrap ing-tablewrap">
+            <div className="adm-tablewrap">
               <table className="ing-table">
                 <caption className="sr-only">{t('admin.ingestion.runsTitle')}</caption>
                 <thead>

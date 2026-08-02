@@ -1782,6 +1782,19 @@
   border: 1px solid var(--line);
   border-radius: var(--r-md);
 }
+/* The popup's grid KEEPS its white box — the one boxed grid left. RE-ASSERTED, not merely
+   left alone: this app portals no modal, so the dialog is DOM-nested inside whatever page
+   .panel rendered its trigger and the skin's `.panel .pf-tablewrap` unbox reaches this
+   wrapper straight through it (round-2 review find). Same specificity (0,2,0), later file:
+   wins on both counts. Fenced to grid widths — at (0,2,0) an unfenced version would also
+   out-rank the skin's stacked-mode unbox (0,1,0) and put a white box around cards that draw
+   their own borders. */
+@media (min-width: 601px) {
+  .pf-sales .pf-tablewrap {
+    background: var(--surface);
+    border: 1px solid var(--line);
+  }
+}
 /* The divider the owner asked for, above the heading. A real <hr> (role="separator"): the
    break between "what the market says" and "what you got" is a fact about the document, not a
    decoration, so it is stated in the markup rather than painted on with a border. */
