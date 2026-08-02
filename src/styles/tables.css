@@ -21,9 +21,9 @@
      · a white --surface panel with a 1px --line border and --r-md corners; the
        panel owns the horizontal scroll, so a wide grid never widens the page
      · a WHITE header row in dark --text, bold, SENTENCE CASE, closed by a single
-       hairline. No uppercase, no letter-spacing: text-transform is banned
-       app-wide (tokens.css §5) because Sinhala and Tamil have no case and
-       letter-spacing only loosens scripts that read worse spaced out
+       hairline. No uppercase, no letter-spacing on any table (per tokens.css §5's
+       rationale: Sinhala and Tamil have no case, and letter-spacing only loosens
+       scripts that read worse spaced out)
      · horizontal hairlines between rows and NOTHING else — no vertical rules, no
        zebra stripes. The last row draws none: the panel's own border closes the
        box, and a line 1px above it is a double rule
@@ -58,6 +58,20 @@
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
+}
+
+/* …except inside a .panel card, where the panel IS the box: a second identical hairline,
+   18px inside the first around white-on-white, draws information-free geometry (round-1
+   review, overruling this file's first cut). The grid keeps its radius so a hover wash can
+   never poke a square corner past a rounded card. The one boxed-grid site left is the sales
+   popup, whose .pf-sales section is --surface-2 — white carries real tone there, and that
+   wrapper has no .panel above it. */
+.panel .pf-tablewrap,
+.panel .adm-tablewrap,
+.panel .ov-tablewrap,
+.panel .bc-tablewrap {
+  background: transparent;
+  border: 0;
 }
 
 /* Where a page puts its pager INSIDE the panel, the pager is the grid's footer:

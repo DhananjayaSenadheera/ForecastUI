@@ -127,11 +127,11 @@
 }
 
 /* Tables --------------------------------------------------------------------
-   The panel, the hairlines, the header treatment, the hover wash and the numeric
-   right-alignment all come from the app-wide table skin (src/styles/tables.css) — the admin
-   console and the farmer app wear ONE grid. What is left here is what is true of the admin
-   console alone: it is a dense internal desktop tool, so its type steps down a notch and its
-   headers stay on one line. */
+   The panel, the hairlines, the header treatment, the hover wash, the CELL PADDING and the
+   numeric right-alignment all come from the app-wide table skin (src/styles/tables.css) — the
+   admin console and the farmer app wear ONE grid, which made these grids a touch wider-set
+   than the old var(--sp-3) cells. What is left here is what is true of the admin console
+   alone: its type steps down a notch and its headers stay on one line. */
 .adm-table {
   font-size: var(--fs-sm);
 }
@@ -448,8 +448,10 @@
   outline: none;
   box-shadow: var(--focus-ring);
 }
-/* Icon inside a row button: sized to the text, never shrinks, optically aligned. */
-.adm-btn-ico {
+/* Icon inside a row button: sized to the text, never shrinks, optically aligned.
+   .act-ico is the shared icon module's default class (components/icons.tsx) — neutral name,
+   because the same pencil and trash ride the farmer's sales table now. */
+.act-ico {
   flex: 0 0 auto;
 }
 /* THE ONE PLACE THE SKIN'S TEAL IS NOT WORN. Deleting a market, a user or a policy flag is
@@ -816,6 +818,13 @@
     font-size: var(--fs-xs);
     color: var(--text-3);
     margin-bottom: 2px;
+  }
+  /* Stacked, a numeric cell is a key/value line, not a column — without this the data-label
+     ::before inherits `right` from the skin's numeric alignment and the label floats to the
+     card's far edge. Cell-class selector so it beats `.adm-table .adm-td--num`. */
+  .adm-table td.adm-td--num,
+  .adm-table th.adm-th--num {
+    text-align: left;
   }
 }
 
@@ -1191,6 +1200,11 @@
     font-size: var(--fs-xs);
     color: var(--text-3);
     margin-bottom: 2px;
+  }
+  /* Same key/value reset as .adm-table's stacked block: no columns, no right-alignment. */
+  .ing-table td.ing-td--num,
+  .ing-table th.ing-th--num {
+    text-align: left;
   }
   .ing-td-toggle {
     width: auto;

@@ -100,10 +100,12 @@
 .bc-table thead th {
   white-space: nowrap;
 }
-/* NOT promoted to the skin's right-aligned numeric group on purpose: this column's cells draw
-   the price as a left-aligned bar with the number inside it, so a right-aligned heading would
-   float away from the thing it names. It moves when the cell does. */
-.bc-th--num { text-align: right; }
+/* NOT in the skin's right-aligned numeric group on purpose — and deliberately carrying NO
+   alignment rule of its own: this column's cells draw the price as a left-aligned bar with
+   the number inside it, and the bare `.bc-th--num { text-align: right }` that used to sit
+   here never actually won against `.bc-table thead th { text-align: left }` (0,1,0 vs 0,1,2),
+   so the heading has always sat left, over the bar. If the cell ever becomes a plain number,
+   add `.bc-table .bc-th--num` to the skin's §7 group. */
 
 /* sortable header button-in-th */
 .bc-sort {

@@ -39,7 +39,7 @@ import { useTranslation } from 'react-i18next';
 // The app's one action-icon set (already its own shared chunk). The pencil and the trash the
 // admin console uses are the pencil and the trash a farmer uses — sized up to 20px here,
 // because the farmer app reads at arm's length in sunlight.
-import { IconEdit, IconTrash } from '../admin/icons';
+import { IconEdit, IconTrash } from './icons';
 import { SALE_AMOUNT_MAX, SALE_NOTE_MAX, type Market, type SaleItem } from '../api/types';
 import { exactDigits, formatDate, formatExactAmount, formatPrice } from '../lib/format';
 import {
@@ -132,6 +132,9 @@ interface SalesTableBaseProps {
   /** Last resort for focus when every control that could take it has unmounted (the page's
    *  result line). */
   fallbackFocusRef?: React.RefObject<HTMLElement | null>;
+  /** Rendered inside the grid panel, under the table — the page's pager lives here so the
+   *  grid and its pagination read as one control, the same as every other paged table. */
+  footer?: React.ReactNode;
 }
 
 /** An empty row: today's date (a farmer recording a sale has usually just made it) and nothing
@@ -156,6 +159,7 @@ export default function SalesTable(props: SalesTableProps) {
     onDelete,
     onEditorOpen,
     fallbackFocusRef,
+    footer,
   } = props;
   // Narrowed off `props` rather than destructured: destructuring two members of a union breaks
   // the correlation between them, and it is exactly that correlation ("a + always has a crop
@@ -278,8 +282,11 @@ export default function SalesTable(props: SalesTableProps) {
               <tr>
                 <th scope="col">{labels.date}</th>
                 {showCrop && <th scope="col">{labels.crop}</th>}
-                <th scope="col">{labels.price}</th>
-                <th scope="col">{labels.quantity}</th>
+                {/* The numeric column class rides the th and BOTH cell states (view + edit), so
+                    header, fact and field agree on where the column lives. One of the three
+                    drifting left was a real round-1 review find. */}
+                <th scope="col" className="pf-stbl__num">{labels.price}</th>
+                <th scope="col" className="pf-stbl__num">{labels.quantity}</th>
                 <th scope="col">{labels.market}</th>
                 <th scope="col">{labels.note}</th>
                 <th scope="col">{labels.actions}</th>
@@ -408,6 +415,7 @@ export default function SalesTable(props: SalesTableProps) {
               )}
             </tbody>
           </table>
+          {footer}
         </div>
       )}
     </div>
@@ -676,7 +684,7 @@ function SaleEditRow({
             recording happens on the crop's own popup. It is shown, not offered. */}
         {showCrop && <td data-label={labels.crop}>{cropName}</td>}
 
-        <td data-label={labels.price}>
+        <td className="pf-stbl__num" data-label={labels.price}>
           {/* type="text" with inputMode="decimal": the phone shows a number pad, and the value
               stays exactly what the farmer typed — a number input silently discards a string it
               dislikes, so "1,250" would vanish rather than be corrected. */}
@@ -693,7 +701,7 @@ function SaleEditRow({
           />
         </td>
 
-        <td data-label={labels.quantity}>
+        <td className="pf-stbl__num" data-label={labels.quantity}>
           <input
             type="text"
             inputMode="decimal"

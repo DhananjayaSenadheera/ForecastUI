@@ -164,11 +164,12 @@
   color: var(--text-2);
   margin: 0 0 var(--sp-3);
 }
-/* The panel, the hairlines, the header row and the numeric alignment are the app-wide table
-   skin (styles/tables.css). This table used --chart-grid for its row separators, which was a
-   lighter line than every other grid in the product drew — it is now the same --line as the
-   rest. What stays here is this table's own density and the one thing that is really true of
-   it: a row is a market price beside a sparkline, so the cells centre on each other. */
+/* The panel, the hairlines, the header row, the numeric alignment AND the cell padding are
+   the app-wide table skin (styles/tables.css) — this table's old --sp-2/--sp-3 density went
+   with the skin, so its rows breathe wider than they used to. Its --chart-grid row separators
+   (lighter than every other grid drew) are now the same --line as the rest. What stays here:
+   the type size, and the one thing really true of this table — a row is a market price beside
+   a sparkline, so the cells centre on each other. */
 .ov-table {
   font-size: var(--fs-sm);
 }
@@ -213,9 +214,8 @@
   padding: var(--sp-2) 0;
   min-height: var(--touch-min);
 }
-.ov-table--alt {
-  margin-top: var(--sp-2);
-}
+/* (.ov-table--alt carries no margin of its own: it renders inside the skin's .ov-tablewrap
+   panel now, and a margin above the header row inside the box read as an off-centre gap.) */
 
 /* ---- best-crops teaser ---- */
 .ov-teaser {

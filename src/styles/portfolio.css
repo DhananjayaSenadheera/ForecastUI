@@ -1243,6 +1243,15 @@
   .pf-table tbody th {
     padding: var(--sp-3) var(--sp-2);
   }
+  /* Stacked, a numeric cell is a full-width key/value line like any other: the skin's
+     right-alignment is a COLUMN device, and here there is no column. Without this the
+     data-label ::before inherits `right` from the cell and "Price (Rs./kg)" floats to the
+     card's far edge while every other label sits left (round-1 review find). Written with the
+     cell's own class so it beats the skin's `.pf-table .pf-stbl__num`. */
+  .pf-table td.pf-stbl__num,
+  .pf-table th.pf-stbl__num {
+    text-align: left;
+  }
   .pf-row > *:last-child {
     border-bottom: none;
   }
@@ -1828,10 +1837,8 @@
    The popup is 560px wide whatever the screen is, and a11y-large lifts every string a notch:
    past some point six columns genuinely cannot shrink further. The house policy for that band
    is already written down in tokens.css — 600–1023px, "tables scroll" — so the wrapper scrolls
-   rather than clipping a field. Under 600px it never engages: the rows have stacked by then. */
-.pf-stbl > .pf-tablewrap {
-  overflow-x: auto;
-}
+   rather than clipping a field (the scroll itself is the skin's: tables.css gives every
+   .pf-tablewrap `overflow-x: auto`). Under 600px it never engages: the rows have stacked. */
 /* Dense by table standards, because six columns have to live inside a 560px popup: the type
    steps down one notch and the cells tighten. Nothing shrinks below --fs-sm, which is the
    smallest size this app will print a fact at. */

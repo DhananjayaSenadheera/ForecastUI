@@ -9,9 +9,9 @@
 // but the request they were already making on the admin side.
 //
 // Every icon takes SVG props and spreads them LAST, so a caller can resize or re-class one
-// without touching these defaults: the admin console's 14px + .adm-btn-ico is what you get
-// when you pass nothing, and the farmer's 44px row buttons ask for 20px instead (a 14px glyph
-// is not legible at arm's length in sunlight, which is the farmer app's floor).
+// without touching these defaults: 14px + .act-ico (the shared "icon inside an action button"
+// class) is what you get when you pass nothing, and the farmer's 44px row buttons ask for 20px
+// instead (a 14px glyph is not legible at arm's length in sunlight, the farmer app's floor).
 import type { SVGProps } from 'react';
 
 const base: SVGProps<SVGSVGElement> = {
@@ -25,7 +25,7 @@ const base: SVGProps<SVGSVGElement> = {
   strokeLinejoin: 'round',
   'aria-hidden': true,
   focusable: false,
-  className: 'adm-btn-ico',
+  className: 'act-ico',
 };
 
 // Pencil — edit.

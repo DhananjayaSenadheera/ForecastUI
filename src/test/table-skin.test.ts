@@ -89,9 +89,48 @@ describe('the table skin is declared once, in styles/tables.css', () => {
     );
     expect({ hardCodedColours: literals ?? [] }).toEqual({ hardCodedColours: [] });
   });
+
+  it('declares `display` for NO table, row or cell outside stacked mode (the colSpan law)', () => {
+    // One grouped rule now styles every cell in the product, so a single `display: flex`
+    // typed into it would discard colSpan on the sales table's spanning message rows on BOTH
+    // surfaces at once — the sales-log phase-2 hard law, invisible to jsdom, and a mutation
+    // that survived this whole suite in round-1 review. `display` stays out of SKIN_PROPS
+    // (family sheets' stacked modes legitimately re-display their cells); it is prohibited
+    // HERE, on the skin side, where no rule has any business re-displaying table guts.
+    const offenders = skinRules
+      .filter((r) => !isStackedMode(r))
+      .filter((r) => declares(r.body, 'display'))
+      .flatMap((r) =>
+        r.selectors.filter((s) => touchesFamily(s) || /(^|[\s>+~])(td|th|tr)\b[^ >+~]*$/.test(s)),
+      );
+    expect({ displayOnTableGuts: offenders }).toEqual({ displayOnTableGuts: [] });
+  });
 });
 
 describe('no family stylesheet re-decides the table look', () => {
+  it('cannot go vacuous: the family map is complete and every sheet still touches its family', () => {
+    // Round-1 review emptied FAMILY_SHEETS and this file silently shrank from 14 tests to 10,
+    // all green — `it.each` over an empty map produces no cases, not a failure. So the map's
+    // exact membership is itself an assertion, and each sheet must still parse into at least
+    // one rule that addresses a family, or a renamed/unparsed sheet reports zero offenders
+    // below while its drift walks straight through.
+    expect(Object.keys(FAMILY_SHEETS).sort()).toEqual([
+      'admin/admin.css',
+      'styles/bestcrops.css',
+      'styles/overview.css',
+      'styles/portfolio.css',
+    ]);
+    for (const [name, path] of Object.entries(FAMILY_SHEETS)) {
+      const familyRules = rules(readFileSync(path, 'utf8')).filter((r) =>
+        r.selectors.some(touchesFamily),
+      );
+      expect({ sheet: name, rulesTouchingAFamily: familyRules.length }).not.toEqual({
+        sheet: name,
+        rulesTouchingAFamily: 0,
+      });
+    }
+  });
+
   it.each(Object.entries(FAMILY_SHEETS))('%s', (_name, path) => {
     const offenders = rules(readFileSync(path, 'utf8'))
       .filter((r) => !isStackedMode(r))
@@ -104,7 +143,7 @@ describe('no family stylesheet re-decides the table look', () => {
     expect({ redeclaredInsteadOfSkinned: offenders }).toEqual({ redeclaredInsteadOfSkinned: [] });
   });
 
-  it('leaves NO uppercase heading on a table anywhere (tokens.css §5 bans it app-wide: ' +
+  it('leaves NO uppercase heading on a table anywhere (tokens.css §5 rationale: ' +
     'Sinhala and Tamil have no case, and letter-spacing only loosens them)', () => {
     const offenders = Object.entries(FAMILY_SHEETS).flatMap(([name, path]) =>
       rules(readFileSync(path, 'utf8'))
@@ -112,6 +151,42 @@ describe('no family stylesheet re-decides the table look', () => {
         .flatMap((r) => r.selectors.map((s) => `${name}: ${s}`)),
     );
     expect({ uppercased: offenders }).toEqual({ uppercased: [] });
+  });
+});
+
+/** The chart "table view" alternates (inside <details>) are hand-aligned to the skin rather
+ *  than wearing it — they are compact chart substitutes with their own max-widths, not data
+ *  grids. This block pins the alignment (header colour, no uppercase) so it cannot silently
+ *  drift back out, and pins that each sheet still styles its grid at all. */
+const CHART_GRIDS = {
+  '.cmp-table__grid': resolve(SRC, 'styles/compare.css'),
+  '.fc-table__grid': resolve(SRC, 'styles/harvest.css'),
+  '.tl-table__grid': resolve(SRC, 'styles/harvest.css'),
+  '.pr-table__grid': resolve(SRC, 'styles/prices.css'),
+} as const;
+
+describe('the chart table-views stay aligned with the skin', () => {
+  it.each(Object.entries(CHART_GRIDS))('%s', (grid, path) => {
+    const rs = rules(readFileSync(path, 'utf8')).filter((r) =>
+      r.selectors.some((s) => s.includes(grid)),
+    );
+    // The sheet really still styles this grid — a rename would otherwise pass vacuously.
+    expect({ grid, rulesFound: rs.length }).not.toEqual({ grid, rulesFound: 0 });
+    // Sentence case, like every other table (Sinhala and Tamil have no case).
+    const uppercased = rs.filter((r) => /text-transform\s*:\s*uppercase/.test(r.body));
+    expect({ grid, uppercased: uppercased.flatMap((r) => r.selectors) }).toEqual({
+      grid,
+      uppercased: [],
+    });
+    // Wherever the grid colours its header, it is the skin's header colour.
+    const headerColours = rs
+      .filter(
+        (r) =>
+          r.selectors.some((s) => s.includes(`${grid} thead th`)) &&
+          /(^|[^-\w])color\s*:/.test(r.body),
+      )
+      .map((r) => /(?:^|[^-\w])color\s*:\s*([^;]+)/.exec(r.body)![1].trim());
+    for (const c of headerColours) expect({ grid, headerColour: c }).toEqual({ grid, headerColour: 'var(--text)' });
   });
 });
 

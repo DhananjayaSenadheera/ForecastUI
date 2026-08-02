@@ -20,7 +20,7 @@ import {
   SortableTh,
   usePagination,
 } from './adminShared';
-import { IconEdit, IconTrash } from './icons';
+import { IconEdit, IconTrash } from '../components/icons';
 
 type SortKey = 'username' | 'email' | 'role' | 'created';
 type SortDir = 'asc' | 'desc';
