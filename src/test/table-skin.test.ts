@@ -233,4 +233,25 @@ describe('the skin knows the difference between a row and a card', () => {
       expect.arrayContaining(['.pf-tablewrap', '.adm-tablewrap']),
     );
   });
+
+  it('keeps the sales popup boxed: the .pf-sales re-assert exists, fenced to grid widths', () => {
+    // The skin's `.panel <descendant>` unbox reaches the popup's grid THROUGH the
+    // non-portalled dialog, so the popup's box exists only as a re-assert in portfolio.css —
+    // a single CSS block whose deletion the component suite cannot see (it took a review
+    // round to find the first time). It must declare background AND border, and it must sit
+    // inside a real ≥601px min-width fence: unfenced, its (0,2,0) also beats the stacked
+    // unbox and puts a white box around phone cards that draw their own borders.
+    const popupBox = rules(readFileSync(resolve(SRC, 'styles/portfolio.css'), 'utf8')).filter(
+      (r) => r.selectors.includes('.pf-sales .pf-tablewrap'),
+    );
+    expect(popupBox.length).toBeGreaterThan(0);
+    for (const r of popupBox) {
+      expect({ selector: '.pf-sales .pf-tablewrap', body: r.body }).toMatchObject({
+        body: expect.stringMatching(/background\s*:\s*var\(--surface\)/),
+      });
+      expect(r.body).toMatch(/border\s*:\s*1px solid var\(--line\)/);
+      const floor = /min-width:\s*(\d+)px/.exec(r.at.join(' '));
+      expect(Number(floor?.[1])).toBeGreaterThanOrEqual(601);
+    }
+  });
 });
