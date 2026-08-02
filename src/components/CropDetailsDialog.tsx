@@ -4,9 +4,15 @@
 // opens everything about that crop in a sheet over the list, instead of navigating away and
 // losing their place in it. Phase 2's selling price, fertiliser cost and labour cost become
 // FURTHER SECTIONS in this same body — which is why the body is a plain sequence of
-// <section>s with their own headings rather than a fixed two-column layout. Nothing is
-// stubbed out for them: an empty "coming soon" panel is a promise the screen cannot keep,
-// and a farmer reading it learns nothing.
+// <section>s with their own headings. Nothing is stubbed out for them: an empty "coming soon"
+// panel is a promise the screen cannot keep, and a farmer reading it learns nothing.
+//
+// That sequence is the ONE source of order. From 1024px up (owner's ask, 2026-08-02) it is
+// dealt into two columns — market/price/planting on the left, the sales book and the way out
+// on the right — but only by wrapping the sequence, never by re-ordering it: the columns are
+// `display: contents` below the breakpoint, so a phone gets the identical single column and
+// tab order follows the eye on both. A new section joins the sequence and lands in a column;
+// it never needs a layout decision of its own.
 //
 // It carries the card's MARKET CONTEXT with it. Opened from the BAN tab, the popup is about
 // Bandarawela: the same price, the same date, the same chart, and the link out to the crop
@@ -103,102 +109,127 @@ export default function CropDetailsDialog({
       // The same disc the card behind this sheet is showing: the popup covers that card,
       // so carrying its icon over is what makes it read as the SAME crop opened up.
       icon={cropIcon({ cropCode: item.cropCode, cropName: item.cropName })}
+      // The sheet lays itself out in two columns from 1024px up (see .pf-dlg__cols below),
+      // so it asks the shell for the desktop width those columns need.
+      wide
       onClose={onClose}
     >
-      {/* Header facts: how far the model can be trusted on this crop, and which market
-          everything below is about. The code is a LABEL here, not a control — the tabs on
-          the card are where a market is chosen. */}
-      <div className="pf-dlg__meta">
-        <ReadinessBadge status={readiness} compact />
-        {market && (
-          <span className="pf-dlg__market">
-            <span className="pf-dlg__code">{marketCodeLabel(market)}</span>
-            <span className="pf-dlg__market-name">{market.name}</span>
-          </span>
-        )}
-      </div>
-      {market?.isDefaultMarket && (
-        <p className="pf-card__market-note">{t('pages.portfolio.defaultMarketNote')}</p>
-      )}
+      {/* THE TWO COLUMNS (owner, 2026-08-02: on a maximised window put what is under the
+          forecast beside it instead). Below 1024px this wrapper and both columns are
+          `display: contents` — the browser lays the sections out as the direct children of
+          .pf-modal__body they have always been, so the phone sheet is unchanged to the pixel.
+          From 1024px up the wrapper becomes a 2-column grid.
 
-      <section className="pf-dlg__section" aria-labelledby={`${titleId}-price`}>
-        <h3 className="pf-dlg__h" id={`${titleId}-price`}>
-          {t('pages.portfolio.priceNowHeading')}
-        </h3>
-        <PriceBlock market={market} lang={lang} todayYmd={todayYmd} />
-        <PriceSwingBadge swing={swing} />
-        {/* No chart where there is no price: the series behind it cannot have rows, and an
-            empty chart under an honest "no price" line is a second, differently-worded way
-            of saying the same nothing. */}
-        {history !== undefined && (
-          <div className="pf-card__chart">
-            {history === null ? (
-              <div className="pf-skel pf-skel--chart" aria-busy="true">
-                <span className="sr-only">{t('common.loading')}</span>
-              </div>
-            ) : (
-              <PriceLineChart
-                history={history}
-                cropLabel={item.cropName}
-                marketName={market?.name ?? ''}
-                lang={lang}
-              />
+          DOM order IS visual order: what reads first on a phone (market → price → planting)
+          is the left column, what came after it (sales → links) is the right one. Tab order,
+          the reading order of a screen reader and the eye therefore still agree, which is why
+          this is a wrapper pair rather than any kind of re-ordering.
+
+          The dialog title and ✕ are NOT in here: they belong to the shell above the body and
+          span the full width, as one heading for both columns. */}
+      <div className="pf-dlg__cols">
+        <div className="pf-dlg__col pf-dlg__col--main">
+          {/* Header facts: how far the model can be trusted on this crop, and which market
+              everything below is about. The code is a LABEL here, not a control — the tabs on
+              the card are where a market is chosen. */}
+          <div className="pf-dlg__meta">
+            <ReadinessBadge status={readiness} compact />
+            {market && (
+              <span className="pf-dlg__market">
+                <span className="pf-dlg__code">{marketCodeLabel(market)}</span>
+                <span className="pf-dlg__market-name">{market.name}</span>
+              </span>
             )}
           </div>
-        )}
-      </section>
+          {market?.isDefaultMarket && (
+            <p className="pf-card__market-note">{t('pages.portfolio.defaultMarketNote')}</p>
+          )}
 
-      {/* The farmer's planting and what it is forecast to fetch — the same section the card
-          shows, with its own ids so the two inputs on screen never share one label.
-          A DIV, not a <section>: PlantedDateSection is already a landmark-shaped section
-          labelled by its own heading, and wrapping it in a second, nameless one would add
-          an unnamed region to the dialog for nothing but a class name. */}
-      <div className="pf-dlg__section">
-        <PlantedDateSection
-          item={item}
-          market={market}
-          lang={lang}
-          todayYmd={todayYmd}
-          forecast={forecast}
-          onRetryForecast={onRetryForecast}
-          onSave={onSavePlantedDate}
-          onClear={onClearPlantedDate}
-          busy={busy}
-          idPrefix="dlg"
-          headingLevel={3}
-          // The popup is where a planting date can be REMOVED (the card no longer offers it),
-          // behind a confirm that asks for a reason. See PlantedDateSection's header.
-          clearControl="confirm"
-        />
+          <section className="pf-dlg__section" aria-labelledby={`${titleId}-price`}>
+            <h3 className="pf-dlg__h" id={`${titleId}-price`}>
+              {t('pages.portfolio.priceNowHeading')}
+            </h3>
+            <PriceBlock market={market} lang={lang} todayYmd={todayYmd} />
+            <PriceSwingBadge swing={swing} />
+            {/* No chart where there is no price: the series behind it cannot have rows, and an
+                empty chart under an honest "no price" line is a second, differently-worded way
+                of saying the same nothing. */}
+            {history !== undefined && (
+              <div className="pf-card__chart">
+                {history === null ? (
+                  <div className="pf-skel pf-skel--chart" aria-busy="true">
+                    <span className="sr-only">{t('common.loading')}</span>
+                  </div>
+                ) : (
+                  <PriceLineChart
+                    history={history}
+                    cropLabel={item.cropName}
+                    marketName={market?.name ?? ''}
+                    lang={lang}
+                  />
+                )}
+              </div>
+            )}
+          </section>
+
+          {/* The farmer's planting and what it is forecast to fetch — the same section the card
+              shows, with its own ids so the two inputs on screen never share one label.
+              A DIV, not a <section>: PlantedDateSection is already a landmark-shaped section
+              labelled by its own heading, and wrapping it in a second, nameless one would add
+              an unnamed region to the dialog for nothing but a class name. */}
+          <div className="pf-dlg__section">
+            <PlantedDateSection
+              item={item}
+              market={market}
+              lang={lang}
+              todayYmd={todayYmd}
+              forecast={forecast}
+              onRetryForecast={onRetryForecast}
+              onSave={onSavePlantedDate}
+              onClear={onClearPlantedDate}
+              busy={busy}
+              idPrefix="dlg"
+              headingLevel={3}
+              // The popup is where a planting date can be REMOVED (the card no longer offers it),
+              // behind a confirm that asks for a reason. See PlantedDateSection's header.
+              clearControl="confirm"
+            />
+          </div>
+        </div>
+
+        {/* The SECOND column on a wide screen, still the second half of one column below
+            1024px: the farmer's own record of what this crop actually fetched, and the way
+            out to the crop's full page. */}
+        <div className="pf-dlg__col pf-dlg__col--side">
+          {/* Phase 2, first block: what the farmer really GOT for this crop. It sits under the
+              planting section because that is the order of the season — plant, then sell — and
+              above the way-out links. Fertiliser and labour costs join it here later.
+              A DIV wrapper for the same reason as the planting one: SalesSection is already a
+              section labelled by its own heading, and a second nameless one would add an unnamed
+              region to the dialog for a class name. It is --flush because the sales section draws
+              its own separator above its heading — two rules 12px apart read as a mistake. */}
+          <div className="pf-dlg__section pf-dlg__section--flush">
+            <SalesSection
+              item={item}
+              allMarkets={allMarkets}
+              lang={lang}
+              todayYmd={todayYmd}
+              busy={busy}
+              idPrefix="dlg"
+            />
+          </div>
+
+          <p className="pf-dlg__links">
+            <Link
+              className="pf-card__link"
+              to={cropDetailLink(item, market?.marketId ?? null)}
+              aria-label={t('pages.portfolio.openCropPageAria', { crop: item.cropName })}
+            >
+              {t('pages.portfolio.openCropPage')}
+            </Link>
+          </p>
+        </div>
       </div>
-
-      {/* Phase 2, first block: what the farmer really GOT for this crop. It sits under the
-          planting section because that is the order of the season — plant, then sell — and
-          above the way-out links. Fertiliser and labour costs join it here later.
-          A DIV wrapper for the same reason as the planting one: SalesSection is already a
-          section labelled by its own heading, and a second nameless one would add an unnamed
-          region to the dialog for a class name. It is --flush because the sales section draws
-          its own separator above its heading — two rules 12px apart read as a mistake. */}
-      <div className="pf-dlg__section pf-dlg__section--flush">
-        <SalesSection
-          item={item}
-          allMarkets={allMarkets}
-          lang={lang}
-          todayYmd={todayYmd}
-          busy={busy}
-          idPrefix="dlg"
-        />
-      </div>
-
-      <p className="pf-dlg__links">
-        <Link
-          className="pf-card__link"
-          to={cropDetailLink(item, market?.marketId ?? null)}
-          aria-label={t('pages.portfolio.openCropPageAria', { crop: item.cropName })}
-        >
-          {t('pages.portfolio.openCropPage')}
-        </Link>
-      </p>
     </Modal>
   );
 }

@@ -1728,6 +1728,60 @@
   margin: 0;
 }
 
+/* ---- The popup's two columns (owner, 2026-08-02) --------------------------
+   "When the browser is maximised … remove the entire section underneath 'See the full
+   forecast' and show it on the same row, in another column."
+
+   BELOW 1024px NOTHING CHANGES, and that is enforced rather than hoped for: the wrapper and
+   both columns are `display: contents`, so the sections inside them stay the direct flex
+   children of .pf-modal__body they were before the wrappers existed — same order, same
+   var(--sp-4) gaps, same 560px sheet. (Safe on these two: `display: contents` drops an element
+   from the accessibility tree, and neither wrapper carries a role, a name or a landmark. The
+   sections that DO — the price section, the planting and sales regions — are untouched inside
+   them.) The phone is the majority case, so it is the case that gets no new CSS at all. */
+.pf-dlg__cols,
+.pf-dlg__col {
+  display: contents;
+}
+
+/* From the desktop tier (tokens.css §8: ">=1024px … 2–3 column layouts") the sheet becomes
+   what the owner drew. Neither column is a scroll container: .pf-modal keeps its ONE
+   scrollbar, so a farmer never has to work out which of two panes their answer is hiding in. */
+@media (min-width: 1024px) {
+  /* Room for two columns, and no more: `min(…, 100vw - 48px)` keeps the backdrop's own
+     var(--sp-4) padding visible on a 1024px laptop, where 1060 would otherwise touch both
+     edges. Opt-in via --wide, so a future one-column dialog in this shell still gets 560. */
+  .pf-modal--wide {
+    max-width: min(1060px, calc(100vw - 48px));
+  }
+  .pf-dlg__cols {
+    display: grid;
+    /* 10fr / 11fr, not 1fr / 1fr: the right column carries the six-column sales grid, which
+       was designed to fit a 560px popup. Measured in headless Chrome against these
+       stylesheets: at ≥1280px the 11fr track is 528px and the grid gets 502px inside
+       .pf-sales — to the pixel the width it has always had, so the table needs no change and
+       gets none. At 1024 it is 458px and the columns simply narrow; the wrapper's existing
+       horizontal scroll stays the escape hatch, and did not have to open at any width tested
+       (1024 / 1280 / 1600). minmax(0, …) on BOTH tracks because a grid item's automatic minimum is its
+       CONTENT: without it the sales table's horizontal-scroll wrapper would push its track
+       wider than the sheet instead of scrolling, and take the left column's room with it. */
+    grid-template-columns: minmax(0, 10fr) minmax(0, 11fr);
+    gap: var(--sp-5);
+    /* Top-aligned, never stretched: the sales card is as tall as the sales it holds. Stretch
+       would inflate an empty book to the height of the chart column and put a farmer's three
+       rows in the middle of a tall empty box. */
+    align-items: start;
+  }
+  .pf-dlg__col {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+    /* The same automatic-minimum guard on the item itself: minmax(0, …) stops the TRACK from
+       growing, this stops the column's content from spilling out of it. */
+    min-width: 0;
+  }
+}
+
 /* A planting whose harvest day has already passed: a plain note where the numbers were.
    Neutral, never alarm — the date is not a mistake, it is simply behind us. */
 .pf-plant__past {
