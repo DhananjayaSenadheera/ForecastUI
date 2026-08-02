@@ -267,14 +267,34 @@ describe('the two columns exist in CSS, and only above the desktop tier', () => 
     const grid = ruleFor('.pf-dlg__cols').filter((r) => /display\s*:\s*grid/.test(r.body));
     expect(grid).toHaveLength(1);
     expect(floorOf(grid[0])).toBeGreaterThanOrEqual(DESKTOP);
-    // Two tracks, and BOTH minmax(0, …): a grid item's automatic minimum is its content, so a
-    // bare `1fr` lets the sales table's scroll wrapper widen its own track and shove the
-    // forecast column off the sheet. This is the trap, so it is the assertion.
+    // Both tracks guarded against the automatic-minimum trap (a bare `1fr` lets the sales
+    // table's scroll wrapper widen its own track and shove the forecast column off the
+    // sheet): the left track by minmax(0, …), the right by a bounded min(…, 100%) floor.
     const tracks = /grid-template-columns:\s*([^;]+)/.exec(grid[0].body)?.[1] ?? '';
-    expect(tracks.match(/minmax\(\s*0\s*,/g) ?? []).toHaveLength(2);
+    // The exact tracks are measured numbers, not taste: 537px = the edit row's 509px
+    // min-content + the .pf-sales card's 26px chrome, the width below which recording a sale
+    // opens a horizontal scrollbar; 10fr/11fr splits whatever is left. A silent flip to
+    // 1fr/1fr (or dropping the floor) re-opens the round-1 edit-row squeeze.
+    expect(tracks).toMatch(
+      /minmax\(\s*0\s*,\s*10fr\s*\)\s*minmax\(\s*min\(\s*537px\s*,\s*100%\s*\)\s*,\s*11fr\s*\)/,
+    );
+    expect(grid[0].body).toMatch(/gap:\s*var\(--sp-5\)/);
     // Top-aligned: the sales card is as tall as the sales it holds, never stretched to the
     // chart column's height.
     expect(grid[0].body).toMatch(/align-items:\s*start/);
+  });
+
+  it('drops the sales separator only in the side column, only at desktop', () => {
+    // In the stacked sheet the <hr> separates the sales section from the sections above it;
+    // in the side column there is nothing above it, so the rule would open the column as a
+    // second line under the card's own border (owner's reference layout shows none).
+    const hide = ruleFor('.pf-dlg__col--side .pf-sales__sep');
+    expect(hide).toHaveLength(1);
+    expect(floorOf(hide[0])).toBeGreaterThanOrEqual(DESKTOP);
+    expect(hide[0].body).toMatch(/display:\s*none/);
+    // And the stacked sheet keeps it: the base separator rule is still there, unfenced.
+    const base = ruleFor('.pf-sales__sep');
+    expect(base.some((r) => r.at.length === 0)).toBe(true);
   });
 
   it('gives each column its own stacking, and makes neither one a scroll container', () => {
