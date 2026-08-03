@@ -8,7 +8,7 @@
 // <details> table alternative is mandatory (the numbers ARE the product), the chart carries
 // an aria summary sentence, and a short series says so in words rather than pretending the
 // trend is meaningful.
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PriceHistoryPoint } from '../api/types';
 import { formatDate, formatPrice } from '../lib/format';
@@ -94,6 +94,9 @@ export default function PriceLineChart({
   }, [geo, lang, rs, t]);
 
   const tt = useChartTooltip(tipPoints, VIEW_W, VIEW_H);
+  // The tooltip places itself off the SVG's MEASURED box, not the wrapper's: .pr-svg is
+  // capped at 680px while .ct-wrap stretches with the page.
+  const svgRef = useRef<SVGSVGElement>(null);
 
   const title = (
     <p className="pr-chart__title">{t('pages.prices.chartTitle', { crop: cropLabel, market: marketName })}</p>
@@ -157,7 +160,7 @@ export default function PriceLineChart({
       {showUnitLabel && <p className="pr-chart__unit">{t('pages.prices.axisUnit', { rs })}</p>}
 
       <div className="ct-wrap">
-        <svg className="pr-svg" viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} role="img" aria-label={summary} {...tt.svgProps}>
+        <svg ref={svgRef} className="pr-svg" viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} role="img" aria-label={summary} {...tt.svgProps}>
           {geo.yTicks.map((tk) => (
             <g key={`y${tk.value}`}>
               <line className="pr-grid" x1={geo.dims.plot.left} y1={tk.y} x2={geo.dims.plot.right} y2={tk.y} />
@@ -179,7 +182,7 @@ export default function PriceLineChart({
             </text>
           ))}
         </svg>
-        <ChartTooltip point={tt.active} mode={tt.mode} viewW={VIEW_W} viewH={VIEW_H} />
+        <ChartTooltip point={tt.active} mode={tt.mode} viewW={VIEW_W} viewH={VIEW_H} svgRef={svgRef} />
       </div>
       {!hideTable && (
         <details className="pr-table">
