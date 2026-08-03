@@ -375,3 +375,40 @@ describe('the layout-effect choice is pinned in source (jsdom cannot see it)', (
     expect(effect![1]).toBe('Layout');
   });
 });
+
+describe('the WIRING: fromPointer really uses the uniform inverse (call-site pin)', () => {
+  function PillarboxHarness() {
+    const points: TooltipPoint[] = [
+      { key: 'p1', x: 380, y: 110, label: 'Jul 1', valueText: 'Rs. 1', announce: 'Jul 1 · Rs. 1' },
+      { key: 'p2', x: 420, y: 110, label: 'Jul 2', valueText: 'Rs. 2', announce: 'Jul 2 · Rs. 2' },
+    ];
+    const tt = useChartTooltip(points, VW, VH);
+    return (
+      <div className="ct-wrap">
+        <svg data-testid="chart" viewBox={`0 0 ${VW} ${VH}`} role="img" aria-label="chart" {...tt.svgProps} />
+        <ChartTooltip point={tt.active} mode={tt.mode} viewW={VW} viewH={VH} />
+      </div>
+    );
+  }
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('a cursor over a pillarboxed drawing picks the point under the INK, not the element box', () => {
+    // 640x220 viewBox in a 680x160 element: scale 0.72727, 107.27px bars each side. A cursor
+    // at clientX=400 is at viewBox x = (400 - 107.27) / 0.72727 = 402.5 -> nearest is x=420.
+    // The old full-element-box mapping said (400/680)*640 = 376.5 -> x=380. Reverting the
+    // fromPointer call site to the inline division (leaving pointerToViewBox exported but
+    // unused) flips this assertion — the round-2 review proved that mutant passes the whole
+    // suite without it. jsdom note: fireEvent.pointerMove drops clientX (no PointerEvent);
+    // a raw bubbling MouseEvent named 'pointermove' is what reaches the handler intact.
+    stubLayout(box(0, 0, 680, 160), box(0, 0, 680, 160));
+    render(<PillarboxHarness />);
+    fireEvent(
+      screen.getByTestId('chart'),
+      new MouseEvent('pointermove', { bubbles: true, clientX: 400, clientY: 80 }),
+    );
+    const tip = document.querySelector('.ct-tip');
+    expect(tip).not.toBeNull();
+    expect(tip!.textContent).toContain('Rs. 2');
+  });
+});
