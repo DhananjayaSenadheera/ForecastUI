@@ -1,9 +1,12 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { useRef } from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   nearestPoint,
   svgPointToWrapPx,
+  pointerToViewBox,
   useChartTooltip,
   ChartTooltip,
   type TooltipPoint,
@@ -305,5 +308,70 @@ describe('ChartTooltip — keyboard access + band + multi-series naming', () => 
     expect(tip.textContent).toContain('Rs. 552'); // the forecast point nearest (90,40)
     // pointer mode does NOT spam the live region
     expect(document.querySelector('.ct-live')?.textContent).toBe('');
+  });
+});
+
+/* ---- The inverse mapping: hit-testing must share the placement's transform ------------- */
+
+describe('pointerToViewBox — svgPointToWrapPx run backwards', () => {
+  // Wrapper at origin so wrapper pixels ARE client pixels: the roundtrip needs one frame.
+  const wrapAt = (svg: { left: number; top: number; width: number; height: number }) => ({
+    left: 0,
+    top: 0,
+    width: svg.left + svg.width,
+    height: svg.top + svg.height,
+  });
+
+  it('round-trips through svgPointToWrapPx exactly, including letterboxed geometry', () => {
+    const geometries = [
+      { left: 0, top: 0, width: 640, height: 220 }, // 1:1
+      { left: 20, top: 8, width: 680, height: 233.75 }, // scaled, offset in wrap
+      { left: 0, top: 0, width: 680, height: 160 }, // pillarboxed (max-height binding)
+      { left: 10, top: 0, width: 300, height: 220 }, // narrow: vertical letterbox
+    ];
+    for (const svg of geometries) {
+      for (const p of [{ x: 0, y: 0 }, { x: 626, y: 40 }, { x: 320, y: 110 }, { x: 640, y: 220 }]) {
+        const placed = svgPointToWrapPx(p, 640, 220, svg, wrapAt(svg));
+        expect(placed).not.toBeNull();
+        // The wrapper sits at the client origin, so placement pixels are client pixels.
+        const back = pointerToViewBox(placed!.leftPx, placed!.topPx, 640, 220, svg);
+        expect(back).not.toBeNull();
+        expect(back!.px).toBeCloseTo(p.x, 6);
+        expect(back!.py).toBeCloseTo(p.y, 6);
+      }
+    }
+  });
+
+  it('maps a cursor on a pillarboxed drawing to the DRAWN plot, not the element box', () => {
+    // 640x220 viewBox inside a 680x160-capped element: scale = 160/220, drawing centred
+    // with 107.27px bars each side. A cursor at the drawing's true horizontal centre:
+    const svg = { left: 100, top: 50, width: 680, height: 160 };
+    const scale = 160 / 220;
+    const centreX = 100 + 680 / 2; // drawing is centred, so element centre == drawing centre
+    const m = pointerToViewBox(centreX, 50 + 80, 640, 220, svg);
+    expect(m!.px).toBeCloseTo(320, 6);
+    expect(m!.py).toBeCloseTo(110, 6);
+    // The OLD full-element-box mapping put the drawing's right edge at px≈640 for a cursor
+    // still 107px inside the element — this mapping puts it where the ink actually stops.
+    const rightEdgeOfInk = 100 + 680 / 2 + (640 / 2) * scale;
+    const edge = pointerToViewBox(rightEdgeOfInk, 50 + 80, 640, 220, svg);
+    expect(edge!.px).toBeCloseTo(640, 6);
+  });
+
+  it('returns null for unlaid-out geometry, like its forward twin', () => {
+    expect(pointerToViewBox(10, 10, 640, 220, { left: 0, top: 0, width: 0, height: 0 })).toBeNull();
+    expect(pointerToViewBox(10, 10, 0, 220, { left: 0, top: 0, width: 100, height: 100 })).toBeNull();
+  });
+});
+
+describe('the layout-effect choice is pinned in source (jsdom cannot see it)', () => {
+  it('measures in useLayoutEffect, never useEffect', () => {
+    // act() flushes passive effects synchronously, so a useEffect mutant passes every
+    // behavioural test in this file while shipping a one-frame tooltip at the old bug
+    // position that then TRANSITIONS to the fix. The choice is only visible in source.
+    const src = readFileSync(resolve(__dirname, '../lib/chartTooltip.tsx'), 'utf8');
+    const effect = /use(Layout)?Effect\(\(\) => \{\s*\n\s*measure\(\);/.exec(src);
+    expect(effect).not.toBeNull();
+    expect(effect![1]).toBe('Layout');
   });
 });

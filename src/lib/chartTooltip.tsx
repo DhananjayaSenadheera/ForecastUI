@@ -86,7 +86,11 @@ export function svgPointToWrapPx(
   const scale = Math.min(svgRect.width / viewW, svgRect.height / viewH);
   const drawnW = viewW * scale;
   const drawnH = viewH * scale;
-  // Top-left of the drawn plot, relative to the wrapper's padding-box origin.
+  // Top-left of the drawn plot, relative to the wrapper's origin. NOTE: these are
+  // border-box origins (getBoundingClientRect), while an absolutely-positioned tip
+  // resolves left/top against the wrapper's PADDING box — equal only while .ct-wrap
+  // carries no border, which is true of every wrapper today. Give a wrapper a border and
+  // every tip shifts by it; subtract borderLeft/TopWidth here if that day comes.
   const drawnLeft = svgRect.left - wrapRect.left + (svgRect.width - drawnW) / 2;
   const drawnTop = svgRect.top - wrapRect.top + (svgRect.height - drawnH) / 2;
 
@@ -95,10 +99,41 @@ export function svgPointToWrapPx(
   return {
     leftPx,
     topPx,
-    // Thresholds read off the DRAWN box, so "near the right edge" means near the edge of
-    // the chart the farmer can see, not of a wrapper that may be much wider.
+    // (leftPx − drawnLeft) / drawnW is ALGEBRAICALLY point.x / viewW — the scale and the
+    // letterbox offset cancel — so these thresholds are identical to the viewBox-fraction
+    // test the percentage era used, at every geometry. Written this way, and with the
+    // constants exported, only so the placement and its thresholds read from one place and
+    // the two call sites (here and the percentage fallback) cannot drift apart.
     flip: (leftPx - drawnLeft) / drawnW > TIP_FLIP_AT,
     below: (topPx - drawnTop) / drawnH < TIP_BELOW_AT,
+  };
+}
+
+/**
+ * The inverse mapping, for HIT-TESTING: pointer client coordinates → viewBox coordinates,
+ * through the same uniform meet-scale + letterbox centring as svgPointToWrapPx. Placement
+ * and hit-testing MUST share one transform: the old full-element-box division was fine while
+ * no chart letterboxed, but the moment a CSS cap binds one axis (`.pf-card__chart .pr-svg
+ * { max-height:160px }` is ~3px from binding in the popup column) a full-box inverse picks
+ * points as if the drawing filled the element while the tip lands on the drawn geometry —
+ * two different answers for one cursor (round-1 review find).
+ * Returns null when the svg has no layout; the caller simply ignores the move.
+ */
+export function pointerToViewBox(
+  clientX: number,
+  clientY: number,
+  viewW: number,
+  viewH: number,
+  svgRect: BoxRect,
+): { px: number; py: number } | null {
+  if (!(viewW > 0) || !(viewH > 0)) return null;
+  if (!(svgRect.width > 0) || !(svgRect.height > 0)) return null;
+  const scale = Math.min(svgRect.width / viewW, svgRect.height / viewH);
+  const offX = (svgRect.width - viewW * scale) / 2;
+  const offY = (svgRect.height - viewH * scale) / 2;
+  return {
+    px: (clientX - svgRect.left - offX) / scale,
+    py: (clientY - svgRect.top - offY) / scale,
   };
 }
 
@@ -128,11 +163,11 @@ export function useChartTooltip(points: TooltipPoint[], viewW: number, viewH: nu
   }, [points]);
 
   const fromPointer = (e: ReactPointerEvent<SVGSVGElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
-    const px = ((e.clientX - rect.left) / rect.width) * viewW;
-    const py = ((e.clientY - rect.top) / rect.height) * viewH;
-    const n = nearestPoint(points, px, py);
+    // Same uniform transform as the tip's placement (pointerToViewBox is svgPointToWrapPx's
+    // inverse) — a cursor and the tip it summons must agree on where the drawing is.
+    const m = pointerToViewBox(e.clientX, e.clientY, viewW, viewH, toBox(e.currentTarget.getBoundingClientRect()));
+    if (!m) return;
+    const n = nearestPoint(points, m.px, m.py);
     setMode('pointer');
     setActive(n);
     if (n) idxRef.current = sorted.findIndex((p) => p.key === n.key);
@@ -228,7 +263,11 @@ export function ChartTooltip({
   }, [resolveEls]);
 
   // Measure before the paint that shows or moves the tip. This is what keeps the very first
-  // KEYBOARD activation right: there is no pointer event to piggyback on.
+  // KEYBOARD activation right: there is no pointer event to piggyback on. It MUST stay a
+  // LAYOUT effect: as a passive effect the first tip would paint one frame at the fallback
+  // percentage position (the ~281px-out bug position) and then TRANSITION to the right one.
+  // jsdom cannot catch that regression — act() flushes passive effects before any assertion
+  // — so a source-text test pins the choice instead (chart-tooltip.test.tsx).
   //
   // Then watch, but only while a tip is actually on screen — a tap leaves one pinned, and
   // this app runs on mid-range Androids, so an idle chart must cost nothing. Observing BOTH
@@ -236,17 +275,21 @@ export function ChartTooltip({
   // (svgRect.left - wrapRect.left), so only a RESIZE can invalidate the mapping. Opening
   // the details dialog locks body scroll, which drops the scrollbar and reflows every
   // column ~15px wider — that is a resize, and it fires here.
-  // Observers are (re)attached per visible tip, so a chart that had no layout at mount
-  // still gets watched once it does.
+  // Keyed on WHETHER a tip is shown, not which point it shows: geometry cannot change
+  // between two points of one chart without a resize the observer already sees, and keying
+  // on the point object would rebuild the observer (+ force a layout) for every step of a
+  // cursor across the chart. Observers are (re)attached per visible tip, so a chart that
+  // had no layout at mount still gets watched once it does.
+  const hasPoint = point !== null;
   useLayoutEffect(() => {
     measure();
-    if (!point || typeof ResizeObserver === 'undefined') return;
+    if (!hasPoint || typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver(() => measure());
     const { wrap, svg } = resolveEls();
     if (wrap) ro.observe(wrap);
     if (svg) ro.observe(svg);
     return () => ro.disconnect();
-  }, [measure, resolveEls, point]);
+  }, [measure, resolveEls, hasPoint]);
 
   const placed = point && boxes ? svgPointToWrapPx(point, viewW, viewH, boxes.svg, boxes.wrap) : null;
   const flip = point ? (placed ? placed.flip : point.x / viewW > TIP_FLIP_AT) : false;
