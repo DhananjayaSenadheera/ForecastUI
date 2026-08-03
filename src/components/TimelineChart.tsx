@@ -7,7 +7,7 @@
 // mandatory — the number is the product. Thin data says "only N months" honestly, and a
 // failed timeline call shows a compact retry note rather than sinking the panel (the hero
 // above already succeeded). Geometry lives in lib/timeline.
-import { useId, useMemo } from 'react';
+import { useId, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { CropTimeline } from '../api/types';
 import { formatPrice, formatDate } from '../lib/format';
@@ -70,6 +70,8 @@ export default function TimelineChart({ timeline, loading, error, onRetry, harve
   }, [geo, timeline, monthLabel, lang, rs, t]);
 
   const tt = useChartTooltip(tipPoints, VIEW_W, VIEW_H);
+  // Measured-box placement: .tl-svg is capped at 660px, the wrapper is not.
+  const svgRef = useRef<SVGSVGElement>(null);
 
   // Table-alternative rows: history + forecast in one paged sequence (the CHART
   // always shows the full series; pagination applies to the tabular view only).
@@ -158,7 +160,7 @@ export default function TimelineChart({ timeline, loading, error, onRetry, harve
       </p>
 
       <div className="ct-wrap">
-      <svg className={`tl-svg${lowTrust ? ' is-low' : ''}`} viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} role="img" aria-label={summary} {...tt.svgProps}>
+      <svg ref={svgRef} className={`tl-svg${lowTrust ? ' is-low' : ''}`} viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} role="img" aria-label={summary} {...tt.svgProps}>
         {/* y gridlines + Rs. labels */}
         {geo.yTicks.map((tk) => (
           <g key={`y${tk.value}`}>
@@ -207,7 +209,7 @@ export default function TimelineChart({ timeline, loading, error, onRetry, harve
 
         {tt.active && <circle className="ct-dot" cx={tt.active.x} cy={tt.active.y} r={5} />}
       </svg>
-        <ChartTooltip point={tt.active} mode={tt.mode} viewW={VIEW_W} viewH={VIEW_H} />
+        <ChartTooltip point={tt.active} mode={tt.mode} viewW={VIEW_W} viewH={VIEW_H} svgRef={svgRef} />
       </div>
 
       {/* MANDATORY table alternative (WCAG) — the number is the product. */}

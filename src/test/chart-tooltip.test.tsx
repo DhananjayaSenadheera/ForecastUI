@@ -1,7 +1,9 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { useRef } from 'react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import {
   nearestPoint,
+  svgPointToWrapPx,
   useChartTooltip,
   ChartTooltip,
   type TooltipPoint,
@@ -33,6 +35,220 @@ describe('chartTooltip — nearest-point math', () => {
   });
   it('returns null for an empty set', () => {
     expect(nearestPoint([], 0, 0)).toBeNull();
+  });
+});
+
+// The real single-market chart: 640x220 viewBox, last point at x=626 (plot.right), and
+// the CSS cap that caused the bug — .pr-svg maxes out at 680px inside a wrapper that
+// stretches to the page column (967px at a 1280px viewport).
+const VW = 640;
+const VH = 220;
+const LAST_X = 626;
+const box = (left: number, top: number, width: number, height: number) => ({ left, top, width, height });
+
+describe('svgPointToWrapPx — viewBox -> wrapper pixels', () => {
+  it('is the identity when the wrapper IS the svg box at scale 1', () => {
+    const p = svgPointToWrapPx({ x: LAST_X, y: 110 }, VW, VH, box(0, 0, VW, VH), box(0, 0, VW, VH))!;
+    expect(p.leftPx).toBeCloseTo(626, 6);
+    expect(p.topPx).toBeCloseTo(110, 6);
+  });
+
+  it('scales with a uniformly resized svg', () => {
+    const p = svgPointToWrapPx({ x: 320, y: 110 }, VW, VH, box(0, 0, 320, 110), box(0, 0, 320, 110))!;
+    expect(p.leftPx).toBeCloseTo(160, 6);
+    expect(p.topPx).toBeCloseTo(55, 6);
+  });
+
+  it('THE BUG: a wrapper wider than the capped svg no longer drags the tip off the chart', () => {
+    // svg 680x233.75 (640x220 at scale 1.0625) inside a 967px wrapper.
+    const svg = box(0, 0, 680, 233.75);
+    const wrap = box(0, 0, 967, 233.75);
+    const p = svgPointToWrapPx({ x: LAST_X, y: 110 }, VW, VH, svg, wrap)!;
+    expect(p.leftPx).toBeCloseTo(665.125, 3); // 626 * 1.0625
+    // The old wrapper-percentage answer, and the ~281px displacement it produced.
+    const oldLeftPx = (LAST_X / VW) * wrap.width;
+    expect(oldLeftPx).toBeCloseTo(945.83, 1);
+    expect(oldLeftPx - p.leftPx).toBeGreaterThan(275);
+    // The point must land inside the drawn chart, never past its right edge.
+    expect(p.leftPx).toBeLessThanOrEqual(svg.width);
+  });
+
+  it('adds the svg offset when the svg is inset inside the wrapper', () => {
+    const p = svgPointToWrapPx({ x: LAST_X, y: 110 }, VW, VH, box(100, 12, 680, 233.75), box(40, 0, 967, 250))!;
+    expect(p.leftPx).toBeCloseTo(60 + 665.125, 3); // (100-40) + 626*1.0625
+    expect(p.topPx).toBeCloseTo(12 + 116.875, 3); // (12-0) + 110*1.0625
+  });
+
+  it('centres the drawing when a max-height cap letterboxes it horizontally', () => {
+    // .pf-card__chart .pr-svg { max-height:160px } binding on a 640px-wide element.
+    const p = svgPointToWrapPx({ x: LAST_X, y: 110 }, VW, VH, box(0, 0, 640, 160), box(0, 0, 640, 160))!;
+    const scale = 160 / VH; // 0.72727 — height binds
+    const pad = (640 - VW * scale) / 2; // 87.27 pillarbox on each side
+    expect(p.leftPx).toBeCloseTo(pad + LAST_X * scale, 3);
+    expect(p.topPx).toBeCloseTo(80, 3);
+    expect(p.leftPx).toBeLessThan(640 - pad); // still inside the drawing
+  });
+
+  it('centres the drawing when a width cap letterboxes it vertically', () => {
+    const p = svgPointToWrapPx({ x: 320, y: 110 }, VW, VH, box(0, 0, 320, 220), box(0, 0, 320, 220))!;
+    expect(p.leftPx).toBeCloseTo(160, 3);
+    expect(p.topPx).toBeCloseTo(55 + 55, 3); // 55px letterbox + 110*0.5
+  });
+
+  it('flips in the right third and drops below in the top 30% of the DRAWN box', () => {
+    const at = (x: number, y: number, svg = box(0, 0, 100, 100), wrap = box(0, 0, 100, 100)) =>
+      svgPointToWrapPx({ x, y }, 100, 100, svg, wrap)!;
+    expect(at(66, 50).flip).toBe(false);
+    expect(at(67, 50).flip).toBe(true);
+    expect(at(50, 30).below).toBe(false);
+    expect(at(50, 29).below).toBe(true);
+    // Same fractions on a letterboxed, offset box — thresholds follow the drawing.
+    const svg = box(200, 0, 400, 100);
+    const wrap = box(0, 0, 900, 100);
+    expect(at(66, 50, svg, wrap).flip).toBe(false);
+    expect(at(67, 50, svg, wrap).flip).toBe(true);
+    expect(at(50, 29, svg, wrap).below).toBe(true);
+  });
+
+  it('returns null when nothing has been laid out (jsdom, hidden chart, bad viewBox)', () => {
+    expect(svgPointToWrapPx({ x: 1, y: 1 }, VW, VH, box(0, 0, 0, 0), box(0, 0, 0, 0))).toBeNull();
+    expect(svgPointToWrapPx({ x: 1, y: 1 }, VW, VH, box(0, 0, 680, 0), box(0, 0, 967, 0))).toBeNull();
+    expect(svgPointToWrapPx({ x: 1, y: 1 }, 0, VH, box(0, 0, 680, 234), box(0, 0, 967, 234))).toBeNull();
+  });
+});
+
+// Wires the real component to stubbed layout: only the <svg> and the .ct-wrap report a box,
+// everything else stays 0x0 (as in real jsdom), so a wrong wrapper lookup shows up as a
+// wrong number rather than passing quietly.
+function stubLayout(svg: ReturnType<typeof box>, wrap: ReturnType<typeof box>, deco = box(0, 0, 0, 0)) {
+  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+    const r = this.classList.contains('deco')
+      ? deco
+      : this.tagName.toLowerCase() === 'svg'
+        ? svg
+        : this.classList.contains('ct-wrap')
+          ? wrap
+          : box(0, 0, 0, 0);
+    return { ...r, right: r.left + r.width, bottom: r.top + r.height, x: r.left, y: r.top, toJSON: () => ({}) } as DOMRect;
+  });
+}
+
+// jsdom has no ResizeObserver. This stands in for one: it records what is being observed
+// and lets a test fire the callback by hand.
+function stubResizeObserver() {
+  const live = new Set<{ els: Element[]; cb: () => void }>();
+  class RO {
+    entry = { els: [] as Element[], cb: () => {} };
+    constructor(cb: () => void) {
+      this.entry.cb = cb;
+      live.add(this.entry);
+    }
+    observe(el: Element) { this.entry.els.push(el); }
+    unobserve() { /* unused */ }
+    disconnect() { live.delete(this.entry); }
+  }
+  vi.stubGlobal('ResizeObserver', RO);
+  return {
+    observed: () => [...live].flatMap((e) => e.els).map((el) => el.tagName),
+    fire: () => live.forEach((e) => e.cb()),
+  };
+}
+
+function MeasuredHarness({ decoy = false }: { decoy?: boolean }) {
+  const points: TooltipPoint[] = [
+    { key: 'a', x: 10, y: 110, label: 'Jul 1', valueText: 'Rs. 100', announce: 'Jul 1 · Rs. 100' },
+    { key: 'z', x: LAST_X, y: 110, label: 'Jul 30', valueText: 'Rs. 200', announce: 'Jul 30 · Rs. 200' },
+  ];
+  const tt = useChartTooltip(points, VW, VH);
+  const svgRef = useRef<SVGSVGElement>(null);
+  return (
+    <div className="ct-wrap">
+      {/* A decorative icon that happens to sit inside the wrapper BEFORE the chart. */}
+      {decoy && <svg className="deco" aria-hidden="true" />}
+      <svg ref={svgRef} data-testid="chart" viewBox={`0 0 ${VW} ${VH}`} role="img" aria-label="chart" {...tt.svgProps} />
+      <ChartTooltip point={tt.active} mode={tt.mode} viewW={VW} viewH={VH} svgRef={svgRef} />
+    </div>
+  );
+}
+
+describe('ChartTooltip — placement against the measured svg box', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('positions the last point in pixels on the chart, not on the wider wrapper', () => {
+    stubLayout(box(100, 12, 680, 233.75), box(40, 0, 967, 250));
+    render(<MeasuredHarness />);
+    const svg = screen.getByTestId('chart');
+    fireEvent.focus(svg);
+    fireEvent.keyDown(svg, { key: 'ArrowLeft' }); // first keyboard activation lands on the LAST point
+    const tip = document.querySelector('.ct-tip') as HTMLElement;
+    expect(tip.textContent).toContain('Rs. 200');
+    expect(parseFloat(tip.style.left)).toBeCloseTo(725.125, 2); // 60 + 626*1.0625
+    expect(tip.style.left.endsWith('px')).toBe(true);
+    expect(parseFloat(tip.style.top)).toBeCloseTo(128.875, 2); // 12 + 110*1.0625
+    expect(tip.className).toContain('ct-tip--flip');
+    expect(tip.className).not.toContain('ct-tip--below');
+  });
+
+  it('re-measures when the chart is resized under a VISIBLE tooltip', () => {
+    const ro = stubResizeObserver();
+    stubLayout(box(0, 0, 680, 233.75), box(0, 0, 967, 233.75));
+    render(<MeasuredHarness />);
+    const svg = screen.getByTestId('chart');
+    fireEvent.focus(svg);
+    fireEvent.keyDown(svg, { key: 'ArrowLeft' });
+    expect(parseFloat((document.querySelector('.ct-tip') as HTMLElement).style.left)).toBeCloseTo(665.125, 2);
+    // Both boxes are watched (the drawn box is what the mapping depends on).
+    expect(ro.observed()).toEqual(expect.arrayContaining(['DIV', 'svg']));
+    // The dialog locks body scroll: the scrollbar goes and the column reflows narrower.
+    stubLayout(box(0, 0, 360, 123.75), box(0, 0, 360, 123.75));
+    act(() => ro.fire());
+    expect(parseFloat((document.querySelector('.ct-tip') as HTMLElement).style.left)).toBeCloseTo(352.125, 2);
+  });
+
+  it('watches nothing while no tooltip is shown', () => {
+    const ro = stubResizeObserver();
+    stubLayout(box(0, 0, 680, 233.75), box(0, 0, 967, 233.75));
+    render(<MeasuredHarness />);
+    expect(ro.observed()).toEqual([]); // idle chart costs nothing
+    const svg = screen.getByTestId('chart');
+    fireEvent.focus(svg);
+    fireEvent.keyDown(svg, { key: 'ArrowLeft' });
+    expect(ro.observed().length).toBe(2);
+    fireEvent.keyDown(svg, { key: 'Escape' });
+    expect(ro.observed()).toEqual([]); // ...and stops again on dismiss
+  });
+
+  it('measures on the FIRST keyboard activation, with no pointer event to piggyback on', () => {
+    render(<MeasuredHarness />); // mounts before the chart column has any layout
+    stubLayout(box(0, 0, 680, 233.75), box(0, 0, 967, 233.75)); // laid out later, no resize event
+    const svg = screen.getByTestId('chart');
+    fireEvent.focus(svg);
+    fireEvent.keyDown(svg, { key: 'ArrowLeft' });
+    const tip = document.querySelector('.ct-tip') as HTMLElement;
+    expect(parseFloat(tip.style.left)).toBeCloseTo(665.125, 2);
+  });
+
+  it('uses the svgRef, not "the first svg in the wrapper", when an icon shares the box', () => {
+    stubLayout(box(0, 0, 680, 233.75), box(0, 0, 967, 233.75), box(0, 0, 16, 16));
+    render(<MeasuredHarness decoy />);
+    const svg = screen.getByTestId('chart');
+    fireEvent.focus(svg);
+    fireEvent.keyDown(svg, { key: 'ArrowLeft' });
+    const tip = document.querySelector('.ct-tip') as HTMLElement;
+    expect(parseFloat(tip.style.left)).toBeCloseTo(665.125, 2); // the chart's box, not the 16px icon's
+  });
+
+  it('falls back to wrapper percentages when nothing is laid out', () => {
+    render(<MeasuredHarness />); // no layout stub: every rect is 0x0
+    const svg = screen.getByTestId('chart');
+    fireEvent.focus(svg);
+    fireEvent.keyDown(svg, { key: 'ArrowLeft' });
+    const tip = document.querySelector('.ct-tip') as HTMLElement;
+    expect(tip.style.left).toBe(`${(LAST_X / VW) * 100}%`);
+    expect(tip.className).toContain('ct-tip--flip');
   });
 });
 

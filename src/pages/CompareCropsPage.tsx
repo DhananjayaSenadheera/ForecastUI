@@ -195,6 +195,9 @@ export default function CompareCropsPage() {
   }, [geo, monthLabel, lang, rs, t]);
 
   const tt = useChartTooltip(tipPoints, VIEW_W, VIEW_H);
+  // Measured-box placement — .cmp-svg is uncapped today, but the tooltip must not depend
+  // on that staying true (and a max-height cap would letterbox the drawing).
+  const chartSvgRef = useRef<SVGSVGElement>(null);
 
   const summary = t('pages.compare.chartAria', {
     crops: okIds.map((id) => nameFor(id)).join(', '),
@@ -294,7 +297,7 @@ export default function CompareCropsPage() {
           {okIds.length > 0 && geo ? (
             <>
               <div className={`cmp-svgwrap ct-wrap${anyLoading ? ' is-busy' : ''}`} aria-busy={anyLoading || undefined}>
-                <svg className="cmp-svg" viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} role="img" aria-label={summary} {...tt.svgProps}>
+                <svg ref={chartSvgRef} className="cmp-svg" viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} role="img" aria-label={summary} {...tt.svgProps}>
                   {/* y gridlines + Rs. labels */}
                   {geo.yTicks.map((tk) => (
                     <g key={`y${tk.value}`}>
@@ -349,7 +352,7 @@ export default function CompareCropsPage() {
 
                   {tt.active && <circle className="ct-dot" cx={tt.active.x} cy={tt.active.y} r={5} />}
                 </svg>
-                <ChartTooltip point={tt.active} mode={tt.mode} viewW={VIEW_W} viewH={VIEW_H} />
+                <ChartTooltip point={tt.active} mode={tt.mode} viewW={VIEW_W} viewH={VIEW_H} svgRef={chartSvgRef} />
               </div>
 
               <p className="cmp-keys" aria-hidden="true">

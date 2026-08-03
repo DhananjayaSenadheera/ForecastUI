@@ -12,7 +12,7 @@
 // <=4 compared markets (never by price rank), because a full-list mapping would collide
 // once there are 10 live markets and only 4 colours. Every chart ships a table
 // alternative; geometry lives in lib/prices.
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import type { Crop, Market, PriceHistoryPoint } from '../api/types';
@@ -313,6 +313,8 @@ function MarketOverlayChart({ inputs, markets, overlayIds, marketColors, onToggl
   }, [geo, lang, rs, t]);
 
   const tt = useChartTooltip(tipPoints, VIEW_W, VIEW_H);
+  // Measured-box placement: .pr-svg is capped at 680px, the wrapper is not.
+  const svgRef = useRef<SVGSVGElement>(null);
 
   const withData = inputs.filter((s) => s.history.length > 0);
   const summary = t('pages.prices.overlayAria', {
@@ -357,7 +359,7 @@ function MarketOverlayChart({ inputs, markets, overlayIds, marketColors, onToggl
       ) : (
         <>
           <div className="ct-wrap">
-            <svg className="pr-svg" viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} role="img" aria-label={summary} {...tt.svgProps}>
+            <svg ref={svgRef} className="pr-svg" viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} role="img" aria-label={summary} {...tt.svgProps}>
               {geo.yTicks.map((tk) => (
                 <g key={`y${tk.value}`}>
                   <line className="pr-grid" x1={geo.dims.plot.left} y1={tk.y} x2={geo.dims.plot.right} y2={tk.y} />
@@ -387,7 +389,7 @@ function MarketOverlayChart({ inputs, markets, overlayIds, marketColors, onToggl
                 </text>
               ))}
             </svg>
-            <ChartTooltip point={tt.active} mode={tt.mode} viewW={VIEW_W} viewH={VIEW_H} />
+            <ChartTooltip point={tt.active} mode={tt.mode} viewW={VIEW_W} viewH={VIEW_H} svgRef={svgRef} />
           </div>
 
           <MarketDayTable inputs={withData} cropLabel={cropLabel} lang={lang} />
